@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { CHART_WORKER_CONTRACT } from "@lumis/astrology";
@@ -148,6 +148,7 @@ function ProfileFormScreen({
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
+  const [timeUnknown, setTimeUnknown] = useState(false);
   const [birthPlace, setBirthPlace] = useState("");
   const [error, setError] = useState("");
 
@@ -155,7 +156,8 @@ function ProfileFormScreen({
     const nextProfileData = {
       name: name.trim(),
       birthDate: birthDate.trim(),
-      birthTime: birthTime.trim(),
+      birthTime: timeUnknown ? "" : birthTime.trim(),
+      timeUnknown,
       birthPlace: birthPlace.trim()
     };
 
@@ -213,7 +215,20 @@ function ProfileFormScreen({
             value={birthTime}
             onChangeText={setBirthTime}
             placeholder="HH:MM"
+            editable={!timeUnknown}
           />
+          <Pressable
+            style={[styles.toggleRow, timeUnknown && styles.toggleRowActive]}
+            onPress={() => setTimeUnknown((current) => !current)}
+          >
+            <View style={[styles.toggleBox, timeUnknown && styles.toggleBoxActive]}>
+              <Text style={styles.toggleCheck}>{timeUnknown ? "✓" : ""}</Text>
+            </View>
+            <View style={styles.toggleTextWrap}>
+              <Text style={styles.toggleTitle}>I do not know my birth time</Text>
+              <Text style={styles.toggleBody}>Lumis can still generate a lower-precision chart.</Text>
+            </View>
+          </Pressable>
           <FormField
             label="Birth place"
             value={birthPlace}
@@ -307,7 +322,10 @@ function ChartPreviewScreen({
         <View style={styles.summaryPanel}>
           <SummaryRow label="Display name" value={profileData.name} />
           <SummaryRow label="Birth date" value={profileData.birthDate} />
-          <SummaryRow label="Birth time" value={profileData.birthTime} />
+          <SummaryRow
+            label="Birth time"
+            value={profileData.timeUnknown ? "Unknown - no birth time precision" : profileData.birthTime}
+          />
           <SummaryRow label="Birth place" value={profileData.birthPlace} />
         </View>
 
@@ -315,9 +333,9 @@ function ChartPreviewScreen({
           <Text style={styles.noticeTitle}>API payload draft</Text>
           <Text style={styles.apiLine}>POST {CHART_WORKER_CONTRACT.supabaseFunction}</Text>
           <Text style={styles.apiBody}>
-            {chartDraft.display_name}, {chartDraft.birth_date}, {chartDraft.birth_time},{" "}
-            {chartDraft.place_name} → signed Cloudflare worker {CHART_WORKER_CONTRACT.endpoint} →
-            Supabase chart_v2
+            {chartDraft.display_name}, {chartDraft.birth_date},{" "}
+            {chartDraft.time_unknown ? "time unknown" : chartDraft.birth_time}, {chartDraft.place_name}{" "}
+            → signed Cloudflare worker {CHART_WORKER_CONTRACT.endpoint} → Supabase chart_v2
           </Text>
         </View>
 
@@ -378,37 +396,36 @@ function FormField({
   label,
   value,
   onChangeText,
-  placeholder
+  placeholder,
+  editable = true
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
+  editable?: boolean;
 }) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        style={styles.fieldInput}
+        style={[styles.fieldInput, !editable && styles.fieldInputDisabled]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#B2A48F"
+        editable={editable}
       />
     </View>
   );
 }
 
 function LumisLogo({ size }: { size: number }) {
-  const center = size / 2;
-
   return (
     <Svg width={size} height={size} viewBox="0 0 120 120">
       <Circle cx="60" cy="60" r="44" fill="none" stroke="#B4863F" strokeWidth="1.8" opacity="0.72" />
       <Circle cx="60" cy="60" r="25" fill="none" stroke="#5B63B7" strokeWidth="1.55" opacity="0.72" />
-      <G rotation="-28" origin={`${center}, ${center}`}>
-        <Circle cx="84" cy="29" r="7" fill="#D2A24F" />
-      </G>
+      <Circle cx="66.6" cy="21.4" r="7" fill="#D2A24F" />
       <SvgText
         x="60"
         y="68"
@@ -638,11 +655,8 @@ const styles = StyleSheet.create({
     padding: 15
   },
   personaCardActive: {
-    borderColor: "#B4863F",
-    shadowColor: "#B4863F",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18
+    backgroundColor: "rgba(180,134,63,0.08)",
+    borderColor: "#B4863F"
   },
   personaIcon: {
     alignItems: "center",
@@ -811,6 +825,57 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: 15,
     paddingVertical: 12
+  },
+  fieldInputDisabled: {
+    opacity: 0.5
+  },
+  toggleRow: {
+    alignItems: "center",
+    backgroundColor: "#F7F0E3",
+    borderColor: "rgba(120,90,40,0.14)",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 14
+  },
+  toggleRowActive: {
+    backgroundColor: "rgba(180,134,63,0.12)",
+    borderColor: "rgba(180,134,63,0.30)"
+  },
+  toggleBox: {
+    alignItems: "center",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.22)",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 26,
+    justifyContent: "center",
+    width: 26
+  },
+  toggleBoxActive: {
+    backgroundColor: "#B4863F",
+    borderColor: "#B4863F"
+  },
+  toggleCheck: {
+    color: "#FBF7EE",
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 18
+  },
+  toggleTextWrap: {
+    flex: 1,
+    gap: 2
+  },
+  toggleTitle: {
+    color: "#2F2B25",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  toggleBody: {
+    color: "#7B6E5F",
+    fontSize: 12,
+    lineHeight: 17
   },
   errorCard: {
     backgroundColor: "rgba(146,49,36,0.10)",

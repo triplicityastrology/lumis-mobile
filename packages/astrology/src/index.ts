@@ -19,7 +19,8 @@ export type SignedChartWorkerRequest = {
 export type ProfileChartDraft = {
   display_name: string;
   birth_date: string;
-  birth_time: string;
+  birth_time: string | null;
+  time_unknown: boolean;
   place_name: string;
 };
 
@@ -27,12 +28,14 @@ export function buildProfileChartDraft(input: {
   name: string;
   birthDate: string;
   birthTime: string;
+  timeUnknown?: boolean;
   birthPlace: string;
 }): ProfileChartDraft {
   return {
     display_name: input.name.trim(),
     birth_date: input.birthDate.trim(),
-    birth_time: input.birthTime.trim(),
+    birth_time: input.timeUnknown ? null : input.birthTime.trim(),
+    time_unknown: input.timeUnknown ?? false,
     place_name: input.birthPlace.trim()
   };
 }

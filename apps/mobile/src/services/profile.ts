@@ -6,6 +6,7 @@ export type BirthProfileForm = {
   name: string;
   birthDate: string;
   birthTime: string;
+  timeUnknown: boolean;
   birthPlace: string;
 };
 
@@ -16,7 +17,8 @@ export type PreparedChartProfileRequest = {
   payload: {
     display_name: string;
     birth_date: string;
-    birth_time: string;
+    birth_time: string | null;
+    time_unknown: boolean;
     place_name: string;
   };
 };
@@ -40,7 +42,11 @@ export type ChartProfileResult =
 export function prepareChartProfileRequest(
   form: BirthProfileForm
 ): PreparedChartProfileRequest {
-  const payload = buildProfileChartDraft(form);
+  const payload = {
+    ...buildProfileChartDraft(form),
+    birth_time: form.timeUnknown ? null : form.birthTime.trim(),
+    time_unknown: form.timeUnknown
+  };
 
   return {
     status: "prepared",
@@ -56,7 +62,7 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
   const birthTime = form.birthTime.trim();
   const birthPlace = form.birthPlace.trim();
 
-  if (!name || !birthDate || !birthTime || !birthPlace) {
+  if (!name || !birthDate || !birthPlace || (!form.timeUnknown && !birthTime)) {
     return {
       isValid: false,
       message: "Please fill in all birth details before continuing."
@@ -70,7 +76,7 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
     };
   }
 
-  if (!isValidTime(birthTime)) {
+  if (!form.timeUnknown && !isValidTime(birthTime)) {
     return {
       isValid: false,
       message: "Please enter birth time as HH:MM using 24-hour time."
