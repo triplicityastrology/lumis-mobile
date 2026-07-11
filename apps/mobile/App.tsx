@@ -257,8 +257,15 @@ function ChartPreviewScreen({
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const chartDraft = prepareChartProfileRequest(profileData).payload;
+  const previewValidation = validateBirthProfileForm(profileData);
+  const canGenerate = previewValidation.isValid && !isSubmitting;
 
   async function handleGenerateChartProfile() {
+    if (!previewValidation.isValid) {
+      setSubmitError(previewValidation.message ?? "Please edit the birth details before generating.");
+      return;
+    }
+
     setSubmitError("");
     setIsSubmitting(true);
 
@@ -314,6 +321,14 @@ function ChartPreviewScreen({
           </Text>
         </View>
 
+        {!previewValidation.isValid ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>
+              {previewValidation.message ?? "Please edit the birth details before generating."}
+            </Text>
+          </View>
+        ) : null}
+
         {chartResult ? (
           <View style={styles.successCard}>
             <Text style={styles.successTitle}>
@@ -334,9 +349,9 @@ function ChartPreviewScreen({
         ) : null}
 
         <Pressable
-          style={[styles.fullPrimaryButton, isSubmitting && styles.disabledButton]}
+          style={[styles.fullPrimaryButton, !canGenerate && styles.disabledButton]}
           onPress={handleGenerateChartProfile}
-          disabled={isSubmitting}
+          disabled={!canGenerate}
         >
           <Text style={styles.fullPrimaryButtonText}>
             {isSubmitting ? "Preparing chart request..." : "Generate chart profile"}

@@ -77,10 +77,10 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
     };
   }
 
-  if (birthPlace.length < 2) {
+  if (!isUsefulPlaceInput(birthPlace)) {
     return {
       isValid: false,
-      message: "Please enter a valid birth place."
+      message: "Please enter a city and country/region, e.g. Hong Kong or London, UK."
     };
   }
 
@@ -117,6 +117,16 @@ function isValidTime(value: string): boolean {
   const minute = Number(match[2]);
 
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+}
+
+function isUsefulPlaceInput(value: string): boolean {
+  const normalized = value.trim().replace(/\s+/g, " ");
+
+  if (normalized.length < 3 || !/[a-zA-Z\u4e00-\u9fff]/.test(normalized)) {
+    return false;
+  }
+
+  return normalized.includes(",") || normalized.split(" ").length >= 2;
 }
 
 export async function submitChartProfile(form: BirthProfileForm): Promise<ChartProfileResult> {
