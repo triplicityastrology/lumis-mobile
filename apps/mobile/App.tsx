@@ -8,8 +8,9 @@ import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS } from "@lumis/s
 
 import {
   prepareChartProfileRequest,
+  submitChartProfile,
   type BirthProfileForm,
-  type PreparedChartProfileRequest
+  type ChartProfileResult
 } from "./src/services/profile";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
@@ -254,8 +255,24 @@ function ChartPreviewScreen({
   onBack: () => void;
   onStartOver: () => void;
 }) {
-  const [preparedRequest, setPreparedRequest] = useState<PreparedChartProfileRequest | null>(null);
+  const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const chartDraft = prepareChartProfileRequest(profileData).payload;
+
+  async function handleGenerateChartProfile() {
+    setSubmitError("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await submitChartProfile(profileData);
+      setChartResult(result);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Unable to prepare chart request.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -299,21 +316,33 @@ function ChartPreviewScreen({
           </Text>
         </View>
 
-        {preparedRequest ? (
+        {chartResult ? (
           <View style={styles.successCard}>
-            <Text style={styles.successTitle}>Chart request prepared</Text>
+            <Text style={styles.successTitle}>
+              {chartResult.mode === "supabase" ? "Chart request submitted" : "Chart request prepared"}
+            </Text>
             <Text style={styles.successBody}>
-              Ready to call {preparedRequest.endpoint}. The next implementation slice will replace
-              this local preparation with a real Supabase function call.
+              {chartResult.mode === "supabase"
+                ? "Supabase accepted the profile request. Next we will store and render the returned chart profile."
+                : chartResult.message}
             </Text>
           </View>
         ) : null}
 
+        {submitError ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{submitError}</Text>
+          </View>
+        ) : null}
+
         <Pressable
-          style={styles.fullPrimaryButton}
-          onPress={() => setPreparedRequest(prepareChartProfileRequest(profileData))}
+          style={[styles.fullPrimaryButton, isSubmitting && styles.disabledButton]}
+          onPress={handleGenerateChartProfile}
+          disabled={isSubmitting}
         >
-          <Text style={styles.fullPrimaryButtonText}>Generate chart profile</Text>
+          <Text style={styles.fullPrimaryButtonText}>
+            {isSubmitting ? "Preparing chart request..." : "Generate chart profile"}
+          </Text>
         </Pressable>
         <Pressable style={styles.ghostButton} onPress={onStartOver}>
           <Text style={styles.ghostButtonText}>Start over</Text>
@@ -825,6 +854,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 18,
     paddingVertical: 15
+  },
+  disabledButton: {
+    opacity: 0.62
   },
   fullPrimaryButtonText: {
     color: "#FBF7EE",
