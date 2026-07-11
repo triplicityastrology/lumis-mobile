@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS } from "@lumis/shared";
 
@@ -9,6 +10,12 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 );
 
 export default function App() {
+  const [screen, setScreen] = useState<"home" | "profile">("home");
+
+  if (screen === "profile") {
+    return <ProfileFormScreen onBack={() => setScreen("home")} />;
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -37,7 +44,7 @@ export default function App() {
             you want to be met.
           </Text>
           <View style={styles.heroActions}>
-            <Pressable style={styles.primaryButton}>
+            <Pressable style={styles.primaryButton} onPress={() => setScreen("profile")}>
               <Text style={styles.primaryButtonText}>Create my chart</Text>
             </Pressable>
             <Pressable style={styles.secondaryButton}>
@@ -98,6 +105,105 @@ export default function App() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ProfileFormScreen({ onBack }: { onBack: () => void }) {
+  const [name, setName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
+  const [birthPlace, setBirthPlace] = useState("");
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>Profile 1 of 3</Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <LumisLogo size={84} />
+          </View>
+          <Text style={styles.kicker}>Birth chart profile</Text>
+          <Text style={styles.formTitle}>Create your Lumis Persona.</Text>
+          <Text style={styles.formIntro}>
+            Lumis needs accurate birth details to calculate your chart. This is the first step
+            before chart generation and chat.
+          </Text>
+        </View>
+
+        <View style={styles.formPanel}>
+          <FormField
+            label="Display name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Ruby"
+          />
+          <FormField
+            label="Birth date"
+            value={birthDate}
+            onChangeText={setBirthDate}
+            placeholder="YYYY-MM-DD"
+          />
+          <FormField
+            label="Birth time"
+            value={birthTime}
+            onChangeText={setBirthTime}
+            placeholder="HH:MM"
+          />
+          <FormField
+            label="Birth place"
+            value={birthPlace}
+            onChangeText={setBirthPlace}
+            placeholder="Hong Kong"
+          />
+        </View>
+
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeTitle}>Next technical step</Text>
+          <Text style={styles.noticeBody}>
+            This form will connect to the signed Cloudflare chart worker, then save the generated
+            chart profile into Supabase.
+          </Text>
+        </View>
+
+        <Pressable style={styles.fullPrimaryButton}>
+          <Text style={styles.fullPrimaryButtonText}>Continue to chart preview</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function FormField({
+  label,
+  value,
+  onChangeText,
+  placeholder
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={styles.fieldInput}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#B2A48F"
+      />
+    </View>
   );
 }
 
@@ -419,5 +525,129 @@ const styles = StyleSheet.create({
     color: "#5D5A7C",
     fontSize: 13,
     marginTop: 4
+  },
+  profileTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  backButton: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.14)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 15,
+    paddingVertical: 10
+  },
+  backButtonText: {
+    color: "#6D4F23",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  formStepPill: {
+    backgroundColor: "rgba(91,99,183,0.10)",
+    borderColor: "rgba(91,99,183,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8
+  },
+  formStepText: {
+    color: "#454286",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  formHero: {
+    alignItems: "center",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 24
+  },
+  formLogo: {
+    alignItems: "center",
+    backgroundColor: "#F3ECE0",
+    borderColor: "rgba(180,134,63,0.18)",
+    borderRadius: 58,
+    borderWidth: 1,
+    height: 112,
+    justifyContent: "center",
+    marginBottom: 14,
+    width: 112
+  },
+  formTitle: {
+    color: "#2F2B25",
+    fontSize: 29,
+    fontWeight: "700",
+    lineHeight: 34,
+    marginTop: 6,
+    textAlign: "center"
+  },
+  formIntro: {
+    color: "#6F6252",
+    fontSize: 15,
+    lineHeight: 23,
+    marginTop: 10,
+    textAlign: "center"
+  },
+  formPanel: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16
+  },
+  fieldGroup: {
+    gap: 7
+  },
+  fieldLabel: {
+    color: "#6D4F23",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  fieldInput: {
+    backgroundColor: "#F7F0E3",
+    borderColor: "rgba(120,90,40,0.14)",
+    borderRadius: 16,
+    borderWidth: 1,
+    color: "#2F2B25",
+    fontSize: 16,
+    minHeight: 50,
+    paddingHorizontal: 15,
+    paddingVertical: 12
+  },
+  noticeCard: {
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16
+  },
+  noticeTitle: {
+    color: "#F9F0E1",
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  noticeBody: {
+    color: "#CFC6B6",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 6
+  },
+  fullPrimaryButton: {
+    alignItems: "center",
+    backgroundColor: "#2F2B25",
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 15
+  },
+  fullPrimaryButtonText: {
+    color: "#FBF7EE",
+    fontSize: 15,
+    fontWeight: "800"
   }
 });
