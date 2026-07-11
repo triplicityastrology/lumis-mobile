@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology";
 import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS } from "@lumis/shared";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
@@ -252,6 +253,9 @@ function ChartPreviewScreen({
   onBack: () => void;
   onStartOver: () => void;
 }) {
+  const [generationStatus, setGenerationStatus] = useState<"idle" | "queued">("idle");
+  const chartDraft = buildProfileChartDraft(profileData);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -286,14 +290,25 @@ function ChartPreviewScreen({
 
         <View style={styles.apiCard}>
           <Text style={styles.noticeTitle}>API payload draft</Text>
-          <Text style={styles.apiLine}>POST /profile</Text>
+          <Text style={styles.apiLine}>POST {CHART_WORKER_CONTRACT.supabaseFunction}</Text>
           <Text style={styles.apiBody}>
-            name, birth_date, birth_time, birth_place → signed Cloudflare chart worker → Supabase
-            chart_v2
+            {chartDraft.display_name}, {chartDraft.birth_date}, {chartDraft.birth_time},{" "}
+            {chartDraft.place_name} → signed Cloudflare worker {CHART_WORKER_CONTRACT.endpoint} →
+            Supabase chart_v2
           </Text>
         </View>
 
-        <Pressable style={styles.fullPrimaryButton}>
+        {generationStatus === "queued" ? (
+          <View style={styles.successCard}>
+            <Text style={styles.successTitle}>Chart request prepared</Text>
+            <Text style={styles.successBody}>
+              The next implementation slice will replace this local state with a real Supabase
+              function call.
+            </Text>
+          </View>
+        ) : null}
+
+        <Pressable style={styles.fullPrimaryButton} onPress={() => setGenerationStatus("queued")}>
           <Text style={styles.fullPrimaryButtonText}>Generate chart profile</Text>
         </Pressable>
         <Pressable style={styles.ghostButton} onPress={onStartOver}>
@@ -763,6 +778,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 19
+  },
+  successCard: {
+    backgroundColor: "rgba(52,117,86,0.12)",
+    borderColor: "rgba(52,117,86,0.24)",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14
+  },
+  successTitle: {
+    color: "#2F6F50",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  successBody: {
+    color: "#3F735A",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 5
   },
   noticeCard: {
     backgroundColor: "#10213A",

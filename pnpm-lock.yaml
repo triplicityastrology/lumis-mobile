@@ -17,6 +17,9 @@ importers:
       '@expo/metro-runtime':
         specifier: ~5.0.5
         version: 5.0.5(react-native@0.79.6(@babel/core@7.29.7)(@types/react@19.0.14)(react@19.0.0))
+      '@lumis/astrology':
+        specifier: workspace:*
+        version: link:../../packages/astrology
       '@lumis/shared':
         specifier: workspace:*
         version: link:../../packages/shared

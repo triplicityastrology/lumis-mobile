@@ -16,10 +16,31 @@ export type SignedChartWorkerRequest = {
   calculation_version: "mobile_natal_v1";
 };
 
+export type ProfileChartDraft = {
+  display_name: string;
+  birth_date: string;
+  birth_time: string;
+  place_name: string;
+};
+
+export function buildProfileChartDraft(input: {
+  name: string;
+  birthDate: string;
+  birthTime: string;
+  birthPlace: string;
+}): ProfileChartDraft {
+  return {
+    display_name: input.name.trim(),
+    birth_date: input.birthDate.trim(),
+    birth_time: input.birthTime.trim(),
+    place_name: input.birthPlace.trim()
+  };
+}
+
 export const CHART_WORKER_CONTRACT = {
+  supabaseFunction: "/profile",
   endpoint: "/mobile/natal-chart",
   auth: "HMAC signature from Supabase Edge Function",
   source: "Cloudflare Worker wrapper based on website worker.js",
   storesTruthIn: "Supabase, not Cloudflare KV"
 } as const;
-

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.5",
+    "@lumis/astrology": "workspace:*",
     "@lumis/shared": "workspace:*",
     "@supabase/supabase-js": "^2.52.0",
     "expo": "^53.0.0",
