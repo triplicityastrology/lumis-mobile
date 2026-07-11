@@ -1,0 +1,17 @@
+{
+  "name": "lumis-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @lumis/mobile start",
+    "ios": "pnpm --filter @lumis/mobile ios",
+    "android": "pnpm --filter @lumis/mobile android",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Lumis",
+    "slug": "lumis-mobile",
+    "scheme": "lumis",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1930"
+      }
+    },
+    "extra": {
+      "supabaseUrl": "${EXPO_PUBLIC_SUPABASE_URL}",
+      "supabaseAnonKey": "${EXPO_PUBLIC_SUPABASE_ANON_KEY}"
+    }
+  }
+}
+
