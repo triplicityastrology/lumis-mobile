@@ -9,6 +9,7 @@ import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS } from "@lumis/s
 import {
   prepareChartProfileRequest,
   submitChartProfile,
+  validateBirthProfileForm,
   type BirthProfileForm,
   type ChartProfileResult
 } from "./src/services/profile";
@@ -158,13 +159,10 @@ function ProfileFormScreen({
       birthPlace: birthPlace.trim()
     };
 
-    if (
-      !nextProfileData.name ||
-      !nextProfileData.birthDate ||
-      !nextProfileData.birthTime ||
-      !nextProfileData.birthPlace
-    ) {
-      setError("Please fill in all birth details before continuing.");
+    const validation = validateBirthProfileForm(nextProfileData);
+
+    if (!validation.isValid) {
+      setError(validation.message ?? "Please check the birth details before continuing.");
       return;
     }
 
