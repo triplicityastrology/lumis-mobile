@@ -9,11 +9,37 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
 );
 
+type ProfileData = {
+  name: string;
+  birthDate: string;
+  birthTime: string;
+  birthPlace: string;
+};
+
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "profile">("home");
+  const [screen, setScreen] = useState<"home" | "profile" | "preview">("home");
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
 
   if (screen === "profile") {
-    return <ProfileFormScreen onBack={() => setScreen("home")} />;
+    return (
+      <ProfileFormScreen
+        onBack={() => setScreen("home")}
+        onContinue={(nextProfileData) => {
+          setProfileData(nextProfileData);
+          setScreen("preview");
+        }}
+      />
+    );
+  }
+
+  if (screen === "preview" && profileData) {
+    return (
+      <ChartPreviewScreen
+        profileData={profileData}
+        onBack={() => setScreen("profile")}
+        onStartOver={() => setScreen("home")}
+      />
+    );
   }
 
   return (
@@ -108,11 +134,40 @@ export default function App() {
   );
 }
 
-function ProfileFormScreen({ onBack }: { onBack: () => void }) {
+function ProfileFormScreen({
+  onBack,
+  onContinue
+}: {
+  onBack: () => void;
+  onContinue: (profileData: ProfileData) => void;
+}) {
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
+  const [error, setError] = useState("");
+
+  function handleContinue() {
+    const nextProfileData = {
+      name: name.trim(),
+      birthDate: birthDate.trim(),
+      birthTime: birthTime.trim(),
+      birthPlace: birthPlace.trim()
+    };
+
+    if (
+      !nextProfileData.name ||
+      !nextProfileData.birthDate ||
+      !nextProfileData.birthTime ||
+      !nextProfileData.birthPlace
+    ) {
+      setError("Please fill in all birth details before continuing.");
+      return;
+    }
+
+    setError("");
+    onContinue(nextProfileData);
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -166,6 +221,12 @@ function ProfileFormScreen({ onBack }: { onBack: () => void }) {
           />
         </View>
 
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>Next technical step</Text>
           <Text style={styles.noticeBody}>
@@ -174,11 +235,81 @@ function ProfileFormScreen({ onBack }: { onBack: () => void }) {
           </Text>
         </View>
 
-        <Pressable style={styles.fullPrimaryButton}>
+        <Pressable style={styles.fullPrimaryButton} onPress={handleContinue}>
           <Text style={styles.fullPrimaryButtonText}>Continue to chart preview</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ChartPreviewScreen({
+  profileData,
+  onBack,
+  onStartOver
+}: {
+  profileData: ProfileData;
+  onBack: () => void;
+  onStartOver: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>Profile 2 of 3</Text>
+          </View>
+        </View>
+
+        <View style={styles.previewHero}>
+          <View style={styles.previewWheel}>
+            <ChartWheel />
+          </View>
+          <Text style={styles.kicker}>Chart preview</Text>
+          <Text style={styles.formTitle}>Ready to generate {profileData.name}'s chart.</Text>
+          <Text style={styles.formIntro}>
+            This is the handoff point before Lumis calls the signed chart worker and stores the
+            generated chart profile.
+          </Text>
+        </View>
+
+        <View style={styles.summaryPanel}>
+          <SummaryRow label="Display name" value={profileData.name} />
+          <SummaryRow label="Birth date" value={profileData.birthDate} />
+          <SummaryRow label="Birth time" value={profileData.birthTime} />
+          <SummaryRow label="Birth place" value={profileData.birthPlace} />
+        </View>
+
+        <View style={styles.apiCard}>
+          <Text style={styles.noticeTitle}>API payload draft</Text>
+          <Text style={styles.apiLine}>POST /profile</Text>
+          <Text style={styles.apiBody}>
+            name, birth_date, birth_time, birth_place → signed Cloudflare chart worker → Supabase
+            chart_v2
+          </Text>
+        </View>
+
+        <Pressable style={styles.fullPrimaryButton}>
+          <Text style={styles.fullPrimaryButtonText}>Generate chart profile</Text>
+        </Pressable>
+        <Pressable style={styles.ghostButton} onPress={onStartOver}>
+          <Text style={styles.ghostButtonText}>Start over</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -620,6 +751,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12
   },
+  errorCard: {
+    backgroundColor: "rgba(146,49,36,0.10)",
+    borderColor: "rgba(146,49,36,0.24)",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14
+  },
+  errorText: {
+    color: "#923124",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19
+  },
   noticeCard: {
     backgroundColor: "#10213A",
     borderColor: "rgba(238,224,201,0.18)",
@@ -647,6 +791,84 @@ const styles = StyleSheet.create({
   },
   fullPrimaryButtonText: {
     color: "#FBF7EE",
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  previewHero: {
+    alignItems: "center",
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 24
+  },
+  previewWheel: {
+    alignItems: "center",
+    backgroundColor: "#0B1930",
+    borderColor: "rgba(238,224,201,0.12)",
+    borderRadius: 66,
+    borderWidth: 1,
+    height: 132,
+    justifyContent: "center",
+    marginBottom: 14,
+    width: 132
+  },
+  summaryPanel: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: "hidden"
+  },
+  summaryRow: {
+    borderTopColor: "rgba(120,90,40,0.12)",
+    borderTopWidth: 1,
+    gap: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 14
+  },
+  summaryLabel: {
+    color: "#8A7659",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  summaryValue: {
+    color: "#2F2B25",
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  apiCard: {
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16
+  },
+  apiLine: {
+    color: "#D2A24F",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 8
+  },
+  apiBody: {
+    color: "#CFC6B6",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 5
+  },
+  ghostButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(180,134,63,0.11)",
+    borderColor: "rgba(180,134,63,0.20)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 15
+  },
+  ghostButtonText: {
+    color: "#6D4F23",
     fontSize: 15,
     fontWeight: "800"
   }
