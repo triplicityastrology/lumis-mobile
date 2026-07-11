@@ -3,19 +3,20 @@ import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, G, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology";
+import { CHART_WORKER_CONTRACT } from "@lumis/astrology";
 import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS } from "@lumis/shared";
+
+import {
+  prepareChartProfileRequest,
+  type BirthProfileForm,
+  type PreparedChartProfileRequest
+} from "./src/services/profile";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
 );
 
-type ProfileData = {
-  name: string;
-  birthDate: string;
-  birthTime: string;
-  birthPlace: string;
-};
+type ProfileData = BirthProfileForm;
 
 export default function App() {
   const [screen, setScreen] = useState<"home" | "profile" | "preview">("home");
@@ -253,8 +254,8 @@ function ChartPreviewScreen({
   onBack: () => void;
   onStartOver: () => void;
 }) {
-  const [generationStatus, setGenerationStatus] = useState<"idle" | "queued">("idle");
-  const chartDraft = buildProfileChartDraft(profileData);
+  const [preparedRequest, setPreparedRequest] = useState<PreparedChartProfileRequest | null>(null);
+  const chartDraft = prepareChartProfileRequest(profileData).payload;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -298,17 +299,20 @@ function ChartPreviewScreen({
           </Text>
         </View>
 
-        {generationStatus === "queued" ? (
+        {preparedRequest ? (
           <View style={styles.successCard}>
             <Text style={styles.successTitle}>Chart request prepared</Text>
             <Text style={styles.successBody}>
-              The next implementation slice will replace this local state with a real Supabase
-              function call.
+              Ready to call {preparedRequest.endpoint}. The next implementation slice will replace
+              this local preparation with a real Supabase function call.
             </Text>
           </View>
         ) : null}
 
-        <Pressable style={styles.fullPrimaryButton} onPress={() => setGenerationStatus("queued")}>
+        <Pressable
+          style={styles.fullPrimaryButton}
+          onPress={() => setPreparedRequest(prepareChartProfileRequest(profileData))}
+        >
           <Text style={styles.fullPrimaryButtonText}>Generate chart profile</Text>
         </Pressable>
         <Pressable style={styles.ghostButton} onPress={onStartOver}>
