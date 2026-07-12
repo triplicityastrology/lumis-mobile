@@ -31,6 +31,18 @@ Deno.serve(async (request) => {
     );
   }
 
+  if (!body.country_code || body.lat == null || body.lng == null || !body.tz_str) {
+    return Response.json(
+      {
+        error: {
+          code: "LOCATION_UNRESOLVED",
+          message: "country_code, lat, lng, and tz_str are required before chart generation"
+        }
+      },
+      { status: 400 }
+    );
+  }
+
   const chartRequest: SignedChartWorkerRequest = {
     user_id: "TODO_FROM_SUPABASE_JWT",
     calculation_version: "mobile_natal_v1",
@@ -40,10 +52,10 @@ Deno.serve(async (request) => {
       birth_time: body.birth_time ?? null,
       time_unknown: body.time_unknown ?? false,
       place_name: body.place_name,
-      country_code: body.country_code ?? "HK",
-      lat: body.lat ?? 22.3193,
-      lng: body.lng ?? 114.1694,
-      tz_str: body.tz_str ?? "Asia/Hong_Kong"
+      country_code: body.country_code,
+      lat: body.lat,
+      lng: body.lng,
+      tz_str: body.tz_str
     }
   };
 

@@ -271,7 +271,9 @@ function ChartPreviewScreen({
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const chartDraft = prepareChartProfileRequest(profileData).payload;
+  const preparedRequest = prepareChartProfileRequest(profileData);
+  const chartDraft = preparedRequest.payload;
+  const location = preparedRequest.location;
   const previewValidation = validateBirthProfileForm(profileData);
   const canGenerate = previewValidation.isValid && !isSubmitting;
 
@@ -327,6 +329,15 @@ function ChartPreviewScreen({
             value={profileData.timeUnknown ? "Unknown - no birth time precision" : profileData.birthTime}
           />
           <SummaryRow label="Birth place" value={profileData.birthPlace} />
+          {location.status === "resolved" ? (
+            <>
+              <SummaryRow label="Timezone" value={location.timezone} />
+              <SummaryRow
+                label="Coordinates"
+                value={`${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
+              />
+            </>
+          ) : null}
         </View>
 
         <View style={styles.apiCard}>
@@ -334,8 +345,9 @@ function ChartPreviewScreen({
           <Text style={styles.apiLine}>POST {CHART_WORKER_CONTRACT.supabaseFunction}</Text>
           <Text style={styles.apiBody}>
             {chartDraft.display_name}, {chartDraft.birth_date},{" "}
-            {chartDraft.time_unknown ? "time unknown" : chartDraft.birth_time}, {chartDraft.place_name}{" "}
-            → signed Cloudflare worker {CHART_WORKER_CONTRACT.endpoint} → Supabase chart_v2
+            {chartDraft.time_unknown ? "time unknown" : chartDraft.birth_time}, {chartDraft.place_name}
+            {location.status === "resolved" ? `, ${location.timezone}` : ""} → signed Cloudflare
+            worker {CHART_WORKER_CONTRACT.endpoint} → Supabase chart_v2
           </Text>
         </View>
 

@@ -1,5 +1,6 @@
 import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology";
 
+import { resolveBirthPlace, type BirthPlaceResolution } from "./location";
 import { getSupabaseClient } from "./supabase";
 
 export type BirthProfileForm = {
@@ -20,7 +21,12 @@ export type PreparedChartProfileRequest = {
     birth_time: string | null;
     time_unknown: boolean;
     place_name: string;
+    country_code?: string;
+    lat?: number;
+    lng?: number;
+    tz_str?: string;
   };
+  location: BirthPlaceResolution;
 };
 
 export type BirthProfileValidation = {
@@ -42,17 +48,28 @@ export type ChartProfileResult =
 export function prepareChartProfileRequest(
   form: BirthProfileForm
 ): PreparedChartProfileRequest {
+  const location = resolveBirthPlace(form.birthPlace);
   const payload = {
     ...buildProfileChartDraft(form),
     birth_time: form.timeUnknown ? null : form.birthTime.trim(),
-    time_unknown: form.timeUnknown
+    time_unknown: form.timeUnknown,
+    ...(location.status === "resolved"
+      ? {
+          place_name: location.placeName,
+          country_code: location.countryCode,
+          lat: location.lat,
+          lng: location.lng,
+          tz_str: location.timezone
+        }
+      : {})
   };
 
   return {
     status: "prepared",
     endpoint: CHART_WORKER_CONTRACT.supabaseFunction,
     workerEndpoint: CHART_WORKER_CONTRACT.endpoint,
-    payload
+    payload,
+    location
   };
 }
 
@@ -86,7 +103,16 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
   if (!isUsefulPlaceInput(birthPlace)) {
     return {
       isValid: false,
-      message: "Please enter a city and country/region, e.g. Hong Kong or London, UK."
+      message: "Please choose a supported test place for now: Hong Kong, London, UK, or New York, US."
+    };
+  }
+
+  const location = resolveBirthPlace(birthPlace);
+
+  if (location.status !== "resolved") {
+    return {
+      isValid: false,
+      message: "Please choose a supported test place for now: Hong Kong, London, UK, or New York, US."
     };
   }
 
