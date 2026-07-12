@@ -4,7 +4,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { CHART_WORKER_CONTRACT } from "@lumis/astrology";
-import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS } from "@lumis/shared";
+import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS, type ChartV2 } from "@lumis/shared";
 
 import {
   prepareChartProfileRequest,
@@ -372,6 +372,10 @@ function ChartPreviewScreen({
           </View>
         ) : null}
 
+        {chartResult?.mode === "local" ? (
+          <ChartRevealPanel chart={chartResult.chart} name={profileData.name} />
+        ) : null}
+
         {submitError ? (
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{submitError}</Text>
@@ -392,6 +396,55 @@ function ChartPreviewScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ChartRevealPanel({ chart, name }: { chart: ChartV2; name: string }) {
+  const sun = chart.planets.find((planet) => planet.key === "sun");
+  const moon = chart.planets.find((planet) => planet.key === "moon");
+  const ascendant = chart.angles.ascendant;
+
+  return (
+    <View style={styles.revealPanel}>
+      <View style={styles.revealHeader}>
+        <View style={styles.revealWheel}>
+          <ChartWheel />
+        </View>
+        <View style={styles.revealHeaderText}>
+          <Text style={styles.sectionEyebrow}>Chart profile ready</Text>
+          <Text style={styles.revealTitle}>{name}'s Lumis Persona seed</Text>
+          <Text style={styles.revealBody}>
+            {chart.precision === "full"
+              ? "Fixture chart shown until the real Cloudflare worker returns chart_v2."
+              : "No birth time selected. Houses and Ascendant stay lower precision until exact time is added."}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.bigThreeGrid}>
+        <BigThreeCard label="Sun" value={sun ? `${sun.sign} ${sun.degree}°` : "Pending"} />
+        <BigThreeCard label="Moon" value={moon ? `${moon.sign} ${moon.degree}°` : "Pending"} />
+        <BigThreeCard
+          label="Rising"
+          value={ascendant ? `${ascendant.sign} ${ascendant.degree}°` : "Unknown"}
+        />
+      </View>
+
+      <View style={styles.precisionPill}>
+        <Text style={styles.precisionText}>
+          Precision: {chart.precision === "full" ? "Full chart" : "No birth time"}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function BigThreeCard({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.bigThreeCard}>
+      <Text style={styles.bigThreeLabel}>{label}</Text>
+      <Text style={styles.bigThreeValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -1029,6 +1082,83 @@ const styles = StyleSheet.create({
   ghostButtonText: {
     color: "#6D4F23",
     fontSize: 15,
+    fontWeight: "800"
+  },
+  revealPanel: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 16,
+    padding: 16
+  },
+  revealHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 14
+  },
+  revealWheel: {
+    alignItems: "center",
+    backgroundColor: "#0B1930",
+    borderRadius: 22,
+    height: 106,
+    justifyContent: "center",
+    width: 106
+  },
+  revealHeaderText: {
+    flex: 1
+  },
+  revealTitle: {
+    color: "#2F2B25",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 23
+  },
+  revealBody: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6
+  },
+  bigThreeGrid: {
+    flexDirection: "row",
+    gap: 10
+  },
+  bigThreeCard: {
+    backgroundColor: "#F7F0E3",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 78,
+    padding: 12
+  },
+  bigThreeLabel: {
+    color: "#8A7659",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  bigThreeValue: {
+    color: "#2F2B25",
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 20,
+    marginTop: 8
+  },
+  precisionPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(91,99,183,0.10)",
+    borderColor: "rgba(91,99,183,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  precisionText: {
+    color: "#454286",
+    fontSize: 12,
     fontWeight: "800"
   }
 });

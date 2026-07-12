@@ -1,4 +1,5 @@
 import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology";
+import type { ChartV2 } from "@lumis/shared";
 
 import { resolveBirthPlace, type BirthPlaceResolution } from "./location";
 import { getSupabaseClient } from "./supabase";
@@ -38,6 +39,7 @@ export type ChartProfileResult =
   | (PreparedChartProfileRequest & {
       mode: "local";
       message: string;
+      chart: ChartV2;
     })
   | {
       mode: "supabase";
@@ -170,7 +172,8 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
       ...preparedRequest,
       mode: "local",
       message:
-        "Supabase is not configured yet. The chart request is prepared locally and ready to submit once env vars are set."
+        "Supabase is not configured yet. Showing a fixture chart profile until the real chart worker is connected.",
+      chart: buildFixtureChart(form)
     };
   }
 
@@ -186,5 +189,49 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     mode: "supabase",
     status: "submitted",
     data
+  };
+}
+
+function buildFixtureChart(form: BirthProfileForm): ChartV2 {
+  return {
+    version: "chart_v2",
+    precision: form.timeUnknown ? "no_birth_time" : "full",
+    source: "fixture",
+    calculatedAt: new Date().toISOString(),
+    planets: [
+      {
+        key: "sun",
+        label: "Sun",
+        sign: "Capricorn",
+        degree: 10,
+        house: form.timeUnknown ? undefined : 1
+      },
+      {
+        key: "moon",
+        label: "Moon",
+        sign: "Cancer",
+        degree: 18,
+        house: form.timeUnknown ? undefined : 7
+      },
+      {
+        key: "ascendant",
+        label: "Ascendant",
+        sign: form.timeUnknown ? "Unknown" : "Libra",
+        degree: form.timeUnknown ? 0 : 6,
+        house: form.timeUnknown ? undefined : 1
+      }
+    ],
+    houses: [],
+    angles: {
+      ascendant: form.timeUnknown
+        ? undefined
+        : {
+            key: "ascendant",
+            label: "Ascendant",
+            sign: "Libra",
+            degree: 6,
+            house: 1
+          }
+    }
   };
 }
