@@ -44,3 +44,6 @@ docs/implementation-notes   Technical handoff notes
 - Chart generation goes through Supabase `/profile`, which calls a signed Cloudflare Worker wrapper based on the existing Triplicity website chart Worker.
 - Billing structure is scaffolded now; live RevenueCat/App Store purchases are deferred.
 
+## Setup Guides
+
+- Supabase project setup: [docs/setup/supabase-project-setup.md](docs/setup/supabase-project-setup.md)

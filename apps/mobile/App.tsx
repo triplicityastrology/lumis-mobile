@@ -21,6 +21,7 @@ import {
   type BirthProfileForm,
   type ChartProfileResult
 } from "./src/services/profile";
+import { getAuthStatus, sendMagicLink, signOut, type AuthStatus } from "./src/services/auth";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
@@ -29,10 +30,27 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 type ProfileData = BirthProfileForm;
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "profile" | "preview" | "persona" | "chat">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+
+  async function refreshAuthStatus() {
+    const status = await getAuthStatus();
+    setAuthStatus(status);
+  }
+
+  if (screen === "auth") {
+    return (
+      <AuthScreen
+        authStatus={authStatus}
+        onBack={() => setScreen("home")}
+        onContinueLocal={() => setScreen("profile")}
+        onRefreshAuthStatus={refreshAuthStatus}
+      />
+    );
+  }
 
   if (screen === "profile") {
     return (
@@ -100,9 +118,17 @@ export default function App() {
               <Text style={styles.wordmarkSub}>星伴 Lumis</Text>
             </View>
           </View>
-          <View style={styles.creditPill}>
-            <Text style={styles.creditPillText}>50 credits</Text>
-          </View>
+          <Pressable
+            style={styles.creditPill}
+            onPress={async () => {
+              await refreshAuthStatus();
+              setScreen("auth");
+            }}
+          >
+            <Text style={styles.creditPillText}>
+              {authStatus?.user?.email ? "Account" : "Sign in"}
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.hero}>
@@ -175,6 +201,145 @@ export default function App() {
             {PRODUCTS[2].priceHkd}
           </Text>
         </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function AuthScreen({
+  authStatus,
+  onBack,
+  onContinueLocal,
+  onRefreshAuthStatus
+}: {
+  authStatus: AuthStatus | null;
+  onBack: () => void;
+  onContinueLocal: () => void;
+  onRefreshAuthStatus: () => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSendMagicLink() {
+    const cleanedEmail = email.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const result = await sendMagicLink(cleanedEmail);
+      setMessage(result.message);
+      await onRefreshAuthStatus();
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "Unable to send magic link.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setError("");
+    setMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await signOut();
+      await onRefreshAuthStatus();
+      setMessage("Signed out.");
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "Unable to sign out.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>
+              {authStatus?.isConfigured ? "Supabase ready" : "Local demo"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <LumisLogo size={84} />
+          </View>
+          <Text style={styles.kicker}>Lumis account</Text>
+          <Text style={styles.formTitle}>Sign in before your chart is saved.</Text>
+          <Text style={styles.formIntro}>
+            Use email magic link for the first development build. You can still continue locally
+            while the Supabase project is being created.
+          </Text>
+        </View>
+
+        <View style={styles.formPanel}>
+          {authStatus?.user?.email ? (
+            <View style={styles.accountCard}>
+              <Text style={styles.accountLabel}>Signed in</Text>
+              <Text style={styles.accountEmail}>{authStatus.user.email}</Text>
+            </View>
+          ) : (
+            <FormField
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="ruby@example.com"
+            />
+          )}
+        </View>
+
+        {message ? (
+          <View style={styles.successCard}>
+            <Text style={styles.successTitle}>Account update</Text>
+            <Text style={styles.successBody}>{message}</Text>
+          </View>
+        ) : null}
+
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {authStatus?.user ? (
+          <Pressable
+            style={[styles.fullPrimaryButton, isSubmitting && styles.disabledButton]}
+            onPress={handleSignOut}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.fullPrimaryButtonText}>{isSubmitting ? "Signing out..." : "Sign out"}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.fullPrimaryButton, isSubmitting && styles.disabledButton]}
+            onPress={handleSendMagicLink}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.fullPrimaryButtonText}>
+              {isSubmitting ? "Sending magic link..." : "Send magic link"}
+            </Text>
+          </Pressable>
+        )}
+
+        <Pressable style={styles.ghostButton} onPress={onContinueLocal}>
+          <Text style={styles.ghostButtonText}>Continue local demo</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1364,6 +1529,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 16
+  },
+  accountCard: {
+    backgroundColor: "#F7F0E3",
+    borderColor: "rgba(120,90,40,0.14)",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 15
+  },
+  accountLabel: {
+    color: "#8A7659",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  accountEmail: {
+    color: "#2F2B25",
+    fontSize: 16,
+    fontWeight: "800",
+    marginTop: 5
   },
   fieldGroup: {
     gap: 7
