@@ -28,8 +28,9 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 type ProfileData = BirthProfileForm;
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "profile" | "preview" | "persona">("home");
+  const [screen, setScreen] = useState<"home" | "profile" | "preview" | "persona" | "chat">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
 
   if (screen === "profile") {
@@ -50,7 +51,10 @@ export default function App() {
         profileData={profileData}
         onBack={() => setScreen("profile")}
         onStartOver={() => setScreen("home")}
-        onContinuePersona={() => setScreen("persona")}
+        onContinuePersona={(chart) => {
+          setChartProfile(chart);
+          setScreen("persona");
+        }}
       />
     );
   }
@@ -62,6 +66,19 @@ export default function App() {
         selectedStyle={personaStyle}
         onSelectStyle={setPersonaStyle}
         onBack={() => setScreen("preview")}
+        onEnterChat={() => setScreen("chat")}
+        onStartOver={() => setScreen("home")}
+      />
+    );
+  }
+
+  if (screen === "chat" && profileData) {
+    return (
+      <ChatShellScreen
+        name={profileData.name}
+        chart={chartProfile}
+        selectedStyle={personaStyle}
+        onBack={() => setScreen("persona")}
         onStartOver={() => setScreen("home")}
       />
     );
@@ -289,7 +306,7 @@ function ChartPreviewScreen({
   profileData: ProfileData;
   onBack: () => void;
   onStartOver: () => void;
-  onContinuePersona: () => void;
+  onContinuePersona: (chart: ChartV2) => void;
 }) {
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
@@ -399,7 +416,7 @@ function ChartPreviewScreen({
           <ChartRevealPanel
             chart={chartResult.chart}
             name={profileData.name}
-            onContinuePersona={onContinuePersona}
+            onContinuePersona={() => onContinuePersona(chartResult.chart)}
           />
         ) : null}
 
@@ -433,7 +450,7 @@ function ChartRevealPanel({
 }: {
   chart: ChartV2;
   name: string;
-  onContinuePersona: () => void;
+  onContinuePersona: (chart: ChartV2) => void;
 }) {
   const sun = chart.planets.find((planet) => planet.key === "sun");
   const moon = chart.planets.find((planet) => planet.key === "moon");
@@ -471,7 +488,7 @@ function ChartRevealPanel({
         </Text>
       </View>
 
-      <Pressable style={styles.fullPrimaryButton} onPress={onContinuePersona}>
+      <Pressable style={styles.fullPrimaryButton} onPress={() => onContinuePersona(chart)}>
         <Text style={styles.fullPrimaryButtonText}>Choose Lumis Persona</Text>
       </Pressable>
     </View>
@@ -483,12 +500,14 @@ function PersonaStyleScreen({
   selectedStyle,
   onSelectStyle,
   onBack,
+  onEnterChat,
   onStartOver
 }: {
   name: string;
   selectedStyle: PersonaStyleKey;
   onSelectStyle: (style: PersonaStyleKey) => void;
   onBack: () => void;
+  onEnterChat: () => void;
   onStartOver: () => void;
 }) {
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
@@ -546,12 +565,12 @@ function PersonaStyleScreen({
         <View style={styles.completionCard}>
           <Text style={styles.noticeTitle}>Profile setup checkpoint</Text>
           <Text style={styles.noticeBody}>
-            {selectedPersona.labelEn} is selected for the first Lumis chat. Next we will save this
-            choice to Supabase and open the first chat screen.
+            {selectedPersona.labelEn} will shape the first Lumis chat. You can adjust this later as
+            your relationship with Lumis evolves.
           </Text>
         </View>
 
-        <Pressable style={styles.fullPrimaryButton}>
+        <Pressable style={styles.fullPrimaryButton} onPress={onEnterChat}>
           <Text style={styles.fullPrimaryButtonText}>Enter Lumis chat</Text>
         </Pressable>
         <Pressable style={styles.ghostButton} onPress={onStartOver}>
@@ -559,6 +578,133 @@ function PersonaStyleScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function ChatShellScreen({
+  name,
+  chart,
+  selectedStyle,
+  onBack,
+  onStartOver
+}: {
+  name: string;
+  chart: ChartV2 | null;
+  selectedStyle: PersonaStyleKey;
+  onBack: () => void;
+  onStartOver: () => void;
+}) {
+  const [draftMessage, setDraftMessage] = useState("");
+  const [sentMessage, setSentMessage] = useState("");
+  const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
+  const sun = chart?.planets.find((planet) => planet.key === "sun");
+  const moon = chart?.planets.find((planet) => planet.key === "moon");
+  const ascendant = chart?.angles.ascendant;
+  const canSend = draftMessage.trim().length > 0;
+
+  function handleSend() {
+    if (!canSend) {
+      return;
+    }
+
+    setSentMessage(draftMessage.trim());
+    setDraftMessage("");
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <View style={styles.chatShell}>
+        <View style={styles.chatTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.chatTitleWrap}>
+            <Text style={styles.chatTitle}>Lumis</Text>
+            <Text style={styles.chatSubtitle}>
+              {selectedPersona.labelEn} / {selectedPersona.labelZh}
+            </Text>
+          </View>
+          <View style={styles.creditPill}>
+            <Text style={styles.creditPillText}>50 credits</Text>
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.chatContextCard}>
+            <Text style={styles.sectionEyebrow}>Lumis Persona ready</Text>
+            <Text style={styles.chatContextTitle}>{name}'s first chat space</Text>
+            <Text style={styles.chatContextBody}>
+              Your chart profile and Lumis Persona are ready. Start with a question, a feeling, a
+              pattern, or a moment you want to understand.
+            </Text>
+            <View style={styles.chatChartRow}>
+              <MiniChartStat label="Sun" value={sun ? sun.sign : "Pending"} />
+              <MiniChartStat label="Moon" value={moon ? moon.sign : "Pending"} />
+              <MiniChartStat label="Rising" value={ascendant ? ascendant.sign : "Unknown"} />
+            </View>
+          </View>
+
+          <View style={styles.messageBubbleLumis}>
+            <Text style={styles.messageAuthor}>Lumis</Text>
+            <Text style={styles.messageText}>
+              Hi {name}. I have your chart profile and your {selectedPersona.labelEn.toLowerCase()} style
+              ready. What would you like to explore first?
+            </Text>
+          </View>
+
+          {sentMessage ? (
+            <>
+              <View style={styles.messageBubbleUser}>
+                <Text style={styles.messageAuthorUser}>You</Text>
+                <Text style={styles.messageText}>{sentMessage}</Text>
+              </View>
+              <View style={styles.messageBubbleLumis}>
+                <Text style={styles.messageAuthor}>Lumis</Text>
+                <Text style={styles.messageText}>
+                  I hear that. Let us begin with the part that feels most present, then connect it
+                  back to your chart gently.
+                </Text>
+              </View>
+            </>
+          ) : null}
+
+          <View style={styles.routePreviewStrip}>
+            <Text style={styles.routePreviewText}>Casual chat · 1 credit</Text>
+          </View>
+        </ScrollView>
+
+        <View style={styles.chatComposer}>
+          <TextInput
+            style={styles.chatInput}
+            placeholder="Ask Lumis anything..."
+            placeholderTextColor="#9B8A72"
+            value={draftMessage}
+            onChangeText={setDraftMessage}
+          />
+          <Pressable
+            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!canSend}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </Pressable>
+        </View>
+
+        <Pressable style={styles.chatStartOverButton} onPress={onStartOver}>
+          <Text style={styles.ghostButtonText}>Start over</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function MiniChartStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.miniChartStat}>
+      <Text style={styles.miniChartLabel}>{label}</Text>
+      <Text style={styles.miniChartValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -948,6 +1094,172 @@ const styles = StyleSheet.create({
     color: "#5D5A7C",
     fontSize: 13,
     marginTop: 4
+  },
+  chatShell: {
+    flex: 1,
+    gap: 12,
+    padding: 16
+  },
+  chatTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  chatTitleWrap: {
+    alignItems: "center",
+    flex: 1
+  },
+  chatTitle: {
+    color: "#2F2B25",
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  chatSubtitle: {
+    color: "#8A7659",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2
+  },
+  chatContent: {
+    gap: 14,
+    paddingBottom: 10
+  },
+  chatContextCard: {
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 18
+  },
+  chatContextTitle: {
+    color: "#F9F0E1",
+    fontSize: 22,
+    fontWeight: "800",
+    lineHeight: 28
+  },
+  chatContextBody: {
+    color: "#CFC6B6",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 8
+  },
+  chatChartRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 15
+  },
+  miniChartStat: {
+    backgroundColor: "rgba(238,224,201,0.08)",
+    borderColor: "rgba(238,224,201,0.13)",
+    borderRadius: 16,
+    borderWidth: 1,
+    flex: 1,
+    padding: 12
+  },
+  miniChartLabel: {
+    color: "#D2A24F",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  miniChartValue: {
+    color: "#F9F0E1",
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 5
+  },
+  messageBubbleLumis: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 22,
+    borderTopLeftRadius: 8,
+    borderWidth: 1,
+    maxWidth: "88%",
+    padding: 15
+  },
+  messageBubbleUser: {
+    alignSelf: "flex-end",
+    backgroundColor: "rgba(180,134,63,0.13)",
+    borderColor: "rgba(180,134,63,0.24)",
+    borderRadius: 22,
+    borderTopRightRadius: 8,
+    borderWidth: 1,
+    maxWidth: "88%",
+    padding: 15
+  },
+  messageAuthor: {
+    color: "#B4863F",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 6
+  },
+  messageAuthorUser: {
+    color: "#6D4F23",
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 6
+  },
+  messageText: {
+    color: "#2F2B25",
+    fontSize: 15,
+    lineHeight: 22
+  },
+  routePreviewStrip: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(91,99,183,0.10)",
+    borderColor: "rgba(91,99,183,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8
+  },
+  routePreviewText: {
+    color: "#454286",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  chatComposer: {
+    alignItems: "center",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    padding: 10
+  },
+  chatInput: {
+    backgroundColor: "#F7F0E3",
+    borderRadius: 16,
+    color: "#2F2B25",
+    flex: 1,
+    fontSize: 15,
+    minHeight: 46,
+    paddingHorizontal: 14,
+    paddingVertical: 12
+  },
+  sendButton: {
+    alignItems: "center",
+    backgroundColor: "#2F2B25",
+    borderRadius: 16,
+    minHeight: 46,
+    justifyContent: "center",
+    paddingHorizontal: 16
+  },
+  sendButtonDisabled: {
+    opacity: 0.5
+  },
+  sendButtonText: {
+    color: "#FBF7EE",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  chatStartOverButton: {
+    alignItems: "center",
+    paddingVertical: 4
   },
   profileTopBar: {
     alignItems: "center",
