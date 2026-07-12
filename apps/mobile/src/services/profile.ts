@@ -1,5 +1,5 @@
 import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology";
-import type { ChartV2 } from "@lumis/shared";
+import { PERSONA_STYLES, type ChartV2, type PersonaStyleKey } from "@lumis/shared";
 
 import { resolveBirthPlace, type BirthPlaceResolution } from "./location";
 import { getSupabaseClient } from "./supabase";
@@ -44,8 +44,23 @@ export type ChartProfileResult =
   | {
       mode: "supabase";
       status: "submitted";
-      data: unknown;
+      message: string;
+      chart: ChartV2;
+      data: ProfileFunctionResponse;
     };
+
+export type ProfileFunctionResponse = {
+  status?: "profile_request_prepared" | "profile_persisted";
+  profile_version?: number;
+  ai_profile_id?: number;
+  chart?: ChartV2;
+  next_step?: string;
+};
+
+export type PersonaPreferenceResult = {
+  mode: "local" | "supabase";
+  status: "saved" | "skipped";
+};
 
 export function prepareChartProfileRequest(
   form: BirthProfileForm
@@ -185,11 +200,49 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     throw new Error(error.message);
   }
 
+  const response = data as ProfileFunctionResponse;
+
   return {
     mode: "supabase",
     status: "submitted",
-    data
+    message:
+      response.status === "profile_persisted"
+        ? "Supabase saved the chart profile. Next we will replace the fixture chart with the signed Cloudflare worker response."
+        : response.next_step ?? "Supabase prepared the chart profile request.",
+    chart: response.chart ?? buildFixtureChart(form),
+    data: response
   };
+}
+
+export async function savePersonaStylePreference(
+  personaStyle: PersonaStyleKey
+): Promise<PersonaPreferenceResult> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return { mode: "local", status: "skipped" };
+  }
+
+  const { data: authData } = await supabase.auth.getUser();
+
+  if (!authData.user) {
+    return { mode: "local", status: "skipped" };
+  }
+
+  const selectedPersona = PERSONA_STYLES.find((style) => style.key === personaStyle) ?? PERSONA_STYLES[0];
+  const { error } = await supabase
+    .from("users")
+    .update({
+      persona_style: selectedPersona.key,
+      role: selectedPersona.internalRole
+    })
+    .eq("id", authData.user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { mode: "supabase", status: "saved" };
 }
 
 function buildFixtureChart(form: BirthProfileForm): ChartV2 {

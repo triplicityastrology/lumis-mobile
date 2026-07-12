@@ -1,7 +1,7 @@
 {
   "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
     "@lumis/shared": "../packages/shared/src/index.ts",
     "@lumis/astrology": "../packages/astrology/src/index.ts"
   }
 }
-

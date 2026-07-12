@@ -1,4 +1,6 @@
 import { CHART_WORKER_CONTRACT, type SignedChartWorkerRequest } from "@lumis/astrology";
+import { createClient } from "@supabase/supabase-js";
+import type { ChartV2 } from "@lumis/shared";
 
 type ProfileRequest = {
   display_name?: string;
@@ -11,6 +13,12 @@ type ProfileRequest = {
   lng?: number;
   tz_str?: string;
 };
+
+const personaStyleToInternalRole = {
+  acceptance: "support",
+  spark: "spark",
+  awareness: "growth"
+} as const;
 
 Deno.serve(async (request) => {
   if (request.method !== "POST") {
@@ -44,7 +52,7 @@ Deno.serve(async (request) => {
   }
 
   const chartRequest: SignedChartWorkerRequest = {
-    user_id: "TODO_FROM_SUPABASE_JWT",
+    user_id: "pending_auth_user",
     calculation_version: "mobile_natal_v1",
     birth_data: {
       name: body.display_name ?? "Lumis user",
@@ -59,12 +67,163 @@ Deno.serve(async (request) => {
     }
   };
 
+  const authHeader = request.headers.get("Authorization");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey) {
+    return Response.json({
+      profile_version: 0,
+      status: "profile_request_prepared",
+      precision: chartRequest.birth_data.time_unknown ? "no_birth_time" : "full",
+      contract: CHART_WORKER_CONTRACT,
+      chart_worker_contract: chartRequest,
+      chart: buildFixtureChart(body),
+      next_step: "Create Supabase project, enable Auth, then deploy this function for persistence."
+    });
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: {
+      headers: {
+        Authorization: authHeader
+      }
+    }
+  });
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+
+  if (authError || !authData.user) {
+    return Response.json(
+      {
+        error: {
+          code: "PROFILE_AUTH_REQUIRED",
+          message: "Sign in before saving a Lumis profile."
+        }
+      },
+      { status: 401 }
+    );
+  }
+
+  const userId = authData.user.id;
+  const chart = buildFixtureChart(body);
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+  const role = personaStyleToInternalRole.acceptance;
+
+  const { error: userError } = await serviceClient.from("users").upsert({
+    id: userId,
+    display_name: body.display_name ?? "Lumis user",
+    buddy_name: "Lumis",
+    persona_style: "acceptance",
+    role
+  });
+
+  if (userError) {
+    return Response.json({ error: { code: "USER_SAVE_FAILED", message: userError.message } }, { status: 500 });
+  }
+
+  const { error: birthError } = await serviceClient.from("birth_data").upsert({
+    user_id: userId,
+    birth_date: body.birth_date,
+    birth_time: body.time_unknown ? null : body.birth_time,
+    time_unknown: body.time_unknown ?? false,
+    place_name: body.place_name,
+    country_code: body.country_code,
+    lat: body.lat,
+    lng: body.lng,
+    tz_str: body.tz_str
+  });
+
+  if (birthError) {
+    return Response.json({ error: { code: "BIRTH_SAVE_FAILED", message: birthError.message } }, { status: 500 });
+  }
+
+  const { data: latestProfile } = await serviceClient
+    .from("ai_profiles")
+    .select("version")
+    .eq("user_id", userId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const profileVersion = (latestProfile?.version ?? 0) + 1;
+  const { data: profile, error: profileError } = await serviceClient
+    .from("ai_profiles")
+    .insert({
+      user_id: userId,
+      version: profileVersion,
+      chart_json: chart,
+      raw_chart_json: {
+        status: "worker_pending",
+        chart_worker_contract: { ...chartRequest, user_id: userId }
+      },
+      precision: chart.precision,
+      model: "fixture_until_worker_connected"
+    })
+    .select("id, version")
+    .single();
+
+  if (profileError) {
+    return Response.json({ error: { code: "PROFILE_SAVE_FAILED", message: profileError.message } }, { status: 500 });
+  }
+
+  await serviceClient.from("monthly_balance").insert({
+    user_id: userId,
+    allocated: 50,
+    remaining: 50
+  });
+
   return Response.json({
-    profile_version: 0,
-    status: "profile_request_prepared",
+    profile_version: profile.version,
+    status: "profile_persisted",
     precision: chartRequest.birth_data.time_unknown ? "no_birth_time" : "full",
     contract: CHART_WORKER_CONTRACT,
-    chart_worker_contract: chartRequest,
-    next_step: "Wire signed Cloudflare Worker wrapper and persist chart_v2 in Supabase."
+    ai_profile_id: profile.id,
+    chart_worker_contract: { ...chartRequest, user_id: userId },
+    chart,
+    next_step: "Replace fixture chart with signed Cloudflare Worker chart_v2 response."
   });
 });
+
+function buildFixtureChart(body: ProfileRequest): ChartV2 {
+  return {
+    version: "chart_v2",
+    precision: body.time_unknown ? "no_birth_time" : "full",
+    source: "fixture",
+    calculatedAt: new Date().toISOString(),
+    planets: [
+      {
+        key: "sun",
+        label: "Sun",
+        sign: "Capricorn",
+        degree: 10,
+        house: body.time_unknown ? undefined : 1
+      },
+      {
+        key: "moon",
+        label: "Moon",
+        sign: "Cancer",
+        degree: 18,
+        house: body.time_unknown ? undefined : 7
+      },
+      {
+        key: "ascendant",
+        label: "Ascendant",
+        sign: body.time_unknown ? "Unknown" : "Libra",
+        degree: body.time_unknown ? 0 : 6,
+        house: body.time_unknown ? undefined : 1
+      }
+    ],
+    houses: [],
+    angles: {
+      ascendant: body.time_unknown
+        ? undefined
+        : {
+            key: "ascendant",
+            label: "Ascendant",
+            sign: "Libra",
+            degree: 6,
+            house: 1
+          }
+    }
+  };
+}

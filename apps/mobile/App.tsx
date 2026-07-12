@@ -15,6 +15,7 @@ import {
 
 import {
   prepareChartProfileRequest,
+  savePersonaStylePreference,
   submitChartProfile,
   validateBirthProfileForm,
   type BirthProfileForm,
@@ -66,7 +67,10 @@ export default function App() {
         selectedStyle={personaStyle}
         onSelectStyle={setPersonaStyle}
         onBack={() => setScreen("preview")}
-        onEnterChat={() => setScreen("chat")}
+        onEnterChat={async () => {
+          await savePersonaStylePreference(personaStyle);
+          setScreen("chat");
+        }}
         onStartOver={() => setScreen("home")}
       />
     );
@@ -406,13 +410,13 @@ function ChartPreviewScreen({
             </Text>
             <Text style={styles.successBody}>
               {chartResult.mode === "supabase"
-                ? "Supabase accepted the profile request. Next we will store and render the returned chart profile."
+                ? chartResult.message
                 : chartResult.message}
             </Text>
           </View>
         ) : null}
 
-        {chartResult?.mode === "local" ? (
+        {chartResult ? (
           <ChartRevealPanel
             chart={chartResult.chart}
             name={profileData.name}
@@ -507,10 +511,25 @@ function PersonaStyleScreen({
   selectedStyle: PersonaStyleKey;
   onSelectStyle: (style: PersonaStyleKey) => void;
   onBack: () => void;
-  onEnterChat: () => void;
+  onEnterChat: () => Promise<void>;
   onStartOver: () => void;
 }) {
+  const [saveError, setSaveError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
+
+  async function handleEnterChat() {
+    setSaveError("");
+    setIsSaving(true);
+
+    try {
+      await onEnterChat();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to save Lumis Persona.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -570,8 +589,20 @@ function PersonaStyleScreen({
           </Text>
         </View>
 
-        <Pressable style={styles.fullPrimaryButton} onPress={onEnterChat}>
-          <Text style={styles.fullPrimaryButtonText}>Enter Lumis chat</Text>
+        {saveError ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{saveError}</Text>
+          </View>
+        ) : null}
+
+        <Pressable
+          style={[styles.fullPrimaryButton, isSaving && styles.disabledButton]}
+          onPress={handleEnterChat}
+          disabled={isSaving}
+        >
+          <Text style={styles.fullPrimaryButtonText}>
+            {isSaving ? "Saving Lumis Persona..." : "Enter Lumis chat"}
+          </Text>
         </Pressable>
         <Pressable style={styles.ghostButton} onPress={onStartOver}>
           <Text style={styles.ghostButtonText}>Start over</Text>
