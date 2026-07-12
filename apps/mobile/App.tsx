@@ -4,7 +4,14 @@ import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { CHART_WORKER_CONTRACT } from "@lumis/astrology";
-import { PERSONA_STYLES, PRODUCT_TERMS, PRODUCTS, ROUTE_CREDITS, type ChartV2 } from "@lumis/shared";
+import {
+  PERSONA_STYLES,
+  PRODUCT_TERMS,
+  PRODUCTS,
+  ROUTE_CREDITS,
+  type ChartV2,
+  type PersonaStyleKey
+} from "@lumis/shared";
 
 import {
   prepareChartProfileRequest,
@@ -21,8 +28,9 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 type ProfileData = BirthProfileForm;
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "profile" | "preview">("home");
+  const [screen, setScreen] = useState<"home" | "profile" | "preview" | "persona">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
 
   if (screen === "profile") {
     return (
@@ -41,6 +49,19 @@ export default function App() {
       <ChartPreviewScreen
         profileData={profileData}
         onBack={() => setScreen("profile")}
+        onStartOver={() => setScreen("home")}
+        onContinuePersona={() => setScreen("persona")}
+      />
+    );
+  }
+
+  if (screen === "persona" && profileData) {
+    return (
+      <PersonaStyleScreen
+        name={profileData.name}
+        selectedStyle={personaStyle}
+        onSelectStyle={setPersonaStyle}
+        onBack={() => setScreen("preview")}
         onStartOver={() => setScreen("home")}
       />
     );
@@ -262,11 +283,13 @@ function ProfileFormScreen({
 function ChartPreviewScreen({
   profileData,
   onBack,
-  onStartOver
+  onStartOver,
+  onContinuePersona
 }: {
   profileData: ProfileData;
   onBack: () => void;
   onStartOver: () => void;
+  onContinuePersona: () => void;
 }) {
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
@@ -373,7 +396,11 @@ function ChartPreviewScreen({
         ) : null}
 
         {chartResult?.mode === "local" ? (
-          <ChartRevealPanel chart={chartResult.chart} name={profileData.name} />
+          <ChartRevealPanel
+            chart={chartResult.chart}
+            name={profileData.name}
+            onContinuePersona={onContinuePersona}
+          />
         ) : null}
 
         {submitError ? (
@@ -399,7 +426,15 @@ function ChartPreviewScreen({
   );
 }
 
-function ChartRevealPanel({ chart, name }: { chart: ChartV2; name: string }) {
+function ChartRevealPanel({
+  chart,
+  name,
+  onContinuePersona
+}: {
+  chart: ChartV2;
+  name: string;
+  onContinuePersona: () => void;
+}) {
   const sun = chart.planets.find((planet) => planet.key === "sun");
   const moon = chart.planets.find((planet) => planet.key === "moon");
   const ascendant = chart.angles.ascendant;
@@ -435,7 +470,95 @@ function ChartRevealPanel({ chart, name }: { chart: ChartV2; name: string }) {
           Precision: {chart.precision === "full" ? "Full chart" : "No birth time"}
         </Text>
       </View>
+
+      <Pressable style={styles.fullPrimaryButton} onPress={onContinuePersona}>
+        <Text style={styles.fullPrimaryButtonText}>Choose Lumis Persona</Text>
+      </Pressable>
     </View>
+  );
+}
+
+function PersonaStyleScreen({
+  name,
+  selectedStyle,
+  onSelectStyle,
+  onBack,
+  onStartOver
+}: {
+  name: string;
+  selectedStyle: PersonaStyleKey;
+  onSelectStyle: (style: PersonaStyleKey) => void;
+  onBack: () => void;
+  onStartOver: () => void;
+}) {
+  const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>Profile 3 of 3</Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <LumisLogo size={84} />
+          </View>
+          <Text style={styles.kicker}>Lumis Persona</Text>
+          <Text style={styles.formTitle}>How should Lumis meet {name}?</Text>
+          <Text style={styles.formIntro}>
+            This sets the first interaction style. It can be changed later from profile settings.
+          </Text>
+        </View>
+
+        <View style={styles.personaChoiceList}>
+          {PERSONA_STYLES.map((style, index) => {
+            const isSelected = style.key === selectedStyle;
+
+            return (
+              <Pressable
+                key={style.key}
+                style={[styles.personaChoiceCard, isSelected && styles.personaChoiceCardActive]}
+                onPress={() => onSelectStyle(style.key)}
+              >
+                <View style={styles.personaIcon}>
+                  <Text style={styles.personaIconText}>{index + 1}</Text>
+                </View>
+                <View style={styles.personaText}>
+                  <Text style={styles.personaName}>
+                    {style.labelEn} / {style.labelZh}
+                  </Text>
+                  <Text style={styles.personaPromise}>{style.promiseEn}</Text>
+                  <Text style={styles.personaPromiseZh}>{style.promiseZh}</Text>
+                </View>
+                {isSelected ? <Text style={styles.selectedMark}>Selected</Text> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.completionCard}>
+          <Text style={styles.noticeTitle}>Profile setup checkpoint</Text>
+          <Text style={styles.noticeBody}>
+            {selectedPersona.labelEn} is selected for the first Lumis chat. Next we will save this
+            choice to Supabase and open the first chat screen.
+          </Text>
+        </View>
+
+        <Pressable style={styles.fullPrimaryButton}>
+          <Text style={styles.fullPrimaryButtonText}>Enter Lumis chat</Text>
+        </Pressable>
+        <Pressable style={styles.ghostButton} onPress={onStartOver}>
+          <Text style={styles.ghostButtonText}>Start over</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -709,6 +832,9 @@ const styles = StyleSheet.create({
   personaList: {
     gap: 10
   },
+  personaChoiceList: {
+    gap: 12
+  },
   personaCard: {
     alignItems: "center",
     backgroundColor: "#FBF7EE",
@@ -748,6 +874,32 @@ const styles = StyleSheet.create({
     color: "#8A7659",
     fontSize: 13,
     marginTop: 2
+  },
+  personaChoiceCard: {
+    alignItems: "flex-start",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 13,
+    padding: 16
+  },
+  personaChoiceCardActive: {
+    backgroundColor: "rgba(180,134,63,0.10)",
+    borderColor: "#B4863F"
+  },
+  personaPromise: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6
+  },
+  personaPromiseZh: {
+    color: "#8A7659",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 4
   },
   selectedMark: {
     color: "#B4863F",
@@ -1052,6 +1204,13 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   apiCard: {
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16
+  },
+  completionCard: {
     backgroundColor: "#10213A",
     borderColor: "rgba(238,224,201,0.18)",
     borderRadius: 20,
