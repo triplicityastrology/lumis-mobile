@@ -22,6 +22,7 @@ import {
   type ChartProfileResult
 } from "./src/services/profile";
 import { getAuthStatus, sendMagicLink, signOut, type AuthStatus } from "./src/services/auth";
+import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
@@ -792,19 +793,39 @@ function ChatShellScreen({
 }) {
   const [draftMessage, setDraftMessage] = useState("");
   const [sentMessage, setSentMessage] = useState("");
+  const [chatResult, setChatResult] = useState<SendChatMessageResult | null>(null);
+  const [chatError, setChatError] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
-  const canSend = draftMessage.trim().length > 0;
+  const canSend = draftMessage.trim().length > 0 && !isSending;
 
-  function handleSend() {
+  async function handleSend() {
     if (!canSend) {
       return;
     }
 
-    setSentMessage(draftMessage.trim());
+    const nextMessage = draftMessage.trim();
+    setSentMessage(nextMessage);
+    setChatError("");
+    setChatResult(null);
     setDraftMessage("");
+    setIsSending(true);
+
+    try {
+      const result = await sendChatMessage({
+        message: nextMessage,
+        personaStyle: selectedStyle,
+        chart
+      });
+      setChatResult(result);
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Unable to send message.");
+    } finally {
+      setIsSending(false);
+    }
   }
 
   return (
@@ -855,18 +876,41 @@ function ChatShellScreen({
                 <Text style={styles.messageAuthorUser}>You</Text>
                 <Text style={styles.messageText}>{sentMessage}</Text>
               </View>
-              <View style={styles.messageBubbleLumis}>
-                <Text style={styles.messageAuthor}>Lumis</Text>
-                <Text style={styles.messageText}>
-                  I hear that. Let us begin with the part that feels most present, then connect it
-                  back to your chart gently.
-                </Text>
-              </View>
+              {chatResult ? (
+                <View style={styles.messageBubbleLumis}>
+                  <Text style={styles.messageAuthor}>Lumis</Text>
+                  <Text style={styles.messageText}>{chatResult.reply}</Text>
+                </View>
+              ) : null}
+              {isSending ? (
+                <View style={styles.messageBubbleLumis}>
+                  <Text style={styles.messageAuthor}>Lumis</Text>
+                  <Text style={styles.messageText}>Reading the thread of this question...</Text>
+                </View>
+              ) : null}
+              {chatError ? (
+                <View style={styles.errorCard}>
+                  <Text style={styles.errorText}>{chatError}</Text>
+                </View>
+              ) : null}
+              {!chatResult && !isSending && !chatError ? (
+                <View style={styles.messageBubbleLumis}>
+                  <Text style={styles.messageAuthor}>Lumis</Text>
+                  <Text style={styles.messageText}>
+                    I hear that. Let us begin with the part that feels most present, then connect it
+                    back to your chart gently.
+                  </Text>
+                </View>
+              ) : null}
             </>
           ) : null}
 
           <View style={styles.routePreviewStrip}>
-            <Text style={styles.routePreviewText}>Casual chat · 1 credit</Text>
+            <Text style={styles.routePreviewText}>
+              {chatResult
+                ? `${chatResult.mode === "supabase" ? "Supabase" : "Local"} ${chatResult.route} · ${chatResult.creditsCost} credit`
+                : "Casual chat · 1 credit"}
+            </Text>
           </View>
         </ScrollView>
 
@@ -883,7 +927,7 @@ function ChatShellScreen({
             onPress={handleSend}
             disabled={!canSend}
           >
-            <Text style={styles.sendButtonText}>Send</Text>
+            <Text style={styles.sendButtonText}>{isSending ? "..." : "Send"}</Text>
           </Pressable>
         </View>
 
