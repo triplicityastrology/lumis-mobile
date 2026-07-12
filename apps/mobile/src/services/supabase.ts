@@ -13,7 +13,9 @@ export type SupabaseRuntimeConfig = {
 export function getSupabaseConfig(): SupabaseRuntimeConfig {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const anonKey =
-    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.EXPO_PUBLIC_SUPABASE_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     return { isConfigured: false };
