@@ -192,6 +192,18 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     };
   }
 
+  const { data: authData } = await supabase.auth.getUser();
+
+  if (!authData.user) {
+    return {
+      ...preparedRequest,
+      mode: "local",
+      message:
+        "Supabase is connected, but no user is signed in yet. Showing a fixture chart profile for local demo.",
+      chart: buildFixtureChart(form)
+    };
+  }
+
   const { data, error } = await supabase.functions.invoke("profile", {
     body: preparedRequest.payload
   });

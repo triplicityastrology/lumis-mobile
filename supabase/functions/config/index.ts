@@ -1,4 +1,6 @@
-import { PRODUCTS, ROUTE_CREDITS, TOP_UPS, PERSONA_STYLES } from "@lumis/shared";
+import { PRODUCTS, TOP_UPS } from "../../../packages/shared/src/config/products.ts";
+import { ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
+import { PERSONA_STYLES } from "../../../packages/shared/src/terminology/lumis.ts";
 
 Deno.serve(() => {
   return Response.json({
@@ -17,4 +19,3 @@ Deno.serve(() => {
     model_registry_version: 1
   });
 });
-

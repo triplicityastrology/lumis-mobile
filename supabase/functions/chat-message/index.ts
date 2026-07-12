@@ -59,19 +59,19 @@ Deno.serve(async (request) => {
 function buildChatResponse(body: ChatMessageRequest) {
   const chartPhrase =
     body.chart_context?.sun && body.chart_context?.moon
-      ? ` With your ${body.chart_context.sun} Sun and ${body.chart_context.moon} Moon in view,`
+      ? `With your ${body.chart_context.sun} Sun and ${body.chart_context.moon} Moon in view, `
       : "";
   const stylePhrase =
     body.persona_style === "spark"
-      ? " let us find the fresh angle."
+      ? " Let us find the fresh angle."
       : body.persona_style === "awareness"
-        ? " let us notice the pattern underneath."
-        : " let us move gently and steadily.";
+        ? " Let us notice the pattern underneath."
+        : " Let us move gently and steadily.";
 
   return {
     route: "casual",
     credits_cost: 1,
     remaining_credits: 49,
-    reply: `${chartPhrase} I hear this question.${stylePhrase}`
+    reply: `${chartPhrase}I hear this question.${stylePhrase}`
   };
 }
