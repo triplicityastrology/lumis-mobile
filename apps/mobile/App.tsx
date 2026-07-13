@@ -52,6 +52,14 @@ type NotificationItem = {
   isUnread: boolean;
 };
 
+type CareCircleItem = {
+  id: string;
+  name: string;
+  relationship: string;
+  status: "Active" | "Pending";
+  lastEvent: string;
+};
+
 const STARTER_CREDITS = 50;
 
 const QUICK_CHAT_PROMPTS = [
@@ -84,8 +92,25 @@ const LOCAL_NOTIFICATIONS: NotificationItem[] = [
   }
 ];
 
+const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
+  {
+    id: "care-demo-active",
+    name: "Family contact",
+    relationship: "Next of kin",
+    status: "Active",
+    lastEvent: "Check-in alerts will appear after push is connected."
+  },
+  {
+    id: "care-demo-pending",
+    name: "Trusted carer",
+    relationship: "Care Circle invite",
+    status: "Pending",
+    lastEvent: "Waiting for carer acceptance after caree confirmation."
+  }
+];
+
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -286,6 +311,16 @@ export default function App() {
     );
   }
 
+  if (screen === "care") {
+    return (
+      <CareCircleScreen
+        careCircle={LOCAL_CARE_CIRCLE}
+        onBack={() => setScreen("home")}
+        onOpenNotifications={() => setScreen("notifications")}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -365,6 +400,19 @@ export default function App() {
           <Text style={styles.reflectionEntryAction}>
             {hasLocalDemoSession ? "Continue reflection" : "Start a new topic"}
           </Text>
+        </Pressable>
+
+        <Pressable style={styles.careEntryCard} onPress={() => setScreen("care")}>
+          <View style={styles.careEntryIcon}>
+            <Text style={styles.careEntryIconText}>5</Text>
+          </View>
+          <View style={styles.careEntryCopy}>
+            <Text style={styles.sectionEyebrow}>Care Circle</Text>
+            <Text style={styles.careEntryTitle}>Trusted check-in contacts</Text>
+            <Text style={styles.careEntryBody}>
+              QR linking, carer acceptance, missed check-in alerts, and Need help notices.
+            </Text>
+          </View>
         </Pressable>
 
         <View style={styles.chartCard}>
@@ -1393,6 +1441,95 @@ function NotificationCenterScreen({
   );
 }
 
+function CareCircleScreen({
+  careCircle,
+  onBack,
+  onOpenNotifications
+}: {
+  careCircle: CareCircleItem[];
+  onBack: () => void;
+  onOpenNotifications: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>Care Circle</Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <Text style={styles.careHeroIcon}>5</Text>
+          </View>
+          <Text style={styles.kicker}>Care Circle</Text>
+          <Text style={styles.formTitle}>Link trusted carers without exposing private Lumis data.</Text>
+          <Text style={styles.formIntro}>
+            A paid caree can link up to five carers for check-ins and alerts. Carers do not see
+            chats, birth data, Lumis memory, or billing.
+          </Text>
+        </View>
+
+        <View style={styles.careFlowPanel}>
+          {["Carer shows QR", "Caree scans and confirms", "Carer accepts", "Alerts become active"].map(
+            (step, index) => (
+              <View key={step} style={styles.careFlowStep}>
+                <View style={styles.careStepNumber}>
+                  <Text style={styles.careStepNumberText}>{index + 1}</Text>
+                </View>
+                <Text style={styles.careFlowText}>{step}</Text>
+              </View>
+            )
+          )}
+        </View>
+
+        <View style={styles.careActionGrid}>
+          <Pressable style={styles.fullPrimaryButton}>
+            <Text style={styles.fullPrimaryButtonText}>Show carer QR</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryFullButton}>
+            <Text style={styles.secondaryFullButtonText}>Scan carer QR</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.careList}>
+          {careCircle.map((item) => (
+            <View key={item.id} style={styles.careCard}>
+              <View style={styles.careCardHeader}>
+                <View>
+                  <Text style={styles.careName}>{item.name}</Text>
+                  <Text style={styles.careRelationship}>{item.relationship}</Text>
+                </View>
+                <View style={[styles.careStatusPill, item.status === "Active" && styles.careStatusPillActive]}>
+                  <Text style={styles.careStatusText}>{item.status}</Text>
+                </View>
+              </View>
+              <Text style={styles.careEvent}>{item.lastEvent}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeTitle}>Privacy boundary</Text>
+          <Text style={styles.noticeBody}>
+            Care Circle can send check-in and Need help alerts, but it should not expose general
+            chat history, birth data, AI memory, or billing to carers.
+          </Text>
+        </View>
+
+        <Pressable style={styles.ghostButton} onPress={onOpenNotifications}>
+          <Text style={styles.ghostButtonText}>View Care alerts</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 function MiniChartStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.miniChartStat}>
@@ -1700,6 +1837,46 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     fontSize: 12,
     fontWeight: "800"
+  },
+  careEntryCard: {
+    alignItems: "center",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    padding: 16
+  },
+  careEntryIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(180,134,63,0.13)",
+    borderColor: "rgba(180,134,63,0.24)",
+    borderRadius: 19,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: "center",
+    width: 52
+  },
+  careEntryIconText: {
+    color: "#8B6429",
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  careEntryCopy: {
+    flex: 1
+  },
+  careEntryTitle: {
+    color: "#2F2B25",
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 21
+  },
+  careEntryBody: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 5
   },
   chartCard: {
     alignItems: "center",
@@ -2145,6 +2322,95 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginTop: 6
+  },
+  careHeroIcon: {
+    color: "#8B6429",
+    fontSize: 34,
+    fontWeight: "900"
+  },
+  careFlowPanel: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16
+  },
+  careFlowStep: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12
+  },
+  careStepNumber: {
+    alignItems: "center",
+    backgroundColor: "#F1E4C8",
+    borderRadius: 999,
+    height: 30,
+    justifyContent: "center",
+    width: 30
+  },
+  careStepNumberText: {
+    color: "#8B6429",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  careFlowText: {
+    color: "#2F2B25",
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  careActionGrid: {
+    gap: 10
+  },
+  careList: {
+    gap: 10
+  },
+  careCard: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16
+  },
+  careCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  careName: {
+    color: "#2F2B25",
+    fontSize: 16,
+    fontWeight: "800"
+  },
+  careRelationship: {
+    color: "#8A7659",
+    fontSize: 13,
+    marginTop: 4
+  },
+  careStatusPill: {
+    backgroundColor: "rgba(91,99,183,0.10)",
+    borderColor: "rgba(91,99,183,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  careStatusPillActive: {
+    backgroundColor: "rgba(47,111,80,0.10)",
+    borderColor: "rgba(47,111,80,0.18)"
+  },
+  careStatusText: {
+    color: "#454286",
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  careEvent: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 12
   },
   profileTopBar: {
     alignItems: "center",
