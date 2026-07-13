@@ -53,7 +53,7 @@ const QUICK_CHAT_PROMPTS = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -95,6 +95,17 @@ export default function App() {
       remainingCredits: nextRemainingCredits
     });
     setHasLocalDemoSession(true);
+  }
+
+  async function startNewTopic() {
+    if (!profileData || !chartProfile) {
+      setScreen("profile");
+      return;
+    }
+
+    setChatTurns([]);
+    await saveDemoSession(profileData, chartProfile, personaStyle, [], remainingCredits);
+    setScreen("chat");
   }
 
   useEffect(() => {
@@ -218,6 +229,21 @@ export default function App() {
     );
   }
 
+  if (screen === "reflections") {
+    return (
+      <PastReflectionsScreen
+        hasLocalDemoSession={hasLocalDemoSession}
+        profileData={profileData}
+        selectedStyle={personaStyle}
+        chatTurns={chatTurns}
+        remainingCredits={remainingCredits}
+        onBack={() => setScreen("home")}
+        onContinueReflection={() => setScreen(profileData && chartProfile ? "chat" : "profile")}
+        onStartNewTopic={startNewTopic}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -267,6 +293,23 @@ export default function App() {
             </Pressable>
           </View>
         </View>
+
+        <Pressable style={styles.reflectionEntryCard} onPress={() => setScreen("reflections")}>
+          <View>
+            <Text style={styles.sectionEyebrow}>Past Reflections</Text>
+            <Text style={styles.reflectionEntryTitle}>
+              {hasLocalDemoSession ? "Continue your latest reflection" : "Start your first reflection"}
+            </Text>
+            <Text style={styles.reflectionEntryBody}>
+              {hasLocalDemoSession
+                ? `${chatTurns.length} saved turn${chatTurns.length === 1 ? "" : "s"} · ${remainingCredits} credits left`
+                : "Create a chart profile first, then Lumis will save the local demo thread here."}
+            </Text>
+          </View>
+          <Text style={styles.reflectionEntryAction}>
+            {hasLocalDemoSession ? "Continue reflection" : "Start a new topic"}
+          </Text>
+        </Pressable>
 
         <View style={styles.chartCard}>
           <View style={styles.chartArt}>
@@ -1127,6 +1170,106 @@ function ChatShellScreen({
   );
 }
 
+function PastReflectionsScreen({
+  hasLocalDemoSession,
+  profileData,
+  selectedStyle,
+  chatTurns,
+  remainingCredits,
+  onBack,
+  onContinueReflection,
+  onStartNewTopic
+}: {
+  hasLocalDemoSession: boolean;
+  profileData: ProfileData | null;
+  selectedStyle: PersonaStyleKey;
+  chatTurns: ChatTurn[];
+  remainingCredits: number;
+  onBack: () => void;
+  onContinueReflection: () => void;
+  onStartNewTopic: () => void;
+}) {
+  const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
+  const latestTurn = chatTurns[chatTurns.length - 1];
+  const title = latestTurn?.userMessage ?? "First Lumis reflection";
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>Past Reflections</Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <LumisLogo size={84} />
+          </View>
+          <Text style={styles.kicker}>Past Reflections</Text>
+          <Text style={styles.formTitle}>Return to what Lumis has been holding.</Text>
+          <Text style={styles.formIntro}>
+            This local build keeps one reflection thread in this browser. Later, Supabase will sync
+            Past Reflections across devices.
+          </Text>
+        </View>
+
+        {hasLocalDemoSession && profileData ? (
+          <View style={styles.reflectionList}>
+            <View style={styles.reflectionCard}>
+              <View style={styles.reflectionCardHeader}>
+                <View style={styles.personaIcon}>
+                  <Text style={styles.personaIconText}>1</Text>
+                </View>
+                <View style={styles.reflectionCardText}>
+                  <Text style={styles.reflectionCardTitle} numberOfLines={2}>
+                    {title}
+                  </Text>
+                  <Text style={styles.reflectionCardMeta}>
+                    {profileData.name} · {selectedPersona.labelEn} · {chatTurns.length} turn
+                    {chatTurns.length === 1 ? "" : "s"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.reflectionActions}>
+                <Pressable style={styles.fullPrimaryButton} onPress={onContinueReflection}>
+                  <Text style={styles.fullPrimaryButtonText}>Continue reflection</Text>
+                </Pressable>
+                <Pressable style={styles.secondaryFullButton} onPress={onStartNewTopic}>
+                  <Text style={styles.secondaryFullButtonText}>Start a new topic</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.noticeCard}>
+              <Text style={styles.noticeTitle}>Saved Insights</Text>
+              <Text style={styles.noticeBody}>
+                Saved messages will appear here after the backend thread and insight actions are
+                connected. Current local balance: {remainingCredits} credits.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.emptyReflectionCard}>
+            <Text style={styles.noticeTitle}>No reflections yet</Text>
+            <Text style={styles.noticeBody}>
+              Create a chart profile first. After your first Lumis chat, this area will show
+              Continue reflection and Saved Insights.
+            </Text>
+            <Pressable style={styles.fullPrimaryButton} onPress={onStartNewTopic}>
+              <Text style={styles.fullPrimaryButtonText}>Start a new topic</Text>
+            </Pressable>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 function MiniChartStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.miniChartStat}>
@@ -1348,6 +1491,35 @@ const styles = StyleSheet.create({
     color: "#6D4F23",
     fontSize: 14,
     fontWeight: "700"
+  },
+  reflectionEntryCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(91,99,183,0.10)",
+    borderColor: "rgba(91,99,183,0.16)",
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    justifyContent: "space-between",
+    padding: 16
+  },
+  reflectionEntryTitle: {
+    color: "#36366C",
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 21
+  },
+  reflectionEntryBody: {
+    color: "#5D5A7C",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 5
+  },
+  reflectionEntryAction: {
+    color: "#454286",
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: "800"
   },
   chartCard: {
     alignItems: "center",
@@ -1707,6 +1879,47 @@ const styles = StyleSheet.create({
   chatStartOverButton: {
     alignItems: "center",
     paddingVertical: 4
+  },
+  reflectionList: {
+    gap: 14
+  },
+  reflectionCard: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 16,
+    padding: 16
+  },
+  reflectionCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 13
+  },
+  reflectionCardText: {
+    flex: 1
+  },
+  reflectionCardTitle: {
+    color: "#2F2B25",
+    fontSize: 17,
+    fontWeight: "800",
+    lineHeight: 22
+  },
+  reflectionCardMeta: {
+    color: "#8A7659",
+    fontSize: 13,
+    marginTop: 5
+  },
+  reflectionActions: {
+    gap: 10
+  },
+  emptyReflectionCard: {
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18
   },
   profileTopBar: {
     alignItems: "center",
