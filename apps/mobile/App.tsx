@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -41,6 +41,10 @@ export default function App() {
     const status = await getAuthStatus();
     setAuthStatus(status);
   }
+
+  useEffect(() => {
+    void refreshAuthStatus();
+  }, []);
 
   if (screen === "auth") {
     return (

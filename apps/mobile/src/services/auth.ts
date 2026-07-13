@@ -58,7 +58,10 @@ export async function sendMagicLink(email: string): Promise<MagicLinkResult> {
   }
 
   const { error } = await supabase.auth.signInWithOtp({
-    email: cleanedEmail
+    email: cleanedEmail,
+    options: {
+      emailRedirectTo: getEmailRedirectTo()
+    }
   });
 
   if (error) {
@@ -70,6 +73,14 @@ export async function sendMagicLink(email: string): Promise<MagicLinkResult> {
     status: "sent",
     message: `Magic link sent to ${cleanedEmail}.`
   };
+}
+
+function getEmailRedirectTo(): string | undefined {
+  if (typeof globalThis.location === "undefined") {
+    return undefined;
+  }
+
+  return globalThis.location.origin;
 }
 
 export async function signOut(): Promise<void> {
