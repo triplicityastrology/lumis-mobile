@@ -27,8 +27,8 @@ export const PERSONA_STYLES = [
   {
     key: "awareness",
     internalRole: "growth",
-    labelEn: "Growth",
-    labelZh: "成長",
+    labelEn: "Awareness",
+    labelZh: "覺察",
     promiseEn: "Reflective and gently challenging.",
     promiseZh: "深度反思，溫和挑戰，理清反覆出現的輪廓。"
   }
