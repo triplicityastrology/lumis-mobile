@@ -21,7 +21,13 @@ import {
   type BirthProfileForm,
   type ChartProfileResult
 } from "./src/services/profile";
-import { getAuthStatus, sendMagicLink, signOut, type AuthStatus } from "./src/services/auth";
+import {
+  getAuthStatus,
+  handleAuthRedirectFromUrl,
+  sendMagicLink,
+  signOut,
+  type AuthStatus
+} from "./src/services/auth";
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
@@ -36,6 +42,8 @@ export default function App() {
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const [authNotice, setAuthNotice] = useState("");
+  const [authError, setAuthError] = useState("");
 
   async function refreshAuthStatus() {
     const status = await getAuthStatus();
@@ -43,7 +51,21 @@ export default function App() {
   }
 
   useEffect(() => {
-    void refreshAuthStatus();
+    async function initializeAuth() {
+      try {
+        const result = await handleAuthRedirectFromUrl();
+
+        if (result.message) {
+          setAuthNotice(result.message);
+        }
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : "Unable to confirm account.");
+      } finally {
+        await refreshAuthStatus();
+      }
+    }
+
+    void initializeAuth();
   }, []);
 
   if (screen === "auth") {
@@ -53,6 +75,9 @@ export default function App() {
         onBack={() => setScreen("home")}
         onContinueLocal={() => setScreen("profile")}
         onRefreshAuthStatus={refreshAuthStatus}
+        authNotice={authNotice}
+        authError={authError}
+        onClearAuthError={() => setAuthError("")}
       />
     );
   }
@@ -215,12 +240,18 @@ function AuthScreen({
   authStatus,
   onBack,
   onContinueLocal,
-  onRefreshAuthStatus
+  onRefreshAuthStatus,
+  authNotice,
+  authError,
+  onClearAuthError
 }: {
   authStatus: AuthStatus | null;
   onBack: () => void;
   onContinueLocal: () => void;
   onRefreshAuthStatus: () => Promise<void>;
+  authNotice: string;
+  authError: string;
+  onClearAuthError: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -235,6 +266,7 @@ function AuthScreen({
       return;
     }
 
+    onClearAuthError();
     setError("");
     setMessage("");
     setIsSubmitting(true);
@@ -309,6 +341,13 @@ function AuthScreen({
           )}
         </View>
 
+        {authNotice ? (
+          <View style={styles.successCard}>
+            <Text style={styles.successTitle}>Account ready</Text>
+            <Text style={styles.successBody}>{authNotice}</Text>
+          </View>
+        ) : null}
+
         {message ? (
           <View style={styles.successCard}>
             <Text style={styles.successTitle}>Account update</Text>
@@ -316,9 +355,9 @@ function AuthScreen({
           </View>
         ) : null}
 
-        {error ? (
+        {error || authError ? (
           <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{error || authError}</Text>
           </View>
         ) : null}
 
