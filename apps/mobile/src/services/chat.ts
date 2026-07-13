@@ -1,4 +1,10 @@
-import { ROUTE_CREDITS, type ChartV2, type ChatRoute, type PersonaStyleKey } from "@lumis/shared";
+import {
+  classifyChatRoute,
+  getChatRouteDecision,
+  type ChartV2,
+  type ChatRoute,
+  type PersonaStyleKey
+} from "@lumis/shared";
 
 import { getSupabaseClient } from "./supabase";
 
@@ -64,8 +70,8 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
 
 function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult {
   const chartContext = buildChartContext(input.chart);
-  const route = classifyLocalRoute(input.message);
-  const creditsCost = getRouteCredits(route);
+  const route = classifyChatRoute(input.message);
+  const routeDecision = getChatRouteDecision(route);
   const chartPhrase =
     chartContext.sun && chartContext.moon
       ? ` With your ${chartContext.sun} Sun and ${chartContext.moon} Moon in view,`
@@ -74,44 +80,10 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
   return {
     mode: "local",
     route,
-    creditsCost,
+    creditsCost: routeDecision.credits,
     remainingCredits: 50,
     reply: buildLocalReplyText(route, chartPhrase, input.personaStyle)
   };
-}
-
-function classifyLocalRoute(message: string): ChatRoute {
-  const normalized = message.toLowerCase();
-
-  if (/(self harm|suicide|kill myself|hurt myself|危險|自殺|傷害自己)/i.test(normalized)) {
-    return "safety";
-  }
-
-  if (/(medical|legal|tax|investment|diagnose|醫療|法律|投資|診斷)/i.test(normalized)) {
-    return "out_of_scope";
-  }
-
-  if (/(dice|roll|骰|骰子)/i.test(normalized)) {
-    return "dice";
-  }
-
-  if (/(transit|timing|solar return|this month|this week|今年|本月|流年|時機)/i.test(normalized)) {
-    return "astro_timing";
-  }
-
-  if (/(deep|chart|birth chart|pattern|moon|sun|rising|house|aspect|深入|星盤|模式)/i.test(normalized)) {
-    return "astro_deep";
-  }
-
-  if (/(what is|explain|meaning|astrology|planet|zodiac|意思|解釋|占星)/i.test(normalized)) {
-    return "knowledge";
-  }
-
-  return "casual";
-}
-
-function getRouteCredits(route: ChatRoute): number {
-  return ROUTE_CREDITS.find((item) => item.route === route)?.credits ?? 1;
 }
 
 function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle: PersonaStyleKey): string {

@@ -1,4 +1,8 @@
-import { ROUTE_CREDITS, type ChatRoute } from "../../../packages/shared/src/config/routes.ts";
+import {
+  classifyChatRoute,
+  getChatRouteDecision,
+  type ChatRoute
+} from "../../../packages/shared/src/config/chat-router.ts";
 
 type ChatMessageRequest = {
   message?: string;
@@ -59,8 +63,8 @@ Deno.serve(async (request) => {
 });
 
 function buildChatResponse(body: ChatMessageRequest) {
-  const route = classifyRoute(body.message ?? "");
-  const creditsCost = getRouteCredits(route);
+  const route = classifyChatRoute(body.message ?? "");
+  const routeDecision = getChatRouteDecision(route);
   const chartPhrase =
     body.chart_context?.sun && body.chart_context?.moon
       ? `With your ${body.chart_context.sun} Sun and ${body.chart_context.moon} Moon in view, `
@@ -74,44 +78,10 @@ function buildChatResponse(body: ChatMessageRequest) {
 
   return {
     route,
-    credits_cost: creditsCost,
-    remaining_credits: Math.max(0, 50 - creditsCost),
+    credits_cost: routeDecision.credits,
+    remaining_credits: Math.max(0, 50 - routeDecision.credits),
     reply: buildReplyText(route, chartPhrase, stylePhrase)
   };
-}
-
-function classifyRoute(message: string): ChatRoute {
-  const normalized = message.toLowerCase();
-
-  if (/(self harm|suicide|kill myself|hurt myself|危險|自殺|傷害自己)/i.test(normalized)) {
-    return "safety";
-  }
-
-  if (/(medical|legal|tax|investment|diagnose|醫療|法律|投資|診斷)/i.test(normalized)) {
-    return "out_of_scope";
-  }
-
-  if (/(dice|roll|骰|骰子)/i.test(normalized)) {
-    return "dice";
-  }
-
-  if (/(transit|timing|solar return|this month|this week|今年|本月|流年|時機)/i.test(normalized)) {
-    return "astro_timing";
-  }
-
-  if (/(deep|chart|birth chart|pattern|moon|sun|rising|house|aspect|深入|星盤|模式)/i.test(normalized)) {
-    return "astro_deep";
-  }
-
-  if (/(what is|explain|meaning|astrology|planet|zodiac|意思|解釋|占星)/i.test(normalized)) {
-    return "knowledge";
-  }
-
-  return "casual";
-}
-
-function getRouteCredits(route: ChatRoute): number {
-  return ROUTE_CREDITS.find((item) => item.route === route)?.credits ?? 1;
 }
 
 function buildReplyText(route: ChatRoute, chartPhrase: string, stylePhrase: string): string {

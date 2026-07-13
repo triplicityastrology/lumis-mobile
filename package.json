@@ -8,10 +8,10 @@
     "ios": "pnpm --filter @lumis/mobile ios",
     "android": "pnpm --filter @lumis/mobile android",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "test:router": "tsc -p packages/shared/tsconfig.router-test.json && node .tmp/router-tests/config/chat-router.fixtures.js"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
   }
 }
-
