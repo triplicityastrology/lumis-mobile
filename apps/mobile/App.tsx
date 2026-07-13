@@ -29,6 +29,11 @@ import {
   type AuthStatus
 } from "./src/services/auth";
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
+import {
+  clearLocalDemoSession,
+  loadLocalDemoSession,
+  saveLocalDemoSession
+} from "./src/services/localDemoSession";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
@@ -44,15 +49,34 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [authNotice, setAuthNotice] = useState("");
   const [authError, setAuthError] = useState("");
+  const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
 
   async function refreshAuthStatus() {
     const status = await getAuthStatus();
     setAuthStatus(status);
   }
 
+  async function startOver() {
+    await clearLocalDemoSession();
+    setProfileData(null);
+    setChartProfile(null);
+    setPersonaStyle("acceptance");
+    setHasLocalDemoSession(false);
+    setScreen("home");
+  }
+
   useEffect(() => {
     async function initializeAuth() {
       try {
+        const localSession = await loadLocalDemoSession();
+
+        if (localSession) {
+          setProfileData(localSession.profileData);
+          setChartProfile(localSession.chartProfile);
+          setPersonaStyle(localSession.personaStyle);
+          setHasLocalDemoSession(true);
+        }
+
         const result = await handleAuthRedirectFromUrl();
 
         if (result.message) {
@@ -100,15 +124,21 @@ export default function App() {
 
   if (screen === "preview" && profileData) {
     return (
-      <ChartPreviewScreen
-        profileData={profileData}
-        onBack={() => setScreen("profile")}
-        onStartOver={() => setScreen("home")}
-        onContinuePersona={(chart) => {
-          setChartProfile(chart);
-          setScreen("persona");
-        }}
-      />
+        <ChartPreviewScreen
+          profileData={profileData}
+          onBack={() => setScreen("profile")}
+          onStartOver={startOver}
+          onContinuePersona={(chart) => {
+            setChartProfile(chart);
+            void saveLocalDemoSession({
+              profileData,
+              chartProfile: chart,
+              personaStyle
+            });
+            setHasLocalDemoSession(true);
+            setScreen("persona");
+          }}
+        />
     );
   }
 
@@ -121,9 +151,17 @@ export default function App() {
         onBack={() => setScreen("preview")}
         onEnterChat={async () => {
           await savePersonaStylePreference(personaStyle);
+          if (chartProfile) {
+            await saveLocalDemoSession({
+              profileData,
+              chartProfile,
+              personaStyle
+            });
+            setHasLocalDemoSession(true);
+          }
           setScreen("chat");
         }}
-        onStartOver={() => setScreen("home")}
+        onStartOver={startOver}
       />
     );
   }
@@ -135,7 +173,7 @@ export default function App() {
         chart={chartProfile}
         selectedStyle={personaStyle}
         onBack={() => setScreen("persona")}
-        onStartOver={() => setScreen("home")}
+        onStartOver={startOver}
       />
     );
   }
@@ -179,8 +217,13 @@ export default function App() {
             <Pressable style={styles.primaryButton} onPress={() => setScreen("profile")}>
               <Text style={styles.primaryButtonText}>Create my chart</Text>
             </Pressable>
-            <Pressable style={styles.secondaryButton}>
-              <Text style={styles.secondaryButtonText}>Explore demo</Text>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => setScreen(hasLocalDemoSession && profileData && chartProfile ? "chat" : "profile")}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {hasLocalDemoSession ? "Resume Lumis demo" : "Explore demo"}
+              </Text>
             </Pressable>
           </View>
         </View>
