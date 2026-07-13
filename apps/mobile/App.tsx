@@ -44,6 +44,14 @@ type ProfileData = BirthProfileForm;
 
 type ChatTurn = LocalDemoChatTurn;
 
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  category: "Care Circle" | "System" | "Billing";
+  isUnread: boolean;
+};
+
 const STARTER_CREDITS = 50;
 
 const QUICK_CHAT_PROMPTS = [
@@ -52,8 +60,32 @@ const QUICK_CHAT_PROMPTS = [
   "Give me a gentle chart-based reflection."
 ];
 
+const LOCAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: "care-confirmation",
+    title: "Care Circle request ready",
+    body: "Carer confirmation requests will appear here after QR linking is connected.",
+    category: "Care Circle",
+    isUnread: true
+  },
+  {
+    id: "push-permission",
+    title: "Push permission check",
+    body: "Lumis will use this area for missed check-in alerts, Need help alerts, and push setup issues.",
+    category: "System",
+    isUnread: true
+  },
+  {
+    id: "billing-system",
+    title: "Billing and credit notices",
+    body: "Low credits, plan issues, and subscription notices will be shown here.",
+    category: "Billing",
+    isUnread: false
+  }
+];
+
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -63,6 +95,7 @@ export default function App() {
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
+  const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
 
   async function refreshAuthStatus() {
     const status = await getAuthStatus();
@@ -244,6 +277,15 @@ export default function App() {
     );
   }
 
+  if (screen === "notifications") {
+    return (
+      <NotificationCenterScreen
+        notifications={LOCAL_NOTIFICATIONS}
+        onBack={() => setScreen("home")}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -256,17 +298,31 @@ export default function App() {
               <Text style={styles.wordmarkSub}>星伴 Lumis</Text>
             </View>
           </View>
-          <Pressable
-            style={styles.creditPill}
-            onPress={async () => {
-              await refreshAuthStatus();
-              setScreen("auth");
-            }}
-          >
-            <Text style={styles.creditPillText}>
-              {authStatus?.user?.email ? "Account" : "Sign in"}
-            </Text>
-          </Pressable>
+          <View style={styles.topBarActions}>
+            <Pressable
+              style={styles.notificationButton}
+              onPress={() => setScreen("notifications")}
+              accessibilityLabel="Notifications"
+            >
+              <NotificationBellIcon />
+              {unreadNotificationCount > 0 ? (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadNotificationCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              style={styles.creditPill}
+              onPress={async () => {
+                await refreshAuthStatus();
+                setScreen("auth");
+              }}
+            >
+              <Text style={styles.creditPillText}>
+                {authStatus?.user?.email ? "Account" : "Sign in"}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.hero}>
@@ -1270,12 +1326,102 @@ function PastReflectionsScreen({
   );
 }
 
+function NotificationCenterScreen({
+  notifications,
+  onBack
+}: {
+  notifications: NotificationItem[];
+  onBack: () => void;
+}) {
+  const unreadCount = notifications.filter((item) => item.isUnread).length;
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>
+              {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <NotificationBellIcon size={56} />
+          </View>
+          <Text style={styles.kicker}>Notification Center</Text>
+          <Text style={styles.formTitle}>Care alerts and system notices in one place.</Text>
+          <Text style={styles.formIntro}>
+            This shell prepares the UI for Care Circle confirmations, missed check-ins, Need help
+            alerts, billing notices, and push permission issues.
+          </Text>
+        </View>
+
+        <View style={styles.notificationList}>
+          {notifications.map((notification) => (
+            <View
+              key={notification.id}
+              style={[
+                styles.notificationCard,
+                notification.isUnread && styles.notificationCardUnread
+              ]}
+            >
+              <View style={styles.notificationCardHeader}>
+                <Text style={styles.notificationCategory}>{notification.category}</Text>
+                {notification.isUnread ? <View style={styles.unreadDot} /> : null}
+              </View>
+              <Text style={styles.notificationTitle}>{notification.title}</Text>
+              <Text style={styles.notificationBody}>{notification.body}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeTitle}>Next backend connection</Text>
+          <Text style={styles.noticeBody}>
+            These local notices will later come from the Supabase notifications table and push
+            delivery events.
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 function MiniChartStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.miniChartStat}>
       <Text style={styles.miniChartLabel}>{label}</Text>
       <Text style={styles.miniChartValue}>{value}</Text>
     </View>
+  );
+}
+
+function NotificationBellIcon({ size = 22 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M6.6 10.4C6.6 7.1 8.7 5 12 5s5.4 2.1 5.4 5.4v2.9l1.3 2.2H5.3l1.3-2.2v-2.9Z"
+        fill="none"
+        stroke="#7B5A27"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <Path
+        d="M10 18.1c.4.7 1.1 1.1 2 1.1s1.6-.4 2-1.1"
+        fill="none"
+        stroke="#7B5A27"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
+      <Circle cx="12" cy="4" r="1.2" fill="#B4863F" />
+    </Svg>
   );
 }
 
@@ -1391,6 +1537,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between"
   },
+  topBarActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
+  },
   wordmark: {
     alignItems: "center",
     flexDirection: "row",
@@ -1418,6 +1569,35 @@ const styles = StyleSheet.create({
     color: "#7B5A27",
     fontSize: 12,
     fontWeight: "700"
+  },
+  notificationButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(180,134,63,0.12)",
+    borderColor: "rgba(180,134,63,0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    position: "relative",
+    width: 38
+  },
+  notificationBadge: {
+    alignItems: "center",
+    backgroundColor: "#9B3F31",
+    borderColor: "#F3ECE0",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 17,
+    justifyContent: "center",
+    position: "absolute",
+    right: -4,
+    top: -4,
+    width: 17
+  },
+  notificationBadgeText: {
+    color: "#FBF7EE",
+    fontSize: 10,
+    fontWeight: "800"
   },
   hero: {
     alignItems: "center",
@@ -1920,6 +2100,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 18
+  },
+  notificationList: {
+    gap: 12
+  },
+  notificationCard: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 16
+  },
+  notificationCardUnread: {
+    backgroundColor: "rgba(180,134,63,0.09)",
+    borderColor: "rgba(180,134,63,0.28)"
+  },
+  notificationCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8
+  },
+  notificationCategory: {
+    color: "#B4863F",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  unreadDot: {
+    backgroundColor: "#9B3F31",
+    borderRadius: 999,
+    height: 9,
+    width: 9
+  },
+  notificationTitle: {
+    color: "#2F2B25",
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 21
+  },
+  notificationBody: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 6
   },
   profileTopBar: {
     alignItems: "center",
