@@ -122,7 +122,7 @@ export async function sendMagicLink(email: string): Promise<MagicLinkResult> {
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(formatAuthErrorMessage(error.message));
   }
 
   return {
@@ -138,6 +138,14 @@ function getEmailRedirectTo(): string | undefined {
   }
 
   return globalThis.location.origin;
+}
+
+function formatAuthErrorMessage(message: string): string {
+  if (/rate limit/i.test(message)) {
+    return "Supabase has temporarily paused new sign-in emails after too many attempts. Please wait about 1 hour, or continue local demo while we build.";
+  }
+
+  return message;
 }
 
 function cleanAuthUrl() {

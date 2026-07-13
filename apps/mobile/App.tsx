@@ -58,6 +58,10 @@ export default function App() {
         if (result.message) {
           setAuthNotice(result.message);
         }
+
+        if (result.handled) {
+          setScreen("auth");
+        }
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : "Unable to confirm account.");
       } finally {
@@ -298,6 +302,21 @@ function AuthScreen({
     }
   }
 
+  async function handleCheckAccountStatus() {
+    setError("");
+    setMessage("");
+    setIsSubmitting(true);
+
+    try {
+      await onRefreshAuthStatus();
+      setMessage("Account status refreshed.");
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "Unable to refresh account status.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -380,6 +399,14 @@ function AuthScreen({
             </Text>
           </Pressable>
         )}
+
+        <Pressable
+          style={styles.secondaryFullButton}
+          onPress={handleCheckAccountStatus}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.secondaryFullButtonText}>Check account status</Text>
+        </Pressable>
 
         <Pressable style={styles.ghostButton} onPress={onContinueLocal}>
           <Text style={styles.ghostButtonText}>Continue local demo</Text>
@@ -1770,6 +1797,20 @@ const styles = StyleSheet.create({
   },
   fullPrimaryButtonText: {
     color: "#FBF7EE",
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  secondaryFullButton: {
+    alignItems: "center",
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 15
+  },
+  secondaryFullButtonText: {
+    color: "#2F2B25",
     fontSize: 15,
     fontWeight: "800"
   },
