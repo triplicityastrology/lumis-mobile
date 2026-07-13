@@ -41,6 +41,13 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 
 type ProfileData = BirthProfileForm;
 
+type ChatTurn = {
+  id: string;
+  userMessage: string;
+  result: SendChatMessageResult | null;
+  error: string;
+};
+
 export default function App() {
   const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -905,15 +912,14 @@ function ChatShellScreen({
   onStartOver: () => void;
 }) {
   const [draftMessage, setDraftMessage] = useState("");
-  const [sentMessage, setSentMessage] = useState("");
-  const [chatResult, setChatResult] = useState<SendChatMessageResult | null>(null);
-  const [chatError, setChatError] = useState("");
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [isSending, setIsSending] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
   const canSend = draftMessage.trim().length > 0 && !isSending;
+  const latestResult = [...chatTurns].reverse().find((turn) => turn.result)?.result ?? null;
 
   async function handleSend() {
     if (!canSend) {
@@ -921,9 +927,17 @@ function ChatShellScreen({
     }
 
     const nextMessage = draftMessage.trim();
-    setSentMessage(nextMessage);
-    setChatError("");
-    setChatResult(null);
+    const turnId = `${Date.now()}`;
+
+    setChatTurns((currentTurns) => [
+      ...currentTurns,
+      {
+        id: turnId,
+        userMessage: nextMessage,
+        result: null,
+        error: ""
+      }
+    ]);
     setDraftMessage("");
     setIsSending(true);
 
@@ -933,9 +947,20 @@ function ChatShellScreen({
         personaStyle: selectedStyle,
         chart
       });
-      setChatResult(result);
+      setChatTurns((currentTurns) =>
+        currentTurns.map((turn) => (turn.id === turnId ? { ...turn, result } : turn))
+      );
     } catch (error) {
-      setChatError(error instanceof Error ? error.message : "Unable to send message.");
+      setChatTurns((currentTurns) =>
+        currentTurns.map((turn) =>
+          turn.id === turnId
+            ? {
+                ...turn,
+                error: error instanceof Error ? error.message : "Unable to send message."
+              }
+            : turn
+        )
+      );
     } finally {
       setIsSending(false);
     }
@@ -983,45 +1008,36 @@ function ChatShellScreen({
             </Text>
           </View>
 
-          {sentMessage ? (
-            <>
+          {chatTurns.map((turn) => (
+            <View key={turn.id}>
               <View style={styles.messageBubbleUser}>
                 <Text style={styles.messageAuthorUser}>You</Text>
-                <Text style={styles.messageText}>{sentMessage}</Text>
+                <Text style={styles.messageText}>{turn.userMessage}</Text>
               </View>
-              {chatResult ? (
+              {turn.result ? (
                 <View style={styles.messageBubbleLumis}>
                   <Text style={styles.messageAuthor}>Lumis</Text>
-                  <Text style={styles.messageText}>{chatResult.reply}</Text>
+                  <Text style={styles.messageText}>{turn.result.reply}</Text>
                 </View>
               ) : null}
-              {isSending ? (
+              {isSending && !turn.result && !turn.error && turn.id === chatTurns[chatTurns.length - 1]?.id ? (
                 <View style={styles.messageBubbleLumis}>
                   <Text style={styles.messageAuthor}>Lumis</Text>
                   <Text style={styles.messageText}>Reading the thread of this question...</Text>
                 </View>
               ) : null}
-              {chatError ? (
+              {turn.error ? (
                 <View style={styles.errorCard}>
-                  <Text style={styles.errorText}>{chatError}</Text>
+                  <Text style={styles.errorText}>{turn.error}</Text>
                 </View>
               ) : null}
-              {!chatResult && !isSending && !chatError ? (
-                <View style={styles.messageBubbleLumis}>
-                  <Text style={styles.messageAuthor}>Lumis</Text>
-                  <Text style={styles.messageText}>
-                    I hear that. Let us begin with the part that feels most present, then connect it
-                    back to your chart gently.
-                  </Text>
-                </View>
-              ) : null}
-            </>
-          ) : null}
+            </View>
+          ))}
 
           <View style={styles.routePreviewStrip}>
             <Text style={styles.routePreviewText}>
-              {chatResult
-                ? `${chatResult.mode === "supabase" ? "Supabase" : "Local"} ${chatResult.route} · ${chatResult.creditsCost} credit`
+              {latestResult
+                ? `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit`
                 : "Casual chat · 1 credit"}
             </Text>
           </View>
