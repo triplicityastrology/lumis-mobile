@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 
 import type { ChartV2, PersonaStyleKey } from "@lumis/shared";
 
+import type { SendChatMessageResult } from "./chat";
 import type { BirthProfileForm } from "./profile";
 
 const LOCAL_DEMO_SESSION_KEY = "lumis.localDemoSession.v1";
@@ -11,7 +12,16 @@ export type LocalDemoSession = {
   profileData: BirthProfileForm;
   chartProfile: ChartV2;
   personaStyle: PersonaStyleKey;
+  chatTurns?: LocalDemoChatTurn[];
+  remainingCredits?: number;
   updatedAt: string;
+};
+
+export type LocalDemoChatTurn = {
+  id: string;
+  userMessage: string;
+  result: SendChatMessageResult | null;
+  error: string;
 };
 
 export async function loadLocalDemoSession(): Promise<LocalDemoSession | null> {

@@ -31,6 +31,7 @@ import {
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
 import {
   clearLocalDemoSession,
+  type LocalDemoChatTurn,
   loadLocalDemoSession,
   saveLocalDemoSession
 } from "./src/services/localDemoSession";
@@ -41,12 +42,15 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 
 type ProfileData = BirthProfileForm;
 
-type ChatTurn = {
-  id: string;
-  userMessage: string;
-  result: SendChatMessageResult | null;
-  error: string;
-};
+type ChatTurn = LocalDemoChatTurn;
+
+const STARTER_CREDITS = 50;
+
+const QUICK_CHAT_PROMPTS = [
+  "What should I pay attention to this week?",
+  "Help me understand one repeating pattern.",
+  "Give me a gentle chart-based reflection."
+];
 
 export default function App() {
   const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat">("home");
@@ -57,6 +61,8 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState("");
   const [authError, setAuthError] = useState("");
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
+  const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
 
   async function refreshAuthStatus() {
     const status = await getAuthStatus();
@@ -68,8 +74,27 @@ export default function App() {
     setProfileData(null);
     setChartProfile(null);
     setPersonaStyle("acceptance");
+    setChatTurns([]);
+    setRemainingCredits(STARTER_CREDITS);
     setHasLocalDemoSession(false);
     setScreen("home");
+  }
+
+  async function saveDemoSession(
+    nextProfileData: ProfileData,
+    nextChartProfile: ChartV2,
+    nextPersonaStyle: PersonaStyleKey,
+    nextChatTurns = chatTurns,
+    nextRemainingCredits = remainingCredits
+  ) {
+    await saveLocalDemoSession({
+      profileData: nextProfileData,
+      chartProfile: nextChartProfile,
+      personaStyle: nextPersonaStyle,
+      chatTurns: nextChatTurns,
+      remainingCredits: nextRemainingCredits
+    });
+    setHasLocalDemoSession(true);
   }
 
   useEffect(() => {
@@ -81,6 +106,8 @@ export default function App() {
           setProfileData(localSession.profileData);
           setChartProfile(localSession.chartProfile);
           setPersonaStyle(localSession.personaStyle);
+          setChatTurns(localSession.chatTurns ?? []);
+          setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
           setHasLocalDemoSession(true);
         }
 
@@ -131,21 +158,16 @@ export default function App() {
 
   if (screen === "preview" && profileData) {
     return (
-        <ChartPreviewScreen
-          profileData={profileData}
-          onBack={() => setScreen("profile")}
-          onStartOver={startOver}
-          onContinuePersona={(chart) => {
-            setChartProfile(chart);
-            void saveLocalDemoSession({
-              profileData,
-              chartProfile: chart,
-              personaStyle
-            });
-            setHasLocalDemoSession(true);
-            setScreen("persona");
-          }}
-        />
+      <ChartPreviewScreen
+        profileData={profileData}
+        onBack={() => setScreen("profile")}
+        onStartOver={startOver}
+        onContinuePersona={(chart) => {
+          setChartProfile(chart);
+          void saveDemoSession(profileData, chart, personaStyle, [], STARTER_CREDITS);
+          setScreen("persona");
+        }}
+      />
     );
   }
 
@@ -159,12 +181,7 @@ export default function App() {
         onEnterChat={async () => {
           await savePersonaStylePreference(personaStyle);
           if (chartProfile) {
-            await saveLocalDemoSession({
-              profileData,
-              chartProfile,
-              personaStyle
-            });
-            setHasLocalDemoSession(true);
+            await saveDemoSession(profileData, chartProfile, personaStyle);
           }
           setScreen("chat");
         }}
@@ -179,6 +196,22 @@ export default function App() {
         name={profileData.name}
         chart={chartProfile}
         selectedStyle={personaStyle}
+        chatTurns={chatTurns}
+        remainingCredits={remainingCredits}
+        onChatStateChange={async (nextChatTurns, nextRemainingCredits) => {
+          setChatTurns(nextChatTurns);
+          setRemainingCredits(nextRemainingCredits);
+
+          if (chartProfile) {
+            await saveDemoSession(
+              profileData,
+              chartProfile,
+              personaStyle,
+              nextChatTurns,
+              nextRemainingCredits
+            );
+          }
+        }}
         onBack={() => setScreen("persona")}
         onStartOver={startOver}
       />
@@ -902,23 +935,28 @@ function ChatShellScreen({
   name,
   chart,
   selectedStyle,
+  chatTurns,
+  remainingCredits,
+  onChatStateChange,
   onBack,
   onStartOver
 }: {
   name: string;
   chart: ChartV2 | null;
   selectedStyle: PersonaStyleKey;
+  chatTurns: ChatTurn[];
+  remainingCredits: number;
+  onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
   onBack: () => void;
   onStartOver: () => void;
 }) {
   const [draftMessage, setDraftMessage] = useState("");
-  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [isSending, setIsSending] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
-  const canSend = draftMessage.trim().length > 0 && !isSending;
+  const canSend = draftMessage.trim().length > 0 && !isSending && remainingCredits > 0;
   const latestResult = [...chatTurns].reverse().find((turn) => turn.result)?.result ?? null;
 
   async function handleSend() {
@@ -928,18 +966,19 @@ function ChatShellScreen({
 
     const nextMessage = draftMessage.trim();
     const turnId = `${Date.now()}`;
-
-    setChatTurns((currentTurns) => [
-      ...currentTurns,
+    const nextPendingTurns = [
+      ...chatTurns,
       {
         id: turnId,
         userMessage: nextMessage,
         result: null,
         error: ""
       }
-    ]);
+    ];
+
     setDraftMessage("");
     setIsSending(true);
+    await onChatStateChange(nextPendingTurns, remainingCredits);
 
     try {
       const result = await sendChatMessage({
@@ -947,19 +986,25 @@ function ChatShellScreen({
         personaStyle: selectedStyle,
         chart
       });
-      setChatTurns((currentTurns) =>
-        currentTurns.map((turn) => (turn.id === turnId ? { ...turn, result } : turn))
+      const nextRemainingCredits =
+        result.mode === "supabase"
+          ? result.remainingCredits
+          : Math.max(0, remainingCredits - result.creditsCost);
+      await onChatStateChange(
+        nextPendingTurns.map((turn) => (turn.id === turnId ? { ...turn, result } : turn)),
+        nextRemainingCredits
       );
     } catch (error) {
-      setChatTurns((currentTurns) =>
-        currentTurns.map((turn) =>
+      await onChatStateChange(
+        nextPendingTurns.map((turn) =>
           turn.id === turnId
             ? {
                 ...turn,
                 error: error instanceof Error ? error.message : "Unable to send message."
               }
             : turn
-        )
+        ),
+        remainingCredits
       );
     } finally {
       setIsSending(false);
@@ -981,7 +1026,7 @@ function ChatShellScreen({
             </Text>
           </View>
           <View style={styles.creditPill}>
-            <Text style={styles.creditPillText}>50 credits</Text>
+            <Text style={styles.creditPillText}>{remainingCredits} credits</Text>
           </View>
         </View>
 
@@ -1007,6 +1052,20 @@ function ChatShellScreen({
               ready. What would you like to explore first?
             </Text>
           </View>
+
+          {chatTurns.length === 0 ? (
+            <View style={styles.quickPromptGrid}>
+              {QUICK_CHAT_PROMPTS.map((prompt) => (
+                <Pressable
+                  key={prompt}
+                  style={styles.quickPromptButton}
+                  onPress={() => setDraftMessage(prompt)}
+                >
+                  <Text style={styles.quickPromptText}>{prompt}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
 
           {chatTurns.map((turn) => (
             <View key={turn.id}>
@@ -1037,8 +1096,8 @@ function ChatShellScreen({
           <View style={styles.routePreviewStrip}>
             <Text style={styles.routePreviewText}>
               {latestResult
-                ? `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit`
-                : "Casual chat · 1 credit"}
+                ? `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit · ${remainingCredits} left`
+                : `Casual chat · 1 credit · ${remainingCredits} left`}
             </Text>
           </View>
         </ScrollView>
@@ -1575,6 +1634,25 @@ const styles = StyleSheet.create({
     color: "#2F2B25",
     fontSize: 15,
     lineHeight: 22
+  },
+  quickPromptGrid: {
+    gap: 9
+  },
+  quickPromptButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(180,134,63,0.11)",
+    borderColor: "rgba(180,134,63,0.20)",
+    borderRadius: 16,
+    borderWidth: 1,
+    maxWidth: "92%",
+    paddingHorizontal: 13,
+    paddingVertical: 10
+  },
+  quickPromptText: {
+    color: "#6D4F23",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18
   },
   routePreviewStrip: {
     alignSelf: "flex-start",
