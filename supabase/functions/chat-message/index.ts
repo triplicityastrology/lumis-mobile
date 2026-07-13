@@ -4,6 +4,8 @@ import {
   type ChatRoute
 } from "../../../packages/shared/src/config/chat-router.ts";
 
+import { corsHeaders, handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
+
 type ChatMessageRequest = {
   message?: string;
   persona_style?: "acceptance" | "spark" | "awareness";
@@ -16,8 +18,14 @@ type ChatMessageRequest = {
 };
 
 Deno.serve(async (request) => {
+  const corsPreflight = handleCorsPreflight(request);
+
+  if (corsPreflight) {
+    return corsPreflight;
+  }
+
   if (request.method !== "POST") {
-    return Response.json({ error: { code: 405, message: "Method not allowed" } }, { status: 405 });
+    return jsonResponse({ error: { code: 405, message: "Method not allowed" } }, { status: 405 });
   }
 
   const acceptsStream = request.headers.get("accept")?.includes("text/event-stream") ?? false;
@@ -25,7 +33,7 @@ Deno.serve(async (request) => {
   const response = buildChatResponse(body);
 
   if (!acceptsStream) {
-    return Response.json(response);
+    return jsonResponse(response);
   }
 
   const stream = new ReadableStream({
@@ -56,6 +64,7 @@ Deno.serve(async (request) => {
 
   return new Response(stream, {
     headers: {
+      ...corsHeaders,
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache"
     }

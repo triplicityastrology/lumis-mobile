@@ -209,6 +209,16 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
   });
 
   if (error) {
+    if (isEdgeFunctionTransportError(error.message)) {
+      return {
+        ...preparedRequest,
+        mode: "local",
+        message:
+          "The hosted chart save function is temporarily unreachable. Showing a local chart profile so you can keep testing the flow.",
+        chart: buildFixtureChart(form)
+      };
+    }
+
     throw new Error(error.message);
   }
 
@@ -224,6 +234,10 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     chart: response.chart ?? buildFixtureChart(form),
     data: response
   };
+}
+
+function isEdgeFunctionTransportError(message: string): boolean {
+  return /failed to send|fetch|network|cors/i.test(message);
 }
 
 export async function savePersonaStylePreference(

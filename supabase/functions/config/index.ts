@@ -2,8 +2,16 @@ import { PRODUCTS, TOP_UPS } from "../../../packages/shared/src/config/products.
 import { ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
 import { PERSONA_STYLES } from "../../../packages/shared/src/terminology/lumis.ts";
 
-Deno.serve(() => {
-  return Response.json({
+import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
+
+Deno.serve((request) => {
+  const corsPreflight = handleCorsPreflight(request);
+
+  if (corsPreflight) {
+    return corsPreflight;
+  }
+
+  return jsonResponse({
     age_min: 18,
     app_name: "Lumis",
     personas: PERSONA_STYLES,

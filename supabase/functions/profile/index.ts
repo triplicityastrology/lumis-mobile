@@ -2,6 +2,8 @@ import { CHART_WORKER_CONTRACT, type SignedChartWorkerRequest } from "@lumis/ast
 import { createClient } from "@supabase/supabase-js";
 import type { ChartV2 } from "@lumis/shared";
 
+import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
+
 type ProfileRequest = {
   display_name?: string;
   birth_date: string;
@@ -21,14 +23,20 @@ const personaStyleToInternalRole = {
 } as const;
 
 Deno.serve(async (request) => {
+  const corsPreflight = handleCorsPreflight(request);
+
+  if (corsPreflight) {
+    return corsPreflight;
+  }
+
   if (request.method !== "POST") {
-    return Response.json({ error: { code: 405, message: "Method not allowed" } }, { status: 405 });
+    return jsonResponse({ error: { code: 405, message: "Method not allowed" } }, { status: 405 });
   }
 
   const body = (await request.json()) as ProfileRequest;
 
   if (!body.birth_date || !body.place_name || (!body.birth_time && !body.time_unknown)) {
-    return Response.json(
+    return jsonResponse(
       {
         error: {
           code: "PROFILE_INCOMPLETE",
@@ -40,7 +48,7 @@ Deno.serve(async (request) => {
   }
 
   if (!body.country_code || body.lat == null || body.lng == null || !body.tz_str) {
-    return Response.json(
+    return jsonResponse(
       {
         error: {
           code: "LOCATION_UNRESOLVED",
@@ -73,7 +81,7 @@ Deno.serve(async (request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey) {
-    return Response.json({
+    return jsonResponse({
       profile_version: 0,
       status: "profile_request_prepared",
       precision: chartRequest.birth_data.time_unknown ? "no_birth_time" : "full",
@@ -94,7 +102,7 @@ Deno.serve(async (request) => {
   const { data: authData, error: authError } = await userClient.auth.getUser();
 
   if (authError || !authData.user) {
-    return Response.json(
+    return jsonResponse(
       {
         error: {
           code: "PROFILE_AUTH_REQUIRED",
@@ -119,7 +127,7 @@ Deno.serve(async (request) => {
   });
 
   if (userError) {
-    return Response.json({ error: { code: "USER_SAVE_FAILED", message: userError.message } }, { status: 500 });
+    return jsonResponse({ error: { code: "USER_SAVE_FAILED", message: userError.message } }, { status: 500 });
   }
 
   const { error: birthError } = await serviceClient.from("birth_data").upsert({
@@ -135,7 +143,7 @@ Deno.serve(async (request) => {
   });
 
   if (birthError) {
-    return Response.json({ error: { code: "BIRTH_SAVE_FAILED", message: birthError.message } }, { status: 500 });
+    return jsonResponse({ error: { code: "BIRTH_SAVE_FAILED", message: birthError.message } }, { status: 500 });
   }
 
   const { data: latestProfile } = await serviceClient
@@ -163,7 +171,7 @@ Deno.serve(async (request) => {
     .single();
 
   if (profileError) {
-    return Response.json({ error: { code: "PROFILE_SAVE_FAILED", message: profileError.message } }, { status: 500 });
+    return jsonResponse({ error: { code: "PROFILE_SAVE_FAILED", message: profileError.message } }, { status: 500 });
   }
 
   await serviceClient.from("monthly_balance").insert({
@@ -172,7 +180,7 @@ Deno.serve(async (request) => {
     remaining: 50
   });
 
-  return Response.json({
+  return jsonResponse({
     profile_version: profile.version,
     status: "profile_persisted",
     precision: chartRequest.birth_data.time_unknown ? "no_birth_time" : "full",
