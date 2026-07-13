@@ -27,8 +27,8 @@ export const PERSONA_STYLES = [
   {
     key: "awareness",
     internalRole: "growth",
-    labelEn: "Awareness",
-    labelZh: "覺察",
+    labelEn: "Growth",
+    labelZh: "成長",
     promiseEn: "Reflective and gently challenging.",
     promiseZh: "深度反思，溫和挑戰，理清反覆出現的輪廓。"
   }
@@ -36,4 +36,3 @@ export const PERSONA_STYLES = [
 
 export type PersonaStyleKey = (typeof PERSONA_STYLES)[number]["key"];
 export type InternalRoleKey = (typeof PERSONA_STYLES)[number]["internalRole"];
-

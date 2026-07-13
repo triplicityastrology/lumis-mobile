@@ -1,4 +1,4 @@
-import type { ChartV2, ChatRoute, PersonaStyleKey } from "@lumis/shared";
+import { ROUTE_CREDITS, type ChartV2, type ChatRoute, type PersonaStyleKey } from "@lumis/shared";
 
 import { getSupabaseClient } from "./supabase";
 
@@ -64,6 +64,8 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
 
 function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult {
   const chartContext = buildChartContext(input.chart);
+  const route = classifyLocalRoute(input.message);
+  const creditsCost = getRouteCredits(route);
   const chartPhrase =
     chartContext.sun && chartContext.moon
       ? ` With your ${chartContext.sun} Sun and ${chartContext.moon} Moon in view,`
@@ -71,11 +73,80 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
 
   return {
     mode: "local",
-    route: "casual",
-    creditsCost: 1,
+    route,
+    creditsCost,
     remainingCredits: 50,
-    reply: `${chartPhrase} I hear the question. Let us start with what feels most alive right now, then let Lumis connect it back to your pattern gently.`
+    reply: buildLocalReplyText(route, chartPhrase, input.personaStyle)
   };
+}
+
+function classifyLocalRoute(message: string): ChatRoute {
+  const normalized = message.toLowerCase();
+
+  if (/(self harm|suicide|kill myself|hurt myself|危險|自殺|傷害自己)/i.test(normalized)) {
+    return "safety";
+  }
+
+  if (/(medical|legal|tax|investment|diagnose|醫療|法律|投資|診斷)/i.test(normalized)) {
+    return "out_of_scope";
+  }
+
+  if (/(dice|roll|骰|骰子)/i.test(normalized)) {
+    return "dice";
+  }
+
+  if (/(transit|timing|solar return|this month|this week|今年|本月|流年|時機)/i.test(normalized)) {
+    return "astro_timing";
+  }
+
+  if (/(deep|chart|birth chart|pattern|moon|sun|rising|house|aspect|深入|星盤|模式)/i.test(normalized)) {
+    return "astro_deep";
+  }
+
+  if (/(what is|explain|meaning|astrology|planet|zodiac|意思|解釋|占星)/i.test(normalized)) {
+    return "knowledge";
+  }
+
+  return "casual";
+}
+
+function getRouteCredits(route: ChatRoute): number {
+  return ROUTE_CREDITS.find((item) => item.route === route)?.credits ?? 1;
+}
+
+function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle: PersonaStyleKey): string {
+  const stylePhrase =
+    personaStyle === "spark"
+      ? " I will keep this exploratory and a little provocative."
+      : personaStyle === "awareness"
+        ? " I will keep this practical and growth-oriented."
+        : " I will keep this gentle and grounding.";
+
+  if (route === "safety") {
+    return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
+  }
+
+  if (route === "out_of_scope") {
+    return "That sits outside what Lumis should answer directly. I can help you reflect on the feelings and timing around it, but not replace medical, legal, financial, or emergency advice.";
+  }
+
+  if (route === "dice") {
+    return `${chartPhrase} The local demo would route this as a dice reading. Treat this as a symbolic prompt: what first instinct appears, what resistance appears, and what would change if you trusted the quieter answer?`;
+  }
+
+  if (route === "astro_timing") {
+    return `${chartPhrase} The local demo would route this as timing work. Start by naming the window you care about, then Lumis can connect it to transits, Solar Return themes, and the question underneath the timing.${stylePhrase}`;
+  }
+
+  if (route === "astro_deep") {
+    return `${chartPhrase} The local demo would route this as a deep chart reading. I would look for the repeated pattern first, then connect it to planets, houses, and the way it shows up in daily life.${stylePhrase}`;
+  }
+
+  if (route === "knowledge") {
+    return `${chartPhrase} The local demo would route this as astrology knowledge. I can explain the concept plainly first, then show how it might matter in your own Lumis Persona.${stylePhrase}`;
+  }
+
+  return `${chartPhrase} I hear the question. Let us start with what feels most alive right now, then let Lumis connect it back to your pattern gently.${stylePhrase}`;
 }
 
 function buildChartContext(chart: ChartV2 | null) {
