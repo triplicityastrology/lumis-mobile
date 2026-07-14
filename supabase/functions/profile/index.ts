@@ -24,6 +24,22 @@ type OnboardingRpcResponse = {
   profile_version?: number;
 };
 
+type ChartGenerationResult = {
+  chart: ChartV2;
+  rawChartJson: Record<string, unknown>;
+  status: "fixture_worker_not_configured" | "worker_chart_generated";
+  nextStep: string;
+};
+
+type MobileChartWorkerPayload = SignedChartWorkerRequest & {
+  request_id: string;
+  requested_at: string;
+  client: {
+    source: "lumis_mobile_supabase";
+    environment: string;
+  };
+};
+
 const personaStyleToInternalRole = {
   acceptance: "support",
   spark: "spark",
@@ -122,7 +138,26 @@ Deno.serve(async (request) => {
   }
 
   const userId = authData.user.id;
-  const chart = buildFixtureChart(body);
+  let chartResult: ChartGenerationResult;
+
+  try {
+    chartResult = await generateChart({
+      chartRequest: { ...chartRequest, user_id: userId },
+      body
+    });
+  } catch (error) {
+    return jsonResponse(
+      {
+        error: {
+          code: "CHART_WORKER_FAILED",
+          message: error instanceof Error ? error.message : "Unable to generate this Lumis chart."
+        }
+      },
+      { status: 502 }
+    );
+  }
+
+  const chart = chartResult.chart;
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const role = personaStyleToInternalRole.acceptance;
 
@@ -142,11 +177,15 @@ Deno.serve(async (request) => {
       p_role: role,
       p_chart_json: chart,
       p_raw_chart_json: {
-        status: "worker_pending",
+        ...chartResult.rawChartJson,
+        status: chartResult.status,
         chart_worker_contract: { ...chartRequest, user_id: userId }
       },
       p_precision: chart.precision,
-      p_model: "fixture_until_worker_connected"
+      p_model:
+        chartResult.status === "worker_chart_generated"
+          ? "cloudflare_worker_mobile_natal_v1"
+          : "fixture_until_worker_connected"
     }
   );
 
@@ -179,12 +218,176 @@ Deno.serve(async (request) => {
     ai_profile_id: onboarding.ai_profile_id,
     chart_worker_contract: { ...chartRequest, user_id: userId },
     chart,
-    next_step: "Replace fixture chart with signed Cloudflare Worker chart_v2 response."
+    next_step: chartResult.nextStep
   });
 });
 
-function buildFixtureChart(body: ProfileRequest): ChartV2 {
+async function generateChart(input: {
+  chartRequest: SignedChartWorkerRequest;
+  body: ProfileRequest;
+}): Promise<ChartGenerationResult> {
+  const workerUrl = chartWorkerUrl();
+  const signingSecret = Deno.env.get("CHART_WORKER_SIGNING_SECRET");
+
+  if (!workerUrl || !signingSecret) {
+    return {
+      chart: buildFixtureChart(input.body),
+      rawChartJson: {
+        status: "fixture_worker_not_configured",
+        reason: "CHART_WORKER_URL and CHART_WORKER_SIGNING_SECRET are required for live chart generation"
+      },
+      status: "fixture_worker_not_configured",
+      nextStep:
+        "Configure CHART_WORKER_URL and CHART_WORKER_SIGNING_SECRET to replace the fixture with the signed Cloudflare Worker chart_v2 response."
+    };
+  }
+
+  const requestId = crypto.randomUUID();
+  const requestedAt = new Date().toISOString();
+  const payload: MobileChartWorkerPayload = {
+    ...input.chartRequest,
+    request_id: requestId,
+    requested_at: requestedAt,
+    client: {
+      source: "lumis_mobile_supabase",
+      environment: Deno.env.get("LUMIS_ENV") ?? "staging"
+    }
+  };
+  const bodyText = JSON.stringify(payload);
+  const timestamp = String(Date.now());
+  const signature = await signChartWorkerRequest({
+    bodyText,
+    signingSecret,
+    timestamp
+  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), chartWorkerTimeoutMs());
+
+  try {
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Lumis-Signature-Version": "v1",
+        "X-Lumis-Timestamp": timestamp,
+        "X-Lumis-Signature": signature,
+        "X-Lumis-Request-Id": requestId,
+        "X-Lumis-User-Id": input.chartRequest.user_id
+      },
+      body: bodyText,
+      signal: controller.signal
+    });
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`Chart Worker returned ${response.status}: ${responseText.slice(0, 300)}`);
+    }
+
+    const workerResponse = JSON.parse(responseText) as Record<string, unknown>;
+    const chart = extractChartV2(workerResponse);
+
+    return {
+      chart: sanitizeChartForPrecision(chart, input.chartRequest.birth_data.time_unknown),
+      rawChartJson: {
+        status: "worker_chart_generated",
+        request_id: requestId,
+        worker_response: workerResponse
+      },
+      status: "worker_chart_generated",
+      nextStep: "Signed Cloudflare Worker chart_v2 response generated and saved."
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("Chart Worker request timed out.");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function chartWorkerUrl(): string | null {
+  const configuredUrl = Deno.env.get("CHART_WORKER_URL")?.trim();
+
+  if (!configuredUrl) {
+    return null;
+  }
+
+  if (/\/mobile\/natal-chart\/?$/.test(configuredUrl)) {
+    return configuredUrl;
+  }
+
+  const endpoint = Deno.env.get("CHART_WORKER_ENDPOINT")?.trim() || CHART_WORKER_CONTRACT.endpoint;
+  return `${configuredUrl.replace(/\/+$/, "")}${endpoint}`;
+}
+
+function chartWorkerTimeoutMs(): number {
+  const configuredTimeout = Number(Deno.env.get("CHART_WORKER_TIMEOUT_MS"));
+
+  return Number.isFinite(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : 15_000;
+}
+
+async function signChartWorkerRequest(input: {
+  bodyText: string;
+  signingSecret: string;
+  timestamp: string;
+}): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(input.signingSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${input.timestamp}.${input.bodyText}`)
+  );
+
+  return `sha256=${bytesToHex(new Uint8Array(signature))}`;
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function extractChartV2(workerResponse: Record<string, unknown>): ChartV2 {
+  const candidate = (workerResponse.chart_v2 ?? workerResponse.chart) as ChartV2 | undefined;
+
+  if (!candidate || candidate.version !== "chart_v2" || !Array.isArray(candidate.planets)) {
+    throw new Error("Chart Worker response did not include a valid chart_v2 payload.");
+  }
+
+  return candidate;
+}
+
+function sanitizeChartForPrecision(chart: ChartV2, timeUnknown: boolean): ChartV2 {
+  if (!timeUnknown) {
+    return chart;
+  }
+
   return {
+    ...chart,
+    precision: "no_birth_time",
+    planets: chart.planets
+      .filter((planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli")
+      .map((planet) => {
+        const { house: _house, ...planetWithoutHouse } = planet;
+        return planetWithoutHouse;
+      }),
+    houses: [],
+    angles: {}
+  };
+}
+
+function buildFixtureChart(body: ProfileRequest): ChartV2 {
+  const chart: ChartV2 = {
     version: "chart_v2",
     precision: body.time_unknown ? "no_birth_time" : "full",
     source: "fixture",
@@ -207,8 +410,8 @@ function buildFixtureChart(body: ProfileRequest): ChartV2 {
       {
         key: "ascendant",
         label: "Ascendant",
-        sign: body.time_unknown ? "Unknown" : "Libra",
-        degree: body.time_unknown ? 0 : 6,
+        sign: "Libra",
+        degree: 6,
         house: body.time_unknown ? undefined : 1
       }
     ],
@@ -225,4 +428,6 @@ function buildFixtureChart(body: ProfileRequest): ChartV2 {
           }
     }
   };
+
+  return sanitizeChartForPrecision(chart, body.time_unknown ?? false);
 }

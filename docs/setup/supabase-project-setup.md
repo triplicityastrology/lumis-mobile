@@ -62,7 +62,10 @@ Backend-only values belong in Supabase Edge Function secrets:
 ```bash
 SUPABASE_SERVICE_ROLE_KEY=service_role_or_secret_key
 CHART_WORKER_URL=cloudflare_worker_url
+CHART_WORKER_ENDPOINT=/mobile/natal-chart
 CHART_WORKER_SIGNING_SECRET=cloudflare_worker_signing_secret
+CHART_WORKER_TIMEOUT_MS=15000
+LUMIS_ENV=staging
 AZURE_OPENAI_ENDPOINT=azure_openai_endpoint
 AZURE_OPENAI_API_KEY=azure_openai_key
 OPENROUTER_API_KEY=openrouter_key
@@ -82,6 +85,11 @@ Current migrations:
 
 - `0001_initial_schema.sql`
 - `0002_profile_chat_persistence.sql`
+- `0003_care_notifications_usage.sql`
+- `0004_birth_details_change_policy.sql`
+- `0005_starter_grant_guard.sql`
+- `0006_profile_onboarding_transaction.sql`
+- `0007_lock_migration_reports_access.sql`
 
 These create the user, birth data, chart profile, balance, Lumis Persona, chat thread, and chat message tables with Row Level Security.
 

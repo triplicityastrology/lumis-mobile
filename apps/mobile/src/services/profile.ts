@@ -228,9 +228,10 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     mode: "supabase",
     status: "submitted",
     message:
-      response.status === "profile_persisted"
-        ? "Supabase saved the chart profile. Next we will replace the fixture chart with the signed Cloudflare worker response."
-        : response.next_step ?? "Supabase prepared the chart profile request.",
+      response.next_step ??
+      (response.status === "profile_persisted"
+        ? "Supabase saved the chart profile."
+        : "Supabase prepared the chart profile request."),
     chart: response.chart ?? buildFixtureChart(form),
     data: response
   };
@@ -272,7 +273,7 @@ export async function savePersonaStylePreference(
 }
 
 function buildFixtureChart(form: BirthProfileForm): ChartV2 {
-  return {
+  const chart: ChartV2 = {
     version: "chart_v2",
     precision: form.timeUnknown ? "no_birth_time" : "full",
     source: "fixture",
@@ -295,8 +296,8 @@ function buildFixtureChart(form: BirthProfileForm): ChartV2 {
       {
         key: "ascendant",
         label: "Ascendant",
-        sign: form.timeUnknown ? "Unknown" : "Libra",
-        degree: form.timeUnknown ? 0 : 6,
+        sign: "Libra",
+        degree: 6,
         house: form.timeUnknown ? undefined : 1
       }
     ],
@@ -312,5 +313,26 @@ function buildFixtureChart(form: BirthProfileForm): ChartV2 {
             house: 1
           }
     }
+  };
+
+  return sanitizeFixtureChartForPrecision(chart, form.timeUnknown);
+}
+
+function sanitizeFixtureChartForPrecision(chart: ChartV2, timeUnknown: boolean): ChartV2 {
+  if (!timeUnknown) {
+    return chart;
+  }
+
+  return {
+    ...chart,
+    precision: "no_birth_time",
+    planets: chart.planets
+      .filter((planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli")
+      .map((planet) => {
+        const { house: _house, ...planetWithoutHouse } = planet;
+        return planetWithoutHouse;
+      }),
+    houses: [],
+    angles: {}
   };
 }
