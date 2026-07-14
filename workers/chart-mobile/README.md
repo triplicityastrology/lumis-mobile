@@ -20,6 +20,19 @@ It is based on the current website Worker at:
 - Returns `chart_v2` for Supabase storage.
 - Sanitizes unknown-birth-time charts so they contain no Ascendant, no MC, no houses, and no planet house placements.
 
+Run local fixture checks with:
+
+```bash
+pnpm run test:worker
+```
+
+The fixture checks mock the astrology-api.io response and verify:
+
+- valid signed full-time requests succeed
+- invalid signatures are rejected before the provider call
+- unknown-time requests use the deterministic noon provider fallback
+- unknown-time `chart_v2` output removes Ascendant, MC, houses, and planet house placements
+
 ## Not Yet Live
 
 This file is not automatically deployed by the Lumis mobile repo yet. It can be:
