@@ -67,6 +67,7 @@ type CareCircleItem = {
 
 const STARTER_CREDITS = 50;
 const BIRTH_DETAIL_CHANGE_LIMIT = 3;
+type InitialChatBillingMode = "local_demo" | "supabase_scaffold_no_charge";
 
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
@@ -273,7 +274,9 @@ export default function App() {
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
         remainingCredits={remainingCredits}
-        isSupabaseSession={Boolean(authStatus?.isConfigured && authStatus.user)}
+        initialBillingMode={
+          authStatus?.isConfigured && authStatus.user ? "supabase_scaffold_no_charge" : "local_demo"
+        }
         onChatStateChange={async (nextChatTurns, nextRemainingCredits) => {
           setChatTurns(nextChatTurns);
           setRemainingCredits(nextRemainingCredits);
@@ -1122,7 +1125,7 @@ function ChatShellScreen({
   selectedStyle,
   chatTurns,
   remainingCredits,
-  isSupabaseSession,
+  initialBillingMode,
   onChatStateChange,
   onBack,
   onStartOver
@@ -1132,7 +1135,7 @@ function ChatShellScreen({
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
   remainingCredits: number;
-  isSupabaseSession: boolean;
+  initialBillingMode: InitialChatBillingMode;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
   onBack: () => void;
   onStartOver: () => void;
@@ -1288,7 +1291,7 @@ function ChatShellScreen({
                 ? latestResult.mode === "supabase" && latestResult.billingMode === "scaffold_no_charge"
                   ? `Supabase ${latestResult.route} · estimated ${latestResult.creditsCost} credit · no charge in scaffold`
                   : `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit · ${remainingCredits} left`
-                : isSupabaseSession
+                : initialBillingMode === "supabase_scaffold_no_charge"
                   ? `Casual chat · estimated 1 credit · no charge in scaffold`
                 : `Casual chat · 1 credit · ${remainingCredits} left`}
             </Text>

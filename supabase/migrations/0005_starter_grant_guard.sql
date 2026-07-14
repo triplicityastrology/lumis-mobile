@@ -12,6 +12,12 @@ create table if not exists public.migration_reports (
   created_at timestamptz not null default now()
 );
 
+alter table public.migration_reports enable row level security;
+revoke all on public.migration_reports from anon, authenticated;
+revoke all on sequence public.migration_reports_id_seq from anon, authenticated;
+grant select, insert on public.migration_reports to service_role;
+grant usage, select on sequence public.migration_reports_id_seq to service_role;
+
 with starter_candidates as (
   select
     id,
