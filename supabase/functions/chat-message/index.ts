@@ -13,6 +13,7 @@ type ChatRoute =
 type ChatMessageRequest = {
   message?: string;
   persona_style?: "acceptance" | "spark" | "awareness";
+  force_new_thread?: boolean;
   chart_context?: {
     precision?: string;
     sun?: string;
@@ -184,7 +185,8 @@ async function persistScaffoldChatTurn(
     chartVersion: profile.chart_version,
     personaStyle: body.persona_style ?? "acceptance",
     route: response.route,
-    title: buildThreadTitle(message)
+    title: buildThreadTitle(message),
+    forceNewThread: body.force_new_thread ?? false
   });
   const userMessageId = await insertChatMessage(serviceClient, {
     threadId: thread.id,
@@ -271,24 +273,27 @@ async function loadOrCreateThread(
     personaStyle: "acceptance" | "spark" | "awareness";
     route: ChatRoute;
     title: string;
+    forceNewThread: boolean;
   }
 ): Promise<ChatThreadRow> {
-  const { data: existingThread, error: existingError } = await serviceClient
-    .from("chat_threads")
-    .select("id")
-    .eq("user_id", input.userId)
-    .eq("status", "active")
-    .eq("chart_version", input.chartVersion)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  if (!input.forceNewThread) {
+    const { data: existingThread, error: existingError } = await serviceClient
+      .from("chat_threads")
+      .select("id")
+      .eq("user_id", input.userId)
+      .eq("status", "active")
+      .eq("chart_version", input.chartVersion)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  if (existingError) {
-    throw new Error(existingError.message);
-  }
+    if (existingError) {
+      throw new Error(existingError.message);
+    }
 
-  if (existingThread) {
-    return existingThread as ChatThreadRow;
+    if (existingThread) {
+      return existingThread as ChatThreadRow;
+    }
   }
 
   const { data, error } = await serviceClient

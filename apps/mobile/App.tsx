@@ -132,6 +132,7 @@ export default function App() {
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
   const [accountLoadMessage, setAccountLoadMessage] = useState("");
+  const [forceNewSupabaseThread, setForceNewSupabaseThread] = useState(false);
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
 
   async function refreshAuthStatus() {
@@ -150,6 +151,7 @@ export default function App() {
     setAccountSource("none");
     setAccountLoadStatus(message ? "empty" : "idle");
     setAccountLoadMessage(message);
+    setForceNewSupabaseThread(false);
   }
 
   async function startOver() {
@@ -169,6 +171,7 @@ export default function App() {
       setAccountSource("supabase");
       setAccountLoadStatus("loaded");
       setAccountLoadMessage(accountState.message);
+      setForceNewSupabaseThread(false);
       return;
     }
 
@@ -205,6 +208,7 @@ export default function App() {
       setAccountSource("local_demo");
       setAccountLoadStatus("loaded");
       setAccountLoadMessage("Local demo restored in this browser.");
+      setForceNewSupabaseThread(false);
       return;
     }
 
@@ -239,6 +243,7 @@ export default function App() {
     }
 
     setChatTurns([]);
+    setForceNewSupabaseThread(accountSource === "supabase");
     await saveDemoSession(profileData, chartProfile, personaStyle, [], remainingCredits);
     setScreen("chat");
   }
@@ -344,6 +349,7 @@ export default function App() {
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
         remainingCredits={remainingCredits}
+        forceNewSupabaseThread={forceNewSupabaseThread}
         initialBillingMode={
           authStatus?.isConfigured && authStatus.user ? "supabase_scaffold_no_charge" : "local_demo"
         }
@@ -361,6 +367,7 @@ export default function App() {
             );
           }
         }}
+        onSupabaseThreadStarted={() => setForceNewSupabaseThread(false)}
         onBack={() => setScreen("persona")}
         onStartOver={startOver}
       />
@@ -1250,8 +1257,10 @@ function ChatShellScreen({
   selectedStyle,
   chatTurns,
   remainingCredits,
+  forceNewSupabaseThread,
   initialBillingMode,
   onChatStateChange,
+  onSupabaseThreadStarted,
   onBack,
   onStartOver
 }: {
@@ -1260,8 +1269,10 @@ function ChatShellScreen({
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
   remainingCredits: number;
+  forceNewSupabaseThread: boolean;
   initialBillingMode: InitialChatBillingMode;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
+  onSupabaseThreadStarted: () => void;
   onBack: () => void;
   onStartOver: () => void;
 }) {
@@ -1299,8 +1310,12 @@ function ChatShellScreen({
       const result = await sendChatMessage({
         message: nextMessage,
         personaStyle: selectedStyle,
-        chart
+        chart,
+        forceNewThread: forceNewSupabaseThread && chatTurns.length === 0
       });
+      if (result.threadId && forceNewSupabaseThread) {
+        onSupabaseThreadStarted();
+      }
       const nextRemainingCredits =
         result.mode === "supabase" && result.remainingCredits != null
           ? result.remainingCredits

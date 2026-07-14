@@ -12,6 +12,7 @@ export type SendChatMessageInput = {
   message: string;
   personaStyle: PersonaStyleKey;
   chart: ChartV2 | null;
+  forceNewThread?: boolean;
 };
 
 export type SendChatMessageResult = {
@@ -57,6 +58,7 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
     body: {
       message: cleanedMessage,
       persona_style: input.personaStyle,
+      force_new_thread: input.forceNewThread ?? false,
       chart_context: buildChartContext(input.chart)
     }
   });
