@@ -6,10 +6,15 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 import { CHART_WORKER_CONTRACT } from "@lumis/astrology";
 import {
   PERSONA_STYLES,
+  FEATURE_LABELS,
+  PLAN_ENTITLEMENTS,
   PRODUCT_TERMS,
   PRODUCTS,
   ROUTE_CREDITS,
+  ROUTE_PLAN_REQUIREMENTS,
+  canUseRoute,
   type ChartV2,
+  type PlanTier,
   type PersonaStyleKey
 } from "@lumis/shared";
 
@@ -110,7 +115,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -321,6 +326,15 @@ export default function App() {
     );
   }
 
+  if (screen === "plans") {
+    return (
+      <PlansAccessScreen
+        currentPlan="starter"
+        onBack={() => setScreen("home")}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -458,13 +472,13 @@ export default function App() {
           ))}
         </View>
 
-        <View style={styles.planStrip}>
+        <Pressable style={styles.planStrip} onPress={() => setScreen("plans")}>
           <Text style={styles.planTitle}>Lumis plans</Text>
           <Text style={styles.planBody}>
             {PRODUCTS[1].name} HK${PRODUCTS[1].priceHkd} · {PRODUCTS[2].name} HK$
             {PRODUCTS[2].priceHkd}
           </Text>
-        </View>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1530,6 +1544,96 @@ function CareCircleScreen({
   );
 }
 
+function PlansAccessScreen({
+  currentPlan,
+  onBack
+}: {
+  currentPlan: PlanTier;
+  onBack: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>Plans & Access</Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <Text style={styles.planHeroIcon}>HK$</Text>
+          </View>
+          <Text style={styles.kicker}>Plans & Access</Text>
+          <Text style={styles.formTitle}>Credits, routes, and premium gates.</Text>
+          <Text style={styles.formIntro}>
+            This scaffold shows the current entitlement rules. Live purchases will be connected
+            after RevenueCat and App Store setup.
+          </Text>
+        </View>
+
+        <View style={styles.planCardGrid}>
+          {PRODUCTS.map((product) => {
+            const tier = product.tier as PlanTier;
+            const isCurrent = tier === currentPlan;
+            const features = PLAN_ENTITLEMENTS[tier] ?? [];
+
+            return (
+              <View key={product.code} style={[styles.planAccessCard, isCurrent && styles.planAccessCardCurrent]}>
+                <View style={styles.planAccessHeader}>
+                  <View>
+                    <Text style={styles.planAccessName}>{product.name}</Text>
+                    <Text style={styles.planAccessPrice}>
+                      HK${product.priceHkd} · {product.credits} credits
+                    </Text>
+                  </View>
+                  {isCurrent ? <Text style={styles.currentPlanPill}>Current</Text> : null}
+                </View>
+                <View style={styles.featureList}>
+                  {features.map((feature) => (
+                    <Text key={feature} style={styles.featureText}>
+                      {FEATURE_LABELS[feature]}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.routeAccessPanel}>
+          <Text style={styles.noticeTitle}>Route access</Text>
+          {ROUTE_CREDITS.map((route) => (
+            <View key={route.route} style={styles.routeAccessRow}>
+              <View style={styles.routeAccessCopy}>
+                <Text style={styles.routeAccessTitle}>{route.label}</Text>
+                <Text style={styles.routeAccessMeta}>
+                  {route.credits} credits · {ROUTE_PLAN_REQUIREMENTS[route.route]}
+                </Text>
+              </View>
+              <Text style={[styles.routeAccessStatus, canUseRoute(currentPlan, route.route) && styles.routeAccessStatusOpen]}>
+                {canUseRoute(currentPlan, route.route) ? "Available" : "Upgrade"}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeTitle}>Implementation note</Text>
+          <Text style={styles.noticeBody}>
+            Backend functions must enforce credits and plan gates. Mobile copy is only a guide and
+            must never be trusted for billing or access control.
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 function MiniChartStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.miniChartStat}>
@@ -2411,6 +2515,98 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 12
+  },
+  planHeroIcon: {
+    color: "#8B6429",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  planCardGrid: {
+    gap: 12
+  },
+  planAccessCard: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16
+  },
+  planAccessCardCurrent: {
+    backgroundColor: "rgba(180,134,63,0.09)",
+    borderColor: "rgba(180,134,63,0.28)"
+  },
+  planAccessHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between"
+  },
+  planAccessName: {
+    color: "#2F2B25",
+    fontSize: 17,
+    fontWeight: "800"
+  },
+  planAccessPrice: {
+    color: "#8A7659",
+    fontSize: 13,
+    marginTop: 4
+  },
+  currentPlanPill: {
+    backgroundColor: "rgba(47,111,80,0.10)",
+    borderColor: "rgba(47,111,80,0.18)",
+    borderRadius: 999,
+    borderWidth: 1,
+    color: "#2F6F50",
+    fontSize: 11,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  featureList: {
+    gap: 6
+  },
+  featureText: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 18
+  },
+  routeAccessPanel: {
+    backgroundColor: "#10213A",
+    borderColor: "rgba(238,224,201,0.18)",
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16
+  },
+  routeAccessRow: {
+    alignItems: "center",
+    borderTopColor: "rgba(238,224,201,0.13)",
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+    paddingVertical: 12
+  },
+  routeAccessCopy: {
+    flex: 1
+  },
+  routeAccessTitle: {
+    color: "#F9F0E1",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  routeAccessMeta: {
+    color: "#CFC6B6",
+    fontSize: 12,
+    marginTop: 4
+  },
+  routeAccessStatus: {
+    color: "#D2A24F",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  routeAccessStatusOpen: {
+    color: "#87C7A3"
   },
   profileTopBar: {
     alignItems: "center",
