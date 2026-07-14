@@ -393,8 +393,8 @@ export default function App() {
           <Text style={styles.kicker}>Not just a horoscope.</Text>
           <Text style={styles.title}>Meet Lumis, your inner universe.</Text>
           <Text style={styles.body}>
-            A private astrology companion shaped by your birth chart, your questions, and the way
-            you want to be met.
+            A private Lumis space shaped by your birth chart, your questions, and the way you want
+            to be met.
           </Text>
           <View style={styles.heroActions}>
             <Pressable style={styles.primaryButton} onPress={() => setScreen("profile")}>
@@ -1171,8 +1171,10 @@ function ChatShellScreen({
         chart
       });
       const nextRemainingCredits =
-        result.mode === "supabase"
+        result.mode === "supabase" && result.remainingCredits != null
           ? result.remainingCredits
+          : result.mode === "supabase"
+            ? remainingCredits
           : Math.max(0, remainingCredits - result.creditsCost);
       await onChatStateChange(
         nextPendingTurns.map((turn) => (turn.id === turnId ? { ...turn, result } : turn)),
@@ -1280,7 +1282,9 @@ function ChatShellScreen({
           <View style={styles.routePreviewStrip}>
             <Text style={styles.routePreviewText}>
               {latestResult
-                ? `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit · ${remainingCredits} left`
+                ? latestResult.mode === "supabase" && latestResult.billingMode === "scaffold_no_charge"
+                  ? `Supabase ${latestResult.route} · estimated ${latestResult.creditsCost} credit · no charge in scaffold`
+                  : `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit · ${remainingCredits} left`
                 : `Casual chat · 1 credit · ${remainingCredits} left`}
             </Text>
           </View>
@@ -1555,7 +1559,7 @@ function CareCircleScreen({
           <Text style={styles.noticeTitle}>Privacy boundary</Text>
           <Text style={styles.noticeBody}>
             Care Circle can send check-in and Need help alerts, but it should not expose general
-            chat history, birth data, AI memory, or billing to carers.
+            Past Reflections, birth data, AI memory, or billing to carers.
           </Text>
         </View>
 

@@ -18,14 +18,16 @@ export type SendChatMessageResult = {
   mode: "local" | "supabase";
   route: ChatRoute;
   creditsCost: number;
-  remainingCredits: number;
+  remainingCredits: number | null;
+  billingMode: "local_demo" | "scaffold_no_charge" | "charged";
   reply: string;
 };
 
 type ChatFunctionResponse = {
   route?: ChatRoute;
   credits_cost?: number;
-  remaining_credits?: number;
+  remaining_credits?: number | null;
+  billing_mode?: "scaffold_no_charge" | "charged";
   reply?: string;
 };
 
@@ -61,7 +63,8 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
     mode: "supabase",
     route: response.route ?? "casual",
     creditsCost: response.credits_cost ?? 1,
-    remainingCredits: response.remaining_credits ?? 49,
+    remainingCredits: response.remaining_credits ?? null,
+    billingMode: response.billing_mode ?? "scaffold_no_charge",
     reply:
       response.reply ??
       "I hear that. Let us begin with the part that feels most present, then connect it back to your chart gently."
@@ -82,6 +85,7 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
     route,
     creditsCost: routeDecision.credits,
     remainingCredits: 50,
+    billingMode: "local_demo",
     reply: buildLocalReplyText(route, chartPhrase, input.personaStyle)
   };
 }

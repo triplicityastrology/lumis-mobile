@@ -118,6 +118,32 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const role = personaStyleToInternalRole.acceptance;
 
+  const { data: existingBirthData, error: existingBirthDataError } = await serviceClient
+    .from("birth_data")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingBirthDataError) {
+    return jsonResponse(
+      { error: { code: "PROFILE_LOOKUP_FAILED", message: existingBirthDataError.message } },
+      { status: 500 }
+    );
+  }
+
+  if (existingBirthData) {
+    return jsonResponse(
+      {
+        error: {
+          code: "PROFILE_ALREADY_EXISTS",
+          message:
+            "This account already has a chart profile. Birth-detail edits must use the controlled regeneration flow."
+        }
+      },
+      { status: 409 }
+    );
+  }
+
   const { error: userError } = await serviceClient.from("users").upsert({
     id: userId,
     display_name: body.display_name ?? "Lumis user",
@@ -130,7 +156,7 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: { code: "USER_SAVE_FAILED", message: userError.message } }, { status: 500 });
   }
 
-  const { error: birthError } = await serviceClient.from("birth_data").upsert({
+  const { error: birthError } = await serviceClient.from("birth_data").insert({
     user_id: userId,
     birth_date: body.birth_date,
     birth_time: body.time_unknown ? null : body.birth_time,
@@ -143,6 +169,19 @@ Deno.serve(async (request) => {
   });
 
   if (birthError) {
+    if (birthError.code === "23505") {
+      return jsonResponse(
+        {
+          error: {
+            code: "PROFILE_ALREADY_EXISTS",
+            message:
+              "This account already has a chart profile. Birth-detail edits must use the controlled regeneration flow."
+          }
+        },
+        { status: 409 }
+      );
+    }
+
     return jsonResponse({ error: { code: "BIRTH_SAVE_FAILED", message: birthError.message } }, { status: 500 });
   }
 
@@ -174,11 +213,19 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: { code: "PROFILE_SAVE_FAILED", message: profileError.message } }, { status: 500 });
   }
 
-  await serviceClient.from("monthly_balance").insert({
+  const { error: starterGrantError } = await serviceClient.from("monthly_balance").insert({
     user_id: userId,
+    grant_type: "starter_onboarding",
     allocated: 50,
     remaining: 50
   });
+
+  if (starterGrantError && starterGrantError.code !== "23505") {
+    return jsonResponse(
+      { error: { code: "STARTER_GRANT_FAILED", message: starterGrantError.message } },
+      { status: 500 }
+    );
+  }
 
   return jsonResponse({
     profile_version: profile.version,

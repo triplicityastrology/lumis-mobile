@@ -43,7 +43,8 @@ Deno.serve(async (request) => {
         encoder.encode(
           `event: meta\ndata: ${JSON.stringify({
             route: response.route,
-            credits_cost: response.credits_cost
+            credits_cost: response.credits_cost,
+            billing_mode: response.billing_mode
           })}\n\n`
         )
       );
@@ -53,8 +54,10 @@ Deno.serve(async (request) => {
       controller.enqueue(
         encoder.encode(
           `event: done\ndata: ${JSON.stringify({
-            credits_charged: response.credits_cost,
-            remaining_credits: response.remaining_credits
+            credits_charged: 0,
+            estimated_credits_cost: response.credits_cost,
+            remaining_credits: response.remaining_credits,
+            billing_mode: response.billing_mode
           })}\n\n`
         )
       );
@@ -88,7 +91,10 @@ function buildChatResponse(body: ChatMessageRequest) {
   return {
     route,
     credits_cost: routeDecision.credits,
-    remaining_credits: Math.max(0, 50 - routeDecision.credits),
+    credits_charged: 0,
+    estimated_credits_cost: routeDecision.credits,
+    remaining_credits: null,
+    billing_mode: "scaffold_no_charge",
     reply: buildReplyText(route, chartPhrase, stylePhrase)
   };
 }
