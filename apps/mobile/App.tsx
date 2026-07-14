@@ -26,6 +26,7 @@ import {
   type BirthProfileForm,
   type ChartProfileResult
 } from "./src/services/profile";
+import { loadSupabaseAccountState, type SupabaseAccountState } from "./src/services/accountState";
 import {
   getAuthStatus,
   handleAuthRedirectFromUrl,
@@ -48,6 +49,7 @@ const highlightRoutes = ROUTE_CREDITS.filter((route) =>
 type ProfileData = BirthProfileForm;
 
 type ChatTurn = LocalDemoChatTurn;
+type AccountSource = "none" | "local_demo" | "supabase";
 
 type NotificationItem = {
   id: string;
@@ -127,22 +129,86 @@ export default function App() {
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
+  const [accountSource, setAccountSource] = useState<AccountSource>("none");
+  const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
+  const [accountLoadMessage, setAccountLoadMessage] = useState("");
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
 
   async function refreshAuthStatus() {
     const status = await getAuthStatus();
     setAuthStatus(status);
+    return status;
   }
 
-  async function startOver() {
-    await clearLocalDemoSession();
+  function clearVisibleAccountState(message = "") {
     setProfileData(null);
     setChartProfile(null);
     setPersonaStyle("acceptance");
     setChatTurns([]);
     setRemainingCredits(STARTER_CREDITS);
     setHasLocalDemoSession(false);
+    setAccountSource("none");
+    setAccountLoadStatus(message ? "empty" : "idle");
+    setAccountLoadMessage(message);
+  }
+
+  async function startOver() {
+    await clearLocalDemoSession();
+    clearVisibleAccountState();
     setScreen("home");
+  }
+
+  function applySupabaseAccountState(accountState: SupabaseAccountState) {
+    if (accountState.status === "loaded" && accountState.profileData && accountState.chartProfile) {
+      setProfileData(accountState.profileData);
+      setChartProfile(accountState.chartProfile);
+      setPersonaStyle(accountState.personaStyle);
+      setChatTurns(accountState.chatTurns);
+      setRemainingCredits(accountState.remainingCredits ?? STARTER_CREDITS);
+      setHasLocalDemoSession(false);
+      setAccountSource("supabase");
+      setAccountLoadStatus("loaded");
+      setAccountLoadMessage(accountState.message);
+      return;
+    }
+
+    clearVisibleAccountState(accountState.message);
+    setAccountLoadStatus("empty");
+  }
+
+  async function restoreAccountForStatus(status: AuthStatus) {
+    if (status.isConfigured && status.user) {
+      setAccountLoadStatus("loading");
+      setAccountLoadMessage("Loading saved Supabase profile...");
+      setHasLocalDemoSession(false);
+
+      try {
+        const accountState = await loadSupabaseAccountState();
+        applySupabaseAccountState(accountState);
+      } catch (error) {
+        clearVisibleAccountState(error instanceof Error ? error.message : "Unable to load saved Supabase profile.");
+        setAccountLoadStatus("error");
+      }
+
+      return;
+    }
+
+    const localSession = await loadLocalDemoSession();
+
+    if (localSession) {
+      setProfileData(localSession.profileData);
+      setChartProfile(localSession.chartProfile);
+      setPersonaStyle(localSession.personaStyle);
+      setChatTurns(localSession.chatTurns ?? []);
+      setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
+      setHasLocalDemoSession(true);
+      setAccountSource("local_demo");
+      setAccountLoadStatus("loaded");
+      setAccountLoadMessage("Local demo restored in this browser.");
+      return;
+    }
+
+    clearVisibleAccountState("No saved Lumis profile found in this browser.");
   }
 
   async function saveDemoSession(
@@ -152,6 +218,10 @@ export default function App() {
     nextChatTurns = chatTurns,
     nextRemainingCredits = remainingCredits
   ) {
+    if (authStatus?.isConfigured && authStatus.user) {
+      return;
+    }
+
     await saveLocalDemoSession({
       profileData: nextProfileData,
       chartProfile: nextChartProfile,
@@ -176,30 +246,16 @@ export default function App() {
   useEffect(() => {
     async function initializeAuth() {
       try {
-        const localSession = await loadLocalDemoSession();
-
-        if (localSession) {
-          setProfileData(localSession.profileData);
-          setChartProfile(localSession.chartProfile);
-          setPersonaStyle(localSession.personaStyle);
-          setChatTurns(localSession.chatTurns ?? []);
-          setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
-          setHasLocalDemoSession(true);
-        }
-
         const result = await handleAuthRedirectFromUrl();
 
         if (result.message) {
           setAuthNotice(result.message);
         }
 
-        if (result.handled) {
-          setScreen("auth");
-        }
+        const status = await refreshAuthStatus();
+        await restoreAccountForStatus(status);
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : "Unable to confirm account.");
-      } finally {
-        await refreshAuthStatus();
       }
     }
 
@@ -213,6 +269,8 @@ export default function App() {
         onBack={() => setScreen("home")}
         onContinueLocal={() => setScreen("profile")}
         onRefreshAuthStatus={refreshAuthStatus}
+        onAccountStatusRefreshed={restoreAccountForStatus}
+        onSignedOut={() => clearVisibleAccountState("Signed out. No Supabase profile is loaded.")}
         authNotice={authNotice}
         authError={authError}
         onClearAuthError={() => setAuthError("")}
@@ -238,9 +296,21 @@ export default function App() {
         profileData={profileData}
         onBack={() => setScreen("profile")}
         onStartOver={startOver}
-        onContinuePersona={(chart) => {
-          setChartProfile(chart);
-          void saveDemoSession(profileData, chart, personaStyle, [], STARTER_CREDITS);
+        onContinuePersona={(result) => {
+          setChartProfile(result.chart);
+          setChatTurns([]);
+          setRemainingCredits(STARTER_CREDITS);
+
+          if (result.mode === "supabase") {
+            setAccountSource("supabase");
+            setAccountLoadStatus("loaded");
+            setAccountLoadMessage("Supabase profile saved and loaded for this signed-in account.");
+            setHasLocalDemoSession(false);
+          } else {
+            setAccountSource("local_demo");
+            void saveDemoSession(profileData, result.chart, personaStyle, [], STARTER_CREDITS);
+          }
+
           setScreen("persona");
         }}
       />
@@ -301,6 +371,7 @@ export default function App() {
     return (
       <PastReflectionsScreen
         hasLocalDemoSession={hasLocalDemoSession}
+        accountSource={accountSource}
         profileData={profileData}
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
@@ -350,6 +421,25 @@ export default function App() {
       />
     );
   }
+
+  const hasVisibleProfile = Boolean(profileData && chartProfile);
+  const isSupabaseAccount = accountSource === "supabase";
+  const isLocalDemoAccount = accountSource === "local_demo";
+  const accountStatusTitle =
+    accountLoadStatus === "loading"
+      ? "Loading account"
+      : isSupabaseAccount
+        ? "Supabase profile loaded"
+        : isLocalDemoAccount
+          ? "Local demo loaded"
+          : authStatus?.user
+            ? "No saved Supabase profile"
+            : "No signed-in profile";
+  const accountStatusBody =
+    accountLoadMessage ||
+    (authStatus?.user
+      ? "Signed in, but no saved Lumis chart profile has been loaded yet."
+      : "Sign in to load a saved Supabase profile, or continue local demo on this browser.");
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -401,34 +491,58 @@ export default function App() {
             to be met.
           </Text>
           <View style={styles.heroActions}>
-            <Pressable style={styles.primaryButton} onPress={() => setScreen("profile")}>
-              <Text style={styles.primaryButtonText}>Create my chart</Text>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
+            >
+              <Text style={styles.primaryButtonText}>
+                {hasVisibleProfile ? "Open Lumis chat" : "Create saved chart"}
+              </Text>
             </Pressable>
             <Pressable
               style={styles.secondaryButton}
-              onPress={() => setScreen(hasLocalDemoSession && profileData && chartProfile ? "chat" : "profile")}
+              onPress={() => setScreen(authStatus?.user ? "auth" : hasVisibleProfile ? "chat" : "profile")}
             >
               <Text style={styles.secondaryButtonText}>
-                {hasLocalDemoSession ? "Resume Lumis demo" : "Explore demo"}
+                {authStatus?.user ? "Account" : hasVisibleProfile ? "Resume local demo" : "Explore local demo"}
               </Text>
             </Pressable>
           </View>
+        </View>
+
+        <View style={styles.accountStatusCard}>
+          <View>
+            <Text style={styles.sectionEyebrow}>Founder test status</Text>
+            <Text style={styles.accountStatusTitle}>{accountStatusTitle}</Text>
+            <Text style={styles.accountStatusBody}>{accountStatusBody}</Text>
+          </View>
+          <Pressable
+            style={styles.accountStatusAction}
+            onPress={async () => {
+              const status = await refreshAuthStatus();
+              await restoreAccountForStatus(status);
+            }}
+          >
+            <Text style={styles.accountStatusActionText}>Reload</Text>
+          </Pressable>
         </View>
 
         <Pressable style={styles.reflectionEntryCard} onPress={() => setScreen("reflections")}>
           <View>
             <Text style={styles.sectionEyebrow}>Past Reflections</Text>
             <Text style={styles.reflectionEntryTitle}>
-              {hasLocalDemoSession ? "Continue your latest reflection" : "Start your first reflection"}
+              {chatTurns.length > 0 ? "Continue your latest reflection" : "No saved reflections yet"}
             </Text>
             <Text style={styles.reflectionEntryBody}>
-              {hasLocalDemoSession
-                ? `${chatTurns.length} saved turn${chatTurns.length === 1 ? "" : "s"} · ${remainingCredits} credits left`
-                : "Create a chart profile first, then Lumis will save the local demo thread here."}
+              {chatTurns.length > 0
+                ? `${isSupabaseAccount ? "Supabase" : "Local demo"} · ${chatTurns.length} saved turn${chatTurns.length === 1 ? "" : "s"} · ${remainingCredits} credits left`
+                : hasVisibleProfile
+                  ? `${isSupabaseAccount ? "Supabase profile loaded" : "Local demo profile loaded"} · no Past Reflections saved yet.`
+                  : "No chart profile loaded. Create or restore a profile before starting reflection QA."}
             </Text>
           </View>
           <Text style={styles.reflectionEntryAction}>
-            {hasLocalDemoSession ? "Continue reflection" : "Start a new topic"}
+            {chatTurns.length > 0 ? "Continue reflection" : "Open"}
           </Text>
         </Pressable>
 
@@ -451,9 +565,13 @@ export default function App() {
           </View>
           <View style={styles.chartCopy}>
             <Text style={styles.sectionEyebrow}>Birth chart profile</Text>
-            <Text style={styles.cardTitle}>Your Lumis Persona begins here.</Text>
+            <Text style={styles.cardTitle}>
+              {hasVisibleProfile ? `${profileData?.name}'s chart is loaded.` : "Your Lumis Persona begins here."}
+            </Text>
             <Text style={styles.cardBody}>
-              Add birth date, time, and place to generate a chart profile before the first chat.
+              {hasVisibleProfile
+                ? `${isSupabaseAccount ? "Loaded from Supabase staging" : "Loaded from local demo"} for founder testing.`
+                : "Add birth date, time, and place to generate a chart profile before the first chat."}
             </Text>
           </View>
         </View>
@@ -516,6 +634,8 @@ function AuthScreen({
   onBack,
   onContinueLocal,
   onRefreshAuthStatus,
+  onAccountStatusRefreshed,
+  onSignedOut,
   authNotice,
   authError,
   onClearAuthError
@@ -523,7 +643,9 @@ function AuthScreen({
   authStatus: AuthStatus | null;
   onBack: () => void;
   onContinueLocal: () => void;
-  onRefreshAuthStatus: () => Promise<void>;
+  onRefreshAuthStatus: () => Promise<AuthStatus>;
+  onAccountStatusRefreshed: (status: AuthStatus) => Promise<void>;
+  onSignedOut: () => void;
   authNotice: string;
   authError: string;
   onClearAuthError: () => void;
@@ -549,7 +671,8 @@ function AuthScreen({
     try {
       const result = await sendMagicLink(cleanedEmail);
       setMessage(result.message);
-      await onRefreshAuthStatus();
+      const status = await onRefreshAuthStatus();
+      await onAccountStatusRefreshed(status);
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Unable to send magic link.");
     } finally {
@@ -565,6 +688,7 @@ function AuthScreen({
     try {
       await signOut();
       await onRefreshAuthStatus();
+      onSignedOut();
       setMessage("Signed out.");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Unable to sign out.");
@@ -579,7 +703,8 @@ function AuthScreen({
     setIsSubmitting(true);
 
     try {
-      await onRefreshAuthStatus();
+      const status = await onRefreshAuthStatus();
+      await onAccountStatusRefreshed(status);
       setMessage("Account status refreshed.");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Unable to refresh account status.");
@@ -817,7 +942,7 @@ function ChartPreviewScreen({
   profileData: ProfileData;
   onBack: () => void;
   onStartOver: () => void;
-  onContinuePersona: (chart: ChartV2) => void;
+  onContinuePersona: (result: ChartProfileResult) => void;
 }) {
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
@@ -927,7 +1052,7 @@ function ChartPreviewScreen({
           <ChartRevealPanel
             chart={chartResult.chart}
             name={profileData.name}
-            onContinuePersona={() => onContinuePersona(chartResult.chart)}
+            onContinuePersona={() => onContinuePersona(chartResult)}
           />
         ) : null}
 
@@ -1325,6 +1450,7 @@ function ChatShellScreen({
 
 function PastReflectionsScreen({
   hasLocalDemoSession,
+  accountSource,
   profileData,
   selectedStyle,
   chatTurns,
@@ -1334,6 +1460,7 @@ function PastReflectionsScreen({
   onStartNewTopic
 }: {
   hasLocalDemoSession: boolean;
+  accountSource: AccountSource;
   profileData: ProfileData | null;
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
@@ -1345,6 +1472,12 @@ function PastReflectionsScreen({
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const latestTurn = chatTurns[chatTurns.length - 1];
   const title = latestTurn?.userMessage ?? "First Lumis reflection";
+  const sourceLabel =
+    accountSource === "supabase"
+      ? "Supabase staging"
+      : accountSource === "local_demo"
+        ? "Local demo"
+        : "No profile";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -1366,43 +1499,57 @@ function PastReflectionsScreen({
           <Text style={styles.kicker}>Past Reflections</Text>
           <Text style={styles.formTitle}>Return to what Lumis has been holding.</Text>
           <Text style={styles.formIntro}>
-            This local build keeps one reflection thread in this browser. Later, Supabase will sync
-            Past Reflections across devices.
+            {accountSource === "supabase"
+              ? "This screen now checks Supabase staging first. Chat persistence is still scaffolded, so it may show no saved reflections yet."
+              : "This local build keeps one reflection thread in this browser. Supabase chat persistence is a later backend step."}
           </Text>
         </View>
 
-        {hasLocalDemoSession && profileData ? (
+        {(hasLocalDemoSession || accountSource === "supabase") && profileData ? (
           <View style={styles.reflectionList}>
-            <View style={styles.reflectionCard}>
-              <View style={styles.reflectionCardHeader}>
-                <View style={styles.personaIcon}>
-                  <Text style={styles.personaIconText}>1</Text>
+            {chatTurns.length > 0 ? (
+              <View style={styles.reflectionCard}>
+                <View style={styles.reflectionCardHeader}>
+                  <View style={styles.personaIcon}>
+                    <Text style={styles.personaIconText}>1</Text>
+                  </View>
+                  <View style={styles.reflectionCardText}>
+                    <Text style={styles.reflectionCardTitle} numberOfLines={2}>
+                      {title}
+                    </Text>
+                    <Text style={styles.reflectionCardMeta}>
+                      {sourceLabel} · {profileData.name} · {selectedPersona.labelEn} · {chatTurns.length} turn
+                      {chatTurns.length === 1 ? "" : "s"}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.reflectionCardText}>
-                  <Text style={styles.reflectionCardTitle} numberOfLines={2}>
-                    {title}
-                  </Text>
-                  <Text style={styles.reflectionCardMeta}>
-                    {profileData.name} · {selectedPersona.labelEn} · {chatTurns.length} turn
-                    {chatTurns.length === 1 ? "" : "s"}
-                  </Text>
+                <View style={styles.reflectionActions}>
+                  <Pressable style={styles.fullPrimaryButton} onPress={onContinueReflection}>
+                    <Text style={styles.fullPrimaryButtonText}>Continue reflection</Text>
+                  </Pressable>
+                  <Pressable style={styles.secondaryFullButton} onPress={onStartNewTopic}>
+                    <Text style={styles.secondaryFullButtonText}>Start a new topic</Text>
+                  </Pressable>
                 </View>
               </View>
-              <View style={styles.reflectionActions}>
-                <Pressable style={styles.fullPrimaryButton} onPress={onContinueReflection}>
-                  <Text style={styles.fullPrimaryButtonText}>Continue reflection</Text>
-                </Pressable>
-                <Pressable style={styles.secondaryFullButton} onPress={onStartNewTopic}>
-                  <Text style={styles.secondaryFullButtonText}>Start a new topic</Text>
+            ) : (
+              <View style={styles.emptyReflectionCard}>
+                <Text style={styles.noticeTitle}>No saved Past Reflections yet</Text>
+                <Text style={styles.noticeBody}>
+                  {sourceLabel} profile is loaded for {profileData.name}. Chat persistence is not connected yet,
+                  so new scaffold chat replies are not saved as Supabase Past Reflections.
+                </Text>
+                <Pressable style={styles.fullPrimaryButton} onPress={onStartNewTopic}>
+                  <Text style={styles.fullPrimaryButtonText}>Start first reflection</Text>
                 </Pressable>
               </View>
-            </View>
+            )}
 
             <View style={styles.noticeCard}>
               <Text style={styles.noticeTitle}>Saved Insights</Text>
               <Text style={styles.noticeBody}>
                 Saved messages will appear here after the backend thread and insight actions are
-                connected. Current local balance: {remainingCredits} credits.
+                connected. Current displayed balance: {remainingCredits} credits.
               </Text>
             </View>
           </View>
@@ -2042,6 +2189,43 @@ const styles = StyleSheet.create({
     color: "#6D4F23",
     fontSize: 14,
     fontWeight: "700"
+  },
+  accountStatusCard: {
+    alignItems: "center",
+    backgroundColor: "#10243E",
+    borderColor: "rgba(210,162,79,0.32)",
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    justifyContent: "space-between",
+    padding: 16
+  },
+  accountStatusTitle: {
+    color: "#FBF7EE",
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 21
+  },
+  accountStatusBody: {
+    color: "#D8CCBA",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 5
+  },
+  accountStatusAction: {
+    backgroundColor: "rgba(210,162,79,0.18)",
+    borderColor: "rgba(210,162,79,0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexShrink: 0,
+    paddingHorizontal: 13,
+    paddingVertical: 9
+  },
+  accountStatusActionText: {
+    color: "#F7D99F",
+    fontSize: 12,
+    fontWeight: "800"
   },
   reflectionEntryCard: {
     alignItems: "center",
