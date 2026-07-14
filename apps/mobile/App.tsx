@@ -66,6 +66,7 @@ type CareCircleItem = {
 };
 
 const STARTER_CREDITS = 50;
+const BIRTH_DETAIL_CHANGE_LIMIT = 3;
 
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
@@ -115,7 +116,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -335,6 +336,17 @@ export default function App() {
     );
   }
 
+  if (screen === "birthDetails") {
+    return (
+      <BirthDetailsScreen
+        profileData={profileData}
+        successfulChanges={0}
+        onBack={() => setScreen("home")}
+        onEditBirthDetails={() => setScreen("profile")}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -441,6 +453,17 @@ export default function App() {
             </Text>
           </View>
         </View>
+
+        <Pressable style={styles.birthDetailsEntryCard} onPress={() => setScreen("birthDetails")}>
+          <View>
+            <Text style={styles.sectionEyebrow}>Birth Details</Text>
+            <Text style={styles.birthDetailsEntryTitle}>Chart regeneration policy</Text>
+            <Text style={styles.birthDetailsEntryBody}>
+              Edit birth details carefully. Future guidance uses the regenerated chart.
+            </Text>
+          </View>
+          <Text style={styles.reflectionEntryAction}>View policy</Text>
+        </Pressable>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>星伴相處模式</Text>
@@ -1634,6 +1657,101 @@ function PlansAccessScreen({
   );
 }
 
+function BirthDetailsScreen({
+  profileData,
+  successfulChanges,
+  onBack,
+  onEditBirthDetails
+}: {
+  profileData: ProfileData | null;
+  successfulChanges: number;
+  onBack: () => void;
+  onEditBirthDetails: () => void;
+}) {
+  const remainingChanges = Math.max(0, BIRTH_DETAIL_CHANGE_LIMIT - successfulChanges);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.profileTopBar}>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+          <View style={styles.formStepPill}>
+            <Text style={styles.formStepText}>{remainingChanges} changes remaining</Text>
+          </View>
+        </View>
+
+        <View style={styles.formHero}>
+          <View style={styles.formLogo}>
+            <ChartWheel />
+          </View>
+          <Text style={styles.kicker}>Birth Details</Text>
+          <Text style={styles.formTitle}>Changing birth details regenerates your chart.</Text>
+          <Text style={styles.formIntro}>
+            This is not a normal profile edit. The backend must validate the new details, generate a
+            new chart version, and activate a new Lumis profile before a change is counted.
+          </Text>
+        </View>
+
+        {profileData ? (
+          <View style={styles.summaryPanel}>
+            <SummaryRow label="Birth date" value={profileData.birthDate} />
+            <SummaryRow
+              label="Birth time"
+              value={profileData.timeUnknown ? "Time unknown" : profileData.birthTime}
+            />
+            <SummaryRow label="Birth place" value={profileData.birthPlace} />
+          </View>
+        ) : (
+          <View style={styles.emptyReflectionCard}>
+            <Text style={styles.noticeTitle}>No chart profile yet</Text>
+            <Text style={styles.noticeBody}>
+              Create your first chart before birth-detail changes become available.
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.birthPolicyCard}>
+          <Text style={styles.noticeTitle}>Before you change birth details</Text>
+          <Text style={styles.birthPolicyText}>
+            Changing your birth details will regenerate your chart and Lumis profile. Your past
+            reflections will stay saved, but future guidance will use your new chart. You can change
+            birth details up to 3 times.
+          </Text>
+          <Text style={styles.birthPolicyTextZh}>
+            更改出生資料會重新生成你的星盤及 Lumis 個人檔案。過往反思會保留，但之後的回覆將會使用新的星盤。每個帳戶最多可更改出生資料 3 次。
+          </Text>
+          <Text style={styles.birthPolicyCount}>
+            {remainingChanges} changes remaining · 尚餘 {remainingChanges} 次更改機會
+          </Text>
+        </View>
+
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeTitle}>Backend rules</Text>
+          <Text style={styles.noticeBody}>
+            Failed regeneration must keep the previous chart active and must not consume a change.
+            Past Reflections keep their original chart version; future chats use the latest active
+            chart version.
+          </Text>
+        </View>
+
+        <Pressable
+          style={[styles.fullPrimaryButton, !profileData && styles.disabledButton]}
+          onPress={onEditBirthDetails}
+          disabled={!profileData}
+        >
+          <Text style={styles.fullPrimaryButtonText}>Regenerate my chart</Text>
+        </Pressable>
+        <Pressable style={styles.ghostButton} onPress={onBack}>
+          <Text style={styles.ghostButtonText}>Cancel</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 function MiniChartStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.miniChartStat}>
@@ -1941,6 +2059,29 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     fontSize: 12,
     fontWeight: "800"
+  },
+  birthDetailsEntryCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(180,134,63,0.10)",
+    borderColor: "rgba(180,134,63,0.20)",
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 14,
+    justifyContent: "space-between",
+    padding: 16
+  },
+  birthDetailsEntryTitle: {
+    color: "#2F2B25",
+    fontSize: 16,
+    fontWeight: "800",
+    lineHeight: 21
+  },
+  birthDetailsEntryBody: {
+    color: "#6F6252",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 5
   },
   careEntryCard: {
     alignItems: "center",
@@ -2607,6 +2748,31 @@ const styles = StyleSheet.create({
   },
   routeAccessStatusOpen: {
     color: "#87C7A3"
+  },
+  birthPolicyCard: {
+    backgroundColor: "#FBF7EE",
+    borderColor: "rgba(120,90,40,0.12)",
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 16
+  },
+  birthPolicyText: {
+    color: "#2F2B25",
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 10
+  },
+  birthPolicyTextZh: {
+    color: "#6F6252",
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 10
+  },
+  birthPolicyCount: {
+    color: "#B4863F",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 12
   },
   profileTopBar: {
     alignItems: "center",

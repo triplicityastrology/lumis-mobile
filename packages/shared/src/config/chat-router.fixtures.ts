@@ -3,6 +3,7 @@ import {
   classifyChatRoute,
   getChatRouteDecision
 } from "./chat-router";
+import { ROUTE_PLAN_REQUIREMENTS, type PlanTier } from "./entitlements";
 import type { ChatRoute } from "./routes";
 
 const EXPECTED_CREDITS: Record<ChatRoute, number> = {
@@ -13,6 +14,16 @@ const EXPECTED_CREDITS: Record<ChatRoute, number> = {
   astro_deep: 5,
   out_of_scope: 1,
   safety: 1
+};
+
+const EXPECTED_ROUTE_PLANS: Record<ChatRoute, PlanTier> = {
+  casual: "starter",
+  knowledge: "starter",
+  dice: "essential",
+  astro_timing: "prime",
+  astro_deep: "essential",
+  out_of_scope: "starter",
+  safety: "starter"
 };
 
 export function assertChatRouteFixtures(): void {
@@ -32,6 +43,14 @@ export function assertChatRouteFixtures(): void {
     if (decision.credits !== expectedCredits) {
       throw new Error(
         `${route}: expected ${expectedCredits} credits, received ${decision.credits}`
+      );
+    }
+  }
+
+  for (const [route, expectedPlan] of Object.entries(EXPECTED_ROUTE_PLANS) as Array<[ChatRoute, PlanTier]>) {
+    if (ROUTE_PLAN_REQUIREMENTS[route] !== expectedPlan) {
+      throw new Error(
+        `${route}: expected ${expectedPlan} plan, received ${ROUTE_PLAN_REQUIREMENTS[route]}`
       );
     }
   }

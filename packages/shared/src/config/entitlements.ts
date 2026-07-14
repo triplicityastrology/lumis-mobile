@@ -4,6 +4,7 @@ export type PlanTier = "starter" | "essential" | "prime";
 
 export type EntitlementFeatureKey =
   | "care_circle"
+  | "deep_chart_reading"
   | "dice"
   | "knowledge_bank"
   | "natal_chat"
@@ -12,11 +13,12 @@ export type EntitlementFeatureKey =
 
 export const PLAN_ENTITLEMENTS: Record<PlanTier, EntitlementFeatureKey[]> = {
   starter: ["natal_chat", "knowledge_bank"],
-  essential: ["natal_chat", "knowledge_bank", "dice", "push_notifications"],
+  essential: ["natal_chat", "knowledge_bank", "dice", "deep_chart_reading", "push_notifications"],
   prime: [
     "natal_chat",
     "knowledge_bank",
     "dice",
+    "deep_chart_reading",
     "personal_transits",
     "care_circle",
     "push_notifications"
@@ -28,13 +30,14 @@ export const ROUTE_PLAN_REQUIREMENTS: Record<ChatRoute, PlanTier> = {
   knowledge: "starter",
   dice: "essential",
   astro_timing: "prime",
-  astro_deep: "starter",
+  astro_deep: "essential",
   out_of_scope: "starter",
   safety: "starter"
 };
 
 export const FEATURE_LABELS: Record<EntitlementFeatureKey, string> = {
   care_circle: "Care Circle check-ins",
+  deep_chart_reading: "Deep chart reading",
   dice: "Astrology dice",
   knowledge_bank: "Triplicity knowledge",
   natal_chat: "Natal chart chat",
