@@ -28,10 +28,18 @@ For each ready case, fill:
 - tolerance in degrees
 - house only when birth time is known and the expected house is reliable
 
-Unknown-birth-time cases must not assert Ascendant or house placement.
+Unknown-birth-time cases must not assert Ascendant, MC, or house placement.
 
 ## Integration Target
 
 Once `/profile` calls the signed Cloudflare Worker wrapper, the Worker `chart_v2` output should be compared with these fixtures through `compareGoldenChartCase`.
+
+For unknown-birth-time Worker responses, integration tests must confirm:
+
+- no Ascendant angle
+- no MC angle
+- empty `houses`
+- no Ascendant or MC chart points
+- no planet house placements
 
 Do not call astrology-api.io directly from mobile or Supabase. Use the signed Cloudflare Worker wrapper.

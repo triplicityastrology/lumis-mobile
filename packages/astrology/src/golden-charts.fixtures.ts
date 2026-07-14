@@ -1,4 +1,5 @@
-import { GOLDEN_CHART_CASES } from "./golden-charts";
+import { compareGoldenChartCase, GOLDEN_CHART_CASES } from "./golden-charts";
+import type { ChartV2 } from "@lumis/shared";
 
 export function assertGoldenChartFixtures(): void {
   if (GOLDEN_CHART_CASES.length < 4) {
@@ -30,10 +31,13 @@ export function assertGoldenChartFixtures(): void {
     if (goldenCase.input.time_unknown) {
       const hasHouseAssertion = goldenCase.expected.points.some((point) => point.house != null);
       const hasAscendantAssertion = goldenCase.expected.points.some((point) => point.key === "ascendant");
+      const hasMediumCoeliAssertion = goldenCase.expected.points.some(
+        (point) => point.key === "medium_coeli"
+      );
 
-      if (hasHouseAssertion || hasAscendantAssertion) {
+      if (hasHouseAssertion || hasAscendantAssertion || hasMediumCoeliAssertion) {
         throw new Error(
-          `${goldenCase.id}: unknown birth time case must not assert houses or Ascendant.`
+          `${goldenCase.id}: unknown birth time case must not assert houses, Ascendant, or MC.`
         );
       }
     }
@@ -42,6 +46,8 @@ export function assertGoldenChartFixtures(): void {
       throw new Error(`${goldenCase.id}: ready golden chart case must include expected points.`);
     }
   }
+
+  assertUnknownTimeWorkerShapeGuard();
 }
 
 function assertRequiredInput(caseId: string, input: {
@@ -58,6 +64,79 @@ function assertRequiredInput(caseId: string, input: {
 
   if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
     throw new Error(`${caseId}: lat/lng must be finite numbers.`);
+  }
+}
+
+function assertUnknownTimeWorkerShapeGuard(): void {
+  const unknownTimeCase = GOLDEN_CHART_CASES.find((goldenCase) => goldenCase.input.time_unknown);
+
+  if (!unknownTimeCase) {
+    throw new Error("Expected an unknown birth time case for Worker shape guard validation.");
+  }
+
+  const invalidUnknownTimeChart: ChartV2 = {
+    version: "chart_v2",
+    precision: "no_birth_time",
+    source: "fixture",
+    calculatedAt: "2026-07-14T00:00:00.000Z",
+    planets: [
+      {
+        key: "sun",
+        label: "Sun",
+        sign: "Pisces",
+        degree: 1,
+        house: 7
+      },
+      {
+        key: "ascendant",
+        label: "Ascendant",
+        sign: "Leo",
+        degree: 1
+      },
+      {
+        key: "medium_coeli",
+        label: "MC",
+        sign: "Taurus",
+        degree: 1
+      }
+    ],
+    houses: [
+      {
+        no: 1,
+        sign: "Leo",
+        cuspDegree: 1
+      }
+    ],
+    angles: {
+      ascendant: {
+        key: "ascendant",
+        label: "Ascendant",
+        sign: "Leo",
+        degree: 1
+      },
+      mediumCoeli: {
+        key: "medium_coeli",
+        label: "MC",
+        sign: "Taurus",
+        degree: 1
+      }
+    }
+  };
+
+  const result = compareGoldenChartCase(unknownTimeCase, invalidUnknownTimeChart);
+  const messages = result.issues.map((issue) => issue.message);
+
+  assertIssueIncludes(messages, "Ascendant angle");
+  assertIssueIncludes(messages, "MC angle");
+  assertIssueIncludes(messages, "must not include houses");
+  assertIssueIncludes(messages, "Ascendant as a chart point");
+  assertIssueIncludes(messages, "MC as a chart point");
+  assertIssueIncludes(messages, "house placement for sun");
+}
+
+function assertIssueIncludes(messages: string[], expectedText: string): void {
+  if (!messages.some((message) => message.includes(expectedText))) {
+    throw new Error(`Expected unknown-time Worker shape issue containing "${expectedText}".`);
   }
 }
 

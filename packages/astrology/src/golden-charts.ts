@@ -146,6 +146,10 @@ export function compareGoldenChartCase(
     });
   }
 
+  if (goldenCase.input.time_unknown) {
+    addUnknownTimeShapeIssues(goldenCase, actualChart, issues);
+  }
+
   for (const expectedPoint of goldenCase.expected.points) {
     const actualPoint = actualChart.planets.find((planet) => planet.key === expectedPoint.key);
 
@@ -184,4 +188,54 @@ export function compareGoldenChartCase(
     passed: issues.length === 0,
     issues
   };
+}
+
+function addUnknownTimeShapeIssues(
+  goldenCase: GoldenChartCase,
+  actualChart: ChartV2,
+  issues: GoldenChartComparisonIssue[]
+): void {
+  if (actualChart.angles.ascendant) {
+    issues.push({
+      caseId: goldenCase.id,
+      message: "Unknown birth time chart must not include an Ascendant angle."
+    });
+  }
+
+  if (actualChart.angles.mediumCoeli) {
+    issues.push({
+      caseId: goldenCase.id,
+      message: "Unknown birth time chart must not include an MC angle."
+    });
+  }
+
+  if (actualChart.houses.length > 0) {
+    issues.push({
+      caseId: goldenCase.id,
+      message: "Unknown birth time chart must not include houses."
+    });
+  }
+
+  for (const planet of actualChart.planets) {
+    if (planet.key === "ascendant") {
+      issues.push({
+        caseId: goldenCase.id,
+        message: "Unknown birth time chart must not include Ascendant as a chart point."
+      });
+    }
+
+    if (planet.key === "medium_coeli") {
+      issues.push({
+        caseId: goldenCase.id,
+        message: "Unknown birth time chart must not include MC as a chart point."
+      });
+    }
+
+    if (planet.house != null) {
+      issues.push({
+        caseId: goldenCase.id,
+        message: `Unknown birth time chart must not include house placement for ${planet.key}.`
+      });
+    }
+  }
 }
