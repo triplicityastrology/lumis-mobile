@@ -36,7 +36,9 @@ CHART_WORKER_TIMEOUT_MS=15000
 LUMIS_ENV=staging
 ```
 
-If `CHART_WORKER_URL` or `CHART_WORKER_SIGNING_SECRET` is missing, `/profile` intentionally saves a fixture chart and marks `raw_chart_json.status = fixture_worker_not_configured`. If both are present, `/profile` calls the Worker before writing onboarding data. Worker failures return `CHART_WORKER_FAILED` and do not create a partial profile.
+If `CHART_WORKER_URL` or `CHART_WORKER_SIGNING_SECRET` is missing, `/profile` may save a fixture chart only when `LUMIS_ENV` is explicitly set to `local`, `dev`, `development`, `test`, or `staging`. Missing `LUMIS_ENV` behaves as production. Production must fail closed instead of silently saving fixture chart data. If both Worker settings are present, `/profile` calls the Worker before writing onboarding data. Worker failures return `CHART_WORKER_FAILED` and do not create a partial profile.
+
+Before calling the paid Worker, `/profile` must preflight-check whether the signed-in user already has birth data and an AI profile. Existing complete profiles return `PROFILE_ALREADY_EXISTS` without a Worker call. The transactional RPC keeps the same duplicate guard for concurrency safety.
 
 Signed mobile request headers:
 
@@ -108,6 +110,8 @@ The mobile wrapper should not reuse:
 - website KV as source of truth for the mobile app
 - public CORS behavior
 - returning provider debug payloads to clients
+
+The Worker response and stored `chart_v2` must not include raw provider output. If provider details are needed for troubleshooting, retain only backend-only summaries such as request id, source, precision, point count, and house count.
 
 Unknown birth time rule:
 

@@ -35,8 +35,10 @@ const POINT_KEY_MAP = {
   MC: "medium_coeli"
 };
 
+const DEFAULT_ALLOWED_ORIGIN = "https://triplicityastrology.com";
+
 const MOBILE_CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": DEFAULT_ALLOWED_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "Content-Type, X-Lumis-Signature-Version, X-Lumis-Timestamp, X-Lumis-Signature, X-Lumis-Request-Id, X-Lumis-User-Id"
@@ -247,8 +249,7 @@ function buildChartV2({ providerChart, timeUnknown }) {
     angles: {
       ascendant: planets.find((planet) => planet.key === "ascendant"),
       mediumCoeli: planets.find((planet) => planet.key === "medium_coeli")
-    },
-    rawProviderResponse: providerChart
+    }
   };
 
   return sanitizeUnknownTimeChart(chart, timeUnknown);

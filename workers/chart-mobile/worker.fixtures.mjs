@@ -39,6 +39,10 @@ async function assertValidFullTimeRequest() {
     assert(response.status === 200, "Expected full-time Worker response to succeed.");
     assert(payload.chart_v2.precision === "full", "Expected full-time precision.");
     assert(
+      !("rawProviderResponse" in payload.chart_v2),
+      "Expected chart_v2 to omit raw provider response."
+    );
+    assert(
       payload.chart_v2.planets.some((planet) => planet.key === "ascendant"),
       "Expected full-time chart to include Ascendant."
     );
@@ -84,6 +88,7 @@ async function assertUnknownTimeIsSanitized() {
 
     assert(response.status === 200, "Expected unknown-time Worker response to succeed.");
     assert(chart.precision === "no_birth_time", "Expected unknown-time precision.");
+    assert(!("rawProviderResponse" in chart), "Expected chart_v2 to omit raw provider response.");
     assert(chart.houses.length === 0, "Expected unknown-time chart to have empty houses.");
     assert(!chart.angles.ascendant, "Expected unknown-time chart to omit Ascendant angle.");
     assert(!chart.angles.mediumCoeli, "Expected unknown-time chart to omit MC angle.");

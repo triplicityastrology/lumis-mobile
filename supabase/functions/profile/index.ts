@@ -33,6 +33,11 @@ type ChartGenerationResult = {
   nextStep: string;
 };
 
+type ExistingProfileState = {
+  hasBirthData: boolean;
+  hasProfile: boolean;
+};
+
 type MobileChartWorkerPayload = SignedChartWorkerRequest & {
   request_id: string;
   requested_at: string;
@@ -140,6 +145,22 @@ Deno.serve(async (request) => {
   }
 
   const userId = authData.user.id;
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+  const existingProfile = await loadExistingProfileState(serviceClient, userId);
+
+  if (existingProfile.hasBirthData && existingProfile.hasProfile) {
+    return jsonResponse(
+      {
+        error: {
+          code: "PROFILE_ALREADY_EXISTS",
+          message:
+            "This account already has a chart profile. Birth-detail edits must use the controlled regeneration flow."
+        }
+      },
+      { status: 409 }
+    );
+  }
+
   let chartResult: ChartGenerationResult;
 
   try {
@@ -160,7 +181,6 @@ Deno.serve(async (request) => {
   }
 
   const chart = chartResult.chart;
-  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const role = personaStyleToInternalRole.acceptance;
 
   const { data: onboardingData, error: onboardingError } = await serviceClient.rpc(
@@ -226,6 +246,38 @@ Deno.serve(async (request) => {
   });
 });
 
+async function loadExistingProfileState(
+  serviceClient: ReturnType<typeof createClient>,
+  userId: string
+): Promise<ExistingProfileState> {
+  const [birthResult, profileResult] = await Promise.all([
+    serviceClient
+      .from("birth_data")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    serviceClient
+      .from("ai_profiles")
+      .select("id")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle()
+  ]);
+
+  if (birthResult.error) {
+    throw new Error(birthResult.error.message);
+  }
+
+  if (profileResult.error) {
+    throw new Error(profileResult.error.message);
+  }
+
+  return {
+    hasBirthData: birthResult.data != null,
+    hasProfile: profileResult.data != null
+  };
+}
+
 async function generateChart(input: {
   chartRequest: SignedChartWorkerRequest;
   body: ProfileRequest;
@@ -234,6 +286,12 @@ async function generateChart(input: {
   const signingSecret = Deno.env.get("CHART_WORKER_SIGNING_SECRET");
 
   if (!workerUrl || !signingSecret) {
+    if (!allowsFixtureFallback()) {
+      throw new Error(
+        "Chart Worker is not configured. Production deployments must set CHART_WORKER_URL and CHART_WORKER_SIGNING_SECRET."
+      );
+    }
+
     return {
       chart: buildFixtureChart(input.body),
       rawChartJson: {
@@ -254,7 +312,7 @@ async function generateChart(input: {
     requested_at: requestedAt,
     client: {
       source: "lumis_mobile_supabase",
-      environment: Deno.env.get("LUMIS_ENV") ?? "staging"
+      environment: lumisEnvironment()
     }
   };
   const bodyText = JSON.stringify(payload);
@@ -291,11 +349,11 @@ async function generateChart(input: {
     const chart = extractChartV2(workerResponse);
 
     return {
-      chart: sanitizeChartForPrecision(chart, input.chartRequest.birth_data.time_unknown),
+      chart: sanitizeChartForClient(chart, input.chartRequest.birth_data.time_unknown),
       rawChartJson: {
         status: "worker_chart_generated",
         request_id: requestId,
-        worker_response: workerResponse
+        worker_response_summary: summarizeWorkerResponse(workerResponse)
       },
       status: "worker_chart_generated",
       nextStep: "Signed Cloudflare Worker chart_v2 response generated and saved."
@@ -309,6 +367,16 @@ async function generateChart(input: {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function allowsFixtureFallback(): boolean {
+  const environment = lumisEnvironment();
+
+  return ["dev", "development", "local", "staging", "test"].includes(environment);
+}
+
+function lumisEnvironment(): string {
+  return (Deno.env.get("LUMIS_ENV") ?? "production").toLowerCase();
 }
 
 function chartWorkerUrl(): string | null {
@@ -371,15 +439,31 @@ function extractChartV2(workerResponse: Record<string, unknown>): ChartV2 {
   return candidate;
 }
 
-function sanitizeChartForPrecision(chart: ChartV2, timeUnknown: boolean): ChartV2 {
+function summarizeWorkerResponse(workerResponse: Record<string, unknown>): Record<string, unknown> {
+  const chart = (workerResponse.chart_v2 ?? workerResponse.chart) as ChartV2 | undefined;
+
+  return {
+    request_id: workerResponse.request_id,
+    chart_version: chart?.version,
+    precision: chart?.precision,
+    source: chart?.source,
+    calculatedAt: chart?.calculatedAt,
+    planet_count: Array.isArray(chart?.planets) ? chart.planets.length : null,
+    house_count: Array.isArray(chart?.houses) ? chart.houses.length : null
+  };
+}
+
+function sanitizeChartForClient(chart: ChartV2, timeUnknown: boolean): ChartV2 {
+  const { rawProviderResponse: _rawProviderResponse, ...chartWithoutRawProvider } = chart;
+
   if (!timeUnknown) {
-    return chart;
+    return chartWithoutRawProvider;
   }
 
   return {
-    ...chart,
+    ...chartWithoutRawProvider,
     precision: "no_birth_time",
-    planets: chart.planets
+    planets: chartWithoutRawProvider.planets
       .filter((planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli")
       .map((planet) => {
         const { house: _house, ...planetWithoutHouse } = planet;
@@ -433,5 +517,5 @@ function buildFixtureChart(body: ProfileRequest): ChartV2 {
     }
   };
 
-  return sanitizeChartForPrecision(chart, body.time_unknown ?? false);
+  return sanitizeChartForClient(chart, body.time_unknown ?? false);
 }

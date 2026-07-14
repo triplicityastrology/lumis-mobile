@@ -19,6 +19,8 @@ It is based on the current website Worker at:
 - Uses Placidus, Tropical zodiac, and the active points from the website flow.
 - Returns `chart_v2` for Supabase storage.
 - Sanitizes unknown-birth-time charts so they contain no Ascendant, no MC, no houses, and no planet house placements.
+- Omits raw astrology-api.io provider output from `chart_v2`.
+- Uses restricted CORS headers; signed server-to-server calls do not require public wildcard browser access.
 
 Run local fixture checks with:
 
@@ -30,6 +32,7 @@ The fixture checks mock the astrology-api.io response and verify:
 
 - valid signed full-time requests succeed
 - invalid signatures are rejected before the provider call
+- raw provider output is not exposed in `chart_v2`
 - unknown-time requests use the deterministic noon provider fallback
 - unknown-time `chart_v2` output removes Ascendant, MC, houses, and planet house placements
 
