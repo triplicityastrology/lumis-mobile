@@ -1,5 +1,7 @@
 # QA remediation status - 2026-07-14
 
+Canonical release checklist: [`../qa/go-live-checklist.md`](../qa/go-live-checklist.md)
+
 ## Scope
 
 This pass covers the technical scaffold and QA remediation work before the first hosted Supabase staging deployment.

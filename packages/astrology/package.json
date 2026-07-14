@@ -12,7 +12,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test:golden": "tsc -p tsconfig.golden-test.json && node ../../.tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js"
+    "test:golden": "tsc -p tsconfig.golden-test.json && node ../../.tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
+    "test:profile": "tsc -p tsconfig.profile-test.json && node ../../.tmp/profile-onboarding-tests/astrology/src/profile-onboarding.fixtures.js"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

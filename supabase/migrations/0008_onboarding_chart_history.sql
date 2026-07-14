@@ -380,7 +380,10 @@ begin
     'starter_onboarding',
     50,
     50
-  );
+  )
+  on conflict (user_id)
+  where grant_type = 'starter_onboarding'
+  do nothing;
 
   return jsonb_build_object(
     'ok', true,

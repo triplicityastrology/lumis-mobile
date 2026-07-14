@@ -1,4 +1,10 @@
-import { CHART_WORKER_CONTRACT, type SignedChartWorkerRequest } from "@lumis/astrology";
+import {
+  CHART_WORKER_CONTRACT,
+  allowsFixtureFallbackForEnvironment,
+  decideProfilePreflight,
+  sanitizeChartForClient,
+  type SignedChartWorkerRequest
+} from "@lumis/astrology";
 import { createClient } from "@supabase/supabase-js";
 import type { ChartV2 } from "@lumis/shared";
 
@@ -36,6 +42,9 @@ type ChartGenerationResult = {
 type ExistingProfileState = {
   hasBirthData: boolean;
   hasProfile: boolean;
+  hasStarterGrant: boolean;
+  birthData: ExistingBirthData | null;
+  profile: ExistingAiProfile | null;
 };
 
 type MobileChartWorkerPayload = SignedChartWorkerRequest & {
@@ -45,6 +54,28 @@ type MobileChartWorkerPayload = SignedChartWorkerRequest & {
     source: "lumis_mobile_supabase";
     environment: string;
   };
+};
+
+type ExistingBirthData = {
+  birth_date: string;
+  birth_time: string | null;
+  time_unknown: boolean;
+  place_name: string;
+  country_code: string;
+  lat: number;
+  lng: number;
+  tz_str: string;
+};
+
+type ExistingAiProfile = {
+  id: number;
+  version: number;
+  chart_version: number;
+  birth_data_history_id: number | null;
+  chart_json: ChartV2;
+  raw_chart_json: Record<string, unknown> | null;
+  precision: "full" | "no_birth_time";
+  model: string | null;
 };
 
 const personaStyleToInternalRole = {
@@ -147,8 +178,9 @@ Deno.serve(async (request) => {
   const userId = authData.user.id;
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const existingProfile = await loadExistingProfileState(serviceClient, userId);
+  const preflightDecision = decideProfilePreflight(existingProfile);
 
-  if (existingProfile.hasBirthData && existingProfile.hasProfile) {
+  if (preflightDecision === "already_complete") {
     return jsonResponse(
       {
         error: {
@@ -159,6 +191,16 @@ Deno.serve(async (request) => {
       },
       { status: 409 }
     );
+  }
+
+  if (preflightDecision === "repair_missing_starter") {
+    return repairExistingProfile({
+      body,
+      chartRequest,
+      existingProfile,
+      serviceClient,
+      userId
+    });
   }
 
   let chartResult: ChartGenerationResult;
@@ -250,16 +292,25 @@ async function loadExistingProfileState(
   serviceClient: ReturnType<typeof createClient>,
   userId: string
 ): Promise<ExistingProfileState> {
-  const [birthResult, profileResult] = await Promise.all([
+  const [birthResult, profileResult, grantResult] = await Promise.all([
     serviceClient
       .from("birth_data")
-      .select("user_id")
+      .select("birth_date, birth_time, time_unknown, place_name, country_code, lat, lng, tz_str")
       .eq("user_id", userId)
       .maybeSingle(),
     serviceClient
       .from("ai_profiles")
+      .select("id, version, chart_version, birth_data_history_id, chart_json, raw_chart_json, precision, model")
+      .eq("user_id", userId)
+      .order("chart_version", { ascending: false })
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    serviceClient
+      .from("monthly_balance")
       .select("id")
       .eq("user_id", userId)
+      .eq("grant_type", "starter_onboarding")
       .limit(1)
       .maybeSingle()
   ]);
@@ -272,10 +323,100 @@ async function loadExistingProfileState(
     throw new Error(profileResult.error.message);
   }
 
+  if (grantResult.error) {
+    throw new Error(grantResult.error.message);
+  }
+
   return {
     hasBirthData: birthResult.data != null,
-    hasProfile: profileResult.data != null
+    hasProfile: profileResult.data != null,
+    hasStarterGrant: grantResult.data != null,
+    birthData: birthResult.data as ExistingBirthData | null,
+    profile: profileResult.data as ExistingAiProfile | null
   };
+}
+
+async function repairExistingProfile(input: {
+  body: ProfileRequest;
+  chartRequest: SignedChartWorkerRequest;
+  existingProfile: ExistingProfileState;
+  serviceClient: ReturnType<typeof createClient>;
+  userId: string;
+}): Promise<Response> {
+  if (!input.existingProfile.birthData || !input.existingProfile.profile) {
+    return jsonResponse(
+      {
+        error: {
+          code: "PROFILE_RECOVERY_INCOMPLETE",
+          message: "Saved birth data and chart profile are required for Starter grant repair."
+        }
+      },
+      { status: 409 }
+    );
+  }
+
+  const birthData = input.existingProfile.birthData;
+  const profile = input.existingProfile.profile;
+  const role = personaStyleToInternalRole.acceptance;
+  const { data: onboardingData, error: onboardingError } = await input.serviceClient.rpc(
+    "complete_profile_onboarding",
+    {
+      p_user_id: input.userId,
+      p_display_name: input.body.display_name ?? "Lumis user",
+      p_birth_date: birthData.birth_date,
+      p_birth_time: birthData.time_unknown ? null : birthData.birth_time,
+      p_time_unknown: birthData.time_unknown,
+      p_place_name: birthData.place_name,
+      p_country_code: birthData.country_code,
+      p_lat: birthData.lat,
+      p_lng: birthData.lng,
+      p_tz_str: birthData.tz_str,
+      p_role: role,
+      p_chart_json: sanitizeChartForClient(profile.chart_json, birthData.time_unknown),
+      p_raw_chart_json: {
+        ...(profile.raw_chart_json ?? {}),
+        status: "legacy_profile_repaired_without_worker",
+        chart_worker_contract: { ...input.chartRequest, user_id: input.userId }
+      },
+      p_precision: profile.precision,
+      p_model: profile.model ?? "recovered_existing_profile"
+    }
+  );
+
+  if (onboardingError) {
+    return jsonResponse(
+      { error: { code: "PROFILE_ONBOARDING_FAILED", message: onboardingError.message } },
+      { status: 500 }
+    );
+  }
+
+  const onboarding = onboardingData as OnboardingRpcResponse;
+
+  if (!onboarding.ok) {
+    return jsonResponse(
+      {
+        error: {
+          code: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED",
+          message: onboarding.message ?? "Unable to repair this Lumis profile."
+        }
+      },
+      { status: onboarding.error_code === "PROFILE_ALREADY_EXISTS" ? 409 : 400 }
+    );
+  }
+
+  return jsonResponse({
+    profile_version: onboarding.profile_version,
+    status: "profile_repaired",
+    precision: profile.precision,
+    contract: CHART_WORKER_CONTRACT,
+    ai_profile_id: onboarding.ai_profile_id,
+    chart_version: onboarding.chart_version,
+    birth_data_history_id: onboarding.birth_data_history_id,
+    chart_worker_contract: { ...input.chartRequest, user_id: input.userId },
+    chart: sanitizeChartForClient(profile.chart_json, birthData.time_unknown),
+    next_step:
+      "Recovered missing Starter grant and chart-history linkage from the existing saved chart profile without calling the chart Worker."
+  });
 }
 
 async function generateChart(input: {
@@ -370,9 +511,7 @@ async function generateChart(input: {
 }
 
 function allowsFixtureFallback(): boolean {
-  const environment = lumisEnvironment();
-
-  return ["dev", "development", "local", "staging", "test"].includes(environment);
+  return allowsFixtureFallbackForEnvironment(lumisEnvironment());
 }
 
 function lumisEnvironment(): string {
@@ -450,27 +589,6 @@ function summarizeWorkerResponse(workerResponse: Record<string, unknown>): Recor
     calculatedAt: chart?.calculatedAt,
     planet_count: Array.isArray(chart?.planets) ? chart.planets.length : null,
     house_count: Array.isArray(chart?.houses) ? chart.houses.length : null
-  };
-}
-
-function sanitizeChartForClient(chart: ChartV2, timeUnknown: boolean): ChartV2 {
-  const { rawProviderResponse: _rawProviderResponse, ...chartWithoutRawProvider } = chart;
-
-  if (!timeUnknown) {
-    return chartWithoutRawProvider;
-  }
-
-  return {
-    ...chartWithoutRawProvider,
-    precision: "no_birth_time",
-    planets: chartWithoutRawProvider.planets
-      .filter((planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli")
-      .map((planet) => {
-        const { house: _house, ...planetWithoutHouse } = planet;
-        return planetWithoutHouse;
-      }),
-    houses: [],
-    angles: {}
   };
 }
 

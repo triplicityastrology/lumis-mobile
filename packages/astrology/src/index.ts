@@ -47,3 +47,11 @@ export const CHART_WORKER_CONTRACT = {
   source: "Cloudflare Worker wrapper based on website worker.js",
   storesTruthIn: "Supabase, not Cloudflare KV"
 } as const;
+
+export {
+  decideProfilePreflight,
+  type ProfilePreflightDecision,
+  type ProfilePreflightState
+} from "./profile-preflight";
+export { sanitizeChartForClient } from "./chart-sanitizer";
+export { allowsFixtureFallbackForEnvironment } from "./chart-worker-config";

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "../../.tmp/profile-onboarding-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/chart-sanitizer.ts",
+    "src/chart-worker-config.ts",
+    "src/profile-preflight.ts",
+    "src/profile-onboarding.fixtures.ts",
+    "../shared/src/types/chart.ts"
+  ]
+}

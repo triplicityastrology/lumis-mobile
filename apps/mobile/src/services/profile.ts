@@ -50,7 +50,7 @@ export type ChartProfileResult =
     };
 
 export type ProfileFunctionResponse = {
-  status?: "profile_request_prepared" | "profile_persisted";
+  status?: "profile_request_prepared" | "profile_persisted" | "profile_repaired";
   profile_version?: number;
   chart_version?: number;
   birth_data_history_id?: number;
