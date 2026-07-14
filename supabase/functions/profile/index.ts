@@ -16,6 +16,14 @@ type ProfileRequest = {
   tz_str?: string;
 };
 
+type OnboardingRpcResponse = {
+  ok?: boolean;
+  error_code?: string;
+  message?: string;
+  ai_profile_id?: number;
+  profile_version?: number;
+};
+
 const personaStyleToInternalRole = {
   acceptance: "support",
   spark: "spark",
@@ -118,121 +126,57 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const role = personaStyleToInternalRole.acceptance;
 
-  const { data: existingBirthData, error: existingBirthDataError } = await serviceClient
-    .from("birth_data")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (existingBirthDataError) {
-    return jsonResponse(
-      { error: { code: "PROFILE_LOOKUP_FAILED", message: existingBirthDataError.message } },
-      { status: 500 }
-    );
-  }
-
-  if (existingBirthData) {
-    return jsonResponse(
-      {
-        error: {
-          code: "PROFILE_ALREADY_EXISTS",
-          message:
-            "This account already has a chart profile. Birth-detail edits must use the controlled regeneration flow."
-        }
-      },
-      { status: 409 }
-    );
-  }
-
-  const { error: userError } = await serviceClient.from("users").upsert({
-    id: userId,
-    display_name: body.display_name ?? "Lumis user",
-    buddy_name: "Lumis",
-    persona_style: "acceptance",
-    role
-  });
-
-  if (userError) {
-    return jsonResponse({ error: { code: "USER_SAVE_FAILED", message: userError.message } }, { status: 500 });
-  }
-
-  const { error: birthError } = await serviceClient.from("birth_data").insert({
-    user_id: userId,
-    birth_date: body.birth_date,
-    birth_time: body.time_unknown ? null : body.birth_time,
-    time_unknown: body.time_unknown ?? false,
-    place_name: body.place_name,
-    country_code: body.country_code,
-    lat: body.lat,
-    lng: body.lng,
-    tz_str: body.tz_str
-  });
-
-  if (birthError) {
-    if (birthError.code === "23505") {
-      return jsonResponse(
-        {
-          error: {
-            code: "PROFILE_ALREADY_EXISTS",
-            message:
-              "This account already has a chart profile. Birth-detail edits must use the controlled regeneration flow."
-          }
-        },
-        { status: 409 }
-      );
-    }
-
-    return jsonResponse({ error: { code: "BIRTH_SAVE_FAILED", message: birthError.message } }, { status: 500 });
-  }
-
-  const { data: latestProfile } = await serviceClient
-    .from("ai_profiles")
-    .select("version")
-    .eq("user_id", userId)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const profileVersion = (latestProfile?.version ?? 0) + 1;
-  const { data: profile, error: profileError } = await serviceClient
-    .from("ai_profiles")
-    .insert({
-      user_id: userId,
-      version: profileVersion,
-      chart_json: chart,
-      raw_chart_json: {
+  const { data: onboardingData, error: onboardingError } = await serviceClient.rpc(
+    "complete_profile_onboarding",
+    {
+      p_user_id: userId,
+      p_display_name: body.display_name ?? "Lumis user",
+      p_birth_date: body.birth_date,
+      p_birth_time: body.time_unknown ? null : body.birth_time,
+      p_time_unknown: body.time_unknown ?? false,
+      p_place_name: body.place_name,
+      p_country_code: body.country_code,
+      p_lat: body.lat,
+      p_lng: body.lng,
+      p_tz_str: body.tz_str,
+      p_role: role,
+      p_chart_json: chart,
+      p_raw_chart_json: {
         status: "worker_pending",
         chart_worker_contract: { ...chartRequest, user_id: userId }
       },
-      precision: chart.precision,
-      model: "fixture_until_worker_connected"
-    })
-    .select("id, version")
-    .single();
+      p_precision: chart.precision,
+      p_model: "fixture_until_worker_connected"
+    }
+  );
 
-  if (profileError) {
-    return jsonResponse({ error: { code: "PROFILE_SAVE_FAILED", message: profileError.message } }, { status: 500 });
+  if (onboardingError) {
+    return jsonResponse(
+      { error: { code: "PROFILE_ONBOARDING_FAILED", message: onboardingError.message } },
+      { status: 500 }
+    );
   }
 
-  const { error: starterGrantError } = await serviceClient.from("monthly_balance").insert({
-    user_id: userId,
-    grant_type: "starter_onboarding",
-    allocated: 50,
-    remaining: 50
-  });
+  const onboarding = onboardingData as OnboardingRpcResponse;
 
-  if (starterGrantError && starterGrantError.code !== "23505") {
+  if (!onboarding.ok) {
     return jsonResponse(
-      { error: { code: "STARTER_GRANT_FAILED", message: starterGrantError.message } },
-      { status: 500 }
+      {
+        error: {
+          code: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED",
+          message: onboarding.message ?? "Unable to create this Lumis profile."
+        }
+      },
+      { status: onboarding.error_code === "PROFILE_ALREADY_EXISTS" ? 409 : 400 }
     );
   }
 
   return jsonResponse({
-    profile_version: profile.version,
+    profile_version: onboarding.profile_version,
     status: "profile_persisted",
     precision: chartRequest.birth_data.time_unknown ? "no_birth_time" : "full",
     contract: CHART_WORKER_CONTRACT,
-    ai_profile_id: profile.id,
+    ai_profile_id: onboarding.ai_profile_id,
     chart_worker_contract: { ...chartRequest, user_id: userId },
     chart,
     next_step: "Replace fixture chart with signed Cloudflare Worker chart_v2 response."

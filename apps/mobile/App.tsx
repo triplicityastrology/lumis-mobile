@@ -273,6 +273,7 @@ export default function App() {
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
         remainingCredits={remainingCredits}
+        isSupabaseSession={Boolean(authStatus?.isConfigured && authStatus.user)}
         onChatStateChange={async (nextChatTurns, nextRemainingCredits) => {
           setChatTurns(nextChatTurns);
           setRemainingCredits(nextRemainingCredits);
@@ -1121,6 +1122,7 @@ function ChatShellScreen({
   selectedStyle,
   chatTurns,
   remainingCredits,
+  isSupabaseSession,
   onChatStateChange,
   onBack,
   onStartOver
@@ -1130,6 +1132,7 @@ function ChatShellScreen({
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
   remainingCredits: number;
+  isSupabaseSession: boolean;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
   onBack: () => void;
   onStartOver: () => void;
@@ -1285,6 +1288,8 @@ function ChatShellScreen({
                 ? latestResult.mode === "supabase" && latestResult.billingMode === "scaffold_no_charge"
                   ? `Supabase ${latestResult.route} · estimated ${latestResult.creditsCost} credit · no charge in scaffold`
                   : `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit · ${remainingCredits} left`
+                : isSupabaseSession
+                  ? `Casual chat · estimated 1 credit · no charge in scaffold`
                 : `Casual chat · 1 credit · ${remainingCredits} left`}
             </Text>
           </View>
