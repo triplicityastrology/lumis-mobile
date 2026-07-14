@@ -52,6 +52,8 @@ export type ChartProfileResult =
 export type ProfileFunctionResponse = {
   status?: "profile_request_prepared" | "profile_persisted";
   profile_version?: number;
+  chart_version?: number;
+  birth_data_history_id?: number;
   ai_profile_id?: number;
   chart?: ChartV2;
   next_step?: string;

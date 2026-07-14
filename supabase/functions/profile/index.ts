@@ -22,6 +22,8 @@ type OnboardingRpcResponse = {
   message?: string;
   ai_profile_id?: number;
   profile_version?: number;
+  chart_version?: number;
+  birth_data_history_id?: number;
 };
 
 type ChartGenerationResult = {
@@ -216,6 +218,8 @@ Deno.serve(async (request) => {
     precision: chartRequest.birth_data.time_unknown ? "no_birth_time" : "full",
     contract: CHART_WORKER_CONTRACT,
     ai_profile_id: onboarding.ai_profile_id,
+    chart_version: onboarding.chart_version,
+    birth_data_history_id: onboarding.birth_data_history_id,
     chart_worker_contract: { ...chartRequest, user_id: userId },
     chart,
     next_step: chartResult.nextStep
