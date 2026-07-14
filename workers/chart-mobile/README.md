@@ -1,0 +1,57 @@
+# Lumis Mobile Chart Worker
+
+This is a deployable Cloudflare Worker template for the mobile-only signed chart endpoint:
+
+```text
+POST /mobile/natal-chart
+```
+
+It is based on the current website Worker at:
+
+```text
+/Users/rubyku/Documents/Website Chart/worker.js
+```
+
+## Current Scope
+
+- Verifies the Supabase Edge Function HMAC signature.
+- Builds the astrology-api.io natal chart payload server-side.
+- Uses Placidus, Tropical zodiac, and the active points from the website flow.
+- Returns `chart_v2` for Supabase storage.
+- Sanitizes unknown-birth-time charts so they contain no Ascendant, no MC, no houses, and no planet house placements.
+
+## Not Yet Live
+
+This file is not automatically deployed by the Lumis mobile repo yet. It can be:
+
+- deployed as a dedicated Cloudflare Worker, or
+- copied into the existing website Worker as the `/mobile/natal-chart` route.
+
+## Required Cloudflare Secrets
+
+```text
+ASTRO_API_KEY=
+CHART_WORKER_SIGNING_SECRET=
+```
+
+## Required Supabase Secrets
+
+```text
+CHART_WORKER_URL=
+CHART_WORKER_ENDPOINT=/mobile/natal-chart
+CHART_WORKER_SIGNING_SECRET=
+CHART_WORKER_TIMEOUT_MS=15000
+LUMIS_ENV=staging
+```
+
+`CHART_WORKER_SIGNING_SECRET` must match between Supabase and Cloudflare.
+
+## Follow-Up
+
+Before this passes production QA:
+
+- confirm the astrology-api.io response shape against real output
+- fill the golden chart expected values
+- compare Worker `chart_v2` output against `packages/astrology/src/golden-charts.ts`
+- add mobile-specific Google Sheets row logging
+- add mobile-specific Salesforce Case creation
