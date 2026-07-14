@@ -1500,7 +1500,7 @@ function PastReflectionsScreen({
           <Text style={styles.formTitle}>Return to what Lumis has been holding.</Text>
           <Text style={styles.formIntro}>
             {accountSource === "supabase"
-              ? "This screen now checks Supabase staging first. Chat persistence is still scaffolded, so it may show no saved reflections yet."
+              ? "This screen checks Supabase staging first. Signed-in scaffold chats are saved as Past Reflections when persistence succeeds."
               : "This local build keeps one reflection thread in this browser. Supabase chat persistence is a later backend step."}
           </Text>
         </View>
@@ -1536,8 +1536,8 @@ function PastReflectionsScreen({
               <View style={styles.emptyReflectionCard}>
                 <Text style={styles.noticeTitle}>No saved Past Reflections yet</Text>
                 <Text style={styles.noticeBody}>
-                  {sourceLabel} profile is loaded for {profileData.name}. Chat persistence is not connected yet,
-                  so new scaffold chat replies are not saved as Supabase Past Reflections.
+                  {sourceLabel} profile is loaded for {profileData.name}. Start a signed-in reflection, then reload
+                  to confirm Supabase can restore the saved scaffold chat turn.
                 </Text>
                 <Pressable style={styles.fullPrimaryButton} onPress={onStartNewTopic}>
                   <Text style={styles.fullPrimaryButtonText}>Start first reflection</Text>
@@ -1548,8 +1548,8 @@ function PastReflectionsScreen({
             <View style={styles.noticeCard}>
               <Text style={styles.noticeTitle}>Saved Insights</Text>
               <Text style={styles.noticeBody}>
-                Saved messages will appear here after the backend thread and insight actions are
-                connected. Current displayed balance: {remainingCredits} credits.
+                Saved chat turns appear here after Supabase persistence succeeds. Saved insight actions are
+                still a later backend step. Current displayed balance: {remainingCredits} credits.
               </Text>
             </View>
           </View>

@@ -21,6 +21,9 @@ export type SendChatMessageResult = {
   remainingCredits: number | null;
   billingMode: "local_demo" | "scaffold_no_charge" | "charged";
   reply: string;
+  threadId?: string | null;
+  persistenceMode?: "supabase_scaffold" | "not_persisted";
+  persistenceError?: string | null;
 };
 
 type ChatFunctionResponse = {
@@ -29,6 +32,11 @@ type ChatFunctionResponse = {
   remaining_credits?: number | null;
   billing_mode?: "scaffold_no_charge" | "charged";
   reply?: string;
+  thread_id?: string | null;
+  ai_profile_id?: number | null;
+  chart_version?: number | null;
+  persistence_mode?: "supabase_scaffold" | "not_persisted";
+  persistence_error?: string | null;
 };
 
 export async function sendChatMessage(input: SendChatMessageInput): Promise<SendChatMessageResult> {
@@ -65,6 +73,9 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
     creditsCost: response.credits_cost ?? 1,
     remainingCredits: response.remaining_credits ?? null,
     billingMode: response.billing_mode ?? "scaffold_no_charge",
+    threadId: response.thread_id ?? null,
+    persistenceMode: response.persistence_mode ?? "not_persisted",
+    persistenceError: response.persistence_error ?? null,
     reply:
       response.reply ??
       "I hear that. Let us begin with the part that feels most present, then connect it back to your chart gently."

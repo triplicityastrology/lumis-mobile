@@ -24,6 +24,7 @@ Status rules:
 - [x] Current source strips raw provider output and stores only an approved Worker-response summary.
 - [x] Current source permits fixture fallback only in explicit non-production environments and otherwise fails closed.
 - [x] Mobile and Supabase source do not call `astrology-api.io` directly; only the Cloudflare Worker template does.
+- [x] Current source persists signed-in scaffold chat turns to Supabase with `credits_charged = 0` / `scaffold_no_charge`.
 - [x] Transactional onboarding creates profile data and one Starter grant in the deployed staging version previously tested.
 - [x] Repeat onboarding returns `PROFILE_ALREADY_EXISTS` in the deployed staging version previously tested.
 - [x] Exactly one `starter_onboarding` grant exists for the tested account.
@@ -48,9 +49,10 @@ Status rules:
 - [ ] Review migration `0008_onboarding_chart_history.sql` against a disposable/staging database backup plan.
 - [ ] Confirm migration order `0001` through `0008` is complete and recorded.
 - [ ] Confirm Edge Function and Worker environment names are explicit; missing `LUMIS_ENV` must behave as production.
-- [x] Add `/profile` tests proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker.
-- [x] Add `/profile` tests proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing birth/chart data.
-- [x] Add `/profile` tests for production fail-closed behavior, allowed staging fixture fallback, and Supabase-side raw-provider sanitization.
+- [ ] Add Edge Function/RPC integration tests proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker. Shared decision-helper simulation is complete.
+- [ ] Add Edge Function/RPC integration tests proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata. Shared flow simulation is complete.
+- [ ] Ensure legacy repair uses the saved display name and a saved-data recovery contract; it must not return or record incoming birth/chart contract fields.
+- [ ] Add Edge Function-level tests for production fail-closed behavior, allowed staging fixture fallback, and Supabase-side raw-provider sanitization. Shared helper tests are complete.
 
 ## Gate B — After Staging Deployment, Before Founder UI QA
 
