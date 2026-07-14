@@ -14,10 +14,13 @@ type BirthDataRow = {
   birth_time: string | null;
   time_unknown: boolean;
   place_name: string;
+  active_chart_version: number;
 };
 
 type AiProfileRow = {
   chart_json: ChartV2;
+  chart_version: number;
+  is_active: boolean;
 };
 
 type BalanceRow = {
@@ -85,13 +88,14 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .maybeSingle(),
     supabase
       .from("birth_data")
-      .select("birth_date, birth_time, time_unknown, place_name")
+      .select("birth_date, birth_time, time_unknown, place_name, active_chart_version")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
       .from("ai_profiles")
-      .select("chart_json")
+      .select("chart_json, chart_version, is_active")
       .eq("user_id", userId)
+      .eq("is_active", true)
       .order("chart_version", { ascending: false })
       .order("version", { ascending: false })
       .limit(1)
@@ -118,7 +122,11 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   }
 
   const birthData = birthResult.data as BirthDataRow | null;
-  const profile = profileResult.data as AiProfileRow | null;
+  let profile = profileResult.data as AiProfileRow | null;
+
+  if (!profile) {
+    profile = await loadLatestProfileFallback(userId);
+  }
 
   if (!birthData || !profile?.chart_json) {
     return emptyAccountState(
@@ -151,6 +159,29 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
         ? "Supabase profile and latest Past Reflection loaded."
         : "Supabase profile loaded. No saved Past Reflections found yet."
   };
+}
+
+async function loadLatestProfileFallback(userId: string): Promise<AiProfileRow | null> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("ai_profiles")
+    .select("chart_json, chart_version, is_active")
+    .eq("user_id", userId)
+    .order("chart_version", { ascending: false })
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data as AiProfileRow | null;
 }
 
 async function loadThreadTurns(threadId: string): Promise<RestoredChatTurn[]> {

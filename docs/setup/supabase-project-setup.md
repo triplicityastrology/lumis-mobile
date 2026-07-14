@@ -90,6 +90,7 @@ Current migrations:
 - `0005_starter_grant_guard.sql`
 - `0006_profile_onboarding_transaction.sql`
 - `0007_lock_migration_reports_access.sql`
+- `0008_onboarding_chart_history.sql`
 
 These create the user, birth data, chart profile, balance, Lumis Persona, chat thread, and chat message tables with Row Level Security.
 
