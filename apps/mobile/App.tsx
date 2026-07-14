@@ -1311,7 +1311,7 @@ function ChatShellScreen({
         message: nextMessage,
         personaStyle: selectedStyle,
         chart,
-        forceNewThread: forceNewSupabaseThread && chatTurns.length === 0
+        forceNewThread: forceNewSupabaseThread
       });
       if (result.threadId && forceNewSupabaseThread) {
         onSupabaseThreadStarted();

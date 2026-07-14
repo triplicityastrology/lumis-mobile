@@ -10,16 +10,28 @@ type ChatRoute =
   | "out_of_scope"
   | "safety";
 
+type PersonaStyle = "acceptance" | "spark" | "awareness";
+
+type ChartContext = {
+  precision?: string;
+  sun?: string;
+  moon?: string;
+  rising?: string;
+};
+
+type ChartV2Like = {
+  precision?: string;
+  planets?: Array<{ key?: string; sign?: string }>;
+  angles?: {
+    ascendant?: { sign?: string } | null;
+  } | null;
+};
+
 type ChatMessageRequest = {
   message?: string;
-  persona_style?: "acceptance" | "spark" | "awareness";
+  persona_style?: PersonaStyle;
   force_new_thread?: boolean;
-  chart_context?: {
-    precision?: string;
-    sun?: string;
-    moon?: string;
-    rising?: string;
-  };
+  chart_context?: ChartContext;
 };
 
 type PersistedChatContext = {
@@ -33,10 +45,29 @@ type PersistedChatContext = {
 type AiProfileRow = {
   id: number;
   chart_version: number;
+  chart_json: ChartV2Like | null;
 };
 
-type ChatThreadRow = {
-  id: string;
+type AuthenticatedChatContext = {
+  userId: string;
+  serviceClient: ReturnType<typeof createClient>;
+  profile: AiProfileRow | null;
+  chartContext: ChartContext;
+};
+
+type AuthenticatedChatContextResult = {
+  context: AuthenticatedChatContext | null;
+  error: string | null;
+};
+
+type PersistScaffoldChatTurnResponse = {
+  ok?: boolean;
+  error_code?: string;
+  thread_id?: string;
+  user_message_id?: string | null;
+  assistant_message_id?: string | null;
+  ai_profile_id?: number;
+  chart_version?: number;
 };
 
 // Staging scaffold copy of the mobile/shared router table. Keep this aligned
@@ -65,8 +96,14 @@ Deno.serve(async (request) => {
 
   const acceptsStream = request.headers.get("accept")?.includes("text/event-stream") ?? false;
   const body = (await request.json().catch(() => ({}))) as ChatMessageRequest;
-  const response = buildChatResponse(body);
-  const persistence = await safePersistScaffoldChatTurn(request, body, response);
+  const serverContextResult = await safeLoadAuthenticatedChatContext(request);
+  const serverContext = serverContextResult.context;
+  const chartContext =
+    serverContext?.profile ? serverContext.chartContext : serverContext ? {} : body.chart_context;
+  const response = buildChatResponse({ ...body, chart_context: chartContext });
+  const persistence = serverContextResult.error
+    ? { persisted: null, error: serverContextResult.error }
+    : await safePersistScaffoldChatTurn(serverContext, body, response);
   const persisted = persistence.persisted;
   const responseWithPersistence = {
     ...response,
@@ -125,36 +162,95 @@ Deno.serve(async (request) => {
   });
 });
 
+async function safeLoadAuthenticatedChatContext(
+  request: Request
+): Promise<AuthenticatedChatContextResult> {
+  try {
+    return {
+      context: await loadAuthenticatedChatContext(request),
+      error: null
+    };
+  } catch (error) {
+    console.error("CHAT_PERSISTENCE_FAILED", error);
+
+    return {
+      context: null,
+      error: "CHAT_PERSISTENCE_FAILED"
+    };
+  }
+}
+
 async function safePersistScaffoldChatTurn(
-  request: Request,
+  serverContext: AuthenticatedChatContext | null,
   body: ChatMessageRequest,
   response: ReturnType<typeof buildChatResponse>
 ): Promise<{ persisted: PersistedChatContext | null; error: string | null }> {
   try {
     return {
-      persisted: await persistScaffoldChatTurn(request, body, response),
-      error: null
+      persisted: await persistScaffoldChatTurn(serverContext, body, response),
+      error: serverContext && !serverContext.profile ? "ACTIVE_PROFILE_REQUIRED" : null
     };
   } catch (error) {
+    console.error("CHAT_PERSISTENCE_FAILED", error);
+
     return {
       persisted: null,
-      error: error instanceof Error ? error.message : "Chat persistence failed."
+      error: "CHAT_PERSISTENCE_FAILED"
     };
   }
 }
 
 async function persistScaffoldChatTurn(
-  request: Request,
+  serverContext: AuthenticatedChatContext | null,
   body: ChatMessageRequest,
   response: ReturnType<typeof buildChatResponse>
 ): Promise<PersistedChatContext | null> {
+  const message = body.message?.trim();
+
+  if (!serverContext || !serverContext.profile || !message) {
+    return null;
+  }
+
+  const { data, error } = await serverContext.serviceClient.rpc("persist_scaffold_chat_turn", {
+    p_user_id: serverContext.userId,
+    p_ai_profile_id: serverContext.profile.id,
+    p_chart_version: serverContext.profile.chart_version,
+    p_persona_style: body.persona_style ?? "acceptance",
+    p_route: response.route,
+    p_title: buildThreadTitle(message),
+    p_user_message: message,
+    p_assistant_message: response.reply,
+    p_force_new_thread: body.force_new_thread ?? false
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const persisted = data as PersistScaffoldChatTurnResponse | null;
+
+  if (!persisted?.ok || !persisted.thread_id || !persisted.ai_profile_id || !persisted.chart_version) {
+    throw new Error(persisted?.error_code ?? "CHAT_PERSISTENCE_FAILED");
+  }
+
+  return {
+    threadId: persisted.thread_id,
+    userMessageId: persisted.user_message_id ?? null,
+    assistantMessageId: persisted.assistant_message_id ?? null,
+    aiProfileId: persisted.ai_profile_id,
+    chartVersion: persisted.chart_version
+  };
+}
+
+async function loadAuthenticatedChatContext(
+  request: Request
+): Promise<AuthenticatedChatContext | null> {
   const authHeader = request.headers.get("Authorization");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const message = body.message?.trim();
 
-  if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey || !message) {
+  if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey) {
     return null;
   }
 
@@ -171,58 +267,14 @@ async function persistScaffoldChatTurn(
     return null;
   }
 
-  const userId = authData.user.id;
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-  const profile = await loadActiveProfile(serviceClient, userId);
-
-  if (!profile) {
-    return null;
-  }
-
-  const thread = await loadOrCreateThread(serviceClient, {
-    userId,
-    aiProfileId: profile.id,
-    chartVersion: profile.chart_version,
-    personaStyle: body.persona_style ?? "acceptance",
-    route: response.route,
-    title: buildThreadTitle(message),
-    forceNewThread: body.force_new_thread ?? false
-  });
-  const userMessageId = await insertChatMessage(serviceClient, {
-    threadId: thread.id,
-    userId,
-    role: "user",
-    content: message,
-    route: response.route,
-    creditsCost: 0
-  });
-  const assistantMessageId = await insertChatMessage(serviceClient, {
-    threadId: thread.id,
-    userId,
-    role: "assistant",
-    content: response.reply,
-    route: response.route,
-    creditsCost: 0
-  });
-
-  const { error: threadUpdateError } = await serviceClient
-    .from("chat_threads")
-    .update({
-      updated_at: new Date().toISOString(),
-      route: response.route
-    })
-    .eq("id", thread.id);
-
-  if (threadUpdateError) {
-    throw new Error(threadUpdateError.message);
-  }
+  const profile = await loadActiveProfile(serviceClient, authData.user.id);
 
   return {
-    threadId: thread.id,
-    userMessageId,
-    assistantMessageId,
-    aiProfileId: profile.id,
-    chartVersion: profile.chart_version
+    userId: authData.user.id,
+    serviceClient,
+    profile,
+    chartContext: buildChartContextFromProfile(profile)
   };
 }
 
@@ -232,7 +284,7 @@ async function loadActiveProfile(
 ): Promise<AiProfileRow | null> {
   const { data, error } = await serviceClient
     .from("ai_profiles")
-    .select("id, chart_version")
+    .select("id, chart_version, chart_json")
     .eq("user_id", userId)
     .eq("is_active", true)
     .order("chart_version", { ascending: false })
@@ -244,107 +296,21 @@ async function loadActiveProfile(
     throw new Error(error.message);
   }
 
-  if (data) {
-    return data as AiProfileRow;
-  }
-
-  const fallback = await serviceClient
-    .from("ai_profiles")
-    .select("id, chart_version")
-    .eq("user_id", userId)
-    .order("chart_version", { ascending: false })
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (fallback.error) {
-    throw new Error(fallback.error.message);
-  }
-
-  return fallback.data as AiProfileRow | null;
+  return data as AiProfileRow | null;
 }
 
-async function loadOrCreateThread(
-  serviceClient: ReturnType<typeof createClient>,
-  input: {
-    userId: string;
-    aiProfileId: number;
-    chartVersion: number;
-    personaStyle: "acceptance" | "spark" | "awareness";
-    route: ChatRoute;
-    title: string;
-    forceNewThread: boolean;
-  }
-): Promise<ChatThreadRow> {
-  if (!input.forceNewThread) {
-    const { data: existingThread, error: existingError } = await serviceClient
-      .from("chat_threads")
-      .select("id")
-      .eq("user_id", input.userId)
-      .eq("status", "active")
-      .eq("chart_version", input.chartVersion)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+function buildChartContextFromProfile(profile: AiProfileRow | null): ChartContext {
+  const chart = profile?.chart_json;
+  const sun = chart?.planets?.find((planet) => planet.key === "sun");
+  const moon = chart?.planets?.find((planet) => planet.key === "moon");
+  const ascendant = chart?.angles?.ascendant;
 
-    if (existingError) {
-      throw new Error(existingError.message);
-    }
-
-    if (existingThread) {
-      return existingThread as ChatThreadRow;
-    }
-  }
-
-  const { data, error } = await serviceClient
-    .from("chat_threads")
-    .insert({
-      user_id: input.userId,
-      ai_profile_id: input.aiProfileId,
-      chart_version: input.chartVersion,
-      persona_style: input.personaStyle,
-      route: input.route,
-      title: input.title
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data as ChatThreadRow;
-}
-
-async function insertChatMessage(
-  serviceClient: ReturnType<typeof createClient>,
-  input: {
-    threadId: string;
-    userId: string;
-    role: "user" | "assistant";
-    content: string;
-    route: ChatRoute;
-    creditsCost: number;
-  }
-): Promise<string | null> {
-  const { data, error } = await serviceClient
-    .from("chat_messages")
-    .insert({
-      thread_id: input.threadId,
-      user_id: input.userId,
-      role: input.role,
-      content: input.content,
-      route: input.route,
-      credits_cost: input.creditsCost
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return (data as { id?: string } | null)?.id ?? null;
+  return {
+    precision: chart?.precision ?? "unknown",
+    sun: sun?.sign,
+    moon: moon?.sign,
+    rising: ascendant?.sign
+  };
 }
 
 function buildThreadTitle(message: string): string {

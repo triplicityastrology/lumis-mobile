@@ -52,13 +52,16 @@ Status rules:
 - [ ] Add Edge Function/RPC integration tests proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker. Shared decision-helper simulation is complete.
 - [ ] Add Edge Function/RPC integration tests proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata. Shared flow simulation is complete.
 - [ ] Ensure legacy repair uses the saved display name and a saved-data recovery contract; it must not return or record incoming birth/chart contract fields.
+- [ ] Ensure legacy repair does not reset saved `buddy_name`, `persona_style`, or internal `role`; preferably skip the general user upsert entirely on the repair-only branch.
+- [ ] Confirm the recovery audit marker is either stored in an approved backend-only field or remove the unused `p_raw_chart_json` recovery payload/claim.
+- [ ] Confirm the migration's display-name preservation does not prevent a legitimate first/partial onboarding from replacing a placeholder name with the submitted name.
 - [ ] Add Edge Function-level tests for production fail-closed behavior, allowed staging fixture fallback, and Supabase-side raw-provider sanitization. Shared helper tests are complete.
-- [ ] Make scaffold chat thread creation, user-message insert, assistant-message insert, and thread update one atomic database transaction/RPC.
-- [ ] Require the active profile/chart version for chat persistence; do not silently fall back to the latest inactive profile.
-- [ ] Build persisted chart context from the server-side active profile rather than trusting client-supplied chart context.
-- [ ] Return a safe persistence error code to clients instead of raw database error messages.
-- [ ] Keep `force_new_thread` active until Supabase confirms the new thread was created, including after a first-message persistence failure.
-- [ ] Add chat persistence tests for append, force-new-thread, atomic rollback, active chart selection, no-charge invariants, and retry/idempotency behavior.
+- [x] Make scaffold chat thread creation, user-message insert, assistant-message insert, and thread update one atomic database transaction/RPC.
+- [x] Require the active profile/chart version for chat persistence; do not silently fall back to the latest inactive profile.
+- [x] Build persisted chart context from the server-side active profile rather than trusting client-supplied chart context.
+- [x] Return a safe persistence error code to clients instead of raw database error messages.
+- [x] Keep `force_new_thread` active until Supabase confirms the new thread was created, including after a first-message persistence failure.
+- [ ] Add database-backed chat persistence tests for append, force-new-thread, atomic rollback, active chart selection, no-charge invariants, and retry/idempotency behavior. Source-level RPC contract fixture is complete.
 
 ## Gate B — After Staging Deployment, Before Founder UI QA
 
@@ -67,6 +70,7 @@ These checks require deployed staging services but do not require finished UI.
 ### Database and onboarding
 
 - [ ] Apply migration `0008_onboarding_chart_history.sql` successfully in staging.
+- [ ] Apply migration `0009_chat_turn_persistence_rpc.sql` successfully in staging.
 - [ ] Confirm each existing chart user has exactly one active `ai_profiles` row.
 - [ ] Confirm each existing chart user has exactly one active `birth_data_history` row.
 - [ ] Confirm active AI profile and active history share the same `chart_version`.
