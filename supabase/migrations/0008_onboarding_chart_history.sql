@@ -252,7 +252,7 @@ begin
     p_role
   )
   on conflict (id) do update set
-    display_name = excluded.display_name,
+    display_name = coalesce(public.users.display_name, excluded.display_name),
     buddy_name = excluded.buddy_name,
     persona_style = excluded.persona_style,
     role = excluded.role;

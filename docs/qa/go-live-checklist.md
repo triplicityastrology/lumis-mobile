@@ -53,6 +53,12 @@ Status rules:
 - [ ] Add Edge Function/RPC integration tests proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata. Shared flow simulation is complete.
 - [ ] Ensure legacy repair uses the saved display name and a saved-data recovery contract; it must not return or record incoming birth/chart contract fields.
 - [ ] Add Edge Function-level tests for production fail-closed behavior, allowed staging fixture fallback, and Supabase-side raw-provider sanitization. Shared helper tests are complete.
+- [ ] Make scaffold chat thread creation, user-message insert, assistant-message insert, and thread update one atomic database transaction/RPC.
+- [ ] Require the active profile/chart version for chat persistence; do not silently fall back to the latest inactive profile.
+- [ ] Build persisted chart context from the server-side active profile rather than trusting client-supplied chart context.
+- [ ] Return a safe persistence error code to clients instead of raw database error messages.
+- [ ] Keep `force_new_thread` active until Supabase confirms the new thread was created, including after a first-message persistence failure.
+- [ ] Add chat persistence tests for append, force-new-thread, atomic rollback, active chart selection, no-charge invariants, and retry/idempotency behavior.
 
 ## Gate B — After Staging Deployment, Before Founder UI QA
 

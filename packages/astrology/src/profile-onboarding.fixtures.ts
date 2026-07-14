@@ -48,15 +48,19 @@ function assertPreflightDecisions(): void {
 function assertProfileFlowSimulation(): void {
   const savedBirthDate = "1986-02-20";
   const savedChartMarker = "saved-chart";
+  const savedDisplayName = "Saved Ruby";
   const incomingBirthDate = "1999-09-09";
   const incomingChartMarker = "new-worker-chart";
+  const incomingDisplayName = "Incoming Ruby";
 
   const completeResult = simulateProfileFlow({
     state: { hasBirthData: true, hasProfile: true, hasStarterGrant: true },
     savedBirthDate,
     savedChartMarker,
+    savedDisplayName,
     incomingBirthDate,
-    incomingChartMarker
+    incomingChartMarker,
+    incomingDisplayName
   });
 
   if (completeResult.status !== "PROFILE_ALREADY_EXISTS" || completeResult.workerCallCount !== 0) {
@@ -67,8 +71,10 @@ function assertProfileFlowSimulation(): void {
     state: { hasBirthData: true, hasProfile: true, hasStarterGrant: false },
     savedBirthDate,
     savedChartMarker,
+    savedDisplayName,
     incomingBirthDate,
-    incomingChartMarker
+    incomingChartMarker,
+    incomingDisplayName
   });
 
   if (recoveryResult.status !== "profile_repaired" || recoveryResult.workerCallCount !== 0) {
@@ -77,17 +83,23 @@ function assertProfileFlowSimulation(): void {
 
   if (
     recoveryResult.birthDateUsed !== savedBirthDate ||
-    recoveryResult.chartMarkerUsed !== savedChartMarker
+    recoveryResult.chartMarkerUsed !== savedChartMarker ||
+    recoveryResult.displayNameUsed !== savedDisplayName ||
+    recoveryResult.returnedWorkerContract
   ) {
-    throw new Error("Legacy profile recovery must preserve existing birth details and chart.");
+    throw new Error(
+      "Legacy profile recovery must preserve existing display name, birth details, chart, and omit Worker contract."
+    );
   }
 
   const newProfileResult = simulateProfileFlow({
     state: { hasBirthData: false, hasProfile: false, hasStarterGrant: false },
     savedBirthDate,
     savedChartMarker,
+    savedDisplayName,
     incomingBirthDate,
-    incomingChartMarker
+    incomingChartMarker,
+    incomingDisplayName
   });
 
   if (newProfileResult.status !== "profile_persisted" || newProfileResult.workerCallCount !== 1) {
@@ -103,13 +115,17 @@ function simulateProfileFlow(input: {
   };
   savedBirthDate: string;
   savedChartMarker: string;
+  savedDisplayName: string;
   incomingBirthDate: string;
   incomingChartMarker: string;
+  incomingDisplayName: string;
 }): {
   status: "PROFILE_ALREADY_EXISTS" | "profile_repaired" | "profile_persisted";
   workerCallCount: number;
   birthDateUsed: string | null;
   chartMarkerUsed: string | null;
+  displayNameUsed: string | null;
+  returnedWorkerContract: boolean;
 } {
   const decision = decideProfilePreflight(input.state);
 
@@ -118,7 +134,9 @@ function simulateProfileFlow(input: {
       status: "PROFILE_ALREADY_EXISTS",
       workerCallCount: 0,
       birthDateUsed: null,
-      chartMarkerUsed: null
+      chartMarkerUsed: null,
+      displayNameUsed: null,
+      returnedWorkerContract: false
     };
   }
 
@@ -127,7 +145,9 @@ function simulateProfileFlow(input: {
       status: "profile_repaired",
       workerCallCount: 0,
       birthDateUsed: input.savedBirthDate,
-      chartMarkerUsed: input.savedChartMarker
+      chartMarkerUsed: input.savedChartMarker,
+      displayNameUsed: input.savedDisplayName,
+      returnedWorkerContract: false
     };
   }
 
@@ -135,7 +155,9 @@ function simulateProfileFlow(input: {
     status: "profile_persisted",
     workerCallCount: 1,
     birthDateUsed: input.incomingBirthDate,
-    chartMarkerUsed: input.incomingChartMarker
+    chartMarkerUsed: input.incomingChartMarker,
+    displayNameUsed: input.incomingDisplayName,
+    returnedWorkerContract: true
   };
 }
 
