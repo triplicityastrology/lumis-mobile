@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "../../.tmp/golden-chart-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/index.ts",
+    "src/golden-charts.ts",
+    "src/golden-charts.fixtures.ts",
+    "../shared/src/types/chart.ts"
+  ]
+}

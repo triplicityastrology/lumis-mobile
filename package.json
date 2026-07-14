@@ -9,7 +9,8 @@
     "android": "pnpm --filter @lumis/mobile android",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test:router": "tsc -p packages/shared/tsconfig.router-test.json && node .tmp/router-tests/config/chat-router.fixtures.js"
+    "test:router": "tsc -p packages/shared/tsconfig.router-test.json && node .tmp/router-tests/config/chat-router.fixtures.js",
+    "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
