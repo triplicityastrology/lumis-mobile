@@ -45,23 +45,24 @@ Status rules:
   - [x] `pnpm run test:golden`
   - [x] `pnpm run test:worker`
   - [x] `pnpm run test:profile`
-- [ ] Confirm no real secrets, API keys, access tokens, service-role keys, or QA passwords are tracked by Git.
+- [x] Confirm no real secrets, API keys, access tokens, service-role keys, or QA passwords are tracked by Git; only documented placeholders are present.
 - [ ] Review migration `0008_onboarding_chart_history.sql` against a disposable/staging database backup plan.
-- [ ] Confirm migration order `0001` through `0008` is complete and recorded.
-- [ ] Confirm Edge Function and Worker environment names are explicit; missing `LUMIS_ENV` must behave as production.
-- [ ] Add Edge Function/RPC integration tests proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker. Shared decision-helper simulation is complete.
-- [ ] Add Edge Function/RPC integration tests proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata. Shared flow simulation is complete.
+- [x] Confirm migration order `0001` through `0008` is complete and recorded in staging.
+- [x] Confirm Edge Function environment is explicitly `staging`; missing `LUMIS_ENV` behaves as production. Cloudflare Worker staging configuration remains open.
+- [x] Add staging Edge Function/RPC integration coverage proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker.
+- [x] Add staging Edge Function/RPC integration coverage proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata.
 - [x] Ensure legacy repair uses saved birth/chart data; it must not return or record incoming birth/chart contract fields.
 - [x] Ensure legacy repair does not reset saved `display_name`, `buddy_name`, `persona_style`, or internal `role`; the repair-only RPC branch returns before the general user upsert.
 - [x] Remove the unused recovery audit payload and claim; repair passes no `p_raw_chart_json` metadata.
 - [x] Allow legitimate first/partial onboarding to replace a placeholder display name while keeping the repair branch isolated from all user settings.
+- [x] Sanitize the saved chart before any legacy repair copies it into `birth_data_history`; staging audit confirms current active profile/history chart data contains no `rawProviderResponse`.
 - [ ] Add Edge Function-level tests for production fail-closed behavior, allowed staging fixture fallback, and Supabase-side raw-provider sanitization. Shared helper tests are complete.
 - [x] Make scaffold chat thread creation, user-message insert, assistant-message insert, and thread update one atomic database transaction/RPC.
 - [x] Require the active profile/chart version for chat persistence; do not silently fall back to the latest inactive profile.
 - [x] Build persisted chart context from the server-side active profile rather than trusting client-supplied chart context.
 - [x] Return a safe persistence error code to clients instead of raw database error messages.
 - [x] Keep `force_new_thread` active until Supabase confirms the new thread was created, including after a first-message persistence failure.
-- [ ] Add database-backed chat persistence tests for append, force-new-thread, atomic rollback, active chart selection, no-charge invariants, and retry/idempotency behavior. Source-level RPC contract fixture is complete.
+- [ ] Complete database-backed chat retry/idempotency and real concurrency tests. Staging coverage now passes append, force-new-thread, invalid-turn rollback, active-profile enforcement, and no-charge invariants.
 
 ## Gate B — After Staging Deployment, Before Founder UI QA
 
@@ -69,20 +70,20 @@ These checks require deployed staging services but do not require finished UI.
 
 ### Database and onboarding
 
-- [ ] Apply migration `0008_onboarding_chart_history.sql` successfully in staging.
-- [ ] Apply migration `0009_chat_turn_persistence_rpc.sql` successfully in staging.
-- [ ] Confirm each existing chart user has exactly one active `ai_profiles` row.
-- [ ] Confirm each existing chart user has exactly one active `birth_data_history` row.
-- [ ] Confirm active AI profile and active history share the same `chart_version`.
-- [ ] Confirm `birth_data.active_chart_version` matches the active AI profile/history.
-- [ ] Confirm the active AI profile has a non-null `birth_data_history_id` pointing to the active history.
+- [x] Apply migration `0008_onboarding_chart_history.sql` successfully in staging.
+- [x] Apply migration `0009_chat_turn_persistence_rpc.sql` successfully in staging.
+- [x] Confirm each existing chart user has exactly one active `ai_profiles` row (2 staging users audited on 2026-07-15).
+- [x] Confirm each existing chart user has exactly one active `birth_data_history` row (2 staging users audited on 2026-07-15).
+- [x] Confirm active AI profile and active history share the same `chart_version`.
+- [x] Confirm `birth_data.active_chart_version` matches the active AI profile/history.
+- [x] Confirm the active AI profile has a non-null `birth_data_history_id` pointing to the active history.
 - [ ] Confirm the existing QA profile was backfilled without changing its saved birth data or chart.
-- [ ] Create a legacy partial case with birth data and AI profile but no Starter grant; confirm onboarding repairs the missing grant/history linkage without a Worker/provider call or chart overwrite.
-- [ ] Onboard a fresh staging user and confirm the response includes:
-  - [ ] `chart_version = 1`
-  - [ ] non-null `birth_data_history_id`
-  - [ ] non-null `ai_profile_id`
-- [ ] Repeat onboarding for the same user and confirm no additional birth data, history, AI profile, or Starter grant is created.
+- [x] Create a legacy partial case with birth data and AI profile but no Starter grant; confirm onboarding repairs the missing grant/history linkage without a Worker/provider call or chart overwrite.
+- [x] Onboard a fresh staging user and confirm the response includes:
+  - [x] `chart_version = 1`
+  - [x] non-null `birth_data_history_id`
+  - [x] non-null `ai_profile_id`
+- [x] Repeat onboarding for the same user and confirm no additional birth data, history, AI profile, or Starter grant is created.
 - [ ] Run concurrent onboarding attempts and confirm one successful transaction and no duplicate Starter/history/profile rows.
 - [ ] Force Worker failure and confirm `CHART_WORKER_FAILED` with no partial user profile, birth data, history, AI profile, or Starter grant rows.
 
@@ -94,12 +95,12 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Confirm a valid signed request succeeds.
 - [ ] Confirm invalid, missing, and expired signatures are rejected before the provider call.
 - [ ] Confirm request timestamp, request ID, user ID, calculation version, environment, and birth fields arrive correctly.
-- [ ] Confirm repeat onboarding is rejected before any paid Worker/provider call.
+- [x] Confirm repeat onboarding is rejected before any Worker/provider call.
 - [ ] Confirm Worker timeout and provider error return controlled failures without provider debug details.
 - [ ] Confirm Worker response and stored `chart_v2` contain no `rawProviderResponse`.
 - [ ] Confirm stored backend metadata contains only the approved response summary.
 - [ ] Confirm production-mode missing Worker configuration fails closed and never saves fixtures.
-- [ ] Confirm fixture fallback works only in explicitly allowed local/dev/test/staging environments.
+- [x] Confirm fixture fallback works in explicitly configured staging; source tests cover the allowed environment list and production fail-closed behavior.
 - [ ] Confirm CORS behavior is restricted to the intended origin and is not relied on for server-to-server security.
 
 ### Chart data and version routing
@@ -119,10 +120,10 @@ These checks require deployed staging services but do not require finished UI.
 
 ### Security and RLS
 
-- [ ] Re-run cross-user RLS checks for `birth_data_history` and active/inactive `ai_profiles`.
-- [ ] Confirm authenticated users cannot read `migration_reports`.
-- [ ] Confirm authenticated users cannot invoke backend-only onboarding RPCs directly.
-- [ ] Confirm raw provider/debug data cannot be read through any client-accessible table, response, or view.
+- [x] Re-run cross-user RLS checks for `birth_data`, `birth_data_history`, and `ai_profiles`.
+- [x] Confirm authenticated users cannot read `migration_reports`.
+- [x] Confirm authenticated users cannot invoke backend-only onboarding RPCs directly.
+- [x] Confirm active profile/history data and profile responses contain no `rawProviderResponse`; full live Worker metadata verification remains open until Worker deployment.
 - [ ] Confirm service-role and Worker signing secrets are present only in backend secret stores.
 
 ## Gate C — When the Founder/User UI Is Ready

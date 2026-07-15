@@ -28,6 +28,12 @@ assert(
   "Recovery must not claim to store unused audit metadata."
 );
 assert(
+  profileFunction.includes(
+    "p_chart_json: sanitizeChartForClient(profile.chart_json, birthData.time_unknown)"
+  ),
+  "Recovery must sanitize a legacy chart before copying it into client-readable history."
+);
+assert(
   !profileFunction.includes("recovery_source") &&
     !profileFunction.includes("legacy_profile_repaired_without_worker"),
   "Recovery must not contain an unpersisted audit marker."

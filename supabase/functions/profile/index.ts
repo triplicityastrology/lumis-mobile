@@ -1,12 +1,12 @@
 import {
   CHART_WORKER_CONTRACT,
-  allowsFixtureFallbackForEnvironment,
-  decideProfilePreflight,
-  sanitizeChartForClient,
   type SignedChartWorkerRequest
-} from "@lumis/astrology";
+} from "../../../packages/astrology/src/chart-worker-contract.ts";
+import { allowsFixtureFallbackForEnvironment } from "../../../packages/astrology/src/chart-worker-config.ts";
+import { sanitizeChartForClient } from "../../../packages/astrology/src/chart-sanitizer.ts";
+import { decideProfilePreflight } from "../../../packages/astrology/src/profile-preflight.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { ChartV2 } from "@lumis/shared";
+import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
 
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
@@ -367,7 +367,7 @@ async function repairExistingProfile(input: {
       p_lng: birthData.lng,
       p_tz_str: birthData.tz_str,
       p_role: null,
-      p_chart_json: profile.chart_json,
+      p_chart_json: sanitizeChartForClient(profile.chart_json, birthData.time_unknown),
       p_raw_chart_json: null,
       p_precision: profile.precision,
       p_model: profile.model ?? "recovered_existing_profile"
