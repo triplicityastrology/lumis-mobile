@@ -49,6 +49,11 @@ function assertProfileFlowSimulation(): void {
   const savedBirthDate = "1986-02-20";
   const savedChartMarker = "saved-chart";
   const savedDisplayName = "Saved Ruby";
+  const savedUserSettings = {
+    buddyName: "My Lumis",
+    personaStyle: "spark",
+    role: "spark"
+  };
   const incomingBirthDate = "1999-09-09";
   const incomingChartMarker = "new-worker-chart";
   const incomingDisplayName = "Incoming Ruby";
@@ -58,6 +63,7 @@ function assertProfileFlowSimulation(): void {
     savedBirthDate,
     savedChartMarker,
     savedDisplayName,
+    savedUserSettings,
     incomingBirthDate,
     incomingChartMarker,
     incomingDisplayName
@@ -72,6 +78,7 @@ function assertProfileFlowSimulation(): void {
     savedBirthDate,
     savedChartMarker,
     savedDisplayName,
+    savedUserSettings,
     incomingBirthDate,
     incomingChartMarker,
     incomingDisplayName
@@ -85,10 +92,11 @@ function assertProfileFlowSimulation(): void {
     recoveryResult.birthDateUsed !== savedBirthDate ||
     recoveryResult.chartMarkerUsed !== savedChartMarker ||
     recoveryResult.displayNameUsed !== savedDisplayName ||
+    recoveryResult.userSettingsUsed !== savedUserSettings ||
     recoveryResult.returnedWorkerContract
   ) {
     throw new Error(
-      "Legacy profile recovery must preserve existing display name, birth details, chart, and omit Worker contract."
+      "Legacy profile recovery must preserve all existing user settings, birth details, chart, and omit Worker contract."
     );
   }
 
@@ -97,6 +105,7 @@ function assertProfileFlowSimulation(): void {
     savedBirthDate,
     savedChartMarker,
     savedDisplayName,
+    savedUserSettings,
     incomingBirthDate,
     incomingChartMarker,
     incomingDisplayName
@@ -116,6 +125,11 @@ function simulateProfileFlow(input: {
   savedBirthDate: string;
   savedChartMarker: string;
   savedDisplayName: string;
+  savedUserSettings: {
+    buddyName: string;
+    personaStyle: string;
+    role: string;
+  };
   incomingBirthDate: string;
   incomingChartMarker: string;
   incomingDisplayName: string;
@@ -125,6 +139,7 @@ function simulateProfileFlow(input: {
   birthDateUsed: string | null;
   chartMarkerUsed: string | null;
   displayNameUsed: string | null;
+  userSettingsUsed: typeof input.savedUserSettings | null;
   returnedWorkerContract: boolean;
 } {
   const decision = decideProfilePreflight(input.state);
@@ -136,6 +151,7 @@ function simulateProfileFlow(input: {
       birthDateUsed: null,
       chartMarkerUsed: null,
       displayNameUsed: null,
+      userSettingsUsed: null,
       returnedWorkerContract: false
     };
   }
@@ -147,6 +163,7 @@ function simulateProfileFlow(input: {
       birthDateUsed: input.savedBirthDate,
       chartMarkerUsed: input.savedChartMarker,
       displayNameUsed: input.savedDisplayName,
+      userSettingsUsed: input.savedUserSettings,
       returnedWorkerContract: false
     };
   }
@@ -157,6 +174,7 @@ function simulateProfileFlow(input: {
     birthDateUsed: input.incomingBirthDate,
     chartMarkerUsed: input.incomingChartMarker,
     displayNameUsed: input.incomingDisplayName,
+    userSettingsUsed: null,
     returnedWorkerContract: true
   };
 }

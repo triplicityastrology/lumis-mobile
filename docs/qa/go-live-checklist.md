@@ -51,10 +51,10 @@ Status rules:
 - [ ] Confirm Edge Function and Worker environment names are explicit; missing `LUMIS_ENV` must behave as production.
 - [ ] Add Edge Function/RPC integration tests proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker. Shared decision-helper simulation is complete.
 - [ ] Add Edge Function/RPC integration tests proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata. Shared flow simulation is complete.
-- [ ] Ensure legacy repair uses the saved display name and a saved-data recovery contract; it must not return or record incoming birth/chart contract fields.
-- [ ] Ensure legacy repair does not reset saved `buddy_name`, `persona_style`, or internal `role`; preferably skip the general user upsert entirely on the repair-only branch.
-- [ ] Confirm the recovery audit marker is either stored in an approved backend-only field or remove the unused `p_raw_chart_json` recovery payload/claim.
-- [ ] Confirm the migration's display-name preservation does not prevent a legitimate first/partial onboarding from replacing a placeholder name with the submitted name.
+- [x] Ensure legacy repair uses saved birth/chart data; it must not return or record incoming birth/chart contract fields.
+- [x] Ensure legacy repair does not reset saved `display_name`, `buddy_name`, `persona_style`, or internal `role`; the repair-only RPC branch returns before the general user upsert.
+- [x] Remove the unused recovery audit payload and claim; repair passes no `p_raw_chart_json` metadata.
+- [x] Allow legitimate first/partial onboarding to replace a placeholder display name while keeping the repair branch isolated from all user settings.
 - [ ] Add Edge Function-level tests for production fail-closed behavior, allowed staging fixture fallback, and Supabase-side raw-provider sanitization. Shared helper tests are complete.
 - [x] Make scaffold chat thread creation, user-message insert, assistant-message insert, and thread update one atomic database transaction/RPC.
 - [x] Require the active profile/chart version for chat persistence; do not silently fall back to the latest inactive profile.

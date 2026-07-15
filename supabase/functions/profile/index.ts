@@ -43,7 +43,6 @@ type ExistingProfileState = {
   hasBirthData: boolean;
   hasProfile: boolean;
   hasStarterGrant: boolean;
-  user: ExistingUser | null;
   birthData: ExistingBirthData | null;
   profile: ExistingAiProfile | null;
 };
@@ -66,10 +65,6 @@ type ExistingBirthData = {
   lat: number;
   lng: number;
   tz_str: string;
-};
-
-type ExistingUser = {
-  display_name: string | null;
 };
 
 type ExistingAiProfile = {
@@ -200,7 +195,6 @@ Deno.serve(async (request) => {
 
   if (preflightDecision === "repair_missing_starter") {
     return repairExistingProfile({
-      body,
       existingProfile,
       serviceClient,
       userId
@@ -296,12 +290,7 @@ async function loadExistingProfileState(
   serviceClient: ReturnType<typeof createClient>,
   userId: string
 ): Promise<ExistingProfileState> {
-  const [userResult, birthResult, profileResult, grantResult] = await Promise.all([
-    serviceClient
-      .from("users")
-      .select("display_name")
-      .eq("id", userId)
-      .maybeSingle(),
+  const [birthResult, profileResult, grantResult] = await Promise.all([
     serviceClient
       .from("birth_data")
       .select("birth_date, birth_time, time_unknown, place_name, country_code, lat, lng, tz_str")
@@ -324,10 +313,6 @@ async function loadExistingProfileState(
       .maybeSingle()
   ]);
 
-  if (userResult.error) {
-    throw new Error(userResult.error.message);
-  }
-
   if (birthResult.error) {
     throw new Error(birthResult.error.message);
   }
@@ -344,14 +329,12 @@ async function loadExistingProfileState(
     hasBirthData: birthResult.data != null,
     hasProfile: profileResult.data != null,
     hasStarterGrant: grantResult.data != null,
-    user: userResult.data as ExistingUser | null,
     birthData: birthResult.data as ExistingBirthData | null,
     profile: profileResult.data as ExistingAiProfile | null
   };
 }
 
 async function repairExistingProfile(input: {
-  body: ProfileRequest;
   existingProfile: ExistingProfileState;
   serviceClient: ReturnType<typeof createClient>;
   userId: string;
@@ -370,13 +353,11 @@ async function repairExistingProfile(input: {
 
   const birthData = input.existingProfile.birthData;
   const profile = input.existingProfile.profile;
-  const savedDisplayName = input.existingProfile.user?.display_name ?? "Lumis user";
-  const role = personaStyleToInternalRole.acceptance;
   const { data: onboardingData, error: onboardingError } = await input.serviceClient.rpc(
     "complete_profile_onboarding",
     {
       p_user_id: input.userId,
-      p_display_name: savedDisplayName,
+      p_display_name: null,
       p_birth_date: birthData.birth_date,
       p_birth_time: birthData.time_unknown ? null : birthData.birth_time,
       p_time_unknown: birthData.time_unknown,
@@ -385,13 +366,9 @@ async function repairExistingProfile(input: {
       p_lat: birthData.lat,
       p_lng: birthData.lng,
       p_tz_str: birthData.tz_str,
-      p_role: role,
-      p_chart_json: sanitizeChartForClient(profile.chart_json, birthData.time_unknown),
-      p_raw_chart_json: {
-        ...(profile.raw_chart_json ?? {}),
-        status: "legacy_profile_repaired_without_worker",
-        recovery_source: "existing_saved_birth_data_and_chart"
-      },
+      p_role: null,
+      p_chart_json: profile.chart_json,
+      p_raw_chart_json: null,
       p_precision: profile.precision,
       p_model: profile.model ?? "recovered_existing_profile"
     }

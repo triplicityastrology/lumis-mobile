@@ -235,6 +235,31 @@ begin
         'message', 'This account already has a chart profile. Birth-detail edits must use the controlled regeneration flow.'
       );
     end if;
+
+    insert into public.monthly_balance (
+      user_id,
+      grant_type,
+      allocated,
+      remaining
+    )
+    values (
+      p_user_id,
+      'starter_onboarding',
+      50,
+      50
+    )
+    on conflict (user_id)
+    where grant_type = 'starter_onboarding'
+    do nothing;
+
+    return jsonb_build_object(
+      'ok', true,
+      'ai_profile_id', v_profile_id,
+      'profile_version', v_profile_version,
+      'chart_version', coalesce(v_chart_version, 1),
+      'birth_data_history_id', v_history_id,
+      'repaired_missing_starter', true
+    );
   end if;
 
   insert into public.users (
@@ -252,7 +277,7 @@ begin
     p_role
   )
   on conflict (id) do update set
-    display_name = coalesce(public.users.display_name, excluded.display_name),
+    display_name = excluded.display_name,
     buddy_name = excluded.buddy_name,
     persona_style = excluded.persona_style,
     role = excluded.role;

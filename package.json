@@ -12,7 +12,7 @@
     "test:router": "tsc -p packages/shared/tsconfig.router-test.json && node .tmp/router-tests/config/chat-router.fixtures.js",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
     "test:worker": "node --check workers/chart-mobile/worker.js && node workers/chart-mobile/worker.fixtures.mjs",
-    "test:profile": "tsc -p packages/astrology/tsconfig.profile-test.json && node .tmp/profile-onboarding-tests/astrology/src/profile-onboarding.fixtures.js",
+    "test:profile": "tsc -p packages/astrology/tsconfig.profile-test.json && node .tmp/profile-onboarding-tests/astrology/src/profile-onboarding.fixtures.js && node supabase/functions/profile/profile-recovery-contract.fixtures.mjs",
     "test:chat-persistence": "node supabase/functions/chat-message/chat-persistence.fixtures.mjs"
   },
   "devDependencies": {
