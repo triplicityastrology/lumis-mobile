@@ -21,6 +21,7 @@ It is based on the current website Worker at:
 - Sanitizes unknown-birth-time charts so they contain no Ascendant, no MC, no houses, and no planet house placements.
 - Omits raw astrology-api.io provider output from `chart_v2`.
 - Uses restricted CORS headers; signed server-to-server calls do not require public wildcard browser access.
+- Builds mobile-specific Salesforce Case and Google Sheets audit records as non-blocking side effects.
 
 Run local fixture checks with:
 
@@ -69,11 +70,30 @@ LUMIS_ENV=staging
 
 `CHART_WORKER_SIGNING_SECRET` must match between Supabase and Cloudflare.
 
+## Optional Admin Integration Secrets
+
+Chart creation does not depend on these integrations. When they are configured,
+the Worker writes mobile-specific audit values after returning the chart.
+
+```text
+GOOGLE_MOBILE_SHEET_ID=
+GOOGLE_MOBILE_SHEET_NAME=Lumis Mobile Charts
+GOOGLE_SERVICE_EMAIL=
+GOOGLE_PRIVATE_KEY=
+SF_LOGIN_URL=
+SF_USERNAME=
+SF_PASSWORD=
+```
+
+The Google Sheet tab uses 19 columns (`A:S`): timestamp, request ID,
+Supabase user ID, email, name, birth date, birth time, place, timezone, plan,
+product, source, flow, chart status, unknown-time flag, chart type, precision,
+point count, and house count.
+
 ## Follow-Up
 
 Before this passes production QA:
 
 - fill the golden chart expected values
 - compare Worker `chart_v2` output against `packages/astrology/src/golden-charts.ts`
-- add mobile-specific Google Sheets row logging
-- add mobile-specific Salesforce Case creation
+- configure and smoke-test mobile-specific Google Sheets and Salesforce credentials

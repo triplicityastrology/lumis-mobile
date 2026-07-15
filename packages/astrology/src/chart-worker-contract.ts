@@ -14,6 +14,14 @@ export type SignedChartWorkerRequest = {
   user_id: string;
   birth_data: ChartWorkerBirthData;
   calculation_version: "mobile_natal_v1";
+  audit?: {
+    source: "mobile_app";
+    product: "Lumis";
+    flow: "onboarding_chart_generation" | "birth_details_regeneration";
+    email?: string;
+    plan: string;
+    chart_type: "natal";
+  };
 };
 
 export const CHART_WORKER_CONTRACT = {

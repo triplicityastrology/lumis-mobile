@@ -12,6 +12,7 @@ const workerModule = await import(
   `data:text/javascript;base64,${Buffer.from(workerSource, "utf8").toString("base64")}`
 );
 const worker = workerModule.default;
+const { buildMobileAuditRecord, buildMobileSheetRow } = workerModule;
 
 const signingSecret = "test-chart-worker-secret";
 
@@ -23,6 +24,7 @@ await assertMissingSignatureIsRejected();
 await assertMismatchedIdentityHeadersAreRejected();
 await assertMissingProviderConfigurationFailsClosed();
 await assertProviderFailureIsRedacted();
+assertMobileAuditContract();
 
 async function assertValidFullTimeRequest() {
   const fetchCalls = [];
@@ -273,6 +275,14 @@ function buildRequestBody(overrides) {
       lng: 114.1694,
       tz_str: "Asia/Hong_Kong",
       ...overrides
+    },
+    audit: {
+      source: "mobile_app",
+      product: "Lumis",
+      flow: "onboarding_chart_generation",
+      email: "ruby@example.com",
+      plan: "starter",
+      chart_type: "natal"
     }
   };
 }
@@ -402,6 +412,26 @@ function buildCtx() {
       return promise;
     }
   };
+}
+
+function assertMobileAuditContract() {
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const chart = {
+    precision: "full",
+    planets: new Array(14).fill({}),
+    houses: new Array(12).fill({})
+  };
+  const record = buildMobileAuditRecord(body, chart);
+  const row = buildMobileSheetRow(record);
+
+  assert(record.product === "Lumis", "Expected Lumis audit product.");
+  assert(record.source === "mobile_app", "Expected mobile_app audit source.");
+  assert(record.flow === "onboarding_chart_generation", "Expected onboarding audit flow.");
+  assert(record.user_id === body.user_id, "Expected Supabase user id in audit record.");
+  assert(record.email === "ruby@example.com", "Expected authenticated email in audit record.");
+  assert(record.chart_status === "generated", "Expected generated audit status.");
+  assert(row.length === 19, "Expected 19 mobile Sheet columns.");
+  assert(row[14] === "false", "Expected time_unknown Sheet value.");
 }
 
 function assert(condition, message) {

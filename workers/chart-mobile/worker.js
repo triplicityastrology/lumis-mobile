@@ -233,6 +233,15 @@ function validateMobilePayload(body, request, env) {
   }
 
   if (
+    body.audit?.source !== "mobile_app" ||
+    body.audit?.product !== "Lumis" ||
+    !["onboarding_chart_generation", "birth_details_regeneration"].includes(body.audit?.flow) ||
+    body.audit?.chart_type !== "natal"
+  ) {
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
+  }
+
+  if (
     !birthData.birth_date ||
     !birthData.place_name ||
     !birthData.country_code ||
@@ -415,9 +424,234 @@ function sanitizeUnknownTimeChart(chart, timeUnknown) {
   };
 }
 
-async function recordMobileChartAttempt(_env, _body, _chartV2) {
-  // TODO: wire mobile-specific Google Sheets row and Salesforce Case values.
-  // Keep this non-blocking through ctx.waitUntil, matching the website Worker pattern.
+async function recordMobileChartAttempt(env, body, chartV2) {
+  const record = buildMobileAuditRecord(body, chartV2);
+  const results = await Promise.allSettled([
+    appendMobileChartToSheets(env, record),
+    createMobileChartSalesforceCase(env, record)
+  ]);
+
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(index === 0 ? "MOBILE_SHEETS_FAILED" : "MOBILE_SALESFORCE_FAILED", {
+        request_id: body.request_id
+      });
+    }
+  });
+}
+
+export function buildMobileAuditRecord(body, chartV2) {
+  return {
+    timestamp: new Date().toISOString(),
+    request_id: body.request_id,
+    user_id: body.user_id,
+    email: body.audit.email || "",
+    name: body.birth_data.name || "",
+    birth_date: body.birth_data.birth_date,
+    birth_time: body.birth_data.time_unknown ? "unknown" : body.birth_data.birth_time,
+    place_name: body.birth_data.place_name,
+    timezone: body.birth_data.tz_str,
+    plan: body.audit.plan || "starter",
+    product: "Lumis",
+    source: "mobile_app",
+    flow: body.audit.flow,
+    chart_status: "generated",
+    time_unknown: body.birth_data.time_unknown,
+    chart_type: "natal",
+    precision: chartV2.precision,
+    point_count: chartV2.planets.length,
+    house_count: chartV2.houses.length
+  };
+}
+
+export function buildMobileSheetRow(record) {
+  return [
+    record.timestamp,
+    record.request_id,
+    record.user_id,
+    record.email,
+    record.name,
+    record.birth_date,
+    record.birth_time,
+    record.place_name,
+    record.timezone,
+    record.plan,
+    record.product,
+    record.source,
+    record.flow,
+    record.chart_status,
+    String(record.time_unknown),
+    record.chart_type,
+    record.precision,
+    record.point_count,
+    record.house_count
+  ];
+}
+
+async function appendMobileChartToSheets(env, record) {
+  if (!env.GOOGLE_MOBILE_SHEET_ID || !env.GOOGLE_SERVICE_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
+    return;
+  }
+
+  const token = await getGoogleToken(env);
+  const sheetName = env.GOOGLE_MOBILE_SHEET_NAME || "Lumis Mobile Charts";
+  const range = `${encodeURIComponent(sheetName)}!A:S`;
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ values: [buildMobileSheetRow(record)] })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("GOOGLE_SHEETS_APPEND_FAILED");
+  }
+}
+
+async function getGoogleToken(env) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlJson({ alg: "RS256", typ: "JWT" });
+  const claim = base64UrlJson({
+    iss: env.GOOGLE_SERVICE_EMAIL,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now
+  });
+  const signingInput = `${header}.${claim}`;
+  const pem = env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const pemBody = pem
+    .replace("-----BEGIN PRIVATE KEY-----", "")
+    .replace("-----END PRIVATE KEY-----", "")
+    .replace(/\s/g, "");
+  const keyBytes = Uint8Array.from(atob(pemBody), (character) => character.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    keyBytes.buffer,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(signingInput)
+  );
+  const jwt = `${signingInput}.${base64UrlBytes(new Uint8Array(signature))}`;
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    })
+  });
+  const payload = await response.json();
+
+  if (!response.ok || !payload.access_token) {
+    throw new Error("GOOGLE_TOKEN_FAILED");
+  }
+
+  return payload.access_token;
+}
+
+function base64UrlJson(value) {
+  return base64UrlBytes(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+function base64UrlBytes(bytes) {
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function createMobileChartSalesforceCase(env, record) {
+  if (!env.SF_LOGIN_URL || !env.SF_USERNAME || !env.SF_PASSWORD) {
+    return;
+  }
+
+  const { sessionId, serverUrl } = await salesforceLogin(env);
+  const response = await fetch(`${serverUrl}/services/data/v59.0/sobjects/Case`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${sessionId}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      Subject: `LUMIS-${record.request_id}`,
+      Status: "Free",
+      Type: "Auto-Gen Chart Adult",
+      SuppliedEmail: record.email,
+      SuppliedName: record.name,
+      Customer_Birthdate__c: record.birth_date,
+      Customer_BirthTime__c:
+        record.birth_time === "unknown" ? null : `${record.birth_time}:00.000Z`,
+      Customer_Birthplace__c: record.place_name,
+      Description: [
+        `Product: ${record.product}`,
+        `Source: ${record.source}`,
+        `Flow: ${record.flow}`,
+        `Supabase user: ${record.user_id}`,
+        `Plan: ${record.plan}`,
+        `Chart status: ${record.chart_status}`,
+        `Unknown birth time: ${record.time_unknown}`,
+        `Chart type: ${record.chart_type}`,
+        `Request: ${record.request_id}`
+      ].join(" | ")
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("SALESFORCE_CASE_FAILED");
+  }
+}
+
+async function salesforceLogin(env) {
+  const loginBody = `<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">
+  <soapenv:Body><urn:login><urn:username>${escapeXml(env.SF_USERNAME)}</urn:username><urn:password>${escapeXml(env.SF_PASSWORD)}</urn:password></urn:login></soapenv:Body>
+</soapenv:Envelope>`;
+  const response = await fetch(`${env.SF_LOGIN_URL}/services/Soap/u/59.0`, {
+    method: "POST",
+    headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: "login" },
+    body: loginBody
+  });
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error("SALESFORCE_LOGIN_FAILED");
+  }
+
+  const sessionId = extractXml(responseText, "sessionId");
+  const serverUrl = extractXml(responseText, "serverUrl").split("/services")[0];
+
+  if (!sessionId || !serverUrl) {
+    throw new Error("SALESFORCE_LOGIN_INVALID_RESPONSE");
+  }
+
+  return { sessionId, serverUrl };
+}
+
+function extractXml(xml, tag) {
+  return xml.match(new RegExp(`<${tag}>([^<]+)</${tag}>`))?.[1] || "";
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 class WorkerRequestError extends Error {

@@ -134,6 +134,13 @@ Deno.serve(async (request) => {
       lat: body.lat,
       lng: body.lng,
       tz_str: body.tz_str
+    },
+    audit: {
+      source: "mobile_app",
+      product: "Lumis",
+      flow: "onboarding_chart_generation",
+      plan: "starter",
+      chart_type: "natal"
     }
   };
 
@@ -176,6 +183,10 @@ Deno.serve(async (request) => {
   }
 
   const userId = authData.user.id;
+  chartRequest.audit = {
+    ...chartRequest.audit!,
+    email: authData.user.email
+  };
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const existingProfile = await loadExistingProfileState(serviceClient, userId);
   const preflightDecision = decideProfilePreflight(existingProfile);
