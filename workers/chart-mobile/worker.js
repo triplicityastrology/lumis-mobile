@@ -37,6 +37,21 @@ const POINT_KEY_MAP = {
 
 const DEFAULT_ALLOWED_ORIGIN = "https://triplicityastrology.com";
 
+const SIGN_NAME_MAP = {
+  Ari: "Aries",
+  Tau: "Taurus",
+  Gem: "Gemini",
+  Can: "Cancer",
+  Leo: "Leo",
+  Vir: "Virgo",
+  Lib: "Libra",
+  Sco: "Scorpio",
+  Sag: "Sagittarius",
+  Cap: "Capricorn",
+  Aqu: "Aquarius",
+  Pis: "Pisces"
+};
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -249,7 +264,7 @@ function buildAstrologyApiPayload(birthData) {
         hour: timeParts[0],
         minute: timeParts[1],
         second: 0,
-        city: "",
+        city: birthData.place_name,
         country_code: birthData.country_code.toUpperCase().slice(0, 2),
         lng: Number(birthData.lng),
         lat: Number(birthData.lat),
@@ -288,6 +303,7 @@ function buildChartV2({ providerChart, timeUnknown }) {
 
 function findProviderPoints(providerChart) {
   const candidates = [
+    providerChart?.chart_data?.planetary_positions,
     providerChart?.data?.points,
     providerChart?.data?.planets,
     providerChart?.points,
@@ -311,6 +327,7 @@ function findProviderPoints(providerChart) {
 
 function findProviderHouses(providerChart) {
   const candidate =
+    providerChart?.chart_data?.house_cusps ??
     providerChart?.data?.houses ??
     providerChart?.houses ??
     providerChart?.chart?.houses;
@@ -321,8 +338,8 @@ function findProviderHouses(providerChart) {
 
   return candidate
     .map((house, index) => ({
-      no: Number(house.no ?? house.number ?? index + 1),
-      sign: String(house.sign ?? house.sign_name ?? ""),
+      no: Number(house.no ?? house.number ?? house.house ?? index + 1),
+      sign: normalizeSign(house.sign ?? house.sign_name),
       cuspDegree: Number(house.cuspDegree ?? house.cusp_degree ?? house.position ?? house.degree ?? 0)
     }))
     .filter((house) => Number.isFinite(house.no) && house.sign);
@@ -340,15 +357,23 @@ function normalizeProviderPoint(point) {
   return {
     key,
     label: labelForPoint(key),
-    sign: String(point.sign ?? point.sign_name ?? point.zodiac_sign ?? ""),
+    sign: normalizeSign(point.sign ?? point.sign_name ?? point.zodiac_sign),
     degree: Number(point.degree ?? point.position ?? point.normDegree ?? point.full_degree ?? 0),
     house: point.house == null ? undefined : Number(point.house),
     retrograde: point.retrograde ?? point.is_retrograde,
     absoluteLongitude:
-      point.absoluteLongitude == null && point.full_degree == null
+      point.absoluteLongitude == null &&
+      point.absolute_longitude == null &&
+      point.full_degree == null
         ? undefined
-        : Number(point.absoluteLongitude ?? point.full_degree)
+        : Number(point.absoluteLongitude ?? point.absolute_longitude ?? point.full_degree)
   };
+}
+
+function normalizeSign(value) {
+  const sign = String(value ?? "");
+
+  return SIGN_NAME_MAP[sign] ?? sign;
 }
 
 function labelForPoint(key) {

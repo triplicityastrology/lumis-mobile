@@ -36,7 +36,15 @@ try {
   assert(firstProfile.body.ai_profile_id, "Initial profile did not return ai_profile_id.");
   assert(firstProfile.body.birth_data_history_id, "Initial profile did not return birth_data_history_id.");
   assert(!containsKey(firstProfile.body, "rawProviderResponse"), "Profile exposed raw provider output.");
-  pass("Fresh onboarding persists one profile without raw provider output");
+  assert(
+    firstProfile.body.chart?.source === "triplicity_cloudflare_worker",
+    "Initial profile did not use the live signed Cloudflare Worker."
+  );
+  assert(firstProfile.body.chart?.planets?.length >= 10, "Live chart contains too few points.");
+  assert(firstProfile.body.chart?.houses?.length === 12, "Live full-time chart does not contain 12 houses.");
+  assert(firstProfile.body.chart?.angles?.ascendant, "Live full-time chart has no Ascendant.");
+  assert(firstProfile.body.chart?.angles?.mediumCoeli, "Live full-time chart has no MC.");
+  pass("Fresh onboarding persists a populated live Worker chart without raw provider output");
 
   const duplicateProfile = await invokeFunction("profile", primarySession.access_token, originalRequest);
   assert(duplicateProfile.status === 409, `Repeat onboarding returned HTTP ${duplicateProfile.status}.`);

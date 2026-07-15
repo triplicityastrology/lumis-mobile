@@ -36,16 +36,19 @@ The fixture checks mock the astrology-api.io response and verify:
 - unknown-time requests use the deterministic noon provider fallback
 - unknown-time `chart_v2` output removes Ascendant, MC, houses, and planet house placements
 
-## Not Yet Live
+## Staging Deployment
 
-This file is not automatically deployed by the Lumis mobile repo yet. It can be:
+The dedicated staging Worker is deployed at:
 
-- deployed as a dedicated Cloudflare Worker, or
-- copied into the existing website Worker as the `/mobile/natal-chart` route.
+```text
+https://lumis-chart-staging.triplicityastrology.workers.dev
+```
 
-The staging plan uses the dedicated `lumis-chart-staging` Worker configured in
-`wrangler.toml`. This avoids changing the website production Worker while the
-mobile integration is under QA.
+It is configured by `wrangler.toml` and has been smoke-tested through the full
+Supabase Edge Function -> signed Cloudflare Worker -> astrology-api.io path.
+The smoke test requires a populated chart with at least 10 points, 12 houses,
+Ascendant, and MC before profile onboarding can pass. This avoids changing the
+website production Worker while the mobile integration is under QA.
 
 ## Required Cloudflare Secrets
 
@@ -70,7 +73,6 @@ LUMIS_ENV=staging
 
 Before this passes production QA:
 
-- confirm the astrology-api.io response shape against real output
 - fill the golden chart expected values
 - compare Worker `chart_v2` output against `packages/astrology/src/golden-charts.ts`
 - add mobile-specific Google Sheets row logging

@@ -57,12 +57,24 @@ async function assertValidFullTimeRequest() {
     );
     assert(payload.chart_v2.houses.length > 0, "Expected full-time chart houses.");
     assert(
+      payload.chart_v2.planets.find((planet) => planet.key === "sun")?.sign === "Pisces",
+      "Expected abbreviated provider signs to be normalized."
+    );
+    assert(
+      payload.chart_v2.planets.find((planet) => planet.key === "sun")?.absoluteLongitude === 331.42,
+      "Expected provider absolute_longitude to be preserved."
+    );
+    assert(
       payload.chart_v2.planets.some((planet) => planet.house != null),
       "Expected full-time chart planet house placements."
     );
     assert(
       astroPayload.subject.birth_data.hour === 16 && astroPayload.subject.birth_data.minute === 55,
       "Expected full-time astrology payload to use submitted time."
+    );
+    assert(
+      astroPayload.subject.birth_data.city === "Hong Kong",
+      "Expected astrology payload to pass the resolved birthplace as city."
     );
     assert(
       astroPayload.options.active_points.includes("Medium_Coeli"),
@@ -324,47 +336,51 @@ function mockFetch(fetchCalls, responder) {
 
 function buildProviderResponse() {
   return {
-    data: {
-      points: [
+    chart_data: {
+      planetary_positions: [
         {
           name: "Sun",
-          sign: "Pisces",
+          sign: "Pis",
           degree: 1.42,
           house: 7,
-          full_degree: 331.42
+          absolute_longitude: 331.42,
+          is_retrograde: false
         },
         {
           name: "Moon",
-          sign: "Cancer",
+          sign: "Can",
           degree: 18.08,
           house: 11,
-          full_degree: 108.08
+          absolute_longitude: 108.08,
+          is_retrograde: false
         },
         {
           name: "Ascendant",
           sign: "Leo",
           degree: 6.11,
           house: 1,
-          full_degree: 126.11
+          absolute_longitude: 126.11
         },
         {
           name: "Medium_Coeli",
-          sign: "Taurus",
+          sign: "Tau",
           degree: 4.25,
           house: 10,
-          full_degree: 34.25
+          absolute_longitude: 34.25
         }
       ],
-      houses: [
+      house_cusps: [
         {
-          no: 1,
+          house: 1,
           sign: "Leo",
-          cusp_degree: 6.11
+          degree: 6.11,
+          absolute_longitude: 126.11
         },
         {
-          no: 10,
-          sign: "Taurus",
-          cusp_degree: 4.25
+          house: 10,
+          sign: "Tau",
+          degree: 4.25,
+          absolute_longitude: 34.25
         }
       ]
     }
