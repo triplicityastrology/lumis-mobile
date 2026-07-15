@@ -91,8 +91,13 @@ Current migrations:
 - `0006_profile_onboarding_transaction.sql`
 - `0007_lock_migration_reports_access.sql`
 - `0008_onboarding_chart_history.sql`
+- `0009_chat_turn_persistence_rpc.sql`
+- `0010_strip_legacy_raw_provider_response.sql`
+- `0011_explicit_reflection_thread.sql`
 
-These create the user, birth data, chart profile, balance, Lumis Persona, chat thread, and chat message tables with Row Level Security.
+These create the user, birth data, versioned chart profile, balance, Lumis Persona,
+Past Reflection thread, and message tables with Row Level Security. They also add
+transactional onboarding/chat RPCs and protected restoration of a selected thread.
 
 ## Step 5: Enable Auth
 

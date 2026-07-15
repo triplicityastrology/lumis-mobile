@@ -31,6 +31,7 @@ type ChatMessageRequest = {
   message?: string;
   persona_style?: PersonaStyle;
   force_new_thread?: boolean;
+  thread_id?: string | null;
   chart_context?: ChartContext;
 };
 
@@ -220,7 +221,8 @@ async function persistScaffoldChatTurn(
     p_title: buildThreadTitle(message),
     p_user_message: message,
     p_assistant_message: response.reply,
-    p_force_new_thread: body.force_new_thread ?? false
+    p_force_new_thread: body.force_new_thread ?? false,
+    p_thread_id: body.thread_id ?? null
   });
 
   if (error) {

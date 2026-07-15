@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const edgeSource = readFileSync("supabase/functions/chat-message/index.ts", "utf8");
+const mobileChatSource = readFileSync("apps/mobile/src/services/chat.ts", "utf8");
 const migrationSource = readFileSync(
-  "supabase/migrations/0009_chat_turn_persistence_rpc.sql",
+  "supabase/migrations/0011_explicit_reflection_thread.sql",
   "utf8"
 );
 
@@ -16,6 +17,16 @@ assert.match(
   migrationSource,
   /and is_active = true/i,
   "RPC must require the active profile"
+);
+assert.match(
+  migrationSource,
+  /where id = p_thread_id[\s\S]*and user_id = p_user_id[\s\S]*and chart_version = p_chart_version/i,
+  "explicit reflection thread must be owned by the user and match the active chart version"
+);
+assert.match(
+  migrationSource,
+  /REFLECTION_THREAD_NOT_AVAILABLE/i,
+  "an unavailable explicit reflection thread must fail instead of falling back"
 );
 assert.match(
   migrationSource,
@@ -37,6 +48,16 @@ assert.match(
   edgeSource,
   /\.rpc\("persist_scaffold_chat_turn"/,
   "Edge Function must call the transactional RPC"
+);
+assert.match(
+  edgeSource,
+  /p_thread_id: body\.thread_id \?\? null/,
+  "Edge Function must pass the selected Past Reflection thread to the RPC"
+);
+assert.match(
+  mobileChatSource,
+  /thread_id: input\.threadId \?\? null/,
+  "mobile chat must send the selected Past Reflection thread"
 );
 assert.doesNotMatch(
   edgeSource,

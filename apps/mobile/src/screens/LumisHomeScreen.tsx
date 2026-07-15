@@ -24,7 +24,7 @@ type LumisHomeScreenProps = {
   accountLoadStatus: "idle" | "loading" | "loaded" | "empty" | "error";
   accountLoadMessage: string;
   chart: ChartV2 | null;
-  chatTurnCount: number;
+  reflectionCount: number;
   credits: number;
   email?: string;
   isAuthenticated: boolean;
@@ -93,8 +93,8 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
               </View>
               <Text style={styles.chartNote}>
                 {props.chart.precision === "full"
-                  ? "Full chart loaded from Supabase staging"
-                  : "Unknown-time chart loaded with timed placements hidden"}
+                  ? "Birth time confirmed · Houses and angles included"
+                  : "Unknown birth time · Timed placements are hidden"}
               </Text>
             </View>
             <ChevronRight color={colors.muted} size={19} />
@@ -118,8 +118,8 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
             <View style={styles.actionCopy}>
               <Text style={styles.reflectionTitle}>Past Reflections</Text>
               <Text style={styles.reflectionBody}>
-                {props.chatTurnCount > 0
-                  ? `${props.chatTurnCount} saved conversation turn${props.chatTurnCount === 1 ? "" : "s"}`
+                {props.reflectionCount > 0
+                  ? `${props.reflectionCount} saved conversation${props.reflectionCount === 1 ? "" : "s"}`
                   : "Your saved conversations will appear here"}
               </Text>
             </View>
@@ -128,7 +128,11 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
 
           <View style={styles.statusLine}>
             <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{props.accountLoadMessage || "Supabase profile loaded"}</Text>
+            <Text style={styles.statusText}>
+              {props.accountLoadStatus === "loaded"
+                ? "Your chart and reflections are saved to your account."
+                : props.accountLoadMessage || "Your account is ready."}
+            </Text>
             <Pressable onPress={props.onReload} accessibilityLabel="Reload account">
               <RefreshCw color={colors.muted} size={16} />
             </Pressable>

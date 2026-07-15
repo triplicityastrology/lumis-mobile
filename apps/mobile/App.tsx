@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
+import {
+  ArrowLeft,
+  ChevronRight,
+  History,
+  MessageCircle,
+  Plus,
+  Send,
+  Sparkles
+} from "lucide-react-native";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -26,7 +35,11 @@ import {
   type BirthProfileForm,
   type ChartProfileResult
 } from "./src/services/profile";
-import { loadSupabaseAccountState, type SupabaseAccountState } from "./src/services/accountState";
+import {
+  loadSupabaseAccountState,
+  type RestoredReflectionThread,
+  type SupabaseAccountState
+} from "./src/services/accountState";
 import {
   getAuthStatus,
   handleAuthRedirectFromUrl,
@@ -132,11 +145,13 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
+  const [reflectionThreads, setReflectionThreads] = useState<RestoredReflectionThread[]>([]);
   const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
   const [accountLoadMessage, setAccountLoadMessage] = useState("");
   const [forceNewSupabaseThread, setForceNewSupabaseThread] = useState(false);
+  const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
 
   async function refreshAuthStatus() {
@@ -150,12 +165,14 @@ export default function App() {
     setChartProfile(null);
     setPersonaStyle("acceptance");
     setChatTurns([]);
+    setReflectionThreads([]);
     setRemainingCredits(STARTER_CREDITS);
     setHasLocalDemoSession(false);
     setAccountSource("none");
     setAccountLoadStatus(message ? "empty" : "idle");
     setAccountLoadMessage(message);
     setForceNewSupabaseThread(false);
+    setActiveSupabaseThreadId(null);
   }
 
   async function startOver() {
@@ -170,12 +187,14 @@ export default function App() {
       setChartProfile(accountState.chartProfile);
       setPersonaStyle(accountState.personaStyle);
       setChatTurns(accountState.chatTurns);
+      setReflectionThreads(accountState.reflectionThreads);
       setRemainingCredits(accountState.remainingCredits ?? STARTER_CREDITS);
       setHasLocalDemoSession(false);
       setAccountSource("supabase");
       setAccountLoadStatus("loaded");
       setAccountLoadMessage(accountState.message);
       setForceNewSupabaseThread(false);
+      setActiveSupabaseThreadId(accountState.reflectionThreads[0]?.id ?? null);
       return;
     }
 
@@ -207,12 +226,14 @@ export default function App() {
       setChartProfile(localSession.chartProfile);
       setPersonaStyle(localSession.personaStyle);
       setChatTurns(localSession.chatTurns ?? []);
+      setReflectionThreads([]);
       setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
       setHasLocalDemoSession(true);
       setAccountSource("local_demo");
       setAccountLoadStatus("loaded");
       setAccountLoadMessage("Local demo restored in this browser.");
       setForceNewSupabaseThread(false);
+      setActiveSupabaseThreadId(null);
       return;
     }
 
@@ -248,6 +269,7 @@ export default function App() {
 
     setChatTurns([]);
     setForceNewSupabaseThread(accountSource === "supabase");
+    setActiveSupabaseThreadId(null);
     await saveDemoSession(profileData, chartProfile, personaStyle, [], remainingCredits);
     setScreen("chat");
   }
@@ -307,6 +329,7 @@ export default function App() {
         onContinuePersona={(result) => {
           setChartProfile(result.chart);
           setChatTurns([]);
+          setReflectionThreads([]);
           setRemainingCredits(STARTER_CREDITS);
 
           if (result.mode === "supabase") {
@@ -353,6 +376,7 @@ export default function App() {
         chatTurns={chatTurns}
         remainingCredits={remainingCredits}
         forceNewSupabaseThread={forceNewSupabaseThread}
+        activeSupabaseThreadId={activeSupabaseThreadId}
         initialBillingMode={
           authStatus?.isConfigured && authStatus.user ? "supabase_scaffold_no_charge" : "local_demo"
         }
@@ -370,9 +394,11 @@ export default function App() {
             );
           }
         }}
-        onSupabaseThreadStarted={() => setForceNewSupabaseThread(false)}
-        onBack={() => setScreen("persona")}
-        onStartOver={startOver}
+        onSupabaseThreadStarted={(threadId) => {
+          setForceNewSupabaseThread(false);
+          setActiveSupabaseThreadId(threadId);
+        }}
+        onBack={() => setScreen("home")}
       />
     );
   }
@@ -385,9 +411,18 @@ export default function App() {
         profileData={profileData}
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
+        reflectionThreads={reflectionThreads}
         remainingCredits={remainingCredits}
         onBack={() => setScreen("home")}
-        onContinueReflection={() => setScreen(profileData && chartProfile ? "chat" : "profile")}
+        onContinueReflection={(thread) => {
+          if (thread) {
+            setChatTurns(thread.turns);
+            setPersonaStyle(thread.personaStyle);
+            setForceNewSupabaseThread(false);
+            setActiveSupabaseThreadId(thread.id);
+          }
+          setScreen(profileData && chartProfile ? "chat" : "profile");
+        }}
         onStartNewTopic={startNewTopic}
       />
     );
@@ -452,7 +487,9 @@ export default function App() {
         accountLoadStatus={accountLoadStatus}
         accountLoadMessage={accountLoadMessage}
         chart={chartProfile}
-        chatTurnCount={chatTurns.length}
+        reflectionCount={
+          accountSource === "supabase" ? reflectionThreads.length : chatTurns.length > 0 ? 1 : 0
+        }
         credits={remainingCredits}
         email={authStatus?.user?.email}
         isAuthenticated={Boolean(authStatus?.user)}
@@ -467,7 +504,22 @@ export default function App() {
         onOpenChat={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
         onOpenPlans={() => setScreen("plans")}
         onOpenProfile={() => setScreen(authStatus?.user ? "auth" : "birthDetails")}
-        onPastReflections={() => setScreen("reflections")}
+        onPastReflections={async () => {
+          if (authStatus?.isConfigured && authStatus.user) {
+            setAccountLoadStatus("loading");
+            setAccountLoadMessage("Refreshing Past Reflections...");
+
+            try {
+              applySupabaseAccountState(await loadSupabaseAccountState());
+            } catch (error) {
+              setAccountLoadStatus("error");
+              setAccountLoadMessage(
+                error instanceof Error ? error.message : "Unable to refresh Past Reflections."
+              );
+            }
+          }
+          setScreen("reflections");
+        }}
         onReload={async () => {
           const status = await refreshAuthStatus();
           await restoreAccountForStatus(status);
@@ -1099,11 +1151,11 @@ function ChatShellScreen({
   chatTurns,
   remainingCredits,
   forceNewSupabaseThread,
+  activeSupabaseThreadId,
   initialBillingMode,
   onChatStateChange,
   onSupabaseThreadStarted,
-  onBack,
-  onStartOver
+  onBack
 }: {
   name: string;
   chart: ChartV2 | null;
@@ -1111,11 +1163,11 @@ function ChatShellScreen({
   chatTurns: ChatTurn[];
   remainingCredits: number;
   forceNewSupabaseThread: boolean;
+  activeSupabaseThreadId: string | null;
   initialBillingMode: InitialChatBillingMode;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
-  onSupabaseThreadStarted: () => void;
+  onSupabaseThreadStarted: (threadId: string) => void;
   onBack: () => void;
-  onStartOver: () => void;
 }) {
   const [draftMessage, setDraftMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -1152,10 +1204,11 @@ function ChatShellScreen({
         message: nextMessage,
         personaStyle: selectedStyle,
         chart,
-        forceNewThread: forceNewSupabaseThread
+        forceNewThread: forceNewSupabaseThread,
+        threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId
       });
       if (result.threadId && forceNewSupabaseThread) {
-        onSupabaseThreadStarted();
+        onSupabaseThreadStarted(result.threadId);
       }
       const nextRemainingCredits =
         result.mode === "supabase" && result.remainingCredits != null
@@ -1185,18 +1238,22 @@ function ChatShellScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={styles.lumisDarkSafe}>
+      <StatusBar style="light" />
       <View style={styles.chatShell}>
         <View style={styles.chatTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+          <Pressable style={styles.chatIconButton} onPress={onBack} accessibilityLabel="Back to home">
+            <ArrowLeft color="#F0F4F8" size={20} />
           </Pressable>
+          <View style={styles.chatAvatar}>
+            <Sparkles color="#071321" size={18} />
+          </View>
           <View style={styles.chatTitleWrap}>
             <Text style={styles.chatTitle}>Lumis</Text>
-            <Text style={styles.chatSubtitle}>
-              {selectedPersona.labelEn} / {selectedPersona.labelZh}
-            </Text>
+            <View style={styles.chatPresenceRow}>
+              <View style={styles.chatPresenceDot} />
+              <Text style={styles.chatSubtitle}>{selectedPersona.labelEn} · Chart connected</Text>
+            </View>
           </View>
           <View style={styles.creditPill}>
             <Text style={styles.creditPillText}>{remainingCredits} credits</Text>
@@ -1205,25 +1262,25 @@ function ChatShellScreen({
 
         <ScrollView contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false}>
           <View style={styles.chatContextCard}>
-            <Text style={styles.sectionEyebrow}>Lumis Persona ready</Text>
-            <Text style={styles.chatContextTitle}>{name}'s first chat space</Text>
-            <Text style={styles.chatContextBody}>
-              Your chart profile and Lumis Persona are ready. Start with a question, a feeling, a
-              pattern, or a moment you want to understand.
-            </Text>
+            <View style={styles.chatContextWheel}>
+              <Sparkles color="#C9A96E" size={18} />
+            </View>
             <View style={styles.chatChartRow}>
               <MiniChartStat label="Sun" value={sun ? sun.sign : "Pending"} />
               <MiniChartStat label="Moon" value={moon ? moon.sign : "Pending"} />
               <MiniChartStat label="Rising" value={ascendant ? ascendant.sign : "Unknown"} />
             </View>
+            <ChevronRight color="#8A9BB0" size={18} />
           </View>
 
-          <View style={styles.messageBubbleLumis}>
-            <Text style={styles.messageAuthor}>Lumis</Text>
-            <Text style={styles.messageText}>
-              Hi {name}. I have your chart profile and your {selectedPersona.labelEn.toLowerCase()} style
-              ready. What would you like to explore first?
-            </Text>
+          <Text style={styles.chatDayLabel}>TODAY</Text>
+          <View style={styles.messageRowLumis}>
+            <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
+            <View style={styles.messageBubbleLumis}>
+              <Text style={styles.messageTextLumis}>
+                Hi {name}. What feels most worth understanding today?
+              </Text>
+            </View>
           </View>
 
           {chatTurns.length === 0 ? (
@@ -1243,19 +1300,22 @@ function ChatShellScreen({
           {chatTurns.map((turn) => (
             <View key={turn.id}>
               <View style={styles.messageBubbleUser}>
-                <Text style={styles.messageAuthorUser}>You</Text>
-                <Text style={styles.messageText}>{turn.userMessage}</Text>
+                <Text style={styles.messageTextUser}>{turn.userMessage}</Text>
               </View>
               {turn.result ? (
-                <View style={styles.messageBubbleLumis}>
-                  <Text style={styles.messageAuthor}>Lumis</Text>
-                  <Text style={styles.messageText}>{turn.result.reply}</Text>
+                <View style={styles.messageRowLumis}>
+                  <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
+                  <View style={styles.messageBubbleLumis}>
+                    <Text style={styles.messageTextLumis}>{turn.result.reply}</Text>
+                  </View>
                 </View>
               ) : null}
               {isSending && !turn.result && !turn.error && turn.id === chatTurns[chatTurns.length - 1]?.id ? (
-                <View style={styles.messageBubbleLumis}>
-                  <Text style={styles.messageAuthor}>Lumis</Text>
-                  <Text style={styles.messageText}>Reading the thread of this question...</Text>
+                <View style={styles.messageRowLumis}>
+                  <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
+                  <View style={styles.messageBubbleLumis}>
+                    <Text style={styles.messageTextLumis}>Reflecting...</Text>
+                  </View>
                 </View>
               ) : null}
               {turn.error ? (
@@ -1266,15 +1326,15 @@ function ChatShellScreen({
             </View>
           ))}
 
-          <View style={styles.routePreviewStrip}>
+          <View style={styles.routePreviewStrip} accessibilityLabel="Credit estimate">
             <Text style={styles.routePreviewText}>
               {latestResult
                 ? latestResult.mode === "supabase" && latestResult.billingMode === "scaffold_no_charge"
-                  ? `Supabase ${latestResult.route} · estimated ${latestResult.creditsCost} credit · no charge in scaffold`
-                  : `${latestResult.mode === "supabase" ? "Supabase" : "Local"} ${latestResult.route} · ${latestResult.creditsCost} credit · ${remainingCredits} left`
+                  ? `Estimated ${latestResult.creditsCost} credit · test mode: no charge`
+                  : `${latestResult.creditsCost} credit · ${remainingCredits} left`
                 : initialBillingMode === "supabase_scaffold_no_charge"
-                  ? `Casual chat · estimated 1 credit · no charge in scaffold`
-                : `Casual chat · 1 credit · ${remainingCredits} left`}
+                  ? `Estimated 1 credit · test mode: no charge`
+                : `1 credit · ${remainingCredits} left`}
             </Text>
           </View>
         </ScrollView>
@@ -1282,8 +1342,8 @@ function ChatShellScreen({
         <View style={styles.chatComposer}>
           <TextInput
             style={styles.chatInput}
-            placeholder="Ask Lumis anything..."
-            placeholderTextColor="#9B8A72"
+            placeholder="Ask Lumis..."
+            placeholderTextColor="#71839A"
             value={draftMessage}
             onChangeText={setDraftMessage}
           />
@@ -1292,13 +1352,9 @@ function ChatShellScreen({
             onPress={handleSend}
             disabled={!canSend}
           >
-            <Text style={styles.sendButtonText}>{isSending ? "..." : "Send"}</Text>
+            {isSending ? <Text style={styles.sendButtonText}>...</Text> : <Send color="#071321" size={19} />}
           </Pressable>
         </View>
-
-        <Pressable style={styles.chatStartOverButton} onPress={onStartOver}>
-          <Text style={styles.ghostButtonText}>Start over</Text>
-        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -1310,6 +1366,7 @@ function PastReflectionsScreen({
   profileData,
   selectedStyle,
   chatTurns,
+  reflectionThreads,
   remainingCredits,
   onBack,
   onContinueReflection,
@@ -1320,110 +1377,118 @@ function PastReflectionsScreen({
   profileData: ProfileData | null;
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
+  reflectionThreads: RestoredReflectionThread[];
   remainingCredits: number;
   onBack: () => void;
-  onContinueReflection: () => void;
+  onContinueReflection: (thread: RestoredReflectionThread | null) => void;
   onStartNewTopic: () => void;
 }) {
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
-  const latestTurn = chatTurns[chatTurns.length - 1];
-  const title = latestTurn?.userMessage ?? "First Lumis reflection";
-  const sourceLabel =
-    accountSource === "supabase"
-      ? "Supabase staging"
-      : accountSource === "local_demo"
-        ? "Local demo"
-        : "No profile";
+  const localThread: RestoredReflectionThread | null = chatTurns.length > 0
+    ? {
+        id: "local-reflection",
+        title: chatTurns[0]?.userMessage ?? "Lumis reflection",
+        personaStyle: selectedStyle,
+        chartVersion: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        turns: chatTurns
+      }
+    : null;
+  const visibleThreads = accountSource === "supabase"
+    ? reflectionThreads
+    : localThread
+      ? [localThread]
+      : [];
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+    <SafeAreaView style={styles.lumisDarkSafe}>
+      <StatusBar style="light" />
+      <View style={styles.reflectionsShell}>
+        <View style={styles.reflectionsHeader}>
+          <Pressable style={styles.chatIconButton} onPress={onBack} accessibilityLabel="Back to home">
+            <ArrowLeft color="#F0F4F8" size={20} />
           </Pressable>
-          <View style={styles.formStepPill}>
-            <Text style={styles.formStepText}>Past Reflections</Text>
+          <View style={styles.reflectionsHeaderCopy}>
+            <Text style={styles.reflectionsTitle}>Past Reflections</Text>
+            <Text style={styles.reflectionsSubtitle}>
+              {visibleThreads.length} saved conversation{visibleThreads.length === 1 ? "" : "s"}
+            </Text>
           </View>
+          <Pressable style={styles.newTopicIconButton} onPress={onStartNewTopic} accessibilityLabel="Start a new topic">
+            <Plus color="#071321" size={20} />
+          </Pressable>
         </View>
 
-        <View style={styles.formHero}>
-          <View style={styles.formLogo}>
-            <LumisLogo size={84} />
-          </View>
-          <Text style={styles.kicker}>Past Reflections</Text>
-          <Text style={styles.formTitle}>Return to what Lumis has been holding.</Text>
-          <Text style={styles.formIntro}>
-            {accountSource === "supabase"
-              ? "This screen checks Supabase staging first. Signed-in scaffold chats are saved as Past Reflections when persistence succeeds."
-              : "This local build keeps one reflection thread in this browser. Supabase chat persistence is a later backend step."}
-          </Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.reflectionsContent} showsVerticalScrollIndicator={false}>
+          {(hasLocalDemoSession || accountSource === "supabase") && profileData ? (
+            visibleThreads.length > 0 ? (
+              visibleThreads.map((thread) => {
+                const latestTurn = thread.turns[thread.turns.length - 1];
+                const preview = latestTurn?.result?.reply ?? latestTurn?.userMessage ?? "Continue your reflection with Lumis.";
+                const persona = PERSONA_STYLES.find((style) => style.key === thread.personaStyle) ?? selectedPersona;
 
-        {(hasLocalDemoSession || accountSource === "supabase") && profileData ? (
-          <View style={styles.reflectionList}>
-            {chatTurns.length > 0 ? (
-              <View style={styles.reflectionCard}>
-                <View style={styles.reflectionCardHeader}>
-                  <View style={styles.personaIcon}>
-                    <Text style={styles.personaIconText}>1</Text>
-                  </View>
-                  <View style={styles.reflectionCardText}>
-                    <Text style={styles.reflectionCardTitle} numberOfLines={2}>
-                      {title}
-                    </Text>
-                    <Text style={styles.reflectionCardMeta}>
-                      {sourceLabel} · {profileData.name} · {selectedPersona.labelEn} · {chatTurns.length} turn
-                      {chatTurns.length === 1 ? "" : "s"}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.reflectionActions}>
-                  <Pressable style={styles.fullPrimaryButton} onPress={onContinueReflection}>
-                    <Text style={styles.fullPrimaryButtonText}>Continue reflection</Text>
+                return (
+                  <Pressable
+                    key={thread.id}
+                    style={styles.reflectionThreadCard}
+                    onPress={() => onContinueReflection(thread)}
+                  >
+                    <View style={styles.reflectionThreadIcon}>
+                      <MessageCircle color="#8B93D4" size={20} />
+                    </View>
+                    <View style={styles.reflectionThreadCopy}>
+                      <Text style={styles.reflectionThreadTitle} numberOfLines={2}>{thread.title}</Text>
+                      <Text style={styles.reflectionThreadPreview} numberOfLines={2}>{preview}</Text>
+                      <Text style={styles.reflectionThreadMeta}>
+                        {formatReflectionDate(thread.updatedAt)} · {persona.labelEn} · Chart v{thread.chartVersion}
+                      </Text>
+                    </View>
+                    <ChevronRight color="#71839A" size={19} />
                   </Pressable>
-                  <Pressable style={styles.secondaryFullButton} onPress={onStartNewTopic}>
-                    <Text style={styles.secondaryFullButtonText}>Start a new topic</Text>
-                  </Pressable>
-                </View>
-              </View>
+                );
+              })
             ) : (
-              <View style={styles.emptyReflectionCard}>
+              <View style={styles.reflectionsEmpty}>
+                <View style={styles.reflectionsEmptyIcon}><History color="#C9A96E" size={25} /></View>
                 <Text style={styles.noticeTitle}>No saved Past Reflections yet</Text>
                 <Text style={styles.noticeBody}>
-                  {sourceLabel} profile is loaded for {profileData.name}. Start a signed-in reflection, then reload
-                  to confirm Supabase can restore the saved scaffold chat turn.
+                  Your chart is ready. Start a conversation and it will appear here when it has been saved.
                 </Text>
-                <Pressable style={styles.fullPrimaryButton} onPress={onStartNewTopic}>
-                  <Text style={styles.fullPrimaryButtonText}>Start first reflection</Text>
+                <Pressable style={styles.reflectionsPrimary} onPress={onStartNewTopic}>
+                  <Text style={styles.reflectionsPrimaryText}>Start first reflection</Text>
                 </Pressable>
               </View>
-            )}
-
-            <View style={styles.noticeCard}>
-              <Text style={styles.noticeTitle}>Saved Insights</Text>
-              <Text style={styles.noticeBody}>
-                Saved chat turns appear here after Supabase persistence succeeds. Saved insight actions are
-                still a later backend step. Current displayed balance: {remainingCredits} credits.
-              </Text>
+            )
+          ) : (
+            <View style={styles.reflectionsEmpty}>
+              <View style={styles.reflectionsEmptyIcon}><History color="#C9A96E" size={25} /></View>
+              <Text style={styles.noticeTitle}>Create your chart first</Text>
+              <Text style={styles.noticeBody}>Past Reflections will be saved after your first Lumis conversation.</Text>
+              <Pressable style={styles.reflectionsPrimary} onPress={onStartNewTopic}>
+                <Text style={styles.reflectionsPrimaryText}>Create my chart</Text>
+              </Pressable>
             </View>
-          </View>
-        ) : (
-          <View style={styles.emptyReflectionCard}>
-            <Text style={styles.noticeTitle}>No reflections yet</Text>
-            <Text style={styles.noticeBody}>
-              Create a chart profile first. After your first Lumis chat, this area will show
-              Continue reflection and Saved Insights.
+          )}
+
+          <View style={styles.reflectionPrivacyNote}>
+            <Sparkles color="#C9A96E" size={15} />
+            <Text style={styles.reflectionPrivacyText}>
+              Private to {profileData?.name ?? "your account"} · {remainingCredits} credits available
             </Text>
-            <Pressable style={styles.fullPrimaryButton} onPress={onStartNewTopic}>
-              <Text style={styles.fullPrimaryButtonText}>Start a new topic</Text>
-            </Pressable>
           </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
+}
+
+function formatReflectionDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "Saved";
+
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function NotificationCenterScreen({
@@ -2351,8 +2416,10 @@ const styles = StyleSheet.create({
   },
   chatShell: {
     flex: 1,
-    gap: 12,
-    padding: 16
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    paddingTop: 8
   },
   chatTopBar: {
     alignItems: "center",
@@ -2361,30 +2428,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   chatTitleWrap: {
-    alignItems: "center",
     flex: 1
   },
   chatTitle: {
-    color: "#2F2B25",
-    fontSize: 18,
+    color: "#F0F4F8",
+    fontSize: 17,
     fontWeight: "800"
   },
   chatSubtitle: {
-    color: "#8A7659",
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 2
+    color: "#C9A96E",
+    fontSize: 11,
+    fontWeight: "600"
   },
   chatContent: {
     gap: 14,
-    paddingBottom: 10
+    paddingBottom: 18,
+    paddingTop: 4
   },
   chatContextCard: {
-    backgroundColor: "#10213A",
-    borderColor: "rgba(238,224,201,0.18)",
-    borderRadius: 24,
+    alignItems: "center",
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 18
+    flexDirection: "row",
+    gap: 10,
+    padding: 12
   },
   chatContextTitle: {
     color: "#F9F0E1",
@@ -2399,17 +2468,13 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   chatChartRow: {
+    flex: 1,
     flexDirection: "row",
-    gap: 8,
-    marginTop: 15
+    gap: 8
   },
   miniChartStat: {
-    backgroundColor: "rgba(238,224,201,0.08)",
-    borderColor: "rgba(238,224,201,0.13)",
-    borderRadius: 16,
-    borderWidth: 1,
     flex: 1,
-    padding: 12
+    paddingVertical: 2
   },
   miniChartLabel: {
     color: "#D2A24F",
@@ -2422,27 +2487,26 @@ const styles = StyleSheet.create({
     color: "#F9F0E1",
     fontSize: 14,
     fontWeight: "800",
-    marginTop: 5
+    marginTop: 3
   },
   messageBubbleLumis: {
-    alignSelf: "flex-start",
-    backgroundColor: "#FBF7EE",
-    borderColor: "rgba(120,90,40,0.12)",
-    borderRadius: 22,
-    borderTopLeftRadius: 8,
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderBottomLeftRadius: 6,
+    borderRadius: 18,
     borderWidth: 1,
-    maxWidth: "88%",
-    padding: 15
+    flexShrink: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
   messageBubbleUser: {
     alignSelf: "flex-end",
-    backgroundColor: "rgba(180,134,63,0.13)",
-    borderColor: "rgba(180,134,63,0.24)",
-    borderRadius: 22,
-    borderTopRightRadius: 8,
-    borderWidth: 1,
+    backgroundColor: "#C9A96E",
+    borderBottomRightRadius: 6,
+    borderRadius: 18,
     maxWidth: "88%",
-    padding: 15
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
   messageAuthor: {
     color: "#B4863F",
@@ -2466,48 +2530,47 @@ const styles = StyleSheet.create({
   },
   quickPromptButton: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(180,134,63,0.11)",
-    borderColor: "rgba(180,134,63,0.20)",
-    borderRadius: 16,
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 999,
     borderWidth: 1,
     maxWidth: "92%",
     paddingHorizontal: 13,
     paddingVertical: 10
   },
   quickPromptText: {
-    color: "#6D4F23",
+    color: "#C4CEDB",
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18
   },
   routePreviewStrip: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(91,99,183,0.10)",
-    borderColor: "rgba(91,99,183,0.16)",
+    alignSelf: "center",
+    backgroundColor: "rgba(139,147,212,0.12)",
+    borderColor: "rgba(139,147,212,0.20)",
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 13,
     paddingVertical: 8
   },
   routePreviewText: {
-    color: "#454286",
-    fontSize: 12,
-    fontWeight: "700"
+    color: "#AAB3D9",
+    fontSize: 10.5,
+    fontWeight: "600"
   },
   chatComposer: {
     alignItems: "center",
-    backgroundColor: "#FBF7EE",
-    borderColor: "rgba(120,90,40,0.12)",
-    borderRadius: 22,
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 24,
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
     padding: 10
   },
   chatInput: {
-    backgroundColor: "#F7F0E3",
-    borderRadius: 16,
-    color: "#2F2B25",
+    backgroundColor: "transparent",
+    color: "#F0F4F8",
     flex: 1,
     fontSize: 15,
     minHeight: 46,
@@ -2516,11 +2579,11 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     alignItems: "center",
-    backgroundColor: "#2F2B25",
-    borderRadius: 16,
-    minHeight: 46,
+    backgroundColor: "#C9A96E",
+    borderRadius: 999,
+    height: 42,
     justifyContent: "center",
-    paddingHorizontal: 16
+    width: 42
   },
   sendButtonDisabled: {
     opacity: 0.5
@@ -3230,5 +3293,198 @@ const styles = StyleSheet.create({
     color: "#454286",
     fontSize: 12,
     fontWeight: "800"
+  },
+  lumisDarkSafe: {
+    backgroundColor: "#071321",
+    flex: 1
+  },
+  chatIconButton: {
+    alignItems: "center",
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40
+  },
+  chatAvatar: {
+    alignItems: "center",
+    backgroundColor: "#C9A96E",
+    borderRadius: 999,
+    height: 38,
+    justifyContent: "center",
+    width: 38
+  },
+  chatPresenceRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 5,
+    marginTop: 2
+  },
+  chatPresenceDot: {
+    backgroundColor: "#86C8A6",
+    borderRadius: 999,
+    height: 5,
+    width: 5
+  },
+  chatContextWheel: {
+    alignItems: "center",
+    backgroundColor: "rgba(201,169,110,0.12)",
+    borderRadius: 12,
+    height: 38,
+    justifyContent: "center",
+    width: 38
+  },
+  chatDayLabel: {
+    alignSelf: "center",
+    color: "#71839A",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1
+  },
+  messageRowLumis: {
+    alignItems: "flex-start",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+    maxWidth: "90%",
+    marginTop: 8
+  },
+  messageAvatar: {
+    alignItems: "center",
+    backgroundColor: "#C9A96E",
+    borderRadius: 999,
+    height: 26,
+    justifyContent: "center",
+    marginTop: 2,
+    width: 26
+  },
+  messageTextLumis: {
+    color: "#E4EAF0",
+    fontSize: 14.5,
+    lineHeight: 22
+  },
+  messageTextUser: {
+    color: "#071321",
+    fontSize: 14.5,
+    lineHeight: 22
+  },
+  reflectionsShell: {
+    flex: 1,
+    paddingHorizontal: 18,
+    paddingTop: 8
+  },
+  reflectionsHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    paddingBottom: 18
+  },
+  reflectionsHeaderCopy: {
+    flex: 1
+  },
+  reflectionsTitle: {
+    color: "#F0F4F8",
+    fontSize: 21,
+    fontWeight: "800"
+  },
+  reflectionsSubtitle: {
+    color: "#8A9BB0",
+    fontSize: 12,
+    marginTop: 3
+  },
+  newTopicIconButton: {
+    alignItems: "center",
+    backgroundColor: "#C9A96E",
+    borderRadius: 999,
+    height: 40,
+    justifyContent: "center",
+    width: 40
+  },
+  reflectionsContent: {
+    gap: 12,
+    paddingBottom: 28
+  },
+  reflectionThreadCard: {
+    alignItems: "center",
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    minHeight: 104,
+    padding: 14
+  },
+  reflectionThreadIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(139,147,212,0.14)",
+    borderRadius: 12,
+    height: 42,
+    justifyContent: "center",
+    width: 42
+  },
+  reflectionThreadCopy: {
+    flex: 1
+  },
+  reflectionThreadTitle: {
+    color: "#F0F4F8",
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 20
+  },
+  reflectionThreadPreview: {
+    color: "#AEBAC8",
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 4
+  },
+  reflectionThreadMeta: {
+    color: "#C9A96E",
+    fontSize: 10.5,
+    marginTop: 7
+  },
+  reflectionsEmpty: {
+    alignItems: "center",
+    backgroundColor: "#152943",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
+    padding: 24
+  },
+  reflectionsEmptyIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(201,169,110,0.12)",
+    borderRadius: 999,
+    height: 52,
+    justifyContent: "center",
+    marginBottom: 4,
+    width: 52
+  },
+  reflectionsPrimary: {
+    alignItems: "center",
+    backgroundColor: "#C9A96E",
+    borderRadius: 999,
+    marginTop: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 13
+  },
+  reflectionsPrimaryText: {
+    color: "#071321",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  reflectionPrivacyNote: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 7,
+    paddingVertical: 10
+  },
+  reflectionPrivacyText: {
+    color: "#8A9BB0",
+    fontSize: 11
   }
 });

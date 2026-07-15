@@ -32,6 +32,8 @@ type ChatThreadRow = {
   persona_style: PersonaStyleKey | null;
   title: string | null;
   created_at: string;
+  updated_at: string;
+  chart_version: number;
 };
 
 type ChatMessageRow = {
@@ -50,12 +52,23 @@ export type RestoredChatTurn = {
   error: string;
 };
 
+export type RestoredReflectionThread = {
+  id: string;
+  title: string;
+  personaStyle: PersonaStyleKey;
+  chartVersion: number;
+  createdAt: string;
+  updatedAt: string;
+  turns: RestoredChatTurn[];
+};
+
 export type SupabaseAccountState = {
   status: "loaded" | "empty";
   profileData: BirthProfileForm | null;
   chartProfile: ChartV2 | null;
   personaStyle: PersonaStyleKey;
   chatTurns: RestoredChatTurn[];
+  reflectionThreads: RestoredReflectionThread[];
   remainingCredits: number | null;
   message: string;
 };
@@ -109,10 +122,10 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .maybeSingle(),
     supabase
       .from("chat_threads")
-      .select("id, persona_style, title, created_at")
+      .select("id, persona_style, title, created_at, updated_at, chart_version")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
-      .limit(1)
+      .limit(20)
   ]);
 
   const firstError = userResult.error ?? birthResult.error ?? profileResult.error ?? balanceResult.error ?? threadsResult.error;
@@ -122,11 +135,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   }
 
   const birthData = birthResult.data as BirthDataRow | null;
-  let profile = profileResult.data as AiProfileRow | null;
-
-  if (!profile) {
-    profile = await loadLatestProfileFallback(userId);
-  }
+  const profile = profileResult.data as AiProfileRow | null;
 
   if (!birthData || !profile?.chart_json) {
     return emptyAccountState(
@@ -138,7 +147,22 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   const balance = balanceResult.data as BalanceRow | null;
   const threads = (threadsResult.data ?? []) as ChatThreadRow[];
   const latestThread = threads[0];
-  const chatTurns = latestThread ? await loadThreadTurns(latestThread.id) : [];
+  const reflectionThreads = await Promise.all(
+    threads.map(async (thread) => {
+      const turns = await loadThreadTurns(thread.id);
+
+      return {
+        id: thread.id,
+        title: thread.title?.trim() || turns[0]?.userMessage || "Lumis reflection",
+        personaStyle: thread.persona_style ?? "acceptance",
+        chartVersion: thread.chart_version,
+        createdAt: thread.created_at,
+        updatedAt: thread.updated_at,
+        turns
+      } satisfies RestoredReflectionThread;
+    })
+  );
+  const chatTurns = reflectionThreads[0]?.turns ?? [];
   const personaStyle = user?.persona_style ?? latestThread?.persona_style ?? "acceptance";
 
   return {
@@ -153,35 +177,13 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     chartProfile: profile.chart_json,
     personaStyle,
     chatTurns,
+    reflectionThreads,
     remainingCredits: balance?.remaining ?? null,
     message:
       chatTurns.length > 0
         ? "Supabase profile and latest Past Reflection loaded."
         : "Supabase profile loaded. No saved Past Reflections found yet."
   };
-}
-
-async function loadLatestProfileFallback(userId: string): Promise<AiProfileRow | null> {
-  const supabase = getSupabaseClient();
-
-  if (!supabase) {
-    return null;
-  }
-
-  const { data, error } = await supabase
-    .from("ai_profiles")
-    .select("chart_json, chart_version, is_active")
-    .eq("user_id", userId)
-    .order("chart_version", { ascending: false })
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data as AiProfileRow | null;
 }
 
 async function loadThreadTurns(threadId: string): Promise<RestoredChatTurn[]> {
@@ -222,7 +224,7 @@ async function loadThreadTurns(threadId: string): Promise<RestoredChatTurn[]> {
         route: message.route,
         creditsCost: message.credits_cost,
         remainingCredits: null,
-        billingMode: "charged",
+        billingMode: "scaffold_no_charge",
         reply: message.content
       };
     }
@@ -238,6 +240,7 @@ function emptyAccountState(message: string): SupabaseAccountState {
     chartProfile: null,
     personaStyle: "acceptance",
     chatTurns: [],
+    reflectionThreads: [],
     remainingCredits: null,
     message
   };
