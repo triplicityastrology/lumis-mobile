@@ -47,3 +47,17 @@ docs/implementation-notes   Technical handoff notes
 ## Setup Guides
 
 - Supabase project setup: [docs/setup/supabase-project-setup.md](docs/setup/supabase-project-setup.md)
+
+## Current Build Order
+
+1. Port the approved Claude Design prototype into native Expo React Native screens.
+2. Make the real signed-in founder flow unambiguous: restore account, show the active chart, resume chat, and open Past Reflections.
+3. Run founder/user UI testing on iOS-first layouts and navigation.
+4. Complete the independent golden-chart accuracy references and chart presentation QA.
+5. After the proper UI has been tested, configure and smoke-test the already scaffolded Salesforce and Google Sheets admin integrations.
+6. Continue with AI routing/model integration, then live billing/RevenueCat when payment research is complete.
+
+Salesforce and Google Sheets credentials are intentionally deferred. Their
+non-blocking Worker integration must remain inactive until after founder UI
+testing and PM/data-owner approval of the final field allowlist and retention
+policy.

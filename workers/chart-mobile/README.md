@@ -75,6 +75,11 @@ LUMIS_ENV=staging
 Chart creation does not depend on these integrations. When they are configured,
 the Worker writes mobile-specific audit values after returning the chart.
 
+**Deferred milestone:** do not configure these credentials until the proper
+Claude Design UI has been ported and founder/user UI testing is complete. Before
+activation, PM/data ownership must approve the exact field allowlist, retention,
+deletion, staging destination, and retry/idempotency behaviour.
+
 ```text
 GOOGLE_MOBILE_SHEET_ID=
 GOOGLE_MOBILE_SHEET_NAME=Lumis Mobile Charts
@@ -96,4 +101,4 @@ Before this passes production QA:
 
 - fill the golden chart expected values
 - compare Worker `chart_v2` output against `packages/astrology/src/golden-charts.ts`
-- configure and smoke-test mobile-specific Google Sheets and Salesforce credentials
+- after founder UI testing, approve, configure, and smoke-test mobile-specific Google Sheets and Salesforce credentials
