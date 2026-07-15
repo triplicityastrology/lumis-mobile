@@ -64,6 +64,10 @@ export default {
       return handleMobileNatalChart(request, env, ctx);
     }
 
+    if (url.pathname === "/mobile/admin-sync" && request.method === "POST") {
+      return handleMobileAdminSync(request, env);
+    }
+
     return json({ error: "Not found" }, 404, env);
   }
 };
@@ -111,8 +115,6 @@ async function handleMobileNatalChart(request, env, ctx) {
       timeUnknown: body.birth_data.time_unknown
     });
 
-    ctx.waitUntil(recordMobileChartAttempt(env, body, chartV2).catch(() => undefined));
-
     return json(
       {
         request_id: body.request_id,
@@ -139,6 +141,52 @@ async function handleMobileNatalChart(request, env, ctx) {
       workerError.status,
       env
     );
+  }
+}
+
+async function handleMobileAdminSync(request, env) {
+  const rawBody = await request.text();
+  const headerRequestId = request.headers.get("X-Lumis-Request-Id");
+
+  try {
+    await verifyMobileSignature(request, env, rawBody);
+    const body = JSON.parse(rawBody);
+
+    if (
+      !body?.event_id ||
+      !body?.user_id ||
+      !body?.idempotency_key ||
+      !["salesforce_case", "google_sheet"].includes(body?.destination) ||
+      !body?.record ||
+      headerRequestId !== body.idempotency_key ||
+      request.headers.get("X-Lumis-User-Id") !== body.user_id ||
+      containsSensitiveProviderData(body.record)
+    ) {
+      throw new WorkerRequestError("INVALID_REQUEST", 400);
+    }
+
+    const destination = body.destination === "google_sheet" ? "google_sheets" : "salesforce";
+    const result = await deliverMobileAuditOnce(env, destination, {
+      ...body.record,
+      request_id: body.idempotency_key
+    });
+
+    return json(
+      {
+        event_id: body.event_id,
+        status: result.status,
+        external_record_id: result.external_record_id ?? null
+      },
+      200,
+      env
+    );
+  } catch (error) {
+    const workerError = normalizeWorkerError(error);
+    console.error("MOBILE_ADMIN_SYNC_FAILED", {
+      request_id: headerRequestId,
+      code: workerError.code
+    });
+    return json({ error: workerError.code, request_id: headerRequestId }, workerError.status, env);
   }
 }
 
@@ -424,22 +472,6 @@ function sanitizeUnknownTimeChart(chart, timeUnknown) {
   };
 }
 
-export async function recordMobileChartAttempt(env, body, chartV2) {
-  const record = buildMobileAuditRecord(body, chartV2);
-  const results = await Promise.allSettled([
-    deliverMobileAuditOnce(env, "google_sheets", record),
-    deliverMobileAuditOnce(env, "salesforce", record)
-  ]);
-
-  results.forEach((result, index) => {
-    if (result.status === "rejected") {
-      console.error(index === 0 ? "MOBILE_SHEETS_FAILED" : "MOBILE_SALESFORCE_FAILED", {
-        request_id: body.request_id
-      });
-    }
-  });
-}
-
 async function deliverMobileAuditOnce(env, destination, record) {
   if (!isAuditDestinationConfigured(env, destination)) {
     return { status: "disabled" };
@@ -503,11 +535,23 @@ export class AuditDeliveryCoordinator {
     }
 
     const storageKey = `delivery:${destination}`;
-    const reserved = await this.state.storage.transaction(async (transaction) => {
+    const reservation = await this.state.storage.transaction(async (transaction) => {
       const existing = await transaction.get(storageKey);
 
-      if (existing) {
-        return false;
+      if (existing?.status === "delivered") {
+        return {
+          action: "already_delivered",
+          external_record_id: existing.external_record_id ?? null
+        };
+      }
+
+      if (existing?.status === "processing") {
+        const startedAt = Date.parse(existing.started_at || "");
+        const isStale = Number.isFinite(startedAt) && Date.now() - startedAt > 15 * 60 * 1000;
+
+        if (!isStale) {
+          return { action: "in_progress" };
+        }
       }
 
       await transaction.put(storageKey, {
@@ -515,26 +559,46 @@ export class AuditDeliveryCoordinator {
         request_id: record.request_id,
         started_at: new Date().toISOString()
       });
-      return true;
+      return { action: "deliver" };
     });
 
-    if (!reserved) {
-      return auditCoordinatorResponse({ status: "duplicate_ignored" });
+    if (reservation.action === "already_delivered") {
+      return auditCoordinatorResponse({
+        status: "already_delivered",
+        external_record_id: reservation.external_record_id
+      });
+    }
+
+    if (reservation.action === "in_progress") {
+      return auditCoordinatorResponse({ error: "AUDIT_DELIVERY_IN_PROGRESS" }, 409);
     }
 
     try {
       if (destination === "google_sheets") {
-        await appendMobileChartToSheets(this.env, record, this.dependencies.google);
+        const result = await appendMobileChartToSheets(this.env, record, this.dependencies.google);
+        await this.state.storage.put(storageKey, {
+          status: "delivered",
+          request_id: record.request_id,
+          external_record_id: result?.externalRecordId ?? null,
+          completed_at: new Date().toISOString()
+        });
+        return auditCoordinatorResponse({
+          status: "delivered",
+          external_record_id: result?.externalRecordId ?? null
+        });
       } else {
-        await createMobileChartSalesforceCase(this.env, record, this.dependencies.salesforce);
+        const result = await createMobileChartSalesforceCase(this.env, record, this.dependencies.salesforce);
+        await this.state.storage.put(storageKey, {
+          status: "delivered",
+          request_id: record.request_id,
+          external_record_id: result?.externalRecordId ?? null,
+          completed_at: new Date().toISOString()
+        });
+        return auditCoordinatorResponse({
+          status: "delivered",
+          external_record_id: result?.externalRecordId ?? null
+        });
       }
-
-      await this.state.storage.put(storageKey, {
-        status: "delivered",
-        request_id: record.request_id,
-        completed_at: new Date().toISOString()
-      });
-      return auditCoordinatorResponse({ status: "delivered" });
     } catch (error) {
       await this.state.storage.put(storageKey, {
         status: "failed",
@@ -564,10 +628,12 @@ function safeAuditErrorCode(error) {
   const code = String(error?.message || "");
   return [
     "GOOGLE_TOKEN_FAILED",
+    "GOOGLE_SHEETS_LOOKUP_FAILED",
     "GOOGLE_SHEETS_APPEND_FAILED",
     "GOOGLE_SHEETS_INVALID_RESPONSE",
     "SALESFORCE_LOGIN_FAILED",
     "SALESFORCE_LOGIN_INVALID_RESPONSE",
+    "SALESFORCE_CASE_LOOKUP_FAILED",
     "SALESFORCE_CASE_FAILED",
     "SALESFORCE_CASE_INVALID_RESPONSE",
     "AUDIT_DESTINATION_TIMEOUT"
@@ -580,6 +646,7 @@ export function buildMobileAuditRecord(body, chartV2) {
   return {
     timestamp: new Date().toISOString(),
     request_id: body.request_id,
+    chart_session_id: body.chart_session_id || body.request_id,
     user_id: body.user_id,
     email: body.audit.email || "",
     name: body.birth_data.name || "",
@@ -604,6 +671,7 @@ export function buildMobileSheetRow(record) {
   return [
     record.timestamp,
     record.request_id,
+    record.chart_session_id,
     record.user_id,
     record.email,
     record.name,
@@ -632,7 +700,29 @@ export async function appendMobileChartToSheets(env, record, dependencies = {}) 
   const fetchImpl = dependencies.fetchImpl || fetch;
   const token = await (dependencies.getGoogleTokenImpl || getGoogleToken)(env, dependencies);
   const sheetName = env.GOOGLE_MOBILE_SHEET_NAME || "Lumis Mobile Charts";
-  const range = `${encodeURIComponent(sheetName)}!A:S`;
+  const lookupRange = `${encodeURIComponent(sheetName)}!B:B`;
+  const lookupResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${lookupRange}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` }
+    },
+    fetchImpl,
+    dependencies.timeoutMs
+  );
+
+  if (!lookupResponse.ok) throw new Error("GOOGLE_SHEETS_LOOKUP_FAILED");
+
+  const lookupPayload = await safeJson(lookupResponse);
+  const existingRowIndex = Array.isArray(lookupPayload?.values)
+    ? lookupPayload.values.findIndex((row) => row?.[0] === record.request_id)
+    : -1;
+
+  if (existingRowIndex >= 0) {
+    return { externalRecordId: `${sheetName}!B${existingRowIndex + 1}`, alreadyDelivered: true };
+  }
+
+  const range = `${encodeURIComponent(sheetName)}!A:T`;
   const response = await fetchWithTimeout(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
@@ -656,6 +746,8 @@ export async function appendMobileChartToSheets(env, record, dependencies = {}) 
   if (!payload?.updates?.updatedRange) {
     throw new Error("GOOGLE_SHEETS_INVALID_RESPONSE");
   }
+
+  return { externalRecordId: payload.updates.updatedRange, alreadyDelivered: false };
 }
 
 async function getGoogleToken(env, dependencies = {}) {
@@ -729,6 +821,22 @@ export async function createMobileChartSalesforceCase(env, record, dependencies 
     env,
     dependencies
   );
+  const subject = `LUMIS-${record.request_id}`;
+  const query = encodeURIComponent(`SELECT Id FROM Case WHERE Subject = '${escapeSoql(subject)}' LIMIT 1`);
+  const lookupResponse = await fetchWithTimeout(`${serverUrl}/services/data/v59.0/query?q=${query}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${sessionId}` }
+  }, fetchImpl, dependencies.timeoutMs);
+
+  if (!lookupResponse.ok) throw new Error("SALESFORCE_CASE_LOOKUP_FAILED");
+
+  const lookupPayload = await safeJson(lookupResponse);
+  const existingCaseId = lookupPayload?.records?.[0]?.Id;
+
+  if (existingCaseId) {
+    return { externalRecordId: existingCaseId, alreadyDelivered: true };
+  }
+
   const response = await fetchWithTimeout(`${serverUrl}/services/data/v59.0/sobjects/Case`, {
     method: "POST",
     headers: {
@@ -736,7 +844,7 @@ export async function createMobileChartSalesforceCase(env, record, dependencies 
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      Subject: `LUMIS-${record.request_id}`,
+      Subject: subject,
       Status: "Free",
       Type: "Auto-Gen Chart Adult",
       SuppliedEmail: record.email,
@@ -750,6 +858,7 @@ export async function createMobileChartSalesforceCase(env, record, dependencies 
         `Source: ${record.source}`,
         `Flow: ${record.flow}`,
         `Supabase user: ${record.user_id}`,
+        `Chart session: ${record.chart_session_id || ""}`,
         `Plan: ${record.plan}`,
         `Chart status: ${record.chart_status}`,
         `Unknown birth time: ${record.time_unknown}`,
@@ -768,6 +877,8 @@ export async function createMobileChartSalesforceCase(env, record, dependencies 
   if (!payload?.success || !payload?.id) {
     throw new Error("SALESFORCE_CASE_INVALID_RESPONSE");
   }
+
+  return { externalRecordId: payload.id, alreadyDelivered: false };
 }
 
 async function salesforceLogin(env, dependencies = {}) {
@@ -831,6 +942,10 @@ function escapeXml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+function escapeSoql(value) {
+  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 class WorkerRequestError extends Error {

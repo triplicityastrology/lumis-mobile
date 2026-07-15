@@ -20,3 +20,7 @@ export function sanitizeChartForClient(chart: ChartV2, timeUnknown: boolean): Ch
     angles: {}
   };
 }
+
+export function buildSafeAiChartContext(chart: ChartV2): ChartV2 {
+  return sanitizeChartForClient(chart, chart.precision === "no_birth_time");
+}

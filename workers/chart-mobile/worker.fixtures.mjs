@@ -17,8 +17,7 @@ const {
   appendMobileChartToSheets,
   buildMobileAuditRecord,
   buildMobileSheetRow,
-  createMobileChartSalesforceCase,
-  recordMobileChartAttempt
+  createMobileChartSalesforceCase
 } = workerModule;
 
 const signingSecret = "test-chart-worker-secret";
@@ -31,6 +30,8 @@ await assertMissingSignatureIsRejected();
 await assertMismatchedIdentityHeadersAreRejected();
 await assertMissingProviderConfigurationFailsClosed();
 await assertProviderFailureIsRedacted();
+await assertSignedAdminSyncRequest();
+await assertAdminSyncRejectsProviderPayload();
 assertMobileAuditContract();
 await assertGoogleSheetsIntegrationContract();
 await assertSalesforceIntegrationContract();
@@ -39,7 +40,9 @@ await assertAuditFailuresAreControlled();
 await assertAuditPayloadIsRedacted();
 await assertAuditDeliveryIsIdempotentUnderConcurrency();
 await assertGoogleDeliveryIsIdempotentUnderConcurrency();
-await assertDestinationFailuresAreIsolated();
+await assertDestinationLookupPreventsReplayDuplicates();
+await assertFailedDeliveryCanRetrySafely();
+await assertStaleProcessingDeliveryRecovers();
 
 async function assertValidFullTimeRequest() {
   const fetchCalls = [];
@@ -271,6 +274,40 @@ async function assertProviderFailureIsRedacted() {
   }
 }
 
+async function assertSignedAdminSyncRequest() {
+  const body = buildAdminSyncBody();
+  const env = buildEnv({
+    ...buildGoogleEnv(),
+    AUDIT_DELIVERY_COORDINATOR: buildCoordinatorBindingStub({
+      status: "delivered",
+      external_record_id: "Lumis Mobile Charts!A2:T2"
+    })
+  });
+  const response = await worker.fetch(await signedAdminRequest(body), env, buildCtx());
+  const payload = await response.json();
+
+  assert(response.status === 200, "Expected signed admin sync request to succeed.");
+  assert(payload.status === "delivered", "Expected admin sync delivery status.");
+  assert(payload.external_record_id === "Lumis Mobile Charts!A2:T2", "Expected external row reference.");
+}
+
+async function assertAdminSyncRejectsProviderPayload() {
+  const body = buildAdminSyncBody();
+  body.record.rawProviderResponse = { private: "provider-data" };
+  const response = await worker.fetch(
+    await signedAdminRequest(body),
+    buildEnv({
+      ...buildGoogleEnv(),
+      AUDIT_DELIVERY_COORDINATOR: buildCoordinatorBindingStub({ status: "delivered" })
+    }),
+    buildCtx()
+  );
+  const responseText = await response.text();
+
+  assert(response.status === 400, "Expected admin sync to reject provider payloads.");
+  assert(!responseText.includes("provider-data"), "Admin sync leaked provider payload data.");
+}
+
 function buildRequestBody(overrides) {
   return {
     user_id: "00000000-0000-4000-8000-000000000001",
@@ -315,6 +352,25 @@ async function signedRequest(body, options = {}) {
       "X-Lumis-Timestamp": timestamp,
       "X-Lumis-Signature": signature,
       "X-Lumis-Request-Id": body.request_id,
+      "X-Lumis-User-Id": body.user_id
+    },
+    body: rawBody
+  });
+}
+
+async function signedAdminRequest(body) {
+  const rawBody = JSON.stringify(body);
+  const timestamp = String(Date.now());
+  const signature = await sign(`${timestamp}.${rawBody}`, signingSecret);
+
+  return new Request("https://chart-worker.test/mobile/admin-sync", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Lumis-Signature-Version": "v1",
+      "X-Lumis-Timestamp": timestamp,
+      "X-Lumis-Signature": signature,
+      "X-Lumis-Request-Id": body.idempotency_key,
       "X-Lumis-User-Id": body.user_id
     },
     body: rawBody
@@ -445,8 +501,9 @@ function assertMobileAuditContract() {
   assert(record.user_id === body.user_id, "Expected Supabase user id in audit record.");
   assert(record.email === "ruby@example.com", "Expected authenticated email in audit record.");
   assert(record.chart_status === "generated", "Expected generated audit status.");
-  assert(row.length === 19, "Expected 19 mobile Sheet columns.");
-  assert(row[14] === "false", "Expected time_unknown Sheet value.");
+  assert(row.length === 20, "Expected 20 mobile Sheet columns.");
+  assert(row[2] === record.chart_session_id, "Expected chart session ID in the Sheet row.");
+  assert(row[15] === "false", "Expected time_unknown Sheet value.");
 }
 
 async function assertGoogleSheetsIntegrationContract() {
@@ -457,13 +514,14 @@ async function assertGoogleSheetsIntegrationContract() {
     getGoogleTokenImpl: async () => "google-token",
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
-      return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A2:S2" } });
+      if (options.method === "GET") return Response.json({ values: [] });
+      return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A2:T2" } });
     }
   });
 
-  assert(calls.length === 1, "Expected one Google Sheets append.");
+  assert(calls.length === 2, "Expected a Google Sheets lookup followed by one append.");
   assert(
-    JSON.parse(calls[0].options.body).values[0][1] === record.request_id,
+    JSON.parse(calls[1].options.body).values[0][1] === record.request_id,
     "Expected request ID in the Google Sheets row."
   );
 }
@@ -479,12 +537,13 @@ async function assertSalesforceIntegrationContract() {
     }),
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
+      if (options.method === "GET") return Response.json({ records: [] });
       return Response.json({ id: "case-1", success: true });
     }
   });
 
-  const casePayload = JSON.parse(calls[0].options.body);
-  assert(calls.length === 1, "Expected one Salesforce Case creation.");
+  const casePayload = JSON.parse(calls[1].options.body);
+  assert(calls.length === 2, "Expected a Salesforce lookup followed by one Case creation.");
   assert(
     casePayload.Subject === `LUMIS-${record.request_id}`,
     "Expected request ID in the Salesforce Case subject."
@@ -522,13 +581,16 @@ async function assertAuditFailuresAreControlled() {
         getGoogleTokenImpl: async () => "google-token",
         fetchImpl: async () => Response.json({ error: "rate limited" }, { status: 429 })
       }),
-    "GOOGLE_SHEETS_APPEND_FAILED"
+    "GOOGLE_SHEETS_LOOKUP_FAILED"
   );
   await assertRejectsWithCode(
     () =>
       appendMobileChartToSheets(buildGoogleEnv(), record, {
         getGoogleTokenImpl: async () => "google-token",
-        fetchImpl: async () => Response.json({ unexpected: true })
+        fetchImpl: async (_url, options) =>
+          options.method === "GET"
+            ? Response.json({ values: [] })
+            : Response.json({ unexpected: true })
       }),
     "GOOGLE_SHEETS_INVALID_RESPONSE"
   );
@@ -548,7 +610,10 @@ async function assertAuditFailuresAreControlled() {
           sessionId: "session",
           serverUrl: "https://salesforce.example"
         }),
-        fetchImpl: async () => Response.json({ unexpected: true })
+        fetchImpl: async (_url, options) =>
+          options.method === "GET"
+            ? Response.json({ records: [] })
+            : Response.json({ unexpected: true })
       }),
     "SALESFORCE_CASE_INVALID_RESPONSE"
   );
@@ -583,6 +648,9 @@ async function assertAuditDeliveryIsIdempotentUnderConcurrency() {
         "<sessionId>session</sessionId><serverUrl>https://salesforce.example/services/Soap/u/59.0</serverUrl>"
       );
     }
+    if (String(url).includes("/query?")) {
+      return Response.json({ records: [] });
+    }
     caseCalls.push({ url, options });
     return Response.json({ id: "case-1", success: true });
   };
@@ -596,8 +664,8 @@ async function assertAuditDeliveryIsIdempotentUnderConcurrency() {
 
     assert(caseCalls.length === 1, "Concurrent retries created duplicate Salesforce Cases.");
     assert(
-      payloads.some((payload) => payload.status === "duplicate_ignored"),
-      "Expected a concurrent retry to be ignored."
+      payloads.some((payload) => payload.error === "AUDIT_DELIVERY_IN_PROGRESS"),
+      "Expected a concurrent retry to wait for the in-progress delivery."
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -615,7 +683,8 @@ async function assertGoogleDeliveryIsIdempotentUnderConcurrency() {
         getGoogleTokenImpl: async () => "google-token",
         fetchImpl: async (url, options) => {
           appendCalls.push({ url, options });
-          return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A2:S2" } });
+          if (options.method === "GET") return Response.json({ values: [] });
+          return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A2:T2" } });
         }
       }
     }
@@ -627,43 +696,104 @@ async function assertGoogleDeliveryIsIdempotentUnderConcurrency() {
   ]);
   const payloads = await Promise.all(responses.map((response) => response.json()));
 
-  assert(appendCalls.length === 1, "Concurrent retries created duplicate Google Sheet rows.");
+  assert(appendCalls.length === 2, "Expected one Sheet lookup and one append under concurrency.");
   assert(
-    payloads.some((payload) => payload.status === "duplicate_ignored"),
-    "Expected a concurrent Google Sheets retry to be ignored."
+    payloads.some((payload) => payload.error === "AUDIT_DELIVERY_IN_PROGRESS"),
+    "Expected a concurrent Google Sheets retry to wait for delivery."
   );
 }
 
-async function assertDestinationFailuresAreIsolated() {
-  const destinations = [];
-  const env = {
-    ...buildGoogleEnv(),
-    ...buildSalesforceEnv(),
-    AUDIT_DELIVERY_COORDINATOR: {
-      idFromName(requestId) {
-        return requestId;
-      },
-      get() {
-        return {
-          async fetch(_url, options) {
-            const payload = JSON.parse(options.body);
-            destinations.push(payload.destination);
-            return payload.destination === "google_sheets"
-              ? Response.json({ error: "AUDIT_DELIVERY_FAILED" }, { status: 502 })
-              : Response.json({ status: "delivered" });
-          }
-        };
-      }
+async function assertDestinationLookupPreventsReplayDuplicates() {
+  const record = buildAuditRecordFixture();
+  const googleCalls = [];
+  const googleResult = await appendMobileChartToSheets(buildGoogleEnv(), record, {
+    getGoogleTokenImpl: async () => "google-token",
+    fetchImpl: async (url, options) => {
+      googleCalls.push({ url, options });
+      return Response.json({ values: [["header"], [record.request_id]] });
     }
-  };
-
-  await recordMobileChartAttempt(env, buildRequestBody({ birth_time: "16:55", time_unknown: false }), {
-    precision: "full",
-    planets: [],
-    houses: []
+  });
+  const salesforceCalls = [];
+  const salesforceResult = await createMobileChartSalesforceCase(buildSalesforceEnv(), record, {
+    salesforceLoginImpl: async () => ({
+      sessionId: "session",
+      serverUrl: "https://salesforce.example"
+    }),
+    fetchImpl: async (url, options) => {
+      salesforceCalls.push({ url, options });
+      return Response.json({ records: [{ Id: "existing-case" }] });
+    }
   });
 
-  assert(destinations.length === 2, "One destination failure blocked the other destination.");
+  assert(googleCalls.length === 1, "Existing Sheet row should skip append.");
+  assert(googleResult.alreadyDelivered, "Existing Sheet row should be treated as delivered.");
+  assert(salesforceCalls.length === 1, "Existing Salesforce Case should skip create.");
+  assert(salesforceResult.externalRecordId === "existing-case", "Expected existing Case ID.");
+}
+
+async function assertFailedDeliveryCanRetrySafely() {
+  const storage = buildTransactionalStorage();
+  let shouldFail = true;
+  const calls = [];
+  const coordinator = new AuditDeliveryCoordinator(
+    { storage },
+    buildGoogleEnv(),
+    {
+      google: {
+        getGoogleTokenImpl: async () => "google-token",
+        fetchImpl: async (_url, options) => {
+          calls.push(options.method);
+          if (options.method === "GET") return Response.json({ values: [] });
+          if (shouldFail) return Response.json({ error: "temporary" }, { status: 503 });
+          return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A3:T3" } });
+        }
+      }
+    }
+  );
+  const request = () => buildCoordinatorRequest("google_sheets", buildAuditRecordFixture());
+  const firstResponse = await coordinator.fetch(request());
+  shouldFail = false;
+  const secondResponse = await coordinator.fetch(request());
+  const secondPayload = await secondResponse.json();
+
+  assert(firstResponse.status === 502, "Expected first temporary delivery failure.");
+  assert(secondResponse.status === 200, "Expected failed delivery to be retryable.");
+  assert(secondPayload.status === "delivered", "Expected retry to deliver successfully.");
+  assert(calls.filter((method) => method === "POST").length === 2, "Expected exactly two append attempts.");
+}
+
+async function assertStaleProcessingDeliveryRecovers() {
+  const record = buildAuditRecordFixture();
+  const storage = buildTransactionalStorage([
+    [
+      "delivery:google_sheets",
+      {
+        status: "processing",
+        request_id: record.request_id,
+        started_at: new Date(Date.now() - 16 * 60 * 1000).toISOString()
+      }
+    ]
+  ]);
+  const calls = [];
+  const coordinator = new AuditDeliveryCoordinator(
+    { storage },
+    buildGoogleEnv(),
+    {
+      google: {
+        getGoogleTokenImpl: async () => "google-token",
+        fetchImpl: async (_url, options) => {
+          calls.push(options.method);
+          return Response.json({ values: [[record.request_id]] });
+        }
+      }
+    }
+  );
+  const response = await coordinator.fetch(buildCoordinatorRequest("google_sheets", record));
+  const payload = await response.json();
+
+  assert(response.status === 200, "Expected stale processing delivery to recover.");
+  assert(payload.status === "delivered", "Expected recovered delivery to be marked delivered.");
+  assert(calls.length === 1 && calls[0] === "GET", "Recovery should find the existing row without append.");
 }
 
 function buildAuditRecordFixture() {
@@ -671,6 +801,33 @@ function buildAuditRecordFixture() {
     buildRequestBody({ birth_time: "16:55", time_unknown: false }),
     { precision: "full", planets: new Array(14).fill({}), houses: new Array(12).fill({}) }
   );
+}
+
+function buildAdminSyncBody() {
+  const record = buildAuditRecordFixture();
+
+  return {
+    event_id: "10000000-0000-4000-8000-000000000001",
+    user_id: record.user_id,
+    destination: "google_sheet",
+    idempotency_key: "lumis:chart:1:google_sheet",
+    record
+  };
+}
+
+function buildCoordinatorBindingStub(payload) {
+  return {
+    idFromName(value) {
+      return value;
+    },
+    get() {
+      return {
+        async fetch() {
+          return Response.json(payload);
+        }
+      };
+    }
+  };
 }
 
 function buildGoogleEnv() {
@@ -697,8 +854,8 @@ function buildCoordinatorRequest(destination, record) {
   });
 }
 
-function buildTransactionalStorage() {
-  const values = new Map();
+function buildTransactionalStorage(initialEntries = []) {
+  const values = new Map(initialEntries);
   let queue = Promise.resolve();
 
   return {

@@ -1,4 +1,5 @@
 import { compareGoldenChartCase, GOLDEN_CHART_CASES } from "./golden-charts";
+import { buildSafeAiChartContext } from "./chart-sanitizer";
 import type { ChartV2 } from "@lumis/shared";
 
 export function assertGoldenChartFixtures(): void {
@@ -48,6 +49,37 @@ export function assertGoldenChartFixtures(): void {
   }
 
   assertUnknownTimeWorkerShapeGuard();
+  assertUnknownTimeAiContextGuard();
+}
+
+function assertUnknownTimeAiContextGuard(): void {
+  const unsafeChart: ChartV2 = {
+    version: "chart_v2",
+    precision: "no_birth_time",
+    source: "fixture",
+    calculatedAt: "2026-07-14T00:00:00.000Z",
+    planets: [
+      { key: "sun", label: "Sun", sign: "Pisces", degree: 1, house: 7 },
+      { key: "ascendant", label: "Ascendant", sign: "Leo", degree: 1 },
+      { key: "medium_coeli", label: "MC", sign: "Taurus", degree: 1 }
+    ],
+    houses: [{ no: 1, sign: "Leo", cuspDegree: 1 }],
+    angles: {
+      ascendant: { key: "ascendant", label: "Ascendant", sign: "Leo", degree: 1 },
+      mediumCoeli: { key: "medium_coeli", label: "MC", sign: "Taurus", degree: 1 }
+    }
+  };
+  const safeContext = buildSafeAiChartContext(unsafeChart);
+
+  if (safeContext.houses.length > 0 || Object.keys(safeContext.angles).length > 0) {
+    throw new Error("Unknown-time AI context must not include houses, Ascendant, or MC angles.");
+  }
+
+  if (safeContext.planets.some((planet) =>
+    planet.house != null || planet.key === "ascendant" || planet.key === "medium_coeli"
+  )) {
+    throw new Error("Unknown-time AI context must not include timed points or house placements.");
+  }
 }
 
 function assertRequiredInput(caseId: string, input: {

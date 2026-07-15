@@ -21,7 +21,7 @@ It is based on the current website Worker at:
 - Sanitizes unknown-birth-time charts so they contain no Ascendant, no MC, no houses, and no planet house placements.
 - Omits raw astrology-api.io provider output from `chart_v2`.
 - Uses restricted CORS headers; signed server-to-server calls do not require public wildcard browser access.
-- Builds mobile-specific Salesforce Case and Google Sheets audit records as non-blocking side effects.
+- Exposes a separate signed admin-sync endpoint for ledger-backed Salesforce and Google Sheets delivery.
 
 Run local fixture checks with:
 
@@ -72,8 +72,9 @@ LUMIS_ENV=staging
 
 ## Optional Admin Integration Secrets
 
-Chart creation does not depend on these integrations. When they are configured,
-the Worker writes mobile-specific audit values after returning the chart.
+Chart creation does not depend on these integrations. Chart/profile transactions
+enqueue backend-only `external_sync_events`; the hourly retry function calls the
+Worker's signed `/mobile/admin-sync` endpoint separately.
 
 **Deferred milestone:** do not configure these credentials until the proper
 Claude Design UI has been ported and founder/user UI testing is complete. Before
@@ -81,9 +82,9 @@ activation, PM/data ownership must approve the exact field allowlist, retention,
 deletion, staging destination, and retry/idempotency behaviour.
 
 Activation also requires the `AUDIT_DELIVERY_COORDINATOR` Durable Object binding.
-It reserves each `request_id` once per destination before dispatch, so a Worker
-retry cannot create duplicate Sheet rows or Salesforce Cases. Failed deliveries
-remain recorded as failed for manual review instead of being blindly replayed.
+The Worker checks each destination for the same idempotency key before creation.
+Supabase retries after one hour and three hours, then marks the third failure
+`failed_final` for the admin report/replay script.
 
 ```text
 GOOGLE_MOBILE_SHEET_ID=
@@ -95,7 +96,11 @@ SF_USERNAME=
 SF_PASSWORD=
 ```
 
-The Google Sheet tab uses 19 columns (`A:S`): timestamp, request ID,
+Supabase also requires `EXTERNAL_SYNC_CRON_SECRET` and
+`EXTERNAL_SYNC_ENABLED=true`. Keep `EXTERNAL_SYNC_ENABLED` unset or false until
+the staging Salesforce sandbox and staging Google Sheet pass QA.
+
+The Google Sheet tab uses 20 columns (`A:T`): timestamp, request ID, chart/session ID,
 Supabase user ID, email, name, birth date, birth time, place, timezone, plan,
 product, source, flow, chart status, unknown-time flag, chart type, precision,
 point count, and house count.
