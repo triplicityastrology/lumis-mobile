@@ -14,7 +14,8 @@
     "test:worker": "node --check workers/chart-mobile/worker.js && node workers/chart-mobile/worker.fixtures.mjs",
     "test:profile": "tsc -p packages/astrology/tsconfig.profile-test.json && node .tmp/profile-onboarding-tests/astrology/src/profile-onboarding.fixtures.js && node supabase/functions/profile/profile-recovery-contract.fixtures.mjs",
     "test:chat-persistence": "node supabase/functions/chat-message/chat-persistence.fixtures.mjs",
-    "test:staging-backend": "node scripts/staging-backend-smoke.mjs"
+    "test:staging-backend": "node scripts/staging-backend-smoke.mjs",
+    "test:worker-live": "node scripts/cloudflare-worker-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

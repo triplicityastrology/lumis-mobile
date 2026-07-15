@@ -37,37 +37,35 @@ const POINT_KEY_MAP = {
 
 const DEFAULT_ALLOWED_ORIGIN = "https://triplicityastrology.com";
 
-const MOBILE_CORS_HEADERS = {
-  "Access-Control-Allow-Origin": DEFAULT_ALLOWED_ORIGIN,
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, X-Lumis-Signature-Version, X-Lumis-Timestamp, X-Lumis-Signature, X-Lumis-Request-Id, X-Lumis-User-Id"
-};
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { headers: MOBILE_CORS_HEADERS });
+      return new Response(null, { headers: mobileCorsHeaders(env) });
     }
 
     if (url.pathname === "/mobile/natal-chart" && request.method === "POST") {
       return handleMobileNatalChart(request, env, ctx);
     }
 
-    return json({ error: "Not found" }, 404);
+    return json({ error: "Not found" }, 404, env);
   }
 };
 
 async function handleMobileNatalChart(request, env, ctx) {
   const rawBody = await request.text();
+  const headerRequestId = request.headers.get("X-Lumis-Request-Id");
 
   try {
     await verifyMobileSignature(request, env, rawBody);
 
     const body = JSON.parse(rawBody);
-    validateMobilePayload(body);
+    validateMobilePayload(body, request, env);
+
+    if (!env.ASTRO_API_KEY) {
+      throw new WorkerRequestError("WORKER_CONFIGURATION_ERROR", 503);
+    }
 
     const astroPayload = buildAstrologyApiPayload(body.birth_data);
     const astroResp = await fetch("https://api.astrology-api.io/api/v3/charts/natal", {
@@ -78,20 +76,21 @@ async function handleMobileNatalChart(request, env, ctx) {
       },
       body: JSON.stringify(astroPayload)
     });
-    const astroText = await astroResp.text();
-
     if (!astroResp.ok) {
-      return json(
-        {
-          error: "ASTROLOGY_API_FAILED",
-          status: astroResp.status,
-          message: astroText.slice(0, 500)
-        },
-        502
-      );
+      console.error("ASTROLOGY_API_FAILED", {
+        request_id: body.request_id,
+        provider_status: astroResp.status
+      });
+      throw new WorkerRequestError("ASTROLOGY_API_FAILED", 502);
     }
 
-    const providerChart = JSON.parse(astroText);
+    let providerChart;
+
+    try {
+      providerChart = await astroResp.json();
+    } catch {
+      throw new WorkerRequestError("ASTROLOGY_API_INVALID_RESPONSE", 502);
+    }
     const chartV2 = buildChartV2({
       providerChart,
       timeUnknown: body.birth_data.time_unknown
@@ -99,15 +98,32 @@ async function handleMobileNatalChart(request, env, ctx) {
 
     ctx.waitUntil(recordMobileChartAttempt(env, body, chartV2).catch(() => undefined));
 
-    return json({
-      request_id: body.request_id,
-      chart_v2: chartV2
-    });
+    return json(
+      {
+        request_id: body.request_id,
+        chart_v2: chartV2
+      },
+      200,
+      env
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Mobile chart generation failed.";
-    const status = message === "Unauthorized" ? 401 : 400;
+    const workerError = normalizeWorkerError(error);
 
-    return json({ error: message }, status);
+    if (workerError.status >= 500 && workerError.code !== "ASTROLOGY_API_FAILED") {
+      console.error("MOBILE_CHART_WORKER_FAILED", {
+        request_id: headerRequestId,
+        code: workerError.code
+      });
+    }
+
+    return json(
+      {
+        error: workerError.code,
+        request_id: headerRequestId
+      },
+      workerError.status,
+      env
+    );
   }
 }
 
@@ -115,30 +131,30 @@ async function verifyMobileSignature(request, env, rawBody) {
   const signingSecret = env.CHART_WORKER_SIGNING_SECRET;
 
   if (!signingSecret) {
-    throw new Error("CHART_WORKER_SIGNING_SECRET is not configured.");
+    throw new WorkerRequestError("WORKER_CONFIGURATION_ERROR", 503);
   }
 
   if (request.headers.get("X-Lumis-Signature-Version") !== "v1") {
-    throw new Error("Unauthorized");
+    throw new WorkerRequestError("UNAUTHORIZED", 401);
   }
 
   const timestamp = request.headers.get("X-Lumis-Timestamp");
   const signature = request.headers.get("X-Lumis-Signature");
 
   if (!timestamp || !signature) {
-    throw new Error("Unauthorized");
+    throw new WorkerRequestError("UNAUTHORIZED", 401);
   }
 
   const ageMs = Math.abs(Date.now() - Number(timestamp));
 
   if (!Number.isFinite(ageMs) || ageMs > 5 * 60 * 1000) {
-    throw new Error("Unauthorized");
+    throw new WorkerRequestError("UNAUTHORIZED", 401);
   }
 
   const expectedSignature = await sign(`${timestamp}.${rawBody}`, signingSecret);
 
   if (!constantTimeEqual(signature, expectedSignature)) {
-    throw new Error("Unauthorized");
+    throw new WorkerRequestError("UNAUTHORIZED", 401);
   }
 }
 
@@ -175,15 +191,30 @@ function constantTimeEqual(a, b) {
   return diff === 0;
 }
 
-function validateMobilePayload(body) {
+function validateMobilePayload(body, request, env) {
   const birthData = body?.birth_data;
 
   if (body?.calculation_version !== "mobile_natal_v1") {
-    throw new Error("Unsupported calculation_version.");
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 
   if (!body?.user_id || !body?.request_id || !birthData) {
-    throw new Error("Missing mobile chart request fields.");
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
+  }
+
+  if (
+    request.headers.get("X-Lumis-Request-Id") !== body.request_id ||
+    request.headers.get("X-Lumis-User-Id") !== body.user_id
+  ) {
+    throw new WorkerRequestError("UNAUTHORIZED", 401);
+  }
+
+  if (
+    body.client?.source !== "lumis_mobile_supabase" ||
+    !body.client?.environment ||
+    (env.LUMIS_ENV && body.client.environment !== env.LUMIS_ENV)
+  ) {
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 
   if (
@@ -194,11 +225,11 @@ function validateMobilePayload(body) {
     !Number.isFinite(Number(birthData.lat)) ||
     !Number.isFinite(Number(birthData.lng))
   ) {
-    throw new Error("Missing resolved birth place fields.");
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 
   if (!birthData.time_unknown && !birthData.birth_time) {
-    throw new Error("birth_time is required unless time_unknown=true.");
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 }
 
@@ -364,11 +395,40 @@ async function recordMobileChartAttempt(_env, _body, _chartV2) {
   // Keep this non-blocking through ctx.waitUntil, matching the website Worker pattern.
 }
 
-function json(body, status = 200) {
+class WorkerRequestError extends Error {
+  constructor(code, status) {
+    super(code);
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function normalizeWorkerError(error) {
+  if (error instanceof WorkerRequestError) {
+    return error;
+  }
+
+  if (error instanceof SyntaxError) {
+    return new WorkerRequestError("INVALID_REQUEST", 400);
+  }
+
+  return new WorkerRequestError("CHART_WORKER_FAILED", 500);
+}
+
+function mobileCorsHeaders(env) {
+  return {
+    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || DEFAULT_ALLOWED_ORIGIN,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, X-Lumis-Signature-Version, X-Lumis-Timestamp, X-Lumis-Signature, X-Lumis-Request-Id, X-Lumis-User-Id"
+  };
+}
+
+function json(body, status = 200, env = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
-      ...MOBILE_CORS_HEADERS,
+      ...mobileCorsHeaders(env),
       "Content-Type": "application/json"
     }
   });

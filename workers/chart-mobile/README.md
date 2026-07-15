@@ -43,6 +43,10 @@ This file is not automatically deployed by the Lumis mobile repo yet. It can be:
 - deployed as a dedicated Cloudflare Worker, or
 - copied into the existing website Worker as the `/mobile/natal-chart` route.
 
+The staging plan uses the dedicated `lumis-chart-staging` Worker configured in
+`wrangler.toml`. This avoids changing the website production Worker while the
+mobile integration is under QA.
+
 ## Required Cloudflare Secrets
 
 ```text

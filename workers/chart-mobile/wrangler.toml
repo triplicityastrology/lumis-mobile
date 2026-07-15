@@ -1,0 +1,9 @@
+name = "lumis-chart-staging"
+main = "worker.js"
+compatibility_date = "2026-07-15"
+workers_dev = true
+preview_urls = false
+
+[vars]
+LUMIS_ENV = "staging"
+ALLOWED_ORIGIN = "https://triplicityastrology.com"

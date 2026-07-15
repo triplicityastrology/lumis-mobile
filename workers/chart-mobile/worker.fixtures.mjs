@@ -18,6 +18,11 @@ const signingSecret = "test-chart-worker-secret";
 await assertValidFullTimeRequest();
 await assertUnknownTimeIsSanitized();
 await assertBadSignatureIsRejected();
+await assertExpiredSignatureIsRejected();
+await assertMissingSignatureIsRejected();
+await assertMismatchedIdentityHeadersAreRejected();
+await assertMissingProviderConfigurationFailsClosed();
+await assertProviderFailureIsRedacted();
 
 async function assertValidFullTimeRequest() {
   const fetchCalls = [];
@@ -133,6 +138,110 @@ async function assertBadSignatureIsRejected() {
   }
 }
 
+async function assertExpiredSignatureIsRejected() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const timestamp = String(Date.now() - 6 * 60 * 1000);
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body, { timestamp }),
+      buildEnv(),
+      buildCtx()
+    );
+    const payload = await response.json();
+
+    assert(response.status === 401, "Expected expired signature to be rejected.");
+    assert(payload.error === "UNAUTHORIZED", "Expected safe expired-signature error code.");
+    assert(fetchCalls.length === 0, "Expected expired signature to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertMissingSignatureIsRejected() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const request = await signedRequest(body);
+  request.headers.delete("X-Lumis-Signature");
+
+  try {
+    const response = await worker.fetch(request, buildEnv(), buildCtx());
+
+    assert(response.status === 401, "Expected missing signature to be rejected.");
+    assert(fetchCalls.length === 0, "Expected missing signature to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertMismatchedIdentityHeadersAreRejected() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const request = await signedRequest(body);
+  request.headers.set("X-Lumis-User-Id", "00000000-0000-4000-8000-000000000099");
+
+  try {
+    const response = await worker.fetch(request, buildEnv(), buildCtx());
+
+    assert(response.status === 401, "Expected mismatched identity header to be rejected.");
+    assert(fetchCalls.length === 0, "Expected mismatched identity to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertMissingProviderConfigurationFailsClosed() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body),
+      buildEnv({ ASTRO_API_KEY: undefined }),
+      buildCtx()
+    );
+    const payload = await response.json();
+
+    assert(response.status === 503, "Expected missing provider key to fail closed.");
+    assert(payload.error === "WORKER_CONFIGURATION_ERROR", "Expected safe configuration error.");
+    assert(fetchCalls.length === 0, "Expected missing provider key to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertProviderFailureIsRedacted() {
+  const fetchCalls = [];
+  const providerDebug = "sensitive provider diagnostic must not escape";
+  const restoreFetch = mockFetch(
+    fetchCalls,
+    async () => new Response(providerDebug, { status: 500 })
+  );
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body),
+      buildEnv(),
+      buildCtx()
+    );
+    const responseText = await response.text();
+    const payload = JSON.parse(responseText);
+
+    assert(response.status === 502, "Expected provider failure to return controlled 502.");
+    assert(payload.error === "ASTROLOGY_API_FAILED", "Expected safe provider failure code.");
+    assert(!responseText.includes(providerDebug), "Provider diagnostics escaped to the client.");
+    assert(!("message" in payload), "Provider failure returned a debug message field.");
+  } finally {
+    restoreFetch();
+  }
+}
+
 function buildRequestBody(overrides) {
   return {
     user_id: "00000000-0000-4000-8000-000000000001",
@@ -156,9 +265,9 @@ function buildRequestBody(overrides) {
   };
 }
 
-async function signedRequest(body) {
+async function signedRequest(body, options = {}) {
   const rawBody = JSON.stringify(body);
-  const timestamp = String(Date.now());
+  const timestamp = options.timestamp ?? String(Date.now());
   const signature = await sign(`${timestamp}.${rawBody}`, signingSecret);
 
   return new Request("https://chart-worker.test/mobile/natal-chart", {
@@ -190,11 +299,15 @@ async function sign(value, secret) {
     .join("")}`;
 }
 
-function mockFetch(fetchCalls) {
+function mockFetch(fetchCalls, responder) {
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = async (url, options) => {
     fetchCalls.push({ url, options });
+
+    if (responder) {
+      return responder(url, options);
+    }
 
     return new Response(JSON.stringify(buildProviderResponse()), {
       status: 200,
@@ -258,10 +371,12 @@ function buildProviderResponse() {
   };
 }
 
-function buildEnv() {
+function buildEnv(overrides = {}) {
   return {
     ASTRO_API_KEY: "test-astro-key",
-    CHART_WORKER_SIGNING_SECRET: signingSecret
+    CHART_WORKER_SIGNING_SECRET: signingSecret,
+    LUMIS_ENV: "staging",
+    ...overrides
   };
 }
 
