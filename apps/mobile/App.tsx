@@ -41,6 +41,8 @@ import {
   loadLocalDemoSession,
   saveLocalDemoSession
 } from "./src/services/localDemoSession";
+import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
+import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
@@ -119,7 +121,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails" | "insights">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -429,210 +431,48 @@ export default function App() {
     );
   }
 
+  if (screen === "insights" && profileData && chartProfile) {
+    return (
+      <ChartInsightsScreen
+        chart={chartProfile}
+        name={profileData.name}
+        onBack={() => setScreen("home")}
+        onAskLumis={() => setScreen("chat")}
+      />
+    );
+  }
+
   const hasVisibleProfile = Boolean(profileData && chartProfile);
-  const isSupabaseAccount = accountSource === "supabase";
-  const isLocalDemoAccount = accountSource === "local_demo";
-  const accountStatusTitle =
-    accountLoadStatus === "loading"
-      ? "Loading account"
-      : isSupabaseAccount
-        ? "Supabase profile loaded"
-        : isLocalDemoAccount
-          ? "Local demo loaded"
-          : authStatus?.user
-            ? "No saved Supabase profile"
-            : "No signed-in profile";
-  const accountStatusBody =
-    accountLoadMessage ||
-    (authStatus?.user
-      ? "Signed in, but no saved Lumis chart profile has been loaded yet."
-      : "Sign in to load a saved Supabase profile, or continue local demo on this browser.");
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <View style={styles.wordmark}>
-            <LumisLogo size={38} />
-            <View>
-              <Text style={styles.wordmarkTitle}>{PRODUCT_TERMS.appName}</Text>
-              <Text style={styles.wordmarkSub}>星伴 Lumis</Text>
-            </View>
-          </View>
-          <View style={styles.topBarActions}>
-            <Pressable
-              style={styles.notificationButton}
-              onPress={() => setScreen("notifications")}
-              accessibilityLabel="Notifications"
-            >
-              <NotificationBellIcon />
-              {unreadNotificationCount > 0 ? (
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.notificationBadgeText}>{unreadNotificationCount}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-            <Pressable
-              style={styles.creditPill}
-              onPress={async () => {
-                await refreshAuthStatus();
-                setScreen("auth");
-              }}
-            >
-              <Text style={styles.creditPillText}>
-                {authStatus?.user?.email ? "Account" : "Sign in"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.hero}>
-          <View style={styles.heroOrb}>
-            <LumisLogo size={134} />
-          </View>
-          <Text style={styles.kicker}>Not just a horoscope.</Text>
-          <Text style={styles.title}>Meet Lumis, your inner universe.</Text>
-          <Text style={styles.body}>
-            A private Lumis space shaped by your birth chart, your questions, and the way you want
-            to be met.
-          </Text>
-          <View style={styles.heroActions}>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
-            >
-              <Text style={styles.primaryButtonText}>
-                {hasVisibleProfile ? "Open Lumis chat" : "Create saved chart"}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => setScreen(authStatus?.user ? "auth" : hasVisibleProfile ? "chat" : "profile")}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {authStatus?.user ? "Account" : hasVisibleProfile ? "Resume local demo" : "Explore local demo"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.accountStatusCard}>
-          <View>
-            <Text style={styles.sectionEyebrow}>Founder test status</Text>
-            <Text style={styles.accountStatusTitle}>{accountStatusTitle}</Text>
-            <Text style={styles.accountStatusBody}>{accountStatusBody}</Text>
-          </View>
-          <Pressable
-            style={styles.accountStatusAction}
-            onPress={async () => {
-              const status = await refreshAuthStatus();
-              await restoreAccountForStatus(status);
-            }}
-          >
-            <Text style={styles.accountStatusActionText}>Reload</Text>
-          </Pressable>
-        </View>
-
-        <Pressable style={styles.reflectionEntryCard} onPress={() => setScreen("reflections")}>
-          <View>
-            <Text style={styles.sectionEyebrow}>Past Reflections</Text>
-            <Text style={styles.reflectionEntryTitle}>
-              {chatTurns.length > 0 ? "Continue your latest reflection" : "No saved reflections yet"}
-            </Text>
-            <Text style={styles.reflectionEntryBody}>
-              {chatTurns.length > 0
-                ? `${isSupabaseAccount ? "Supabase" : "Local demo"} · ${chatTurns.length} saved turn${chatTurns.length === 1 ? "" : "s"} · ${remainingCredits} credits left`
-                : hasVisibleProfile
-                  ? `${isSupabaseAccount ? "Supabase profile loaded" : "Local demo profile loaded"} · no Past Reflections saved yet.`
-                  : "No chart profile loaded. Create or restore a profile before starting reflection QA."}
-            </Text>
-          </View>
-          <Text style={styles.reflectionEntryAction}>
-            {chatTurns.length > 0 ? "Continue reflection" : "Open"}
-          </Text>
-        </Pressable>
-
-        <Pressable style={styles.careEntryCard} onPress={() => setScreen("care")}>
-          <View style={styles.careEntryIcon}>
-            <Text style={styles.careEntryIconText}>5</Text>
-          </View>
-          <View style={styles.careEntryCopy}>
-            <Text style={styles.sectionEyebrow}>Care Circle</Text>
-            <Text style={styles.careEntryTitle}>Trusted check-in contacts</Text>
-            <Text style={styles.careEntryBody}>
-              QR linking, carer acceptance, missed check-in alerts, and Need help notices.
-            </Text>
-          </View>
-        </Pressable>
-
-        <View style={styles.chartCard}>
-          <View style={styles.chartArt}>
-            <ChartWheel />
-          </View>
-          <View style={styles.chartCopy}>
-            <Text style={styles.sectionEyebrow}>Birth chart profile</Text>
-            <Text style={styles.cardTitle}>
-              {hasVisibleProfile ? `${profileData?.name}'s chart is loaded.` : "Your Lumis Persona begins here."}
-            </Text>
-            <Text style={styles.cardBody}>
-              {hasVisibleProfile
-                ? `${isSupabaseAccount ? "Loaded from Supabase staging" : "Loaded from local demo"} for founder testing.`
-                : "Add birth date, time, and place to generate a chart profile before the first chat."}
-            </Text>
-          </View>
-        </View>
-
-        <Pressable style={styles.birthDetailsEntryCard} onPress={() => setScreen("birthDetails")}>
-          <View>
-            <Text style={styles.sectionEyebrow}>Birth Details</Text>
-            <Text style={styles.birthDetailsEntryTitle}>Chart regeneration policy</Text>
-            <Text style={styles.birthDetailsEntryBody}>
-              Edit birth details carefully. Future guidance uses the regenerated chart.
-            </Text>
-          </View>
-          <Text style={styles.reflectionEntryAction}>View policy</Text>
-        </Pressable>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>星伴相處模式</Text>
-          <Text style={styles.sectionSub}>Choose how Lumis responds.</Text>
-        </View>
-        <View style={styles.personaList}>
-          {PERSONA_STYLES.map((style, index) => (
-            <View key={style.key} style={[styles.personaCard, index === 0 && styles.personaCardActive]}>
-              <View style={styles.personaIcon}>
-                <Text style={styles.personaIconText}>{index + 1}</Text>
-              </View>
-              <View style={styles.personaText}>
-                <Text style={styles.personaName}>{style.labelEn}</Text>
-                <Text style={styles.personaZh}>{style.labelZh}</Text>
-              </View>
-              {index === 0 ? <Text style={styles.selectedMark}>Selected</Text> : null}
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.quickGrid}>
-          {highlightRoutes.map((route) => (
-            <View key={route.route} style={styles.quickCard}>
-              <Text style={styles.quickTitle}>{route.label}</Text>
-              <Text style={styles.quickMeta}>
-                {route.credits} {PRODUCT_TERMS.credits}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <Pressable style={styles.planStrip} onPress={() => setScreen("plans")}>
-          <Text style={styles.planTitle}>Lumis plans</Text>
-          <Text style={styles.planBody}>
-            {PRODUCTS[1].name} HK${PRODUCTS[1].priceHkd} · {PRODUCTS[2].name} HK$
-            {PRODUCTS[2].priceHkd}
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+    <>
+      <StatusBar style="light" />
+      <LumisHomeScreen
+        accountLoadStatus={accountLoadStatus}
+        accountLoadMessage={accountLoadMessage}
+        chart={chartProfile}
+        chatTurnCount={chatTurns.length}
+        credits={remainingCredits}
+        email={authStatus?.user?.email}
+        isAuthenticated={Boolean(authStatus?.user)}
+        name={profileData?.name}
+        onAccount={async () => {
+          await refreshAuthStatus();
+          setScreen("auth");
+        }}
+        onCreateChart={() => setScreen("profile")}
+        onInsights={() => setScreen(chartProfile ? "insights" : "profile")}
+        onNotifications={() => setScreen("notifications")}
+        onOpenChat={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
+        onOpenPlans={() => setScreen("plans")}
+        onOpenProfile={() => setScreen(authStatus?.user ? "auth" : "birthDetails")}
+        onPastReflections={() => setScreen("reflections")}
+        onReload={async () => {
+          const status = await refreshAuthStatus();
+          await restoreAccountForStatus(status);
+        }}
+      />
+    </>
   );
 }
 
