@@ -105,6 +105,23 @@ try {
   assert(initialUser.id === repairedUser.id, "Repair changed the user identity.");
   pass("Missing-Starter repair preserves all saved user, birth, and chart data");
 
+  const repairedHistory = await serviceSelectOne("birth_data_history", histories[0].id);
+  await servicePatch("birth_data_history", `id=eq.${repairedHistory.id}`, {
+    chart_json: {
+      ...repairedHistory.chart_json,
+      rawProviderResponse: { must_not_survive: true }
+    }
+  });
+  const guardedHistory = await serviceSelectOne("birth_data_history", repairedHistory.id);
+  assert(
+    !containsKey(guardedHistory.chart_json, "rawProviderResponse"),
+    "Database guard allowed rawProviderResponse into chart history."
+  );
+  await servicePatch("birth_data_history", `id=eq.${repairedHistory.id}`, {
+    chart_json: repairedHistory.chart_json
+  });
+  pass("Database guard strips injected raw provider output from chart history");
+
   const chatOne = await invokeFunction("chat-message", primarySession.access_token, {
     message: "Tell me something supportive about my chart.",
     persona_style: "spark",

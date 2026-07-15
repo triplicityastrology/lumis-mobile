@@ -46,7 +46,7 @@ with latest_profiles as (
     profile.id as ai_profile_id,
     profile.user_id,
     profile.chart_version,
-    profile.chart_json,
+    profile.chart_json - 'rawProviderResponse' as chart_json,
     birth.birth_date,
     birth.birth_time,
     birth.time_unknown,
@@ -206,11 +206,11 @@ begin
         lat,
         lng,
         tz_str,
-        coalesce(p_chart_json, (
+        (coalesce(p_chart_json, (
           select chart_json
           from public.ai_profiles
           where id = v_profile_id
-        )),
+        ))) - 'rawProviderResponse',
         v_profile_id,
         'active',
         now()
@@ -359,7 +359,7 @@ begin
       p_lat,
       p_lng,
       p_tz_str,
-      p_chart_json,
+      p_chart_json - 'rawProviderResponse',
       'active',
       now()
     )
@@ -382,7 +382,7 @@ begin
       v_chart_version,
       v_history_id,
       true,
-      p_chart_json,
+      p_chart_json - 'rawProviderResponse',
       p_raw_chart_json,
       p_precision,
       p_model

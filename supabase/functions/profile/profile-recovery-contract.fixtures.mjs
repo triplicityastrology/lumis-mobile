@@ -4,6 +4,10 @@ const migration = readFileSync(
   new URL("../../migrations/0008_onboarding_chart_history.sql", import.meta.url),
   "utf8"
 );
+const forwardSanitizerMigration = readFileSync(
+  new URL("../../migrations/0010_strip_legacy_raw_provider_response.sql", import.meta.url),
+  "utf8"
+);
 const profileFunction = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
 
 const repairReturn = migration.indexOf("'repaired_missing_starter', true");
@@ -32,6 +36,16 @@ assert(
     "p_chart_json: sanitizeChartForClient(profile.chart_json, birthData.time_unknown)"
   ),
   "Recovery must sanitize a legacy chart before copying it into client-readable history."
+);
+assert(
+  (migration.match(/- 'rawProviderResponse'/g) ?? []).length >= 4,
+  "Migration 0008 must strip raw provider output during backfill, repair, and fresh onboarding."
+);
+assert(
+  forwardSanitizerMigration.includes("update public.ai_profiles") &&
+    forwardSanitizerMigration.includes("update public.birth_data_history") &&
+    forwardSanitizerMigration.includes("before insert or update of chart_json"),
+  "Forward migration must clean existing charts and guard future chart-history writes."
 );
 assert(
   !profileFunction.includes("recovery_source") &&

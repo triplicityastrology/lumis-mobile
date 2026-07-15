@@ -72,6 +72,7 @@ These checks require deployed staging services but do not require finished UI.
 
 - [x] Apply migration `0008_onboarding_chart_history.sql` successfully in staging.
 - [x] Apply migration `0009_chat_turn_persistence_rpc.sql` successfully in staging.
+- [x] Apply migration `0010_strip_legacy_raw_provider_response.sql` successfully in staging and verify its history-write guard with an injected disposable payload.
 - [x] Confirm each existing chart user has exactly one active `ai_profiles` row (2 staging users audited on 2026-07-15).
 - [x] Confirm each existing chart user has exactly one active `birth_data_history` row (2 staging users audited on 2026-07-15).
 - [x] Confirm active AI profile and active history share the same `chart_version`.
