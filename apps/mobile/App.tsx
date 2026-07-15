@@ -42,6 +42,8 @@ import {
   saveLocalDemoSession
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
+import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
+import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
@@ -271,11 +273,10 @@ export default function App() {
 
   if (screen === "auth") {
     return (
-      <AuthScreen
+      <LumisAuthScreen
         authStatus={authStatus}
         onBack={() => setScreen("home")}
         onContinueLocal={() => setScreen("profile")}
-        onRefreshAuthStatus={refreshAuthStatus}
         onAccountStatusRefreshed={restoreAccountForStatus}
         onSignedOut={() => clearVisibleAccountState("Signed out. No Supabase profile is loaded.")}
         authNotice={authNotice}
@@ -287,7 +288,7 @@ export default function App() {
 
   if (screen === "profile") {
     return (
-      <ProfileFormScreen
+      <LumisBirthProfileScreen
         onBack={() => setScreen("home")}
         onContinue={(nextProfileData) => {
           setProfileData(nextProfileData);
