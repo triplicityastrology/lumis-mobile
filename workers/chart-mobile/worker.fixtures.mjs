@@ -12,7 +12,14 @@ const workerModule = await import(
   `data:text/javascript;base64,${Buffer.from(workerSource, "utf8").toString("base64")}`
 );
 const worker = workerModule.default;
-const { buildMobileAuditRecord, buildMobileSheetRow } = workerModule;
+const {
+  AuditDeliveryCoordinator,
+  appendMobileChartToSheets,
+  buildMobileAuditRecord,
+  buildMobileSheetRow,
+  createMobileChartSalesforceCase,
+  recordMobileChartAttempt
+} = workerModule;
 
 const signingSecret = "test-chart-worker-secret";
 
@@ -25,6 +32,14 @@ await assertMismatchedIdentityHeadersAreRejected();
 await assertMissingProviderConfigurationFailsClosed();
 await assertProviderFailureIsRedacted();
 assertMobileAuditContract();
+await assertGoogleSheetsIntegrationContract();
+await assertSalesforceIntegrationContract();
+await assertAuditTimeoutIsControlled();
+await assertAuditFailuresAreControlled();
+await assertAuditPayloadIsRedacted();
+await assertAuditDeliveryIsIdempotentUnderConcurrency();
+await assertGoogleDeliveryIsIdempotentUnderConcurrency();
+await assertDestinationFailuresAreIsolated();
 
 async function assertValidFullTimeRequest() {
   const fetchCalls = [];
@@ -432,6 +447,286 @@ function assertMobileAuditContract() {
   assert(record.chart_status === "generated", "Expected generated audit status.");
   assert(row.length === 19, "Expected 19 mobile Sheet columns.");
   assert(row[14] === "false", "Expected time_unknown Sheet value.");
+}
+
+async function assertGoogleSheetsIntegrationContract() {
+  const calls = [];
+  const record = buildAuditRecordFixture();
+
+  await appendMobileChartToSheets(buildGoogleEnv(), record, {
+    getGoogleTokenImpl: async () => "google-token",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A2:S2" } });
+    }
+  });
+
+  assert(calls.length === 1, "Expected one Google Sheets append.");
+  assert(
+    JSON.parse(calls[0].options.body).values[0][1] === record.request_id,
+    "Expected request ID in the Google Sheets row."
+  );
+}
+
+async function assertSalesforceIntegrationContract() {
+  const calls = [];
+  const record = buildAuditRecordFixture();
+
+  await createMobileChartSalesforceCase(buildSalesforceEnv(), record, {
+    salesforceLoginImpl: async () => ({
+      sessionId: "salesforce-session",
+      serverUrl: "https://salesforce.example"
+    }),
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return Response.json({ id: "case-1", success: true });
+    }
+  });
+
+  const casePayload = JSON.parse(calls[0].options.body);
+  assert(calls.length === 1, "Expected one Salesforce Case creation.");
+  assert(
+    casePayload.Subject === `LUMIS-${record.request_id}`,
+    "Expected request ID in the Salesforce Case subject."
+  );
+}
+
+async function assertAuditTimeoutIsControlled() {
+  const record = buildAuditRecordFixture();
+  const timeoutFetch = (_url, options) =>
+    new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        const error = new Error("private timeout details");
+        error.name = "AbortError";
+        reject(error);
+      });
+    });
+
+  await assertRejectsWithCode(
+    () =>
+      appendMobileChartToSheets(buildGoogleEnv(), record, {
+        getGoogleTokenImpl: async () => "google-token",
+        fetchImpl: timeoutFetch,
+        timeoutMs: 1
+      }),
+    "AUDIT_DESTINATION_TIMEOUT"
+  );
+}
+
+async function assertAuditFailuresAreControlled() {
+  const record = buildAuditRecordFixture();
+
+  await assertRejectsWithCode(
+    () =>
+      appendMobileChartToSheets(buildGoogleEnv(), record, {
+        getGoogleTokenImpl: async () => "google-token",
+        fetchImpl: async () => Response.json({ error: "rate limited" }, { status: 429 })
+      }),
+    "GOOGLE_SHEETS_APPEND_FAILED"
+  );
+  await assertRejectsWithCode(
+    () =>
+      appendMobileChartToSheets(buildGoogleEnv(), record, {
+        getGoogleTokenImpl: async () => "google-token",
+        fetchImpl: async () => Response.json({ unexpected: true })
+      }),
+    "GOOGLE_SHEETS_INVALID_RESPONSE"
+  );
+  await assertRejectsWithCode(
+    () =>
+      createMobileChartSalesforceCase(buildSalesforceEnv(), record, {
+        salesforceLoginImpl: async () => {
+          throw new Error("SALESFORCE_LOGIN_FAILED");
+        }
+      }),
+    "SALESFORCE_LOGIN_FAILED"
+  );
+  await assertRejectsWithCode(
+    () =>
+      createMobileChartSalesforceCase(buildSalesforceEnv(), record, {
+        salesforceLoginImpl: async () => ({
+          sessionId: "session",
+          serverUrl: "https://salesforce.example"
+        }),
+        fetchImpl: async () => Response.json({ unexpected: true })
+      }),
+    "SALESFORCE_CASE_INVALID_RESPONSE"
+  );
+}
+
+async function assertAuditPayloadIsRedacted() {
+  const coordinator = new AuditDeliveryCoordinator(
+    { storage: buildTransactionalStorage() },
+    buildSalesforceEnv()
+  );
+  const record = {
+    ...buildAuditRecordFixture(),
+    rawProviderResponse: { secret: "must-not-survive" }
+  };
+  const response = await coordinator.fetch(buildCoordinatorRequest("salesforce", record));
+  const responseText = await response.text();
+
+  assert(response.status === 400, "Expected raw provider payload to be rejected.");
+  assert(!responseText.includes("must-not-survive"), "Sensitive provider data escaped.");
+}
+
+async function assertAuditDeliveryIsIdempotentUnderConcurrency() {
+  const originalFetch = globalThis.fetch;
+  const storage = buildTransactionalStorage();
+  const caseCalls = [];
+  const coordinator = new AuditDeliveryCoordinator({ storage }, buildSalesforceEnv());
+  const record = buildAuditRecordFixture();
+
+  globalThis.fetch = async (url, options) => {
+    if (String(url).includes("/services/Soap/")) {
+      return new Response(
+        "<sessionId>session</sessionId><serverUrl>https://salesforce.example/services/Soap/u/59.0</serverUrl>"
+      );
+    }
+    caseCalls.push({ url, options });
+    return Response.json({ id: "case-1", success: true });
+  };
+
+  try {
+    const responses = await Promise.all([
+      coordinator.fetch(buildCoordinatorRequest("salesforce", record)),
+      coordinator.fetch(buildCoordinatorRequest("salesforce", record))
+    ]);
+    const payloads = await Promise.all(responses.map((response) => response.json()));
+
+    assert(caseCalls.length === 1, "Concurrent retries created duplicate Salesforce Cases.");
+    assert(
+      payloads.some((payload) => payload.status === "duplicate_ignored"),
+      "Expected a concurrent retry to be ignored."
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+async function assertGoogleDeliveryIsIdempotentUnderConcurrency() {
+  const storage = buildTransactionalStorage();
+  const appendCalls = [];
+  const coordinator = new AuditDeliveryCoordinator(
+    { storage },
+    buildGoogleEnv(),
+    {
+      google: {
+        getGoogleTokenImpl: async () => "google-token",
+        fetchImpl: async (url, options) => {
+          appendCalls.push({ url, options });
+          return Response.json({ updates: { updatedRange: "Lumis Mobile Charts!A2:S2" } });
+        }
+      }
+    }
+  );
+  const record = buildAuditRecordFixture();
+  const responses = await Promise.all([
+    coordinator.fetch(buildCoordinatorRequest("google_sheets", record)),
+    coordinator.fetch(buildCoordinatorRequest("google_sheets", record))
+  ]);
+  const payloads = await Promise.all(responses.map((response) => response.json()));
+
+  assert(appendCalls.length === 1, "Concurrent retries created duplicate Google Sheet rows.");
+  assert(
+    payloads.some((payload) => payload.status === "duplicate_ignored"),
+    "Expected a concurrent Google Sheets retry to be ignored."
+  );
+}
+
+async function assertDestinationFailuresAreIsolated() {
+  const destinations = [];
+  const env = {
+    ...buildGoogleEnv(),
+    ...buildSalesforceEnv(),
+    AUDIT_DELIVERY_COORDINATOR: {
+      idFromName(requestId) {
+        return requestId;
+      },
+      get() {
+        return {
+          async fetch(_url, options) {
+            const payload = JSON.parse(options.body);
+            destinations.push(payload.destination);
+            return payload.destination === "google_sheets"
+              ? Response.json({ error: "AUDIT_DELIVERY_FAILED" }, { status: 502 })
+              : Response.json({ status: "delivered" });
+          }
+        };
+      }
+    }
+  };
+
+  await recordMobileChartAttempt(env, buildRequestBody({ birth_time: "16:55", time_unknown: false }), {
+    precision: "full",
+    planets: [],
+    houses: []
+  });
+
+  assert(destinations.length === 2, "One destination failure blocked the other destination.");
+}
+
+function buildAuditRecordFixture() {
+  return buildMobileAuditRecord(
+    buildRequestBody({ birth_time: "16:55", time_unknown: false }),
+    { precision: "full", planets: new Array(14).fill({}), houses: new Array(12).fill({}) }
+  );
+}
+
+function buildGoogleEnv() {
+  return {
+    GOOGLE_MOBILE_SHEET_ID: "sheet-id",
+    GOOGLE_SERVICE_EMAIL: "service@example.invalid",
+    GOOGLE_PRIVATE_KEY: "test-private-key"
+  };
+}
+
+function buildSalesforceEnv() {
+  return {
+    SF_LOGIN_URL: "https://login.salesforce.example",
+    SF_USERNAME: "integration@example.invalid",
+    SF_PASSWORD: "test-password"
+  };
+}
+
+function buildCoordinatorRequest(destination, record) {
+  return new Request("https://audit-delivery.internal/deliver", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ destination, record })
+  });
+}
+
+function buildTransactionalStorage() {
+  const values = new Map();
+  let queue = Promise.resolve();
+
+  return {
+    async transaction(callback) {
+      const result = queue.then(() =>
+        callback({
+          get: async (key) => values.get(key),
+          put: async (key, value) => values.set(key, value)
+        })
+      );
+      queue = result.then(() => undefined, () => undefined);
+      return result;
+    },
+    async put(key, value) {
+      values.set(key, value);
+    }
+  };
+}
+
+async function assertRejectsWithCode(callback, expectedCode) {
+  try {
+    await callback();
+  } catch (error) {
+    assert(error.message === expectedCode, `Expected ${expectedCode}, received ${error.message}.`);
+    return;
+  }
+
+  throw new Error(`Expected ${expectedCode} to be thrown.`);
 }
 
 function assert(condition, message) {

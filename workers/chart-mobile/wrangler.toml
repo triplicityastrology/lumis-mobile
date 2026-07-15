@@ -4,6 +4,14 @@ compatibility_date = "2026-07-15"
 workers_dev = true
 preview_urls = false
 
+[[durable_objects.bindings]]
+name = "AUDIT_DELIVERY_COORDINATOR"
+class_name = "AuditDeliveryCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AuditDeliveryCoordinator"]
+
 [vars]
 LUMIS_ENV = "staging"
 ALLOWED_ORIGIN = "https://triplicityastrology.com"

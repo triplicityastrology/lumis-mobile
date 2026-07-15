@@ -424,11 +424,11 @@ function sanitizeUnknownTimeChart(chart, timeUnknown) {
   };
 }
 
-async function recordMobileChartAttempt(env, body, chartV2) {
+export async function recordMobileChartAttempt(env, body, chartV2) {
   const record = buildMobileAuditRecord(body, chartV2);
   const results = await Promise.allSettled([
-    appendMobileChartToSheets(env, record),
-    createMobileChartSalesforceCase(env, record)
+    deliverMobileAuditOnce(env, "google_sheets", record),
+    deliverMobileAuditOnce(env, "salesforce", record)
   ]);
 
   results.forEach((result, index) => {
@@ -438,6 +438,142 @@ async function recordMobileChartAttempt(env, body, chartV2) {
       });
     }
   });
+}
+
+async function deliverMobileAuditOnce(env, destination, record) {
+  if (!isAuditDestinationConfigured(env, destination)) {
+    return { status: "disabled" };
+  }
+
+  if (!env.AUDIT_DELIVERY_COORDINATOR) {
+    throw new Error("AUDIT_IDEMPOTENCY_CONFIGURATION_REQUIRED");
+  }
+
+  const id = env.AUDIT_DELIVERY_COORDINATOR.idFromName(record.request_id);
+  const stub = env.AUDIT_DELIVERY_COORDINATOR.get(id);
+  const response = await stub.fetch("https://audit-delivery.internal/deliver", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ destination, record })
+  });
+
+  if (!response.ok) {
+    throw new Error("AUDIT_DELIVERY_FAILED");
+  }
+
+  return response.json();
+}
+
+function isAuditDestinationConfigured(env, destination) {
+  if (destination === "google_sheets") {
+    return Boolean(env.GOOGLE_MOBILE_SHEET_ID && env.GOOGLE_SERVICE_EMAIL && env.GOOGLE_PRIVATE_KEY);
+  }
+
+  return Boolean(env.SF_LOGIN_URL && env.SF_USERNAME && env.SF_PASSWORD);
+}
+
+export class AuditDeliveryCoordinator {
+  constructor(state, env, dependencies = {}) {
+    this.state = state;
+    this.env = env;
+    this.dependencies = dependencies;
+  }
+
+  async fetch(request) {
+    if (request.method !== "POST") {
+      return auditCoordinatorResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    let payload;
+
+    try {
+      payload = await request.json();
+    } catch {
+      return auditCoordinatorResponse({ error: "INVALID_REQUEST" }, 400);
+    }
+
+    const { destination, record } = payload;
+
+    if (
+      !["google_sheets", "salesforce"].includes(destination) ||
+      !record?.request_id ||
+      containsSensitiveProviderData(record)
+    ) {
+      return auditCoordinatorResponse({ error: "INVALID_REQUEST" }, 400);
+    }
+
+    const storageKey = `delivery:${destination}`;
+    const reserved = await this.state.storage.transaction(async (transaction) => {
+      const existing = await transaction.get(storageKey);
+
+      if (existing) {
+        return false;
+      }
+
+      await transaction.put(storageKey, {
+        status: "processing",
+        request_id: record.request_id,
+        started_at: new Date().toISOString()
+      });
+      return true;
+    });
+
+    if (!reserved) {
+      return auditCoordinatorResponse({ status: "duplicate_ignored" });
+    }
+
+    try {
+      if (destination === "google_sheets") {
+        await appendMobileChartToSheets(this.env, record, this.dependencies.google);
+      } else {
+        await createMobileChartSalesforceCase(this.env, record, this.dependencies.salesforce);
+      }
+
+      await this.state.storage.put(storageKey, {
+        status: "delivered",
+        request_id: record.request_id,
+        completed_at: new Date().toISOString()
+      });
+      return auditCoordinatorResponse({ status: "delivered" });
+    } catch (error) {
+      await this.state.storage.put(storageKey, {
+        status: "failed",
+        request_id: record.request_id,
+        failed_at: new Date().toISOString(),
+        error_code: safeAuditErrorCode(error)
+      });
+      return auditCoordinatorResponse({ error: "AUDIT_DELIVERY_FAILED" }, 502);
+    }
+  }
+}
+
+function auditCoordinatorResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" }
+  });
+}
+
+function containsSensitiveProviderData(value) {
+  if (!value || typeof value !== "object") return false;
+  if (Object.prototype.hasOwnProperty.call(value, "rawProviderResponse")) return true;
+  return Object.values(value).some(containsSensitiveProviderData);
+}
+
+function safeAuditErrorCode(error) {
+  const code = String(error?.message || "");
+  return [
+    "GOOGLE_TOKEN_FAILED",
+    "GOOGLE_SHEETS_APPEND_FAILED",
+    "GOOGLE_SHEETS_INVALID_RESPONSE",
+    "SALESFORCE_LOGIN_FAILED",
+    "SALESFORCE_LOGIN_INVALID_RESPONSE",
+    "SALESFORCE_CASE_FAILED",
+    "SALESFORCE_CASE_INVALID_RESPONSE",
+    "AUDIT_DESTINATION_TIMEOUT"
+  ].includes(code)
+    ? code
+    : "AUDIT_DELIVERY_FAILED";
 }
 
 export function buildMobileAuditRecord(body, chartV2) {
@@ -488,15 +624,16 @@ export function buildMobileSheetRow(record) {
   ];
 }
 
-async function appendMobileChartToSheets(env, record) {
+export async function appendMobileChartToSheets(env, record, dependencies = {}) {
   if (!env.GOOGLE_MOBILE_SHEET_ID || !env.GOOGLE_SERVICE_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
     return;
   }
 
-  const token = await getGoogleToken(env);
+  const fetchImpl = dependencies.fetchImpl || fetch;
+  const token = await (dependencies.getGoogleTokenImpl || getGoogleToken)(env, dependencies);
   const sheetName = env.GOOGLE_MOBILE_SHEET_NAME || "Lumis Mobile Charts";
   const range = `${encodeURIComponent(sheetName)}!A:S`;
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
       method: "POST",
@@ -505,15 +642,23 @@ async function appendMobileChartToSheets(env, record) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ values: [buildMobileSheetRow(record)] })
-    }
+    },
+    fetchImpl,
+    dependencies.timeoutMs
   );
 
   if (!response.ok) {
     throw new Error("GOOGLE_SHEETS_APPEND_FAILED");
   }
+
+  const payload = await safeJson(response);
+
+  if (!payload?.updates?.updatedRange) {
+    throw new Error("GOOGLE_SHEETS_INVALID_RESPONSE");
+  }
 }
 
-async function getGoogleToken(env) {
+async function getGoogleToken(env, dependencies = {}) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64UrlJson({ alg: "RS256", typ: "JWT" });
   const claim = base64UrlJson({
@@ -543,15 +688,15 @@ async function getGoogleToken(env) {
     new TextEncoder().encode(signingInput)
   );
   const jwt = `${signingInput}.${base64UrlBytes(new Uint8Array(signature))}`;
-  const response = await fetch("https://oauth2.googleapis.com/token", {
+  const response = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
       assertion: jwt
     })
-  });
-  const payload = await response.json();
+  }, dependencies.fetchImpl || fetch, dependencies.timeoutMs);
+  const payload = await safeJson(response);
 
   if (!response.ok || !payload.access_token) {
     throw new Error("GOOGLE_TOKEN_FAILED");
@@ -574,13 +719,17 @@ function base64UrlBytes(bytes) {
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-async function createMobileChartSalesforceCase(env, record) {
+export async function createMobileChartSalesforceCase(env, record, dependencies = {}) {
   if (!env.SF_LOGIN_URL || !env.SF_USERNAME || !env.SF_PASSWORD) {
     return;
   }
 
-  const { sessionId, serverUrl } = await salesforceLogin(env);
-  const response = await fetch(`${serverUrl}/services/data/v59.0/sobjects/Case`, {
+  const fetchImpl = dependencies.fetchImpl || fetch;
+  const { sessionId, serverUrl } = await (dependencies.salesforceLoginImpl || salesforceLogin)(
+    env,
+    dependencies
+  );
+  const response = await fetchWithTimeout(`${serverUrl}/services/data/v59.0/sobjects/Case`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${sessionId}`,
@@ -608,23 +757,29 @@ async function createMobileChartSalesforceCase(env, record) {
         `Request: ${record.request_id}`
       ].join(" | ")
     })
-  });
+  }, fetchImpl, dependencies.timeoutMs);
 
   if (!response.ok) {
     throw new Error("SALESFORCE_CASE_FAILED");
   }
+
+  const payload = await safeJson(response);
+
+  if (!payload?.success || !payload?.id) {
+    throw new Error("SALESFORCE_CASE_INVALID_RESPONSE");
+  }
 }
 
-async function salesforceLogin(env) {
+async function salesforceLogin(env, dependencies = {}) {
   const loginBody = `<?xml version="1.0" encoding="utf-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:partner.soap.sforce.com">
   <soapenv:Body><urn:login><urn:username>${escapeXml(env.SF_USERNAME)}</urn:username><urn:password>${escapeXml(env.SF_PASSWORD)}</urn:password></urn:login></soapenv:Body>
 </soapenv:Envelope>`;
-  const response = await fetch(`${env.SF_LOGIN_URL}/services/Soap/u/59.0`, {
+  const response = await fetchWithTimeout(`${env.SF_LOGIN_URL}/services/Soap/u/59.0`, {
     method: "POST",
     headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: "login" },
     body: loginBody
-  });
+  }, dependencies.fetchImpl || fetch, dependencies.timeoutMs);
   const responseText = await response.text();
 
   if (!response.ok) {
@@ -639,6 +794,30 @@ async function salesforceLogin(env) {
   }
 
   return { sessionId, serverUrl };
+}
+
+async function fetchWithTimeout(url, options, fetchImpl, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetchImpl(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("AUDIT_DESTINATION_TIMEOUT");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function safeJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 function extractXml(xml, tag) {

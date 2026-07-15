@@ -118,6 +118,14 @@ function buildBody(overrides) {
       source: "lumis_mobile_supabase",
       environment: "staging"
     },
+    audit: {
+      source: "mobile_app",
+      product: "Lumis",
+      flow: "onboarding_chart_generation",
+      email: "worker-smoke@example.invalid",
+      plan: "starter",
+      chart_type: "natal"
+    },
     birth_data: {
       name: "Lumis Worker Smoke",
       birth_date: "1986-02-20",

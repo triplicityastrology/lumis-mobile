@@ -80,6 +80,11 @@ Claude Design UI has been ported and founder/user UI testing is complete. Before
 activation, PM/data ownership must approve the exact field allowlist, retention,
 deletion, staging destination, and retry/idempotency behaviour.
 
+Activation also requires the `AUDIT_DELIVERY_COORDINATOR` Durable Object binding.
+It reserves each `request_id` once per destination before dispatch, so a Worker
+retry cannot create duplicate Sheet rows or Salesforce Cases. Failed deliveries
+remain recorded as failed for manual review instead of being blindly replayed.
+
 ```text
 GOOGLE_MOBILE_SHEET_ID=
 GOOGLE_MOBILE_SHEET_NAME=Lumis Mobile Charts

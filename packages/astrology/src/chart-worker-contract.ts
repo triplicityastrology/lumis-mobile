@@ -14,7 +14,7 @@ export type SignedChartWorkerRequest = {
   user_id: string;
   birth_data: ChartWorkerBirthData;
   calculation_version: "mobile_natal_v1";
-  audit?: {
+  audit: {
     source: "mobile_app";
     product: "Lumis";
     flow: "onboarding_chart_generation" | "birth_details_regeneration";
