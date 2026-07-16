@@ -1,6 +1,6 @@
 import type { ChartV2 } from "@lumis/shared";
 
-import { buildSafeAiChartContext } from "./chart-sanitizer";
+import { buildSafeAiChartContext } from "./chart-sanitizer.ts";
 
 export type SafeChatChartContext = {
   precision: string;
