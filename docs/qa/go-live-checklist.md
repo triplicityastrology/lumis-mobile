@@ -34,11 +34,11 @@ Status rules:
 - [x] Authentication API refresh, sign-out, and sign-back-in succeeded for the temporary QA account.
 - [x] Source scan found no visible legacy wording matches for `Astro`, `token`, `unit`, or `chat history` in the tested mobile/shared paths.
 - [x] Production web export succeeds for commit `e24c037`.
-- [ ] Restore the local Expo preview before visual QA; `http://localhost:8081/` again returned connection refused during QA of `e24c037` despite the handoff saying it returned HTTP 200.
+- [ ] Restore the local Expo preview before visual QA; `http://localhost:8081/` again returned connection refused during QA of `e46f8ed` despite the handoff saying it returned HTTP 200.
 
 ## Gate A — Before Pushing or Deploying to Staging
 
-- [ ] Push commit `e24c037`; local `main` is currently one commit ahead of `origin/main`.
+- [ ] Push commit `e46f8ed`; local `main` is currently one commit ahead of `origin/main`.
 - [x] Confirm the worktree contains no unrelated or uncommitted changes before this QA checklist update.
 - [ ] Run and record:
   - [x] `pnpm -r typecheck`
@@ -171,14 +171,15 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Source implementation queues account-deletion propagation that redacts known Salesforce Cases and records the external outcome.
 - [x] Source implementation appends an idempotent Google marker to a separate `Deleted Accounts` tab and never edits the original Chart Leads/main-Sheet row in place.
 - [x] Source waits for a normally completing already-claimed chart export, captures its late Salesforce Case ID, rediscovers by deterministic Subject, and then queues deletion cleanup.
-- [ ] Handle abandoned/stale `processing` chart exports after deletion begins. `claim_external_sync_events` currently excludes them from its 15-minute timeout recovery, so a crashed Worker can leave deletion cleanup in `waiting_for_in_flight_exports` forever without a final/manual-review state.
-- [ ] Redact every Salesforce Case matching a deterministic Subject; the current `LIMIT 1` lookup can leave duplicate matching Cases identifiable.
+- [x] Source bounds abandoned/stale `processing` chart exports with a 15-minute deletion lease, cancels the stale export, and continues deterministic deletion cleanup; staging execution remains open.
+- [x] Source discovers and redacts every Salesforce Case matching a deterministic Subject across paginated query results; fixture coverage includes duplicates and pagination.
+- [ ] Validate every Salesforce `nextRecordsUrl` before forwarding the session bearer token: require the same trusted Salesforce origin and expected query path so a malformed absolute pagination URL cannot redirect the credential elsewhere.
 - [x] Source blocks new chart-export rows after an account deletion request exists and cancels non-processing pending exports; staging must still exercise the actual chart enqueue path and a concurrent enqueue/delete boundary.
 - [x] Source removes raw email and email hashes from deletion requests, ledger payloads, and Google deletion markers.
 - [x] Source deletion marker is restricted to lookup/operational fields: idempotency key, `user_id`, chart/session IDs, requested/processed timestamps, status, and source.
 - [ ] Configure and verify `VLOOKUP` / `XLOOKUP` or equivalent admin-view formulas so main-Sheet rows are visibly marked or excluded when a matching deletion marker exists.
 - [ ] Route Salesforce updates and Google deletion markers through the external-sync ledger, retry, final-failure, reporting, and manual-replay controls; failed deletion work must remain visible for review.
-- [ ] Staging-test successful deletion propagation, duplicate deletion requests, temporary destination failures and retry, max failure/manual review, safe replay, formula/view behavior, and the external outcome audit record. Commit `53ca2da` adds a hosted race scenario to the smoke script, but it has not run against deployed migration `0013` yet.
+- [ ] Staging-test successful deletion propagation, duplicate deletion requests, temporary destination failures and retry, max failure/manual review, safe replay, formula/view behavior, and the external outcome audit record. Hosted smoke scenarios now cover normal late completion and a stale 15-minute claim in source, but they have not run against deployed migration `0013` yet.
 - [x] Source requires `last_sign_in_at` within 10 minutes before accepting an external account-deletion request; staging-test stale and recent sessions before connecting the destructive UI.
 - [ ] Implement and staging-test the final DEL-1 internal deletion sequence only after external cleanup is safely queued; ensure direct/admin deletion cannot bypass ledger redaction and external cleanup.
 - [x] Source uses `external_cleanup_requested` for the Google marker and Salesforce cleanup language, and reserves `internally_deleted` for the later DEL-1 completion stage; staging verification remains open.
@@ -200,7 +201,10 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Confirm Past Reflections displays saved account reflections or a specifically designed empty state; search may remain visibly non-functional only if PM accepts it as v1 visual-only scope.
 - [ ] Confirm Past Reflections includes the approved search, `Start a new topic`, `Continue reflection`, and `Saved Insights` hierarchy.
 - [x] Remove all credit pills, per-message credit estimates, and `test mode`/no-charge labels from Chat and other non-Profile/Paywall surfaces; Notifications and Care Circle billing wording was removed in `e24c037`.
-- [x] Expand `test:mobile-ui` across all current screen modules and the non-Paywall portion of `App.tsx`; the broader literal-string billing scan passes across four current non-billing source surfaces.
+- [x] Expand `test:mobile-ui` across all current screen modules and the non-Paywall portion of `App.tsx`; the broader literal-string billing scan passes across five current non-billing source surfaces.
+- [x] Source provides one shared persistent four-tab bar for Talk, Insights, Dice, and You across the four primary tab screens; interactive navigation, back behavior, and restored-session entry still require device/browser QA.
+- [ ] Complete Dice beyond the current local random UI: match the designed three-step/octagon presentation, add shake-to-roll as progressive enhancement with tap fallback, save the reflection, route it into Chat, and connect the approved backend/credit behavior before calling the feature production-functional.
+- [ ] Complete the dedicated Profile screen against the handoff: membership, birth data, Persona change, plan/credits, Care Circle, privacy, support, export, and delete-account rows with their approved backend/state boundaries.
 - [ ] Confirm Paywall lists `Out-of-scope or safety reply — 1 credit` and other approved credit costs.
 - [ ] Try chart creation again and confirm the UI explains that a chart already exists without showing a generic Edge Function error or raw backend code.
 - [ ] Compare mobile chart display side by side with the existing website for the same test inputs.
@@ -210,7 +214,7 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Confirm signed-in restore never falls back to a misleading `local demo` label.
 - [ ] Port and verify chart-generation loading, chat typing, splash, and unknown-time states from the handoff.
 - [ ] Obtain/implement the missing design states: network/auth/chart-generation/chat-send errors, signed-in no-chart, explicit signed-out/expired-session, empty Past Reflections, empty Saved Insights, and zero-notification inbox.
-- [ ] Add the notification bell with unread badge to Chat, Insights/Sky, Dice, and Profile; every bell and the Profile Notifications row must open the same Notifications sheet.
+- [ ] Add the notification bell with unread badge to Chat, Insights/Sky, Dice, and Profile; Dice/Profile are wired in `e46f8ed`, but Chat and Insights still have no bell. Every entry point must open the same Notifications sheet.
 - [ ] Verify actionable carer requests versus read-only notification rows, while clearly treating Care Circle/notification data and actions as UI-only until their backend contracts pass QA.
 - [ ] Confirm the message action sheet contains the approved visual actions; backend-disconnected no-op/toast behavior may ship in v1 only if PM accepts it.
 - [ ] Test loading, empty, offline, timeout, Worker failure, duplicate-profile, chat persistence, and restored-session error states without raw technical errors.
