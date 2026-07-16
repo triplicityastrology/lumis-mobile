@@ -324,6 +324,53 @@ try {
   assert(blockedExports.length === 0, "A new chart export was accepted after deletion began.");
   pass("Deletion race captures late Case IDs, rediscovers deterministic Cases, and blocks new exports");
 
+  const abandonedEventId = crypto.randomUUID();
+  await serviceRequest("/rest/v1/external_sync_events", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: {
+      event_id: abandonedEventId,
+      user_id: secondary.id,
+      destination: "salesforce_case",
+      idempotency_key: `lumis:abandoned-claim:${runId}`,
+      status: "processing",
+      attempt_count: 1,
+      last_attempt_at: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+      payload_json: {
+        operation: "chart_generation",
+        request_id: `abandoned-${runId}`,
+        user_id: secondary.id
+      }
+    }
+  });
+  const recentSecondarySession = await signIn(secondary.email, password);
+  const abandonedDeletion = await invokeFunction(
+    "account-deletion-request",
+    recentSecondarySession.access_token,
+    { confirmation: "DELETE MY LUMIS ACCOUNT" }
+  );
+  assert(abandonedDeletion.status === 202, "Abandoned-claim deletion request was rejected.");
+  await serviceRequest("/rest/v1/rpc/claim_external_sync_events", {
+    method: "POST",
+    body: { p_limit: 20 }
+  });
+
+  const recoveredAbandoned = await serviceSelectOne("external_sync_events", abandonedEventId, "event_id");
+  assert(
+    recoveredAbandoned.status === "cancelled_due_to_deletion",
+    `Abandoned claim remained ${recoveredAbandoned.status}.`
+  );
+  assert(
+    recoveredAbandoned.last_error === "DELETION_STALE_CLAIM_CANCELLED",
+    "Abandoned claim did not retain the bounded lease error."
+  );
+  const abandonedCleanupEvents = await serviceSelect(
+    "external_sync_events",
+    `user_id=eq.${secondary.id}&payload_json->>operation=eq.account_deletion&select=event_id`
+  );
+  assert(abandonedCleanupEvents.length === 2, "Abandoned claim did not queue deletion cleanup.");
+  pass("Abandoned Worker claim expires after 15 minutes and queues deterministic deletion cleanup");
+
   console.log(JSON.stringify({ ok: true, checks: results }, null, 2));
 } finally {
   for (const userId of createdUserIds) {

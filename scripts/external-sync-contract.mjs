@@ -38,6 +38,8 @@ assert.match(deletionMigration, /refresh_account_deletion_request_status/i);
 assert.match(deletionMigration, /block_external_export_after_deletion_request/i);
 assert.match(deletionMigration, /waiting_for_in_flight_exports/i);
 assert.match(deletionMigration, /continue_account_deletion_after_export/i);
+assert.match(deletionMigration, /DELETION_STALE_CLAIM_CANCELLED/i);
+assert.match(deletionMigration, /account-deletion-lease/i);
 assert.match(deletionMigration, /salesforce_case_subjects/i);
 assert.match(deletionMigration, /internally_deleted/i);
 assert.match(deletionMigration, /'operation', 'account_deleted_audit'/i);
@@ -68,6 +70,12 @@ assert.match(worker, /appendDeletedAccountMarker/);
 assert.match(worker, /GOOGLE_DELETED_ACCOUNTS_SHEET_NAME/);
 assert.match(worker, /redactSalesforceCasesForDeletion/);
 assert.match(worker, /SALESFORCE_DELETION_LOOKUP_FAILED/);
+assert.match(worker, /nextRecordsUrl/);
+assert.doesNotMatch(
+  worker.slice(worker.indexOf("async function discoverSalesforceCasesBySubject")),
+  /Subject[\s\S]{0,120}LIMIT 1/i,
+  "Deletion lookup must redact every Salesforce Case sharing the deterministic Subject."
+);
 assert.match(worker, /external_cleanup_requested/);
 assert.doesNotMatch(worker, /buildDeletedAccountMarkerRow[\s\S]{0,800}record\.email[,\s]/);
 

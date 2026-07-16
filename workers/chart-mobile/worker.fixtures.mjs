@@ -603,19 +603,35 @@ async function assertSalesforceDeletionContract() {
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
       if (options.method === "GET") {
-        return Response.json({ records: [{ Id: url.includes("late") ? "case-late" : "case-1" }] });
+        if (url.includes("next-late")) {
+          return Response.json({ done: true, records: [{ Id: "case-late" }] });
+        }
+        if (decodeURIComponent(url).includes("LUMIS-chart-late")) {
+          return Response.json({
+            done: false,
+            nextRecordsUrl: "/services/data/v59.0/query/next-late",
+            records: []
+          });
+        }
+        return Response.json({
+          done: true,
+          records: [{ Id: "case-1" }, { Id: "case-duplicate" }]
+        });
       }
       return new Response(null, { status: 204 });
     }
   });
 
   const patchCalls = calls.filter((call) => call.options.method === "PATCH");
-  assert(calls.filter((call) => call.options.method === "GET").length === 2, "Expected deterministic Case discovery.");
-  assert(patchCalls.length === 3, "Expected known and late-discovered Salesforce Cases to be redacted.");
+  assert(calls.filter((call) => call.options.method === "GET").length === 3, "Expected paginated Case discovery.");
+  assert(patchCalls.length === 4, "Expected every duplicate and late-discovered Salesforce Case to be redacted.");
   const payload = JSON.parse(patchCalls[0].options.body);
   assert(payload.SuppliedEmail === null, "Salesforce deletion must clear email.");
   assert(payload.Customer_Birthdate__c === null, "Salesforce deletion must clear birth date.");
-  assert(result.externalRecordId === "case-1,case-2,case-late", "Expected updated Salesforce Case references.");
+  assert(
+    result.externalRecordId === "case-1,case-2,case-duplicate,case-late",
+    "Expected all updated Salesforce Case references."
+  );
 
   await assertRejectsWithCode(
     () => redactSalesforceCasesForDeletion(buildSalesforceEnv(), record, {
@@ -624,7 +640,7 @@ async function assertSalesforceDeletionContract() {
         serverUrl: "https://salesforce.example"
       }),
       fetchImpl: async (_url, options) => options.method === "GET"
-        ? Response.json({ records: [] })
+        ? Response.json({ done: true, records: [] })
         : Response.json({ error: "failed" }, { status: 500 })
     }),
     "SALESFORCE_DELETION_UPDATE_FAILED"

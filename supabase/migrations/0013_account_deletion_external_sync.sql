@@ -238,8 +238,8 @@ begin
 end;
 $$;
 
--- A deletion request must never abandon a live claim. Stale claims remain
--- visible for manual review rather than being recycled while deletion is open.
+-- Provider calls time out well before this 15-minute lease. An abandoned claim
+-- is therefore bounded, cancelled, and handed to deterministic cleanup lookup.
 create or replace function public.claim_external_sync_events(p_limit int default 20)
 returns setof public.external_sync_events
 language plpgsql
@@ -247,17 +247,45 @@ security definer
 set search_path = public
 as $$
 begin
+  with stale_claims as (
+    select
+      event.event_id,
+      exists (
+        select 1
+        from public.account_deletion_requests request
+        where request.user_id = event.user_id
+      ) as deletion_requested
+    from public.external_sync_events event
+    where event.status = 'processing'
+      and event.last_attempt_at < now() - interval '15 minutes'
+    for update
+  )
   update public.external_sync_events event
   set
-    status = case when attempt_count >= 3 then 'failed_final' else 'retry_pending' end,
-    next_retry_at = case when attempt_count >= 3 then null else now() end,
-    last_error = 'DELIVERY_CLAIM_TIMEOUT',
+    status = case
+      when stale.deletion_requested then 'cancelled_due_to_deletion'
+      when attempt_count >= 3 then 'failed_final'
+      else 'retry_pending'
+    end,
+    next_retry_at = case
+      when stale.deletion_requested or attempt_count >= 3 then null
+      else now()
+    end,
+    last_error = case
+      when stale.deletion_requested then 'DELETION_STALE_CLAIM_CANCELLED'
+      else 'DELIVERY_CLAIM_TIMEOUT'
+    end,
+    resolved_by = case
+      when stale.deletion_requested then 'system:account-deletion-lease'
+      else resolved_by
+    end,
+    resolved_at = case
+      when stale.deletion_requested then now()
+      else resolved_at
+    end,
     updated_at = now()
-  where event.status = 'processing'
-    and event.last_attempt_at < now() - interval '15 minutes'
-    and not exists (
-      select 1 from public.account_deletion_requests request where request.user_id = event.user_id
-    );
+  from stale_claims stale
+  where event.event_id = stale.event_id;
 
   return query
   with candidates as (

@@ -33,11 +33,12 @@ Status rules:
 - [x] Scaffold chat leaves the tested Starter balance unchanged.
 - [x] Authentication API refresh, sign-out, and sign-back-in succeeded for the temporary QA account.
 - [x] Source scan found no visible legacy wording matches for `Astro`, `token`, `unit`, or `chat history` in the tested mobile/shared paths.
-- [x] Local Expo web app responded with HTTP 200 during the latest smoke checks.
+- [x] Production web export succeeds for commit `e24c037`.
+- [ ] Restore the local Expo preview before visual QA; `http://localhost:8081/` again returned connection refused during QA of `e24c037` despite the handoff saying it returned HTTP 200.
 
 ## Gate A — Before Pushing or Deploying to Staging
 
-- [x] Push all intended commits and confirm local `main` is not ahead of `origin/main` (`462ad6e` matches `origin/main`).
+- [ ] Push commit `e24c037`; local `main` is currently one commit ahead of `origin/main`.
 - [x] Confirm the worktree contains no unrelated or uncommitted changes before this QA checklist update.
 - [ ] Run and record:
   - [x] `pnpm -r typecheck`
@@ -46,6 +47,8 @@ Status rules:
   - [x] `pnpm run test:worker`
   - [x] `pnpm run test:profile`
   - [x] `pnpm run test:chat-persistence`
+  - [x] `pnpm run test:external-sync`
+  - [x] `pnpm run test:mobile-ui`
 - [x] Confirm no real secrets, API keys, access tokens, service-role keys, or QA passwords are tracked by Git; only documented placeholders are present.
 - [ ] Review migration `0008_onboarding_chart_history.sql` against a disposable/staging database backup plan.
 - [x] Confirm migration order `0001` through `0010` is complete and recorded in staging.
@@ -145,6 +148,7 @@ These checks require deployed staging services but do not require finished UI.
 ### Salesforce and Google Sheets operational logging
 
 - [ ] Apply migration `0012_external_sync_delivery_ledger.sql`, deploy `external-sync-retry`, and deploy the updated Worker to staging with external delivery disabled.
+- [ ] Apply migration `0013_account_deletion_external_sync.sql` and deploy the authenticated `account-deletion-request` function to staging without connecting the destructive mobile Delete Account action.
 - [x] PM approves Salesforce and Google Sheets as destinations and the operational field allowlist: email, name, birth date/time/place/timezone, chart/session ID or URL where applicable, plan/tier, paid amount where applicable, user ID, chart status, `time_unknown`, source, marketing consent, chart type, and operational notes/error status.
 - [ ] Document retention periods for each approved external field and destination; PM has approved the MVP deletion mechanism below.
 - [x] Make `audit` required in the shared signed-Worker contract and update the live Worker smoke request to include the required audit payload.
@@ -164,29 +168,52 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Add fixture tests for success, timeout, authentication failure, rate limiting, malformed response, redaction, duplicate concurrency, and destination failure isolation.
 - [ ] Run a live staging test with both integrations enabled and verify exactly one correctly redacted Case and Sheet row, then clean up the disposable records; a hosted chart smoke test while credentials are absent does not verify these integrations.
 - [x] Keep all Salesforce/Google credentials disabled until staging delivery, retry, idempotency, reporting, and manual recovery pass QA.
-- [ ] Implement account-deletion propagation that updates the matching Salesforce record and records the external outcome.
-- [ ] For Google Sheets, append an idempotent deletion marker to a separate staging `Deleted Accounts` tab; do not edit the original Chart Leads/main-Sheet row in place.
-- [ ] Restrict the deletion marker to lookup/operational fields: `user_id`, chart/session ID, email only when required, deletion-requested/completed timestamps, status, and a stable deletion idempotency key.
+- [x] Source implementation queues account-deletion propagation that redacts known Salesforce Cases and records the external outcome.
+- [x] Source implementation appends an idempotent Google marker to a separate `Deleted Accounts` tab and never edits the original Chart Leads/main-Sheet row in place.
+- [x] Source waits for a normally completing already-claimed chart export, captures its late Salesforce Case ID, rediscovers by deterministic Subject, and then queues deletion cleanup.
+- [ ] Handle abandoned/stale `processing` chart exports after deletion begins. `claim_external_sync_events` currently excludes them from its 15-minute timeout recovery, so a crashed Worker can leave deletion cleanup in `waiting_for_in_flight_exports` forever without a final/manual-review state.
+- [ ] Redact every Salesforce Case matching a deterministic Subject; the current `LIMIT 1` lookup can leave duplicate matching Cases identifiable.
+- [x] Source blocks new chart-export rows after an account deletion request exists and cancels non-processing pending exports; staging must still exercise the actual chart enqueue path and a concurrent enqueue/delete boundary.
+- [x] Source removes raw email and email hashes from deletion requests, ledger payloads, and Google deletion markers.
+- [x] Source deletion marker is restricted to lookup/operational fields: idempotency key, `user_id`, chart/session IDs, requested/processed timestamps, status, and source.
 - [ ] Configure and verify `VLOOKUP` / `XLOOKUP` or equivalent admin-view formulas so main-Sheet rows are visibly marked or excluded when a matching deletion marker exists.
 - [ ] Route Salesforce updates and Google deletion markers through the external-sync ledger, retry, final-failure, reporting, and manual-replay controls; failed deletion work must remain visible for review.
-- [ ] Staging-test successful deletion propagation, duplicate deletion requests, temporary destination failures and retry, max failure/manual review, safe replay, formula/view behavior, and the external outcome audit record.
+- [ ] Staging-test successful deletion propagation, duplicate deletion requests, temporary destination failures and retry, max failure/manual review, safe replay, formula/view behavior, and the external outcome audit record. Commit `53ca2da` adds a hosted race scenario to the smoke script, but it has not run against deployed migration `0013` yet.
+- [x] Source requires `last_sign_in_at` within 10 minutes before accepting an external account-deletion request; staging-test stale and recent sessions before connecting the destructive UI.
+- [ ] Implement and staging-test the final DEL-1 internal deletion sequence only after external cleanup is safely queued; ensure direct/admin deletion cannot bypass ledger redaction and external cleanup.
+- [x] Source uses `external_cleanup_requested` for the Google marker and Salesforce cleanup language, and reserves `internally_deleted` for the later DEL-1 completion stage; staging verification remains open.
 
 ## Gate C — When the Founder/User UI Is Ready
 
-- [ ] Apply and visually verify the full celestial background after the updated Claude Design package is available.
+- [ ] Rebuild the Claude handoff natively in Expo React Native/TypeScript; do not embed or ship the HTML/React prototype through a WebView.
+- [ ] Compare the native implementation against all 14 Navy/English reference screenshots at 390×844 for layout, hierarchy, spacing, typography, copy, and navigation.
+- [ ] Preserve both Warm and Navy theme token sets pending the final theme decision; do not delete either as a development-only option.
+- [ ] Self-host Newsreader, Hanken Grotesk, Noto Serif TC, and Noto Sans TC for native/offline use and verify typography in both languages.
+- [ ] Independently visually verify the celestial background at 390×844 against the Claude reference. Source in `e24c037` matches the supplied seeded RNG, exact 66 star positions, per-star opacity/duration/delay, individual twinkle, shooting-star timing/keyframes, gradient tails, glows, milky-way band, and horizon contract; Technical reports completing a visual comparison, but QA browser comparison was unavailable in this session.
+- [x] Source respects reduced-motion settings by disabling star twinkle and shooting-star motion while retaining the static celestial layers; device-level accessibility verification remains part of visual QA.
+- [ ] Keep the natal wheel data-driven from real chart longitudes/houses/angles; do not reproduce the screenshot with hand-positioned pixels.
+- [ ] Remove prototype-only phone frame, status-bar/notch simulation, Tweaks panel, and Screens/dev menu from the shipped app.
 - [ ] Complete the same-email magic-link flow in the real UI: sign out, sign in, follow the link, reload/reopen, and confirm session restoration.
-- [ ] Confirm Founder test status says `Supabase profile loaded` for an account with a chart.
-- [ ] Confirm the birth-chart card says it loaded from Supabase staging, not local demo.
+- [ ] Treat restored-account routing as the highest-priority UI gap: an account with an existing chart/Persona must route directly to Chat instead of onboarding.
+- [ ] Keep any founder-only Supabase diagnostic hidden from production UI; user-facing restored-account copy must not mention Supabase, scaffold, local demo, API routes, or backend implementation.
 - [ ] Confirm Reload restores the same active chart and balance.
-- [ ] Confirm Past Reflections displays saved Supabase reflections or clearly states that none exist.
-- [ ] Confirm Open Lumis chat uses the restored Supabase profile and scaffold no-charge label.
+- [ ] Confirm Past Reflections displays saved account reflections or a specifically designed empty state; search may remain visibly non-functional only if PM accepts it as v1 visual-only scope.
+- [ ] Confirm Past Reflections includes the approved search, `Start a new topic`, `Continue reflection`, and `Saved Insights` hierarchy.
+- [x] Remove all credit pills, per-message credit estimates, and `test mode`/no-charge labels from Chat and other non-Profile/Paywall surfaces; Notifications and Care Circle billing wording was removed in `e24c037`.
+- [x] Expand `test:mobile-ui` across all current screen modules and the non-Paywall portion of `App.tsx`; the broader literal-string billing scan passes across four current non-billing source surfaces.
+- [ ] Confirm Paywall lists `Out-of-scope or safety reply — 1 credit` and other approved credit costs.
 - [ ] Try chart creation again and confirm the UI explains that a chart already exists without showing a generic Edge Function error or raw backend code.
 - [ ] Compare mobile chart display side by side with the existing website for the same test inputs.
 - [ ] Confirm unknown-time UI hides ASC, MC, houses, and house-dependent interpretations.
 - [ ] Confirm full-time UI renders the expected planets, signs, degrees, ASC, MC, and houses.
-- [ ] Confirm there is no visible legacy wording: `Astro`, `token`, `unit`, or `chat history`.
+- [ ] Confirm there is no visible legacy wording: standalone product `Astro`, `buddy`, `token`, `unit`, `History`, or `Chat History`; approved copy consistently uses Lumis, Lumis Persona, credits, and Past Reflections.
 - [ ] Confirm signed-in restore never falls back to a misleading `local demo` label.
-- [ ] Test loading, empty, offline, timeout, Worker failure, and duplicate-profile error states.
+- [ ] Port and verify chart-generation loading, chat typing, splash, and unknown-time states from the handoff.
+- [ ] Obtain/implement the missing design states: network/auth/chart-generation/chat-send errors, signed-in no-chart, explicit signed-out/expired-session, empty Past Reflections, empty Saved Insights, and zero-notification inbox.
+- [ ] Add the notification bell with unread badge to Chat, Insights/Sky, Dice, and Profile; every bell and the Profile Notifications row must open the same Notifications sheet.
+- [ ] Verify actionable carer requests versus read-only notification rows, while clearly treating Care Circle/notification data and actions as UI-only until their backend contracts pass QA.
+- [ ] Confirm the message action sheet contains the approved visual actions; backend-disconnected no-op/toast behavior may ship in v1 only if PM accepts it.
+- [ ] Test loading, empty, offline, timeout, Worker failure, duplicate-profile, chat persistence, and restored-session error states without raw technical errors.
 
 ## Gate D — Before Production Go-Live
 

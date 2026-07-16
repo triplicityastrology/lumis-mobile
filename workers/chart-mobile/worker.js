@@ -975,24 +975,14 @@ export async function redactSalesforceCasesForDeletion(env, record, dependencies
     : [];
 
   for (const subject of caseSubjects) {
-    const query = encodeURIComponent(
-      `SELECT Id FROM Case WHERE Subject = '${escapeSoql(subject)}' LIMIT 1`
-    );
-    const lookupResponse = await fetchWithTimeout(
-      `${serverUrl}/services/data/v59.0/query?q=${query}`,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${sessionId}` }
-      },
+    const discoveredIds = await discoverSalesforceCasesBySubject(
+      serverUrl,
+      sessionId,
+      subject,
       fetchImpl,
       dependencies.timeoutMs
     );
-
-    if (!lookupResponse.ok) throw new Error("SALESFORCE_DELETION_LOOKUP_FAILED");
-
-    const lookupPayload = await safeJson(lookupResponse);
-    const discoveredCaseId = lookupPayload?.records?.[0]?.Id;
-    if (discoveredCaseId) caseIds.add(discoveredCaseId);
+    discoveredIds.forEach((caseId) => caseIds.add(caseId));
   }
 
   if (caseIds.size === 0) {
@@ -1032,6 +1022,55 @@ export async function redactSalesforceCasesForDeletion(env, record, dependencies
   }
 
   return { externalRecordId: [...caseIds].join(","), alreadyDelivered: false };
+}
+
+async function discoverSalesforceCasesBySubject(
+  serverUrl,
+  sessionId,
+  subject,
+  fetchImpl,
+  timeoutMs
+) {
+  const query = encodeURIComponent(
+    `SELECT Id FROM Case WHERE Subject = '${escapeSoql(subject)}'`
+  );
+  const caseIds = new Set();
+  const visitedUrls = new Set();
+  let nextUrl = `${serverUrl}/services/data/v59.0/query?q=${query}`;
+
+  while (nextUrl) {
+    if (visitedUrls.has(nextUrl) || visitedUrls.size >= 100) {
+      throw new Error("SALESFORCE_DELETION_LOOKUP_INVALID_RESPONSE");
+    }
+    visitedUrls.add(nextUrl);
+
+    const response = await fetchWithTimeout(
+      nextUrl,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${sessionId}` }
+      },
+      fetchImpl,
+      timeoutMs
+    );
+
+    if (!response.ok) throw new Error("SALESFORCE_DELETION_LOOKUP_FAILED");
+
+    const payload = await safeJson(response);
+    if (!Array.isArray(payload?.records)) {
+      throw new Error("SALESFORCE_DELETION_LOOKUP_INVALID_RESPONSE");
+    }
+
+    payload.records.forEach((record) => {
+      if (record?.Id) caseIds.add(record.Id);
+    });
+
+    nextUrl = payload.done === false && payload.nextRecordsUrl
+      ? new URL(payload.nextRecordsUrl, serverUrl).toString()
+      : null;
+  }
+
+  return [...caseIds];
 }
 
 async function salesforceLogin(env, dependencies = {}) {
