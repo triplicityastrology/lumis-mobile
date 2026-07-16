@@ -128,8 +128,13 @@ assert.match(
 );
 assert.match(
   mobileAppSource,
-  /result\.persistenceMode === "not_persisted" && result\.persistenceError/,
-  "mobile must handle unsaved Supabase replies"
+  /result\.mode === "supabase" && result\.persistenceMode === "not_persisted"/,
+  "mobile must reject every unsaved Supabase reply, including responses without an error code"
+);
+assert.doesNotMatch(
+  mobileAppSource,
+  /persistenceMode === "not_persisted" && result\.persistenceError/,
+  "a missing persistence error code must not make an unsaved reply look successful"
 );
 assert.match(
   mobileAppSource,

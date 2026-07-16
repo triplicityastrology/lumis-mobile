@@ -1219,7 +1219,7 @@ function ChatShellScreen({
         forceNewThread: forceNewSupabaseThread,
         threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId
       });
-      if (result.persistenceMode === "not_persisted" && result.persistenceError) {
+      if (result.mode === "supabase" && result.persistenceMode === "not_persisted") {
         throw new Error(getChatPersistenceMessage(result.persistenceError));
       }
       if (result.threadId && forceNewSupabaseThread) {
@@ -1529,7 +1529,7 @@ function formatReflectionDate(value: string) {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function getChatPersistenceMessage(errorCode: string) {
+function getChatPersistenceMessage(errorCode?: string | null) {
   if (errorCode === "REFLECTION_THREAD_NOT_AVAILABLE") {
     return "This Past Reflection is no longer available to continue. Your message was not saved. Start a new topic and try again.";
   }
