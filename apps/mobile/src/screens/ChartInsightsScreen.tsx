@@ -1,4 +1,4 @@
-import { ChevronLeft, MessageCircle } from "lucide-react-native";
+import { Bell, ChevronLeft, MessageCircle } from "lucide-react-native";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import type { ChartV2 } from "@lumis/shared";
@@ -13,12 +13,14 @@ export function ChartInsightsScreen({
   name,
   onBack,
   onAskLumis,
+  onNotifications,
   onSelectTab
 }: {
   chart: ChartV2;
   name: string;
   onBack: () => void;
   onAskLumis: () => void;
+  onNotifications: () => void;
   onSelectTab: (tab: MainTab) => void;
 }) {
   return (
@@ -30,7 +32,9 @@ export function ChartInsightsScreen({
             <ChevronLeft color={colors.ice} size={21} />
           </Pressable>
           <Text style={styles.headerTitle}>Your chart</Text>
-          <View style={styles.headerSpace} />
+          <Pressable style={styles.back} onPress={onNotifications} accessibilityLabel="Notifications">
+            <Bell color={colors.ice} size={19} />
+          </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
@@ -102,7 +106,6 @@ const styles = StyleSheet.create({
   header: { minHeight: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
   back: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   headerTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, fontWeight: "600" },
-  headerSpace: { width: 40 },
   content: { padding: spacing.lg, paddingBottom: 40 },
   hero: { alignItems: "center", paddingVertical: 15 },
   heroLabel: { color: colors.gold, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7, marginTop: 16 },

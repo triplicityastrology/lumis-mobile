@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   ArrowLeft,
+  Bell,
   ChevronRight,
   History,
   MessageCircle,
@@ -419,6 +420,7 @@ export default function App() {
           setActiveSupabaseThreadId(threadId);
         }}
         onPastReflections={() => setScreen("reflections")}
+        onNotifications={() => setScreen("notifications")}
         onStartNewTopic={() => void startNewTopic()}
         onSelectTab={openMainTab}
         onBack={() => setScreen("home")}
@@ -523,6 +525,7 @@ export default function App() {
         name={profileData.name}
         onBack={() => setScreen("home")}
         onAskLumis={() => setScreen("chat")}
+        onNotifications={() => setScreen("notifications")}
         onSelectTab={openMainTab}
       />
     );
@@ -1177,6 +1180,7 @@ function ChatShellScreen({
   activeSupabaseThreadId,
   readOnlyReason,
   onChatStateChange,
+  onNotifications,
   onPastReflections,
   onSupabaseThreadStarted,
   onStartNewTopic,
@@ -1192,6 +1196,7 @@ function ChatShellScreen({
   activeSupabaseThreadId: string | null;
   readOnlyReason: string | null;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
+  onNotifications: () => void;
   onPastReflections: () => void;
   onSupabaseThreadStarted: (threadId: string) => void;
   onStartNewTopic: () => void;
@@ -1293,6 +1298,13 @@ function ChatShellScreen({
             accessibilityLabel="Past Reflections"
           >
             <History color="#F0F4F8" size={19} />
+          </Pressable>
+          <Pressable
+            style={styles.chatIconButton}
+            onPress={onNotifications}
+            accessibilityLabel="Notifications"
+          >
+            <Bell color="#F0F4F8" size={18} />
           </Pressable>
         </View>
 

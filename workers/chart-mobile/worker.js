@@ -1031,6 +1031,7 @@ async function discoverSalesforceCasesBySubject(
   fetchImpl,
   timeoutMs
 ) {
+  const trustedOrigin = new URL(serverUrl).origin;
   const query = encodeURIComponent(
     `SELECT Id FROM Case WHERE Subject = '${escapeSoql(subject)}'`
   );
@@ -1066,11 +1067,28 @@ async function discoverSalesforceCasesBySubject(
     });
 
     nextUrl = payload.done === false && payload.nextRecordsUrl
-      ? new URL(payload.nextRecordsUrl, serverUrl).toString()
+      ? resolveSalesforcePaginationUrl(payload.nextRecordsUrl, trustedOrigin)
       : null;
   }
 
   return [...caseIds];
+}
+
+function resolveSalesforcePaginationUrl(nextRecordsUrl, trustedOrigin) {
+  let resolved;
+
+  try {
+    resolved = new URL(nextRecordsUrl, trustedOrigin);
+  } catch {
+    throw new Error("SALESFORCE_DELETION_LOOKUP_INVALID_RESPONSE");
+  }
+
+  const isTrustedQueryPath = /^\/services\/data\/v[0-9.]+\/query(?:\/|$)/.test(resolved.pathname);
+  if (resolved.origin !== trustedOrigin || !isTrustedQueryPath) {
+    throw new Error("SALESFORCE_DELETION_LOOKUP_INVALID_RESPONSE");
+  }
+
+  return resolved.toString();
 }
 
 async function salesforceLogin(env, dependencies = {}) {

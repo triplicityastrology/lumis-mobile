@@ -645,6 +645,30 @@ async function assertSalesforceDeletionContract() {
     }),
     "SALESFORCE_DELETION_UPDATE_FAILED"
   );
+
+  const hostileCalls = [];
+  await assertRejectsWithCode(
+    () => redactSalesforceCasesForDeletion(buildSalesforceEnv(), record, {
+      salesforceLoginImpl: async () => ({
+        sessionId: "salesforce-session",
+        serverUrl: "https://salesforce.example"
+      }),
+      fetchImpl: async (url, options) => {
+        hostileCalls.push({ url, options });
+        return Response.json({
+          done: false,
+          nextRecordsUrl: "https://attacker.example/collect",
+          records: []
+        });
+      }
+    }),
+    "SALESFORCE_DELETION_LOOKUP_INVALID_RESPONSE"
+  );
+  assert(hostileCalls.length === 1, "Untrusted Salesforce pagination URL must never be fetched.");
+  assert(
+    hostileCalls.every((call) => new URL(call.url).origin === "https://salesforce.example"),
+    "Salesforce bearer token must stay on the authenticated Salesforce origin."
+  );
 }
 
 async function assertAuditTimeoutIsControlled() {

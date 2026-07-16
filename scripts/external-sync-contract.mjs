@@ -71,6 +71,8 @@ assert.match(worker, /GOOGLE_DELETED_ACCOUNTS_SHEET_NAME/);
 assert.match(worker, /redactSalesforceCasesForDeletion/);
 assert.match(worker, /SALESFORCE_DELETION_LOOKUP_FAILED/);
 assert.match(worker, /nextRecordsUrl/);
+assert.match(worker, /resolved\.origin !== trustedOrigin/);
+assert.match(worker, /SALESFORCE_DELETION_LOOKUP_INVALID_RESPONSE/);
 assert.doesNotMatch(
   worker.slice(worker.indexOf("async function discoverSalesforceCasesBySubject")),
   /Subject[\s\S]{0,120}LIMIT 1/i,
