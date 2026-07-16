@@ -15,6 +15,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "rea
 
 import type { ChartV2 } from "@lumis/shared";
 
+import { CelestialBackground } from "../components/CelestialBackground";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { colors, radii, spacing } from "../theme/tokens";
 
@@ -25,7 +26,6 @@ type LumisHomeScreenProps = {
   accountLoadMessage: string;
   chart: ChartV2 | null;
   reflectionCount: number;
-  credits: number;
   email?: string;
   isAuthenticated: boolean;
   name?: string;
@@ -51,6 +51,7 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <CelestialBackground />
       <View style={styles.appFrame}>
         <View style={styles.header}>
           <View style={styles.identityRow}>
@@ -65,10 +66,6 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           <View style={styles.headerActions}>
             <Pressable style={styles.iconButton} onPress={props.onNotifications} accessibilityLabel="Notifications">
               <Bell color={colors.ice} size={19} strokeWidth={1.7} />
-            </Pressable>
-            <Pressable style={styles.creditChip} onPress={props.onOpenPlans}>
-              <Sparkles color={colors.gold} size={14} />
-              <Text style={styles.creditText}>{props.credits}</Text>
             </Pressable>
           </View>
         </View>
@@ -264,7 +261,7 @@ function findPoint(chart: ChartV2, key: string) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
-  appFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: colors.navy900 },
+  appFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
   header: { minHeight: 68, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 11 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.gold },
@@ -272,8 +269,6 @@ const styles = StyleSheet.create({
   online: { color: colors.good, fontSize: 11, marginTop: 2 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 9 },
   iconButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  creditChip: { height: 40, minWidth: 58, paddingHorizontal: 12, borderRadius: 20, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  creditText: { color: colors.ice, fontSize: 13, fontWeight: "700" },
   homeContent: { padding: spacing.lg, paddingBottom: 30, gap: spacing.md },
   greetingBlock: { paddingTop: spacing.md, paddingBottom: spacing.sm },
   eyebrow: { color: colors.gold, fontSize: 10, fontWeight: "700", letterSpacing: 1.8, marginBottom: 11 },

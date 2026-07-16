@@ -55,6 +55,7 @@ import {
   saveLocalDemoSession
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
+import { CelestialBackground } from "./src/components/CelestialBackground";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
@@ -86,8 +87,6 @@ type CareCircleItem = {
 
 const STARTER_CREDITS = 50;
 const BIRTH_DETAIL_CHANGE_LIMIT = 3;
-type InitialChatBillingMode = "local_demo" | "supabase_scaffold_no_charge";
-
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
   "Help me understand one repeating pattern.",
@@ -384,9 +383,6 @@ export default function App() {
         forceNewSupabaseThread={forceNewSupabaseThread}
         activeSupabaseThreadId={activeSupabaseThreadId}
         readOnlyReason={activeReflection?.canContinue === false ? activeReflection.unavailableReason : null}
-        initialBillingMode={
-          authStatus?.isConfigured && authStatus.user ? "supabase_scaffold_no_charge" : "local_demo"
-        }
         onChatStateChange={async (nextChatTurns, nextRemainingCredits) => {
           setChatTurns(nextChatTurns);
           setRemainingCredits(nextRemainingCredits);
@@ -420,7 +416,6 @@ export default function App() {
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
         reflectionThreads={reflectionThreads}
-        remainingCredits={remainingCredits}
         onBack={() => setScreen("home")}
         onContinueReflection={(thread) => {
           if (thread) {
@@ -498,7 +493,6 @@ export default function App() {
         reflectionCount={
           accountSource === "supabase" ? reflectionThreads.length : chatTurns.length > 0 ? 1 : 0
         }
-        credits={remainingCredits}
         email={authStatus?.user?.email}
         isAuthenticated={Boolean(authStatus?.user)}
         name={profileData?.name}
@@ -1161,7 +1155,6 @@ function ChatShellScreen({
   forceNewSupabaseThread,
   activeSupabaseThreadId,
   readOnlyReason,
-  initialBillingMode,
   onChatStateChange,
   onSupabaseThreadStarted,
   onStartNewTopic,
@@ -1175,7 +1168,6 @@ function ChatShellScreen({
   forceNewSupabaseThread: boolean;
   activeSupabaseThreadId: string | null;
   readOnlyReason: string | null;
-  initialBillingMode: InitialChatBillingMode;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
   onSupabaseThreadStarted: (threadId: string) => void;
   onStartNewTopic: () => void;
@@ -1187,8 +1179,7 @@ function ChatShellScreen({
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
-  const canSend = !readOnlyReason && draftMessage.trim().length > 0 && !isSending && remainingCredits > 0;
-  const latestResult = [...chatTurns].reverse().find((turn) => turn.result)?.result ?? null;
+  const canSend = !readOnlyReason && draftMessage.trim().length > 0 && !isSending;
 
   async function handleSend() {
     if (!canSend) {
@@ -1255,6 +1246,7 @@ function ChatShellScreen({
   return (
     <SafeAreaView style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
+      <CelestialBackground />
       <View style={styles.chatShell}>
         <View style={styles.chatTopBar}>
           <Pressable style={styles.chatIconButton} onPress={onBack} accessibilityLabel="Back to home">
@@ -1269,9 +1261,6 @@ function ChatShellScreen({
               <View style={styles.chatPresenceDot} />
               <Text style={styles.chatSubtitle}>{selectedPersona.labelEn} · Chart connected</Text>
             </View>
-          </View>
-          <View style={styles.creditPill}>
-            <Text style={styles.creditPillText}>{remainingCredits} credits</Text>
           </View>
         </View>
 
@@ -1349,17 +1338,6 @@ function ChatShellScreen({
             </View>
           ))}
 
-          <View style={styles.routePreviewStrip} accessibilityLabel="Credit estimate">
-            <Text style={styles.routePreviewText}>
-              {latestResult
-                ? latestResult.mode === "supabase" && latestResult.billingMode === "scaffold_no_charge"
-                  ? `Estimated ${latestResult.creditsCost} credit · test mode: no charge`
-                  : `${latestResult.creditsCost} credit · ${remainingCredits} left`
-                : initialBillingMode === "supabase_scaffold_no_charge"
-                  ? `Estimated 1 credit · test mode: no charge`
-                : `1 credit · ${remainingCredits} left`}
-            </Text>
-          </View>
         </ScrollView>
 
         {readOnlyReason ? (
@@ -1400,7 +1378,6 @@ function PastReflectionsScreen({
   selectedStyle,
   chatTurns,
   reflectionThreads,
-  remainingCredits,
   onBack,
   onContinueReflection,
   onStartNewTopic
@@ -1411,7 +1388,6 @@ function PastReflectionsScreen({
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
   reflectionThreads: RestoredReflectionThread[];
-  remainingCredits: number;
   onBack: () => void;
   onContinueReflection: (thread: RestoredReflectionThread | null) => void;
   onStartNewTopic: () => void;
@@ -1439,6 +1415,7 @@ function PastReflectionsScreen({
   return (
     <SafeAreaView style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
+      <CelestialBackground />
       <View style={styles.reflectionsShell}>
         <View style={styles.reflectionsHeader}>
           <Pressable style={styles.chatIconButton} onPress={onBack} accessibilityLabel="Back to home">
@@ -1512,7 +1489,7 @@ function PastReflectionsScreen({
           <View style={styles.reflectionPrivacyNote}>
             <Sparkles color="#C9A96E" size={15} />
             <Text style={styles.reflectionPrivacyText}>
-              Private to {profileData?.name ?? "your account"} · {remainingCredits} credits available
+              Private to {profileData?.name ?? "your account"}
             </Text>
           </View>
         </ScrollView>
@@ -2045,19 +2022,6 @@ const styles = StyleSheet.create({
     color: "#8A7659",
     fontSize: 12,
     marginTop: 1
-  },
-  creditPill: {
-    backgroundColor: "rgba(180,134,63,0.12)",
-    borderColor: "rgba(180,134,63,0.28)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 8
-  },
-  creditPillText: {
-    color: "#7B5A27",
-    fontSize: 12,
-    fontWeight: "700"
   },
   notificationButton: {
     alignItems: "center",
@@ -2593,20 +2557,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 18
-  },
-  routePreviewStrip: {
-    alignSelf: "center",
-    backgroundColor: "rgba(139,147,212,0.12)",
-    borderColor: "rgba(139,147,212,0.20)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 8
-  },
-  routePreviewText: {
-    color: "#AAB3D9",
-    fontSize: 10.5,
-    fontWeight: "600"
   },
   chatComposer: {
     alignItems: "center",
