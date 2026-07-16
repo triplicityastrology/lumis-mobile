@@ -499,12 +499,17 @@ export default function App() {
   if (screen === "profileTab" && profileData) {
     return (
       <LumisProfileScreen
+        birthDate={profileData.birthDate}
+        birthPlace={profileData.birthPlace}
+        birthTime={profileData.birthTime}
         email={authStatus?.user?.email}
         name={profileData.name}
         personaStyle={personaStyle}
         remainingCredits={remainingCredits}
+        timeUnknown={profileData.timeUnknown}
         onAccount={() => setScreen("auth")}
         onBirthDetails={() => setScreen("birthDetails")}
+        onCareCircle={() => setScreen("care")}
         onNotifications={() => setScreen("notifications")}
         onPersona={() => setScreen("persona")}
         onPlans={() => setScreen("plans")}

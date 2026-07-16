@@ -54,7 +54,24 @@ assert.match(diceSource, /type DiceStep = "ask" \| "shake" \| "result"/);
 assert.match(diceSource, /Accelerometer\.addListener/);
 assert.match(diceSource, /<OctaDie/);
 assert.match(diceSource, /Save this reflection/);
+assert.match(diceSource, /function cancelRoll\(\)[\s\S]{0,160}clearRollTimers\(\)/);
+assert.match(diceSource, /onPress=\{step === "result" \? reset : cancelRoll\}/);
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
+const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
+for (const requiredProfileSurface of [
+  "YOUR CHART",
+  "LUMIS PERSONA",
+  "PLAN",
+  "CARE CIRCLE",
+  "PRIVACY & SUPPORT",
+  "Export my data",
+  "Delete account"
+]) {
+  assert.match(profileScreenSource, new RegExp(requiredProfileSurface));
+}
+assert.match(profileScreenSource, /Preview only\. Check-ins and carer links are not active yet\./);
+assert.match(profileScreenSource, /showPendingNotice\("Account deletion"\)/);
+assert.match(profileScreenSource, /will be connected after its security review is complete/);
 assertNoVisibleImplementationCopy(appSource, "App surfaces");
 assertNoVisibleImplementationCopy(accountStateSource, "account restore messages");
 assertNoVisibleImplementationCopy(authSource, "authentication messages");

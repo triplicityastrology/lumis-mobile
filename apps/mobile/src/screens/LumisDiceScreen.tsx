@@ -97,16 +97,25 @@ export function LumisDiceScreen({
     };
   }, [step]);
 
-  useEffect(() => () => {
+  function clearRollTimers() {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  }, []);
+    intervalRef.current = null;
+    timeoutRef.current = null;
+  }
 
-  function reset() {
+  useEffect(() => () => clearRollTimers(), []);
+
+  function cancelRoll() {
+    clearRollTimers();
     setStep("ask");
     setRolling(false);
     rollingRef.current = false;
     setResult(null);
+  }
+
+  function reset() {
+    cancelRoll();
   }
 
   const resultTitle = result ? `${result[0].name} in ${result[1].name}, ${result[2].name}.` : "";
@@ -120,7 +129,7 @@ export function LumisDiceScreen({
       <View style={styles.frame}>
         <View style={styles.header}>
           {step === "ask" ? <View style={styles.headerSpace} /> : (
-            <Pressable style={styles.iconButton} onPress={step === "result" ? reset : () => setStep("ask")} accessibilityLabel="Back">
+            <Pressable style={styles.iconButton} onPress={step === "result" ? reset : cancelRoll} accessibilityLabel="Back">
               <ChevronLeft color={colors.ice} size={20} />
             </Pressable>
           )}
