@@ -7,6 +7,7 @@ import {
   History,
   MessageCircle,
   Plus,
+  Search,
   Send,
   Sparkles
 } from "lucide-react-native";
@@ -1456,6 +1457,7 @@ function PastReflectionsScreen({
   onContinueReflection: (thread: RestoredReflectionThread | null) => void;
   onStartNewTopic: () => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const localThread: RestoredReflectionThread | null = chatTurns.length > 0
     ? {
@@ -1475,6 +1477,17 @@ function PastReflectionsScreen({
     : localThread
       ? [localThread]
       : [];
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredThreads = normalizedQuery
+    ? visibleThreads.filter((thread) => {
+        const searchableText = [
+          thread.title,
+          ...thread.turns.flatMap((turn) => [turn.userMessage, turn.result?.reply ?? ""])
+        ].join(" ").toLowerCase();
+
+        return searchableText.includes(normalizedQuery);
+      })
+    : visibleThreads;
 
   return (
     <SafeAreaView style={styles.lumisDarkSafe}>
@@ -1488,7 +1501,7 @@ function PastReflectionsScreen({
           <View style={styles.reflectionsHeaderCopy}>
             <Text style={styles.reflectionsTitle}>Past Reflections</Text>
             <Text style={styles.reflectionsSubtitle}>
-              {visibleThreads.length} saved conversation{visibleThreads.length === 1 ? "" : "s"}
+              Your ongoing reflections with Lumis
             </Text>
           </View>
           <Pressable style={styles.newTopicIconButton} onPress={onStartNewTopic} accessibilityLabel="Start a new topic">
@@ -1499,34 +1512,83 @@ function PastReflectionsScreen({
         <ScrollView contentContainerStyle={styles.reflectionsContent} showsVerticalScrollIndicator={false}>
           {(hasLocalDemoSession || accountSource === "supabase") && profileData ? (
             visibleThreads.length > 0 ? (
-              visibleThreads.map((thread) => {
-                const latestTurn = thread.turns[thread.turns.length - 1];
-                const preview = latestTurn?.result?.reply ?? latestTurn?.userMessage ?? "Continue your reflection with Lumis.";
-                const persona = PERSONA_STYLES.find((style) => style.key === thread.personaStyle) ?? selectedPersona;
+              <>
+                <Pressable style={styles.reflectionsNewTopic} onPress={onStartNewTopic}>
+                  <Plus color="#071321" size={18} />
+                  <Text style={styles.reflectionsNewTopicText}>Start a new topic</Text>
+                </Pressable>
 
-                return (
-                  <Pressable
-                    key={thread.id}
-                    style={styles.reflectionThreadCard}
-                    onPress={() => onContinueReflection(thread)}
-                  >
-                    <View style={styles.reflectionThreadIcon}>
-                      <MessageCircle color="#8B93D4" size={20} />
-                    </View>
+                <View style={styles.reflectionsSearch}>
+                  <Search color="#71839A" size={18} />
+                  <TextInput
+                    accessibilityLabel="Search reflections"
+                    onChangeText={setSearchQuery}
+                    placeholder="Search reflections"
+                    placeholderTextColor="#71839A"
+                    style={styles.reflectionsSearchInput}
+                    value={searchQuery}
+                  />
+                </View>
+
+                <View style={styles.reflectionsSectionHeading}>
+                  <Text style={styles.reflectionsSectionLabel}>PAST REFLECTIONS</Text>
+                  <Text style={styles.reflectionsSectionCount}>{filteredThreads.length}</Text>
+                </View>
+
+                {filteredThreads.length > 0 ? filteredThreads.map((thread) => {
+                  const latestTurn = thread.turns[thread.turns.length - 1];
+                  const preview = latestTurn?.result?.reply ?? latestTurn?.userMessage ?? "Continue your reflection with Lumis.";
+                  const persona = PERSONA_STYLES.find((style) => style.key === thread.personaStyle) ?? selectedPersona;
+
+                  return (
+                    <Pressable
+                      accessibilityLabel={thread.canContinue ? "Continue reflection" : "Read reflection"}
+                      key={thread.id}
+                      style={styles.reflectionThreadCard}
+                      onPress={() => onContinueReflection(thread)}
+                    >
+                      <View style={styles.reflectionThreadIcon}>
+                        <MessageCircle color="#8B93D4" size={20} />
+                      </View>
+                      <View style={styles.reflectionThreadCopy}>
+                        <Text style={styles.reflectionThreadTitle} numberOfLines={2}>{thread.title}</Text>
+                        <Text style={styles.reflectionThreadPreview} numberOfLines={2}>{preview}</Text>
+                        <Text style={styles.reflectionThreadMeta}>
+                          {formatReflectionDate(thread.updatedAt)} · {persona.labelEn} · Chart v{thread.chartVersion}
+                        </Text>
+                        <Text style={styles.reflectionThreadAction}>
+                          {thread.canContinue ? "Continue reflection" : "Read reflection"}
+                        </Text>
+                      </View>
+                      <View style={styles.reflectionThreadStatus}>
+                        {!thread.canContinue ? <Text style={styles.reflectionReadOnlyLabel}>READ ONLY</Text> : null}
+                        <ChevronRight color="#71839A" size={19} />
+                      </View>
+                    </Pressable>
+                  );
+                }) : (
+                  <View style={styles.reflectionsNoResults}>
+                    <Text style={styles.reflectionThreadTitle}>No matching reflections</Text>
+                    <Text style={styles.reflectionThreadPreview}>Try a different word or clear your search.</Text>
+                    <Pressable onPress={() => setSearchQuery("")}>
+                      <Text style={styles.reflectionThreadAction}>Clear search</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                <View style={styles.savedInsightsSection}>
+                  <Text style={styles.reflectionsSectionLabel}>SAVED INSIGHTS</Text>
+                  <View style={styles.savedInsightsEmpty}>
+                    <Sparkles color="#C9A96E" size={19} />
                     <View style={styles.reflectionThreadCopy}>
-                      <Text style={styles.reflectionThreadTitle} numberOfLines={2}>{thread.title}</Text>
-                      <Text style={styles.reflectionThreadPreview} numberOfLines={2}>{preview}</Text>
-                      <Text style={styles.reflectionThreadMeta}>
-                        {formatReflectionDate(thread.updatedAt)} · {persona.labelEn} · Chart v{thread.chartVersion}
+                      <Text style={styles.reflectionThreadTitle}>Nothing saved yet</Text>
+                      <Text style={styles.reflectionThreadPreview}>
+                        Use Save insight on a Lumis reply to keep it here.
                       </Text>
                     </View>
-                    <View style={styles.reflectionThreadStatus}>
-                      {!thread.canContinue ? <Text style={styles.reflectionReadOnlyLabel}>READ ONLY</Text> : null}
-                      <ChevronRight color="#71839A" size={19} />
-                    </View>
-                  </Pressable>
-                );
-              })
+                  </View>
+                </View>
+              </>
             ) : (
               <View style={styles.reflectionsEmpty}>
                 <View style={styles.reflectionsEmptyIcon}><History color="#C9A96E" size={25} /></View>
@@ -3518,6 +3580,54 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingBottom: 28
   },
+  reflectionsNewTopic: {
+    alignItems: "center",
+    backgroundColor: "#C9A96E",
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 18
+  },
+  reflectionsNewTopicText: {
+    color: "#071321",
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  reflectionsSearch: {
+    alignItems: "center",
+    backgroundColor: "#10243D",
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 46,
+    paddingHorizontal: 14
+  },
+  reflectionsSearchInput: {
+    color: "#F0F4F8",
+    flex: 1,
+    fontSize: 14,
+    minHeight: 44
+  },
+  reflectionsSectionHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8
+  },
+  reflectionsSectionLabel: {
+    color: "#C9A96E",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  reflectionsSectionCount: {
+    color: "#71839A",
+    fontSize: 11,
+    fontWeight: "700"
+  },
   reflectionThreadCard: {
     alignItems: "center",
     backgroundColor: "#152943",
@@ -3557,6 +3667,12 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     marginTop: 7
   },
+  reflectionThreadAction: {
+    color: "#D9C18F",
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 8
+  },
   reflectionThreadStatus: {
     alignItems: "flex-end",
     gap: 7
@@ -3583,6 +3699,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
     width: 52
+  },
+  reflectionsNoResults: {
+    alignItems: "center",
+    backgroundColor: "rgba(21,41,67,0.68)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
+    padding: 22
+  },
+  savedInsightsSection: {
+    gap: 10,
+    marginTop: 12
+  },
+  savedInsightsEmpty: {
+    alignItems: "center",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 16
   },
   reflectionsPrimary: {
     alignItems: "center",

@@ -53,6 +53,21 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_if_using_legacy_keys
 
 Use either `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `EXPO_PUBLIC_SUPABASE_ANON_KEY`. You do not need both.
 
+### Run the privileged staging QA suite safely
+
+Use the guarded launcher so the temporary legacy `service_role` key is entered
+with hidden Terminal input and never appears in shell history:
+
+```bash
+pnpm test:staging-backend:secure
+```
+
+The launcher is locked to the Lumis staging project. It creates disposable QA
+users, runs the hosted race, RLS, persistence, and deletion checks, and removes
+the disposable users and records in a cleanup step. Revoke or rotate the
+temporary legacy key in Supabase immediately after the test finishes. Never put
+this key in `.env`, Expo configuration, Codex, screenshots, or chat messages.
+
 ## Step 3: Keep Backend Secrets Out Of The Mobile App
 
 Do not put secret keys in Expo/mobile environment variables.
