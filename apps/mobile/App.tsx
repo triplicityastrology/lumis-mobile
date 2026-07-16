@@ -73,7 +73,7 @@ type NotificationItem = {
   id: string;
   title: string;
   body: string;
-  category: "Care Circle" | "System" | "Billing";
+  category: "Care Circle" | "System";
   isUnread: boolean;
 };
 
@@ -107,13 +107,6 @@ const LOCAL_NOTIFICATIONS: NotificationItem[] = [
     body: "Lumis will use this area for missed check-in alerts, Need help alerts, and push setup issues.",
     category: "System",
     isUnread: true
-  },
-  {
-    id: "billing-system",
-    title: "Billing and credit notices",
-    body: "Low credits, plan issues, and subscription notices will be shown here.",
-    category: "Billing",
-    isUnread: false
   }
 ];
 
@@ -1550,7 +1543,7 @@ function NotificationCenterScreen({
           <Text style={styles.formTitle}>Care alerts and system notices in one place.</Text>
           <Text style={styles.formIntro}>
             This shell prepares the UI for Care Circle confirmations, missed check-ins, Need help
-            alerts, billing notices, and push permission issues.
+            alerts, account notices, and push permission issues.
           </Text>
         </View>
 
@@ -1615,7 +1608,7 @@ function CareCircleScreen({
           <Text style={styles.formTitle}>Link trusted carers without exposing private Lumis data.</Text>
           <Text style={styles.formIntro}>
             A paid caree can link up to five carers for check-ins and alerts. Carers do not see
-            chats, birth data, Lumis memory, or billing.
+            chats, birth data, or Lumis memory.
           </Text>
         </View>
 
@@ -1662,7 +1655,7 @@ function CareCircleScreen({
           <Text style={styles.noticeTitle}>Privacy boundary</Text>
           <Text style={styles.noticeBody}>
             Care Circle can send check-in and Need help alerts, but it should not expose general
-            Past Reflections, birth data, AI memory, or billing to carers.
+            Past Reflections, birth data, or AI memory to carers.
           </Text>
         </View>
 

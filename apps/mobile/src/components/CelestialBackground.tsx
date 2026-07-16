@@ -13,17 +13,18 @@ import Svg, {
 type Star = {
   cx: number;
   cy: number;
+  delay: number;
+  duration: number;
   opacity: number;
   radius: number;
 };
 
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export function CelestialBackground() {
   const [reduceMotion, setReduceMotion] = useState(false);
-  const twinkles = useRef([new Animated.Value(1), new Animated.Value(0.72), new Animated.Value(0.5)]).current;
   const shootingStars = useRef([new Animated.Value(0), new Animated.Value(0)]).current;
-  const starGroups = useMemo(() => buildStars(), []);
+  const stars = useMemo(() => buildStars(), []);
 
   useEffect(() => {
     let mounted = true;
@@ -41,54 +42,29 @@ export function CelestialBackground() {
     const animations: Animated.CompositeAnimation[] = [];
 
     if (!reduceMotion) {
-      twinkles.forEach((value, index) => {
-        const animation = Animated.loop(
-          Animated.sequence([
-            Animated.delay(index * 700),
-            Animated.timing(value, {
-              duration: 1600 + index * 450,
-              easing: Easing.inOut(Easing.sin),
-              toValue: 0.25,
-              useNativeDriver: true
-            }),
-            Animated.timing(value, {
-              duration: 1600 + index * 450,
-              easing: Easing.inOut(Easing.sin),
-              toValue: 1,
-              useNativeDriver: true
-            })
-          ])
-        );
-        animation.start();
-        animations.push(animation);
-      });
-
       shootingStars.forEach((value, index) => {
         const cycle = index === 0 ? 9000 : 11000;
-        const animation = Animated.loop(
-          Animated.sequence([
-            Animated.delay(index === 0 ? 1500 : 6000),
+        const animation = Animated.sequence([
+          Animated.delay(index === 0 ? 1500 : 6000),
+          Animated.loop(
+            Animated.sequence([
             Animated.timing(value, {
-              duration: cycle * 0.3,
-              easing: Easing.out(Easing.quad),
-              toValue: 1,
-              useNativeDriver: true
-            }),
-            Animated.timing(value, {
-              duration: cycle * 0.7,
+              duration: cycle,
+              easing: Easing.in(Easing.quad),
               toValue: 1,
               useNativeDriver: true
             }),
             Animated.timing(value, { duration: 0, toValue: 0, useNativeDriver: true })
-          ])
-        );
+            ])
+          )
+        ]);
         animation.start();
         animations.push(animation);
       });
     }
 
     return () => animations.forEach((animation) => animation.stop());
-  }, [reduceMotion, shootingStars, twinkles]);
+  }, [reduceMotion, shootingStars]);
 
   return (
     <View pointerEvents="none" style={styles.fill} accessibilityElementsHidden>
@@ -102,7 +78,7 @@ export function CelestialBackground() {
             <Stop offset="0.87" stopColor="#795A64" />
             <Stop offset="1" stopColor="#B27B68" />
           </LinearGradient>
-          <RadialGradient cx="50%" cy="0%" id="topGlow" rx="75%" ry="58%">
+          <RadialGradient cx="50%" cy="-6%" id="topGlow" rx="75%" ry="58%">
             <Stop offset="0" stopColor="#5B63B7" stopOpacity="0.46" />
             <Stop offset="0.62" stopColor="#5B63B7" stopOpacity="0" />
           </RadialGradient>
@@ -132,86 +108,134 @@ export function CelestialBackground() {
           </LinearGradient>
         </Defs>
         <Rect fill="url(#sky)" height="844" width="390" />
+        <G rotation="-18" origin="195,320">
+          <Rect fill="url(#milkyWay)" height="438" width="620" x="-115" y="100" />
+        </G>
         <Rect fill="url(#topGlow)" height="844" width="390" />
         <Rect fill="url(#leftGlow)" height="844" width="390" />
         <Rect fill="url(#rightGlow)" height="844" width="390" />
         <Rect fill="url(#bottomGlow)" height="844" width="390" />
-        <G rotation="-18" origin="195,320">
-          <Rect fill="url(#milkyWay)" height="438" width="620" x="-115" y="100" />
-        </G>
+        <Rect fill="url(#horizon)" height="8" opacity="0.18" width="336" x="27" y="690" />
+        <Rect fill="url(#horizon)" height="1.5" width="336" x="27" y="693" />
       </Svg>
 
-      {starGroups.map((stars, index) => (
-        <AnimatedSvg
-          height="100%"
-          key={index}
-          preserveAspectRatio="none"
-          style={[styles.fill, { opacity: reduceMotion ? 0.72 : twinkles[index] }]}
-          viewBox="0 0 390 844"
-          width="100%"
-        >
-          {stars.map((star, starIndex) => (
-            <Circle
-              cx={star.cx}
-              cy={star.cy}
-              fill="#F8F1E4"
-              key={starIndex}
-              opacity={star.opacity}
-              r={star.radius}
-            />
-          ))}
-        </AnimatedSvg>
-      ))}
+      <Svg height="100%" preserveAspectRatio="none" style={styles.fill} viewBox="0 0 390 844" width="100%">
+        {stars.map((star, index) => (
+          <TwinklingStar key={index} reduceMotion={reduceMotion} star={star} />
+        ))}
+      </Svg>
 
       {!reduceMotion
         ? shootingStars.map((value, index) => (
-            <Animated.View
+            <ShootingStar
               key={index}
-              style={[
-                styles.shootingStar,
-                index === 0 ? styles.shootingStarOne : styles.shootingStarTwo,
-                {
-                  opacity: value.interpolate({
-                    inputRange: [0, 0.12, 0.62, 1],
-                    outputRange: [0, 1, 1, 0]
-                  }),
-                  transform: [
-                    { rotate: "22deg" },
-                    { translateX: value.interpolate({ inputRange: [0, 1], outputRange: [0, 150] }) },
-                    { translateY: value.interpolate({ inputRange: [0, 1], outputRange: [0, 60] }) }
-                  ]
-                }
-              ]}
+              index={index}
+              progress={value}
             />
           ))
         : null}
 
-      <View style={styles.horizon} />
     </View>
   );
 }
 
-function buildStars(): Star[][] {
+function TwinklingStar({ reduceMotion, star }: { reduceMotion: boolean; star: Star }) {
+  const opacity = useRef(new Animated.Value(star.opacity)).current;
+
+  useEffect(() => {
+    opacity.setValue(star.opacity);
+    if (reduceMotion) return;
+
+    const animation = Animated.sequence([
+      Animated.delay(star.delay),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, {
+            duration: star.duration / 2,
+            easing: Easing.inOut(Easing.sin),
+            toValue: star.opacity * 0.25,
+            useNativeDriver: false
+          }),
+          Animated.timing(opacity, {
+            duration: star.duration / 2,
+            easing: Easing.inOut(Easing.sin),
+            toValue: star.opacity,
+            useNativeDriver: false
+          })
+        ])
+      )
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [opacity, reduceMotion, star]);
+
+  return (
+    <AnimatedCircle
+      cx={star.cx}
+      cy={star.cy}
+      fill="#EAF0FF"
+      opacity={opacity}
+      r={star.radius}
+    />
+  );
+}
+
+function ShootingStar({
+  index,
+  progress
+}: {
+  index: number;
+  progress: Animated.Value;
+}) {
+  return (
+    <Animated.View
+      style={[
+        styles.shootingStar,
+        index === 0 ? styles.shootingStarOne : styles.shootingStarTwo,
+        {
+          opacity: progress.interpolate({
+            inputRange: [0, 0.04, 0.18, 0.3, 1],
+            outputRange: [0, 1, 0.9, 0, 0]
+          }),
+          transform: [
+            { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 150] }) },
+            { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [0, 60] }) },
+            { rotate: "22deg" }
+          ]
+        }
+      ]}
+    >
+      <Svg height="4" viewBox="0 0 78 4" width="78">
+        <Defs>
+          <LinearGradient id={`shootingTail${index}`} x1="0" x2="1" y1="0" y2="0">
+            <Stop offset="0" stopColor="#FFF7EB" stopOpacity="0" />
+            <Stop offset="0.65" stopColor="#FFF7EB" stopOpacity="0.05" />
+            <Stop offset="1" stopColor="#F3CBA9" stopOpacity="1" />
+          </LinearGradient>
+        </Defs>
+        <Rect fill={`url(#shootingTail${index})`} height="1.4" rx="0.7" width="78" y="1.3" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+function buildStars(): Star[] {
   const random = seededRandom(1337);
-  const groups: Star[][] = [[], [], []];
-
-  for (let index = 0; index < 66; index += 1) {
-    groups[index % groups.length].push({
-      cx: random() * 390,
-      cy: random() * 844,
-      radius: 0.5 + random() * 1.3,
-      opacity: 0.3 + random() * 0.5
-    });
-  }
-
-  return groups;
+  return Array.from({ length: 66 }, () => ({
+    cx: Number((random() * 390).toFixed(1)),
+    cy: Number((random() * 844).toFixed(1)),
+    radius: Number((0.5 + random() * 1.3).toFixed(2)),
+    opacity: Number((0.3 + random() * 0.5).toFixed(2)),
+    duration: Number((2.6 + random() * 4).toFixed(2)) * 1000,
+    delay: Number((random() * 5).toFixed(2)) * 1000
+  }));
 }
 
 function seededRandom(seed: number) {
-  let value = seed >>> 0;
+  let value = seed;
   return () => {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
+    value = (value * 9301 + 49297) % 233280;
+    return value / 233280;
   };
 }
 
@@ -220,26 +244,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     overflow: "hidden"
   },
-  horizon: {
-    backgroundColor: "rgba(243,203,169,0.82)",
-    bottom: 150,
-    height: 1.5,
-    left: "7%",
-    opacity: 0.72,
-    position: "absolute",
-    right: "7%",
-    shadowColor: "#F3CBA9",
-    shadowOpacity: 0.65,
-    shadowRadius: 13
-  },
   shootingStar: {
-    backgroundColor: "#F3CBA9",
-    borderRadius: 2,
-    height: 1.4,
+    height: 4,
     position: "absolute",
     shadowColor: "#F3CBA9",
     shadowOpacity: 0.8,
-    shadowRadius: 5,
+    shadowRadius: 3,
     width: 78
   },
   shootingStarOne: {
