@@ -71,6 +71,12 @@ type PersistScaffoldChatTurnResponse = {
   chart_version?: number;
 };
 
+const SAFE_PERSISTENCE_ERROR_CODES = new Set([
+  "ACTIVE_PROFILE_REQUIRED",
+  "CHAT_PERSISTENCE_INVALID_INPUT",
+  "REFLECTION_THREAD_NOT_AVAILABLE"
+]);
+
 // Staging scaffold copy of the mobile/shared router table. Keep this aligned
 // with packages/shared route fixtures until CHAT-1 moves routing into a
 // transactional backend implementation.
@@ -196,7 +202,7 @@ async function safePersistScaffoldChatTurn(
 
     return {
       persisted: null,
-      error: "CHAT_PERSISTENCE_FAILED"
+      error: getSafePersistenceErrorCode(error)
     };
   }
 }
@@ -319,6 +325,11 @@ function buildThreadTitle(message: string): string {
   const cleaned = message.replace(/\s+/g, " ").trim();
 
   return cleaned.length <= 48 ? cleaned : `${cleaned.slice(0, 45)}...`;
+}
+
+function getSafePersistenceErrorCode(error: unknown): string {
+  const code = error instanceof Error ? error.message : "";
+  return SAFE_PERSISTENCE_ERROR_CODES.has(code) ? code : "CHAT_PERSISTENCE_FAILED";
 }
 
 function buildChatResponse(body: ChatMessageRequest) {

@@ -194,7 +194,9 @@ export default function App() {
       setAccountLoadStatus("loaded");
       setAccountLoadMessage(accountState.message);
       setForceNewSupabaseThread(false);
-      setActiveSupabaseThreadId(accountState.reflectionThreads[0]?.id ?? null);
+      setActiveSupabaseThreadId(
+        accountState.reflectionThreads.find((thread) => thread.canContinue)?.id ?? null
+      );
       return;
     }
 
@@ -368,6 +370,10 @@ export default function App() {
   }
 
   if (screen === "chat" && profileData) {
+    const activeReflection = reflectionThreads.find(
+      (thread) => thread.id === activeSupabaseThreadId
+    );
+
     return (
       <ChatShellScreen
         name={profileData.name}
@@ -377,6 +383,7 @@ export default function App() {
         remainingCredits={remainingCredits}
         forceNewSupabaseThread={forceNewSupabaseThread}
         activeSupabaseThreadId={activeSupabaseThreadId}
+        readOnlyReason={activeReflection?.canContinue === false ? activeReflection.unavailableReason : null}
         initialBillingMode={
           authStatus?.isConfigured && authStatus.user ? "supabase_scaffold_no_charge" : "local_demo"
         }
@@ -398,6 +405,7 @@ export default function App() {
           setForceNewSupabaseThread(false);
           setActiveSupabaseThreadId(threadId);
         }}
+        onStartNewTopic={() => void startNewTopic()}
         onBack={() => setScreen("home")}
       />
     );
@@ -1152,9 +1160,11 @@ function ChatShellScreen({
   remainingCredits,
   forceNewSupabaseThread,
   activeSupabaseThreadId,
+  readOnlyReason,
   initialBillingMode,
   onChatStateChange,
   onSupabaseThreadStarted,
+  onStartNewTopic,
   onBack
 }: {
   name: string;
@@ -1164,9 +1174,11 @@ function ChatShellScreen({
   remainingCredits: number;
   forceNewSupabaseThread: boolean;
   activeSupabaseThreadId: string | null;
+  readOnlyReason: string | null;
   initialBillingMode: InitialChatBillingMode;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
   onSupabaseThreadStarted: (threadId: string) => void;
+  onStartNewTopic: () => void;
   onBack: () => void;
 }) {
   const [draftMessage, setDraftMessage] = useState("");
@@ -1175,7 +1187,7 @@ function ChatShellScreen({
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
-  const canSend = draftMessage.trim().length > 0 && !isSending && remainingCredits > 0;
+  const canSend = !readOnlyReason && draftMessage.trim().length > 0 && !isSending && remainingCredits > 0;
   const latestResult = [...chatTurns].reverse().find((turn) => turn.result)?.result ?? null;
 
   async function handleSend() {
@@ -1207,6 +1219,9 @@ function ChatShellScreen({
         forceNewThread: forceNewSupabaseThread,
         threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId
       });
+      if (result.persistenceMode === "not_persisted" && result.persistenceError) {
+        throw new Error(getChatPersistenceMessage(result.persistenceError));
+      }
       if (result.threadId && forceNewSupabaseThread) {
         onSupabaseThreadStarted(result.threadId);
       }
@@ -1321,6 +1336,14 @@ function ChatShellScreen({
               {turn.error ? (
                 <View style={styles.errorCard}>
                   <Text style={styles.errorText}>{turn.error}</Text>
+                  <View style={styles.chatErrorActions}>
+                    <Pressable style={styles.chatErrorButton} onPress={() => setDraftMessage(turn.userMessage)}>
+                      <Text style={styles.chatErrorButtonText}>Retry</Text>
+                    </Pressable>
+                    <Pressable style={styles.chatErrorButton} onPress={onStartNewTopic}>
+                      <Text style={styles.chatErrorButtonText}>New topic</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ) : null}
             </View>
@@ -1339,22 +1362,32 @@ function ChatShellScreen({
           </View>
         </ScrollView>
 
-        <View style={styles.chatComposer}>
-          <TextInput
-            style={styles.chatInput}
-            placeholder="Ask Lumis..."
-            placeholderTextColor="#71839A"
-            value={draftMessage}
-            onChangeText={setDraftMessage}
-          />
-          <Pressable
-            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-            onPress={handleSend}
-            disabled={!canSend}
-          >
-            {isSending ? <Text style={styles.sendButtonText}>...</Text> : <Send color="#071321" size={19} />}
-          </Pressable>
-        </View>
+        {readOnlyReason ? (
+          <View style={styles.chatReadOnlyNotice}>
+            <Text style={styles.chatReadOnlyTitle}>Past Reflection · Read only</Text>
+            <Text style={styles.chatReadOnlyText}>{readOnlyReason} Start a new topic to continue with your current chart.</Text>
+            <Pressable style={styles.chatReadOnlyButton} onPress={onStartNewTopic}>
+              <Text style={styles.chatReadOnlyButtonText}>Start new topic</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.chatComposer}>
+            <TextInput
+              style={styles.chatInput}
+              placeholder="Ask Lumis..."
+              placeholderTextColor="#71839A"
+              value={draftMessage}
+              onChangeText={setDraftMessage}
+            />
+            <Pressable
+              style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+              onPress={handleSend}
+              disabled={!canSend}
+            >
+              {isSending ? <Text style={styles.sendButtonText}>...</Text> : <Send color="#071321" size={19} />}
+            </Pressable>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1392,6 +1425,8 @@ function PastReflectionsScreen({
         chartVersion: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        canContinue: true,
+        unavailableReason: null,
         turns: chatTurns
       }
     : null;
@@ -1444,7 +1479,10 @@ function PastReflectionsScreen({
                         {formatReflectionDate(thread.updatedAt)} · {persona.labelEn} · Chart v{thread.chartVersion}
                       </Text>
                     </View>
-                    <ChevronRight color="#71839A" size={19} />
+                    <View style={styles.reflectionThreadStatus}>
+                      {!thread.canContinue ? <Text style={styles.reflectionReadOnlyLabel}>READ ONLY</Text> : null}
+                      <ChevronRight color="#71839A" size={19} />
+                    </View>
                   </Pressable>
                 );
               })
@@ -1489,6 +1527,18 @@ function formatReflectionDate(value: string) {
   if (Number.isNaN(date.getTime())) return "Saved";
 
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function getChatPersistenceMessage(errorCode: string) {
+  if (errorCode === "REFLECTION_THREAD_NOT_AVAILABLE") {
+    return "This Past Reflection is no longer available to continue. Your message was not saved. Start a new topic and try again.";
+  }
+
+  if (errorCode === "ACTIVE_PROFILE_REQUIRED") {
+    return "Your active Lumis profile could not be loaded. Your message was not saved. Refresh your account before trying again.";
+  }
+
+  return "This reply was not saved. Please try sending your message again.";
 }
 
 function NotificationCenterScreen({
@@ -2568,6 +2618,55 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 10
   },
+  chatReadOnlyNotice: {
+    backgroundColor: "#152943",
+    borderColor: "rgba(201,169,110,0.28)",
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 7,
+    padding: 14
+  },
+  chatReadOnlyTitle: {
+    color: "#C9A96E",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  chatReadOnlyText: {
+    color: "#C4CEDB",
+    fontSize: 12.5,
+    lineHeight: 18
+  },
+  chatReadOnlyButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#C9A96E",
+    borderRadius: 999,
+    marginTop: 3,
+    paddingHorizontal: 14,
+    paddingVertical: 9
+  },
+  chatReadOnlyButtonText: {
+    color: "#071321",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  chatErrorActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10
+  },
+  chatErrorButton: {
+    borderColor: "rgba(152,47,33,0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 8
+  },
+  chatErrorButtonText: {
+    color: "#8E3025",
+    fontSize: 12,
+    fontWeight: "800"
+  },
   chatInput: {
     backgroundColor: "transparent",
     color: "#F0F4F8",
@@ -3444,6 +3543,15 @@ const styles = StyleSheet.create({
     color: "#C9A96E",
     fontSize: 10.5,
     marginTop: 7
+  },
+  reflectionThreadStatus: {
+    alignItems: "flex-end",
+    gap: 7
+  },
+  reflectionReadOnlyLabel: {
+    color: "#AEBAC8",
+    fontSize: 8.5,
+    fontWeight: "800"
   },
   reflectionsEmpty: {
     alignItems: "center",

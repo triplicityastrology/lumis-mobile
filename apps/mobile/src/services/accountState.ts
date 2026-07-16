@@ -34,6 +34,7 @@ type ChatThreadRow = {
   created_at: string;
   updated_at: string;
   chart_version: number;
+  status: string;
 };
 
 type ChatMessageRow = {
@@ -59,6 +60,8 @@ export type RestoredReflectionThread = {
   chartVersion: number;
   createdAt: string;
   updatedAt: string;
+  canContinue: boolean;
+  unavailableReason: string | null;
   turns: RestoredChatTurn[];
 };
 
@@ -122,7 +125,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .maybeSingle(),
     supabase
       .from("chat_threads")
-      .select("id, persona_style, title, created_at, updated_at, chart_version")
+      .select("id, persona_style, title, created_at, updated_at, chart_version, status")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
       .limit(20)
@@ -146,7 +149,6 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   const user = userResult.data as UserRow | null;
   const balance = balanceResult.data as BalanceRow | null;
   const threads = (threadsResult.data ?? []) as ChatThreadRow[];
-  const latestThread = threads[0];
   const reflectionThreads = await Promise.all(
     threads.map(async (thread) => {
       const turns = await loadThreadTurns(thread.id);
@@ -158,12 +160,20 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
         chartVersion: thread.chart_version,
         createdAt: thread.created_at,
         updatedAt: thread.updated_at,
+        canContinue: thread.status === "active" && thread.chart_version === profile.chart_version,
+        unavailableReason:
+          thread.status !== "active"
+            ? "This reflection is archived and available to read only."
+            : thread.chart_version !== profile.chart_version
+              ? "This reflection uses an earlier chart and is available to read only."
+              : null,
         turns
       } satisfies RestoredReflectionThread;
     })
   );
-  const chatTurns = reflectionThreads[0]?.turns ?? [];
-  const personaStyle = user?.persona_style ?? latestThread?.persona_style ?? "acceptance";
+  const latestContinuableThread = reflectionThreads.find((thread) => thread.canContinue);
+  const chatTurns = latestContinuableThread?.turns ?? [];
+  const personaStyle = user?.persona_style ?? latestContinuableThread?.personaStyle ?? "acceptance";
 
   return {
     status: "loaded",
@@ -180,8 +190,8 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     reflectionThreads,
     remainingCredits: balance?.remaining ?? null,
     message:
-      chatTurns.length > 0
-        ? "Supabase profile and latest Past Reflection loaded."
+      reflectionThreads.length > 0
+        ? "Supabase profile and Past Reflections loaded."
         : "Supabase profile loaded. No saved Past Reflections found yet."
   };
 }

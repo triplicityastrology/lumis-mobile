@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const edgeSource = readFileSync("supabase/functions/chat-message/index.ts", "utf8");
 const mobileChatSource = readFileSync("apps/mobile/src/services/chat.ts", "utf8");
+const mobileAppSource = readFileSync("apps/mobile/App.tsx", "utf8");
+const accountStateSource = readFileSync("apps/mobile/src/services/accountState.ts", "utf8");
 const migrationSource = readFileSync(
   "supabase/migrations/0011_explicit_reflection_thread.sql",
   "utf8"
@@ -91,8 +93,48 @@ assert.match(
 );
 assert.doesNotMatch(
   edgeSource,
-  /error instanceof Error \? error\.message/,
+  /error:\s*error instanceof Error \? error\.message/,
   "Edge Function must not return raw database errors to mobile"
+);
+assert.match(
+  edgeSource,
+  /SAFE_PERSISTENCE_ERROR_CODES[\s\S]*REFLECTION_THREAD_NOT_AVAILABLE[\s\S]*getSafePersistenceErrorCode/,
+  "Edge Function must preserve allowlisted safe persistence errors"
+);
+assert.match(
+  edgeSource,
+  /SAFE_PERSISTENCE_ERROR_CODES\.has\(code\) \? code : "CHAT_PERSISTENCE_FAILED"/,
+  "Unknown persistence errors must remain generic"
+);
+assert.match(
+  accountStateSource,
+  /\.select\("id, persona_style, title, created_at, updated_at, chart_version, status"\)/,
+  "restored reflections must load thread status"
+);
+assert.match(
+  accountStateSource,
+  /thread\.status === "active" && thread\.chart_version === profile\.chart_version/,
+  "only active reflections for the current chart may continue"
+);
+assert.match(
+  mobileAppSource,
+  /Past Reflection · Read only/,
+  "historical and inactive reflections must have an explicit read-only state"
+);
+assert.match(
+  mobileAppSource,
+  /result\.persistenceMode === "not_persisted" && result\.persistenceError/,
+  "mobile must handle unsaved Supabase replies"
+);
+assert.match(
+  mobileAppSource,
+  /This reply was not saved/,
+  "unsaved turns must say that persistence failed"
+);
+assert.match(
+  mobileAppSource,
+  />Retry<[\s\S]*>New topic</,
+  "unsaved turns must offer clear retry and new-topic recovery"
 );
 
 console.log("chat persistence fixture checks passed");
