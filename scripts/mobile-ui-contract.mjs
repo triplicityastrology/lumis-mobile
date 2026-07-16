@@ -9,6 +9,9 @@ const screensPath = path.join(root, "apps/mobile/src/screens");
 const mainTabBarPath = path.join(root, "apps/mobile/src/components/MainTabBar.tsx");
 const appSource = await readFile(appPath, "utf8");
 const mainTabBarSource = await readFile(mainTabBarPath, "utf8");
+const accountStateSource = await readFile(path.join(root, "apps/mobile/src/services/accountState.ts"), "utf8");
+const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
+const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
 const paywallSource = extractFunction(appSource, "PlansAccessScreen", "BirthDetailsScreen");
 const nonPaywallAppSource = appSource.replace(paywallSource, "");
 const screenFiles = (await readdir(screensPath))
@@ -35,9 +38,16 @@ assert.match(mainTabBarSource, /label: "Insights"/);
 assert.match(mainTabBarSource, /label: "Dice"/);
 assert.match(mainTabBarSource, /label: "You"/);
 assert.match(appSource, /<MainTabBar active="chat"/);
+assert.match(appSource, /restoreAccountForStatus\(status, true\)/);
+assert.match(appSource, /if \(restored && routeLoadedAccount\)[\s\S]{0,120}setScreen\("chat"\)/);
+assert.match(appSource, /accessibilityLabel="Past Reflections"/);
 await assertScreenUsesTab("ChartInsightsScreen.tsx", "insights");
 await assertScreenUsesTab("LumisDiceScreen.tsx", "dice");
 await assertScreenUsesTab("LumisProfileScreen.tsx", "profile");
+assertNoVisibleImplementationCopy(appSource, "App surfaces");
+assertNoVisibleImplementationCopy(accountStateSource, "account restore messages");
+assertNoVisibleImplementationCopy(authSource, "authentication messages");
+assertNoVisibleImplementationCopy(profileSource, "chart profile messages");
 
 console.log(`mobile UI contract checks passed across ${scannedSurfaces.length} non-billing surfaces`);
 
@@ -67,5 +77,17 @@ async function assertScreenUsesTab(fileName, activeTab) {
     source,
     new RegExp(`<MainTabBar active=["']${activeTab}["']`),
     `${fileName} must render the shared ${activeTab} tab state`
+  );
+}
+
+function assertNoVisibleImplementationCopy(source, surface) {
+  const visibleImplementationStrings = [...source.matchAll(
+    /["'`]([^"'`\n]*(?:Supabase|local demo|API payload|Cloudflare|rawProviderResponse)[^"'`\n]*)["'`]/g
+  )].map((match) => match[1]);
+
+  assert.deepEqual(
+    visibleImplementationStrings,
+    [],
+    `${surface} exposes implementation language: ${visibleImplementationStrings.join(" | ")}`
   );
 }

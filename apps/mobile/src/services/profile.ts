@@ -188,8 +188,7 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     return {
       ...preparedRequest,
       mode: "local",
-      message:
-        "Supabase is not configured yet. Showing a fixture chart profile until the real chart worker is connected.",
+      message: "Your chart is ready for this private session.",
       chart: buildFixtureChart(form)
     };
   }
@@ -200,8 +199,7 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     return {
       ...preparedRequest,
       mode: "local",
-      message:
-        "Supabase is connected, but no user is signed in yet. Showing a fixture chart profile for local demo.",
+      message: "Your chart is ready for this private session. Sign in later to save it.",
       chart: buildFixtureChart(form)
     };
   }
@@ -215,8 +213,7 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
       return {
         ...preparedRequest,
         mode: "local",
-        message:
-          "The hosted chart save function is temporarily unreachable. Showing a local chart profile so you can keep testing the flow.",
+        message: "Your chart is ready for this session, but it could not be saved. Please try again later.",
         chart: buildFixtureChart(form)
       };
     }
@@ -232,8 +229,8 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     message:
       response.next_step ??
       (response.status === "profile_persisted"
-        ? "Supabase saved the chart profile."
-        : "Supabase prepared the chart profile request."),
+        ? "Your chart and Lumis profile have been saved."
+        : "Your chart and Lumis profile are ready."),
     chart: response.chart ?? buildFixtureChart(form),
     data: response
   };

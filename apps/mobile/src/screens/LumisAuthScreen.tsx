@@ -74,7 +74,7 @@ export function LumisAuthScreen({
 
   return (
     <FlowScreen
-      badge={authStatus?.isConfigured ? "SUPABASE" : "LOCAL"}
+      badge={authStatus?.isConfigured ? "SECURE ACCOUNT" : "PRIVATE SESSION"}
       body={authStatus?.user
         ? "Your active chart and Past Reflections can be restored on this account."
         : "We will email you a secure sign-in link. No password is needed."}

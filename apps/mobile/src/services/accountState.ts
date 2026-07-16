@@ -80,14 +80,14 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return emptyAccountState("Supabase is not configured in this build.");
+    return emptyAccountState("Secure account access is not available in this build.");
   }
 
   const { data: authData } = await supabase.auth.getUser();
   const userId = authData.user?.id;
 
   if (!userId) {
-    return emptyAccountState("No signed-in Supabase account.");
+    return emptyAccountState("Please sign in to restore your Lumis profile.");
   }
 
   const [
@@ -142,7 +142,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
 
   if (!birthData || !profile?.chart_json) {
     return emptyAccountState(
-      "Signed in, but no saved Lumis chart profile was found for this account."
+      "No Lumis chart has been created for this account yet."
     );
   }
 
@@ -191,8 +191,8 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     remainingCredits: balance?.remaining ?? null,
     message:
       reflectionThreads.length > 0
-        ? "Supabase profile and Past Reflections loaded."
-        : "Supabase profile loaded. No saved Past Reflections found yet."
+        ? "Your chart and Past Reflections are ready."
+        : "Your chart is ready. No Past Reflections have been saved yet."
   };
 }
 

@@ -12,7 +12,6 @@ import {
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { CHART_WORKER_CONTRACT } from "@lumis/astrology";
 import {
   PERSONA_STYLES,
   FEATURE_LABELS,
@@ -28,7 +27,6 @@ import {
 } from "@lumis/shared";
 
 import {
-  prepareChartProfileRequest,
   savePersonaStylePreference,
   submitChartProfile,
   validateBirthProfileForm,
@@ -192,25 +190,34 @@ export default function App() {
       setActiveSupabaseThreadId(
         accountState.reflectionThreads.find((thread) => thread.canContinue)?.id ?? null
       );
-      return;
+      return true;
     }
 
     clearVisibleAccountState(accountState.message);
     setAccountLoadStatus("empty");
+    return false;
   }
 
-  async function restoreAccountForStatus(status: AuthStatus) {
+  async function restoreAccountForStatus(status: AuthStatus, routeLoadedAccount = false) {
     if (status.isConfigured && status.user) {
       setAccountLoadStatus("loading");
-      setAccountLoadMessage("Loading saved Supabase profile...");
+      setAccountLoadMessage("Loading your Lumis profile...");
       setHasLocalDemoSession(false);
 
       try {
         const accountState = await loadSupabaseAccountState();
-        applySupabaseAccountState(accountState);
+        const restored = applySupabaseAccountState(accountState);
+        if (restored && routeLoadedAccount) {
+          setScreen("chat");
+        } else if (!restored && routeLoadedAccount) {
+          setScreen("home");
+        }
       } catch (error) {
-        clearVisibleAccountState(error instanceof Error ? error.message : "Unable to load saved Supabase profile.");
+        clearVisibleAccountState("We could not load your Lumis profile. Please try again.");
         setAccountLoadStatus("error");
+        if (routeLoadedAccount) {
+          setScreen("home");
+        }
       }
 
       return;
@@ -228,13 +235,13 @@ export default function App() {
       setHasLocalDemoSession(true);
       setAccountSource("local_demo");
       setAccountLoadStatus("loaded");
-      setAccountLoadMessage("Local demo restored in this browser.");
+      setAccountLoadMessage("Your saved profile is ready on this device.");
       setForceNewSupabaseThread(false);
       setActiveSupabaseThreadId(null);
       return;
     }
 
-    clearVisibleAccountState("No saved Lumis profile found in this browser.");
+    clearVisibleAccountState("No saved Lumis profile was found on this device.");
   }
 
   async function saveDemoSession(
@@ -295,7 +302,7 @@ export default function App() {
         }
 
         const status = await refreshAuthStatus();
-        await restoreAccountForStatus(status);
+        await restoreAccountForStatus(status, true);
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : "Unable to confirm account.");
       }
@@ -310,8 +317,8 @@ export default function App() {
         authStatus={authStatus}
         onBack={() => setScreen("home")}
         onContinueLocal={() => setScreen("profile")}
-        onAccountStatusRefreshed={restoreAccountForStatus}
-        onSignedOut={() => clearVisibleAccountState("Signed out. No Supabase profile is loaded.")}
+        onAccountStatusRefreshed={(status) => restoreAccountForStatus(status, true)}
+        onSignedOut={() => clearVisibleAccountState("Signed out.")}
         authNotice={authNotice}
         authError={authError}
         onClearAuthError={() => setAuthError("")}
@@ -346,7 +353,7 @@ export default function App() {
           if (result.mode === "supabase") {
             setAccountSource("supabase");
             setAccountLoadStatus("loaded");
-            setAccountLoadMessage("Supabase profile saved and loaded for this signed-in account.");
+            setAccountLoadMessage("Your chart and Lumis profile are ready.");
             setHasLocalDemoSession(false);
           } else {
             setAccountSource("local_demo");
@@ -411,6 +418,7 @@ export default function App() {
           setForceNewSupabaseThread(false);
           setActiveSupabaseThreadId(threadId);
         }}
+        onPastReflections={() => setScreen("reflections")}
         onStartNewTopic={() => void startNewTopic()}
         onSelectTab={openMainTab}
         onBack={() => setScreen("home")}
@@ -664,7 +672,7 @@ function AuthScreen({
           </Pressable>
           <View style={styles.formStepPill}>
             <Text style={styles.formStepText}>
-              {authStatus?.isConfigured ? "Supabase ready" : "Local demo"}
+              {authStatus?.isConfigured ? "Secure account" : "Private session"}
             </Text>
           </View>
         </View>
@@ -676,8 +684,7 @@ function AuthScreen({
           <Text style={styles.kicker}>Lumis account</Text>
           <Text style={styles.formTitle}>Sign in before your chart is saved.</Text>
           <Text style={styles.formIntro}>
-            Use email magic link for the first development build. You can still continue locally
-            while the Supabase project is being created.
+            Use the secure link sent to your email. You can also continue without saving for now.
           </Text>
         </View>
 
@@ -746,7 +753,7 @@ function AuthScreen({
         </Pressable>
 
         <Pressable style={styles.ghostButton} onPress={onContinueLocal}>
-          <Text style={styles.ghostButtonText}>Continue local demo</Text>
+          <Text style={styles.ghostButtonText}>Continue without saving</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -859,10 +866,9 @@ function ProfileFormScreen({
         ) : null}
 
         <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Next technical step</Text>
+          <Text style={styles.noticeTitle}>Your chart stays personal</Text>
           <Text style={styles.noticeBody}>
-            This form will connect to the signed Cloudflare chart worker, then save the generated
-            chart profile into Supabase.
+            Lumis uses these details to calculate your chart and shape your personal reflections.
           </Text>
         </View>
 
@@ -888,9 +894,6 @@ function ChartPreviewScreen({
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const preparedRequest = prepareChartProfileRequest(profileData);
-  const chartDraft = preparedRequest.payload;
-  const location = preparedRequest.location;
   const previewValidation = validateBirthProfileForm(profileData);
   const canGenerate = previewValidation.isValid && !isSubmitting;
 
@@ -933,8 +936,7 @@ function ChartPreviewScreen({
           <Text style={styles.kicker}>Chart preview</Text>
           <Text style={styles.formTitle}>Ready to generate {profileData.name}'s chart.</Text>
           <Text style={styles.formIntro}>
-            This is the handoff point before Lumis calls the signed chart worker and stores the
-            generated chart profile.
+            Review the details below. Lumis will use them to calculate your chart and create your profile.
           </Text>
         </View>
 
@@ -946,26 +948,6 @@ function ChartPreviewScreen({
             value={profileData.timeUnknown ? "Unknown - no birth time precision" : profileData.birthTime}
           />
           <SummaryRow label="Birth place" value={profileData.birthPlace} />
-          {location.status === "resolved" ? (
-            <>
-              <SummaryRow label="Timezone" value={location.timezone} />
-              <SummaryRow
-                label="Coordinates"
-                value={`${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
-              />
-            </>
-          ) : null}
-        </View>
-
-        <View style={styles.apiCard}>
-          <Text style={styles.noticeTitle}>API payload draft</Text>
-          <Text style={styles.apiLine}>POST {CHART_WORKER_CONTRACT.supabaseFunction}</Text>
-          <Text style={styles.apiBody}>
-            {chartDraft.display_name}, {chartDraft.birth_date},{" "}
-            {chartDraft.time_unknown ? "time unknown" : chartDraft.birth_time}, {chartDraft.place_name}
-            {location.status === "resolved" ? `, ${location.timezone}` : ""} → signed Cloudflare
-            worker {CHART_WORKER_CONTRACT.endpoint} → Supabase chart_v2
-          </Text>
         </View>
 
         {!previewValidation.isValid ? (
@@ -979,7 +961,7 @@ function ChartPreviewScreen({
         {chartResult ? (
           <View style={styles.successCard}>
             <Text style={styles.successTitle}>
-              {chartResult.mode === "supabase" ? "Chart request submitted" : "Chart request prepared"}
+              Your chart is ready
             </Text>
             <Text style={styles.successBody}>
               {chartResult.mode === "supabase"
@@ -1044,8 +1026,8 @@ function ChartRevealPanel({
           <Text style={styles.revealTitle}>{name}'s Lumis Persona seed</Text>
           <Text style={styles.revealBody}>
             {chart.precision === "full"
-              ? "Fixture chart shown until the real Cloudflare worker returns chart_v2."
-              : "No birth time selected. Houses and Ascendant stay lower precision until exact time is added."}
+              ? "Your birth time is included, so Lumis can use your complete chart."
+              : "No birth time selected. Lumis will not use houses, Ascendant, or MC in your reflections."}
           </Text>
         </View>
       </View>
@@ -1195,6 +1177,7 @@ function ChatShellScreen({
   activeSupabaseThreadId,
   readOnlyReason,
   onChatStateChange,
+  onPastReflections,
   onSupabaseThreadStarted,
   onStartNewTopic,
   onSelectTab,
@@ -1209,6 +1192,7 @@ function ChatShellScreen({
   activeSupabaseThreadId: string | null;
   readOnlyReason: string | null;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
+  onPastReflections: () => void;
   onSupabaseThreadStarted: (threadId: string) => void;
   onStartNewTopic: () => void;
   onSelectTab: (tab: MainTab) => void;
@@ -1303,6 +1287,13 @@ function ChatShellScreen({
               <Text style={styles.chatSubtitle}>{selectedPersona.labelEn} · Chart connected</Text>
             </View>
           </View>
+          <Pressable
+            style={styles.chatIconButton}
+            onPress={onPastReflections}
+            accessibilityLabel="Past Reflections"
+          >
+            <History color="#F0F4F8" size={19} />
+          </Pressable>
         </View>
 
         <ScrollView contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false}>

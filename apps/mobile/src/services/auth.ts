@@ -110,7 +110,7 @@ export async function sendMagicLink(email: string): Promise<MagicLinkResult> {
     return {
       mode: "local",
       status: "skipped",
-      message: "Supabase is not connected yet. You can continue in local demo mode."
+      message: "Secure sign-in is not available in this build. You can continue without saving."
     };
   }
 
@@ -142,7 +142,7 @@ function getEmailRedirectTo(): string | undefined {
 
 function formatAuthErrorMessage(message: string): string {
   if (/rate limit/i.test(message)) {
-    return "Supabase has temporarily paused new sign-in emails after too many attempts. Please wait about 1 hour, or continue local demo while we build.";
+    return "Too many sign-in emails were requested. Please wait about 1 hour before trying again.";
   }
 
   return message;
