@@ -12,6 +12,7 @@ const mainTabBarSource = await readFile(mainTabBarPath, "utf8");
 const accountStateSource = await readFile(path.join(root, "apps/mobile/src/services/accountState.ts"), "utf8");
 const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
+const chatSource = await readFile(path.join(root, "apps/mobile/src/services/chat.ts"), "utf8");
 const paywallSource = extractFunction(appSource, "PlansAccessScreen", "BirthDetailsScreen");
 const nonPaywallAppSource = appSource.replace(paywallSource, "");
 const screenFiles = (await readdir(screensPath))
@@ -48,10 +49,20 @@ await assertScreenUsesTab("LumisDiceScreen.tsx", "dice");
 await assertScreenUsesTab("LumisProfileScreen.tsx", "profile");
 const insightsSource = await readFile(path.join(screensPath, "ChartInsightsScreen.tsx"), "utf8");
 assert.match(insightsSource, /accessibilityLabel="Notifications"/);
+const diceSource = await readFile(path.join(screensPath, "LumisDiceScreen.tsx"), "utf8");
+assert.match(diceSource, /type DiceStep = "ask" \| "shake" \| "result"/);
+assert.match(diceSource, /Accelerometer\.addListener/);
+assert.match(diceSource, /<OctaDie/);
+assert.match(diceSource, /Save this reflection/);
+assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
 assertNoVisibleImplementationCopy(appSource, "App surfaces");
 assertNoVisibleImplementationCopy(accountStateSource, "account restore messages");
 assertNoVisibleImplementationCopy(authSource, "authentication messages");
 assertNoVisibleImplementationCopy(profileSource, "chart profile messages");
+assertNoVisibleImplementationCopy(chatSource, "chat messages");
+for (const surface of scannedSurfaces) {
+  assertNoRawJsxImplementationCopy(surface.source, surface.name);
+}
 
 console.log(`mobile UI contract checks passed across ${scannedSurfaces.length} non-billing surfaces`);
 
@@ -93,5 +104,17 @@ function assertNoVisibleImplementationCopy(source, surface) {
     visibleImplementationStrings,
     [],
     `${surface} exposes implementation language: ${visibleImplementationStrings.join(" | ")}`
+  );
+}
+
+function assertNoRawJsxImplementationCopy(source, surface) {
+  const rawJsxMatches = [...source.matchAll(
+    />\s*([^<{\n]*(?:Supabase|Cloudflare|local demo|API payload|scaffold)[^<{\n]*)\s*</gi
+  )].map((match) => match[1].trim());
+
+  assert.deepEqual(
+    rawJsxMatches,
+    [],
+    `${surface} exposes raw JSX implementation language: ${rawJsxMatches.join(" | ")}`
   );
 }

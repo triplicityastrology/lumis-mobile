@@ -123,19 +123,19 @@ function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle
   }
 
   if (route === "dice") {
-    return `${chartPhrase} The local demo would route this as a dice reading. Treat this as a symbolic prompt: what first instinct appears, what resistance appears, and what would change if you trusted the quieter answer?`;
+    return `${chartPhrase} Treat these symbols as a reflective prompt: what first instinct appears, what resistance appears, and what might change if you trusted the quieter answer?`;
   }
 
   if (route === "astro_timing") {
-    return `${chartPhrase} The local demo would route this as timing work. Start by naming the window you care about, then Lumis can connect it to transits, Solar Return themes, and the question underneath the timing.${stylePhrase}`;
+    return `${chartPhrase} Start by naming the window you care about, then we can explore its transits, Solar Return themes, and the question underneath the timing.${stylePhrase}`;
   }
 
   if (route === "astro_deep") {
-    return `${chartPhrase} The local demo would route this as a deep chart reading. I would look for the repeated pattern first, then connect it to planets, houses, and the way it shows up in daily life.${stylePhrase}`;
+    return `${chartPhrase} Let us look for the repeated pattern first, then connect it to the chart and the way it shows up in daily life.${stylePhrase}`;
   }
 
   if (route === "knowledge") {
-    return `${chartPhrase} The local demo would route this as astrology knowledge. I can explain the concept plainly first, then show how it might matter in your own Lumis Persona.${stylePhrase}`;
+    return `${chartPhrase} I can explain the astrology plainly first, then show how it may matter within your own Lumis Persona.${stylePhrase}`;
   }
 
   return `${chartPhrase} I hear the question. Let us start with what feels most alive right now, then let Lumis connect it back to your pattern gently.${stylePhrase}`;

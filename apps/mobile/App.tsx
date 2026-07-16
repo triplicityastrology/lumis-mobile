@@ -146,6 +146,7 @@ export default function App() {
   const [accountLoadMessage, setAccountLoadMessage] = useState("");
   const [forceNewSupabaseThread, setForceNewSupabaseThread] = useState(false);
   const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
+  const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
 
   async function refreshAuthStatus() {
@@ -395,6 +396,7 @@ export default function App() {
       <ChatShellScreen
         name={profileData.name}
         chart={chartProfile}
+        initialDraft={pendingChatDraft}
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
         remainingCredits={remainingCredits}
@@ -415,6 +417,7 @@ export default function App() {
             );
           }
         }}
+        onInitialDraftConsumed={() => setPendingChatDraft(null)}
         onSupabaseThreadStarted={(threadId) => {
           setForceNewSupabaseThread(false);
           setActiveSupabaseThreadId(threadId);
@@ -484,7 +487,10 @@ export default function App() {
     return (
       <LumisDiceScreen
         onNotifications={() => setScreen("notifications")}
-        onReflect={() => setScreen("chat")}
+        onReflect={(chatDraft) => {
+          setPendingChatDraft(chatDraft);
+          setScreen("chat");
+        }}
         onSelectTab={openMainTab}
       />
     );
@@ -1173,6 +1179,7 @@ function PersonaStyleScreen({
 function ChatShellScreen({
   name,
   chart,
+  initialDraft,
   selectedStyle,
   chatTurns,
   remainingCredits,
@@ -1180,6 +1187,7 @@ function ChatShellScreen({
   activeSupabaseThreadId,
   readOnlyReason,
   onChatStateChange,
+  onInitialDraftConsumed,
   onNotifications,
   onPastReflections,
   onSupabaseThreadStarted,
@@ -1189,6 +1197,7 @@ function ChatShellScreen({
 }: {
   name: string;
   chart: ChartV2 | null;
+  initialDraft: string | null;
   selectedStyle: PersonaStyleKey;
   chatTurns: ChatTurn[];
   remainingCredits: number;
@@ -1196,6 +1205,7 @@ function ChatShellScreen({
   activeSupabaseThreadId: string | null;
   readOnlyReason: string | null;
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
+  onInitialDraftConsumed: () => void;
   onNotifications: () => void;
   onPastReflections: () => void;
   onSupabaseThreadStarted: (threadId: string) => void;
@@ -1203,13 +1213,17 @@ function ChatShellScreen({
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
 }) {
-  const [draftMessage, setDraftMessage] = useState("");
+  const [draftMessage, setDraftMessage] = useState(initialDraft ?? "");
   const [isSending, setIsSending] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
   const canSend = !readOnlyReason && draftMessage.trim().length > 0 && !isSending;
+
+  useEffect(() => {
+    if (initialDraft) onInitialDraftConsumed();
+  }, [initialDraft, onInitialDraftConsumed]);
 
   async function handleSend() {
     if (!canSend) {
@@ -1619,10 +1633,9 @@ function NotificationCenterScreen({
         </View>
 
         <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Next backend connection</Text>
+          <Text style={styles.noticeTitle}>Notifications in one place</Text>
           <Text style={styles.noticeBody}>
-            These local notices will later come from the Supabase notifications table and push
-            delivery events.
+            Account updates, Care Circle activity, and important reminders will appear here.
           </Text>
         </View>
       </ScrollView>
