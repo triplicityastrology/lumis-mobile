@@ -56,9 +56,12 @@ import {
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
 import { CelestialBackground } from "./src/components/CelestialBackground";
+import { MainTabBar, type MainTab } from "./src/components/MainTabBar";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
+import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
+import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
 
 const highlightRoutes = ROUTE_CREDITS.filter((route) =>
   ["casual", "dice", "astro_deep"].includes(route.route)
@@ -128,7 +131,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails" | "insights">("home");
+  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails" | "insights" | "dice" | "profileTab">("home");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -268,6 +271,20 @@ export default function App() {
     setScreen("chat");
   }
 
+  function openMainTab(tab: MainTab) {
+    if (tab === "profile") {
+      setScreen("profileTab");
+      return;
+    }
+
+    if (!profileData || !chartProfile) {
+      setScreen("profile");
+      return;
+    }
+
+    setScreen(tab);
+  }
+
   useEffect(() => {
     async function initializeAuth() {
       try {
@@ -395,6 +412,7 @@ export default function App() {
           setActiveSupabaseThreadId(threadId);
         }}
         onStartNewTopic={() => void startNewTopic()}
+        onSelectTab={openMainTab}
         onBack={() => setScreen("home")}
       />
     );
@@ -452,6 +470,33 @@ export default function App() {
     );
   }
 
+  if (screen === "dice" && profileData && chartProfile) {
+    return (
+      <LumisDiceScreen
+        onNotifications={() => setScreen("notifications")}
+        onReflect={() => setScreen("chat")}
+        onSelectTab={openMainTab}
+      />
+    );
+  }
+
+  if (screen === "profileTab" && profileData) {
+    return (
+      <LumisProfileScreen
+        email={authStatus?.user?.email}
+        name={profileData.name}
+        personaStyle={personaStyle}
+        remainingCredits={remainingCredits}
+        onAccount={() => setScreen("auth")}
+        onBirthDetails={() => setScreen("birthDetails")}
+        onNotifications={() => setScreen("notifications")}
+        onPersona={() => setScreen("persona")}
+        onPlans={() => setScreen("plans")}
+        onSelectTab={openMainTab}
+      />
+    );
+  }
+
   if (screen === "birthDetails") {
     return (
       <BirthDetailsScreen
@@ -470,6 +515,7 @@ export default function App() {
         name={profileData.name}
         onBack={() => setScreen("home")}
         onAskLumis={() => setScreen("chat")}
+        onSelectTab={openMainTab}
       />
     );
   }
@@ -494,11 +540,11 @@ export default function App() {
           setScreen("auth");
         }}
         onCreateChart={() => setScreen("profile")}
+        onDice={() => openMainTab("dice")}
         onInsights={() => setScreen(chartProfile ? "insights" : "profile")}
         onNotifications={() => setScreen("notifications")}
         onOpenChat={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
-        onOpenPlans={() => setScreen("plans")}
-        onOpenProfile={() => setScreen(authStatus?.user ? "auth" : "birthDetails")}
+        onOpenProfile={() => openMainTab("profile")}
         onPastReflections={async () => {
           if (authStatus?.isConfigured && authStatus.user) {
             setAccountLoadStatus("loading");
@@ -1151,6 +1197,7 @@ function ChatShellScreen({
   onChatStateChange,
   onSupabaseThreadStarted,
   onStartNewTopic,
+  onSelectTab,
   onBack
 }: {
   name: string;
@@ -1164,6 +1211,7 @@ function ChatShellScreen({
   onChatStateChange: (nextChatTurns: ChatTurn[], nextRemainingCredits: number) => Promise<void>;
   onSupabaseThreadStarted: (threadId: string) => void;
   onStartNewTopic: () => void;
+  onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
 }) {
   const [draftMessage, setDraftMessage] = useState("");
@@ -1360,6 +1408,7 @@ function ChatShellScreen({
           </View>
         )}
       </View>
+      <MainTabBar active="chat" onSelect={onSelectTab} />
     </SafeAreaView>
   );
 }

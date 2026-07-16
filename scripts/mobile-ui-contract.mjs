@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const appPath = path.join(root, "apps/mobile/App.tsx");
 const screensPath = path.join(root, "apps/mobile/src/screens");
+const mainTabBarPath = path.join(root, "apps/mobile/src/components/MainTabBar.tsx");
 const appSource = await readFile(appPath, "utf8");
+const mainTabBarSource = await readFile(mainTabBarPath, "utf8");
 const paywallSource = extractFunction(appSource, "PlansAccessScreen", "BirthDetailsScreen");
 const nonPaywallAppSource = appSource.replace(paywallSource, "");
 const screenFiles = (await readdir(screensPath))
@@ -28,6 +30,14 @@ for (const surface of scannedSurfaces) {
 assert.match(paywallSource, /credits/i, "Paywall must retain credit information");
 assert.doesNotMatch(appSource, /accessibilityLabel="Credit estimate"/i);
 assert.doesNotMatch(appSource, /test mode:\s*no charge/i);
+assert.match(mainTabBarSource, /label: "Talk"/);
+assert.match(mainTabBarSource, /label: "Insights"/);
+assert.match(mainTabBarSource, /label: "Dice"/);
+assert.match(mainTabBarSource, /label: "You"/);
+assert.match(appSource, /<MainTabBar active="chat"/);
+await assertScreenUsesTab("ChartInsightsScreen.tsx", "insights");
+await assertScreenUsesTab("LumisDiceScreen.tsx", "dice");
+await assertScreenUsesTab("LumisProfileScreen.tsx", "profile");
 
 console.log(`mobile UI contract checks passed across ${scannedSurfaces.length} non-billing surfaces`);
 
@@ -48,5 +58,14 @@ function assertNoVisibleBilling(source, surface) {
     visibleBillingStrings,
     [],
     `${surface} contains billing language outside Profile/Paywall: ${visibleBillingStrings.join(" | ")}`
+  );
+}
+
+async function assertScreenUsesTab(fileName, activeTab) {
+  const source = await readFile(path.join(screensPath, fileName), "utf8");
+  assert.match(
+    source,
+    new RegExp(`<MainTabBar active=["']${activeTab}["']`),
+    `${fileName} must render the shared ${activeTab} tab state`
   );
 }

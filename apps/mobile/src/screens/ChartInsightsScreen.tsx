@@ -3,6 +3,8 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "rea
 
 import type { ChartV2 } from "@lumis/shared";
 
+import { CelestialBackground } from "../components/CelestialBackground";
+import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { colors, radii, spacing } from "../theme/tokens";
 
@@ -10,15 +12,18 @@ export function ChartInsightsScreen({
   chart,
   name,
   onBack,
-  onAskLumis
+  onAskLumis,
+  onSelectTab
 }: {
   chart: ChartV2;
   name: string;
   onBack: () => void;
   onAskLumis: () => void;
+  onSelectTab: (tab: MainTab) => void;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
+      <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable style={styles.back} onPress={onBack} accessibilityLabel="Back">
@@ -62,6 +67,7 @@ export function ChartInsightsScreen({
             <Text style={styles.askButtonText}>Ask Lumis about my chart</Text>
           </Pressable>
         </ScrollView>
+        <MainTabBar active="insights" onSelect={onSelectTab} />
       </View>
     </SafeAreaView>
   );
@@ -92,7 +98,7 @@ function glyphFor(key: string) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
-  frame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: colors.navy900 },
+  frame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
   header: { minHeight: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
   back: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   headerTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, fontWeight: "600" },

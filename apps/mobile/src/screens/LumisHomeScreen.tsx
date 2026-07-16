@@ -2,7 +2,6 @@ import {
   Bell,
   ChevronRight,
   Compass,
-  Dices,
   History,
   LogIn,
   MessageCircle,
@@ -16,10 +15,9 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "rea
 import type { ChartV2 } from "@lumis/shared";
 
 import { CelestialBackground } from "../components/CelestialBackground";
+import { MainTabBar } from "../components/MainTabBar";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { colors, radii, spacing } from "../theme/tokens";
-
-type HomeTab = "chat" | "insights" | "dice" | "profile";
 
 type LumisHomeScreenProps = {
   accountLoadStatus: "idle" | "loading" | "loaded" | "empty" | "error";
@@ -31,10 +29,10 @@ type LumisHomeScreenProps = {
   name?: string;
   onAccount: () => void;
   onCreateChart: () => void;
+  onDice: () => void;
   onInsights: () => void;
   onNotifications: () => void;
   onOpenChat: () => void;
-  onOpenPlans: () => void;
   onOpenProfile: () => void;
   onPastReflections: () => void;
   onReload: () => void;
@@ -136,12 +134,12 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           </View>
         </ScrollView>
 
-        <BottomTabs
+        <MainTabBar
           active="chat"
           onSelect={(tab) => {
             if (tab === "chat") props.onOpenChat();
             if (tab === "insights") props.onInsights();
-            if (tab === "dice") props.onOpenPlans();
+            if (tab === "dice") props.onDice();
             if (tab === "profile") props.onOpenProfile();
           }}
         />
@@ -232,29 +230,6 @@ function Placement({ glyph, value, compact = false }: { glyph: string; value: st
   );
 }
 
-function BottomTabs({ active, onSelect }: { active: HomeTab; onSelect: (tab: HomeTab) => void }) {
-  const tabs = [
-    { id: "chat" as const, label: "Talk", Icon: MessageCircle },
-    { id: "insights" as const, label: "Insights", Icon: Compass },
-    { id: "dice" as const, label: "Dice", Icon: Dices },
-    { id: "profile" as const, label: "You", Icon: UserRound }
-  ];
-
-  return (
-    <View style={styles.tabs}>
-      {tabs.map(({ id, label, Icon }) => {
-        const selected = id === active;
-        return (
-          <Pressable key={id} style={styles.tab} onPress={() => onSelect(id)}>
-            <Icon color={selected ? colors.gold : colors.muted} size={22} strokeWidth={selected ? 2 : 1.6} />
-            <Text style={[styles.tabLabel, selected && styles.tabLabelActive]}>{label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 function findPoint(chart: ChartV2, key: string) {
   return chart.planets.find((point) => point.key === key);
 }
@@ -297,10 +272,6 @@ const styles = StyleSheet.create({
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.good },
   statusDotError: { backgroundColor: colors.warn },
   statusText: { flex: 1, color: colors.muted, fontSize: 10.5 },
-  tabs: { minHeight: 72, flexDirection: "row", paddingHorizontal: 10, paddingTop: 9, paddingBottom: 13, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.navy900 },
-  tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
-  tabLabel: { color: colors.muted, fontSize: 10.5, fontWeight: "600" },
-  tabLabelActive: { color: colors.gold },
   welcomeHeader: { minHeight: 68, paddingHorizontal: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   markRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   signInButton: { height: 40, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
