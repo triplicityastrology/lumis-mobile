@@ -1,6 +1,6 @@
 # Lumis QA Release Gate Checklist
 
-Last reviewed: 2026-07-14
+Last reviewed: 2026-07-16
 
 This is the canonical living checklist for staging deployment, founder UI QA, and production go-live. A reported result is not marked complete until QA independently verifies it or records the staging evidence.
 
@@ -37,17 +37,18 @@ Status rules:
 
 ## Gate A — Before Pushing or Deploying to Staging
 
-- [ ] Push all intended commits and confirm local `main` is not ahead of `origin/main`.
-- [ ] Confirm the worktree contains no unrelated or uncommitted changes.
+- [x] Push all intended commits and confirm local `main` is not ahead of `origin/main` (`462ad6e` matches `origin/main`).
+- [x] Confirm the worktree contains no unrelated or uncommitted changes before this QA checklist update.
 - [ ] Run and record:
   - [x] `pnpm -r typecheck`
   - [x] `pnpm run test:router`
   - [x] `pnpm run test:golden`
   - [x] `pnpm run test:worker`
   - [x] `pnpm run test:profile`
+  - [x] `pnpm run test:chat-persistence`
 - [x] Confirm no real secrets, API keys, access tokens, service-role keys, or QA passwords are tracked by Git; only documented placeholders are present.
 - [ ] Review migration `0008_onboarding_chart_history.sql` against a disposable/staging database backup plan.
-- [x] Confirm migration order `0001` through `0008` is complete and recorded in staging.
+- [x] Confirm migration order `0001` through `0010` is complete and recorded in staging.
 - [x] Confirm Edge Function environment is explicitly `staging`; missing `LUMIS_ENV` behaves as production. Cloudflare Worker staging configuration remains open.
 - [x] Add staging Edge Function/RPC integration coverage proving a complete profile with a Starter grant returns `PROFILE_ALREADY_EXISTS` without calling the Worker.
 - [x] Add staging Edge Function/RPC integration coverage proving a legacy profile missing its Starter grant is repaired without calling the Worker or changing its existing user, birth, chart, or recovery metadata.
@@ -90,19 +91,20 @@ These checks require deployed staging services but do not require finished UI.
 
 ### Signed Worker contract
 
-- [ ] Deploy the mobile Worker endpoint to staging.
-- [ ] Configure matching `CHART_WORKER_SIGNING_SECRET` values in Supabase and Cloudflare.
-- [ ] Configure `CHART_WORKER_URL`, `CHART_WORKER_ENDPOINT`, timeout, and `LUMIS_ENV=staging`.
-- [ ] Confirm a valid signed request succeeds.
-- [ ] Confirm invalid, missing, and expired signatures are rejected before the provider call.
-- [ ] Confirm request timestamp, request ID, user ID, calculation version, environment, and birth fields arrive correctly.
+- [x] Deploy the dedicated `lumis-chart-staging` mobile Worker endpoint.
+- [x] Configure matching `CHART_WORKER_SIGNING_SECRET` values in Supabase and Cloudflare.
+- [x] Configure `CHART_WORKER_URL`, `CHART_WORKER_ENDPOINT`, timeout, and `LUMIS_ENV=staging`.
+- [x] Confirm a valid signed request succeeds through Supabase, Cloudflare, and astrology-api.io.
+- [x] Confirm invalid, missing, and expired signatures are rejected before the provider call.
+- [x] Confirm signed request/body identity checks and the mobile calculation contract are enforced.
 - [x] Confirm repeat onboarding is rejected before any Worker/provider call.
 - [ ] Confirm Worker timeout and provider error return controlled failures without provider debug details.
-- [ ] Confirm Worker response and stored `chart_v2` contain no `rawProviderResponse`.
-- [ ] Confirm stored backend metadata contains only the approved response summary.
+- [x] Confirm the live Worker response and stored `chart_v2` contain no `rawProviderResponse`.
+- [x] Confirm the live full-time chart contains populated planets, 12 houses, Ascendant, and MC.
+- [x] Confirm stored backend metadata contains only the approved response summary.
 - [ ] Confirm production-mode missing Worker configuration fails closed and never saves fixtures.
 - [x] Confirm fixture fallback works in explicitly configured staging; source tests cover the allowed environment list and production fail-closed behavior.
-- [ ] Confirm CORS behavior is restricted to the intended origin and is not relied on for server-to-server security.
+- [x] Confirm CORS behavior is restricted to the intended origin and is not relied on for server-to-server security.
 
 ### Chart data and version routing
 
@@ -114,21 +116,64 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Verify London DST conversion and output.
 - [ ] Verify New York DST conversion and output.
 - [ ] Confirm unknown-time output has no Ascendant, MC, houses, or planet house placements end to end.
+- [ ] Inspect the actual signed Cloudflare Worker response for every unknown-time integration case: no Ascendant/ASC, no MC/Medium Coeli, empty or absent houses, and no planet house placements.
+- [ ] Confirm prompts, stored context, and AI responses make no claims based on Ascendant, MC, houses, or planet house placements when birth time is unknown.
 - [ ] Confirm full-time output retains expected Ascendant, MC, houses, and placements.
 - [ ] Confirm mobile account restore selects the active chart version, not merely an older or newer inactive profile.
 - [ ] After a successful regeneration, confirm future chats use the new active chart version.
 - [ ] Confirm Past Reflections retain their original `chart_version` and are never rerouted to a different historical chart.
+
+### Chat and Past Reflections
+
+- [ ] Apply migration `0011_explicit_reflection_thread.sql` and redeploy `chat-message` to staging.
+- [x] Source restore selects only an active `ai_profiles` row and has no inactive-profile fallback.
+- [x] Source loads up to 20 owned Past Reflection threads and can request an exact selected thread.
+- [x] Transactional RPC checks selected-thread ownership, active status, and exact active `chart_version` before appending.
+- [ ] Preserve safe RPC error codes such as `REFLECTION_THREAD_NOT_AVAILABLE` through the Edge response and show a clear unsaved/error state in mobile; source now handles safe codes, but mobile must also reject every `persistence_mode = not_persisted` response when `persistence_error` is null.
+- [x] Keep inactive or older-chart threads visible as explicitly read-only; only active threads matching the current chart version may continue.
+- [ ] Staging-test latest-thread continuation, selected-thread continuation, new-topic creation, cross-user rejection, chart-version rejection, and no partial messages on failure.
+- [ ] Confirm the restored 20-thread/turn query pattern performs acceptably on mobile networks and does not expose another user's messages through RLS.
 
 ### Security and RLS
 
 - [x] Re-run cross-user RLS checks for `birth_data`, `birth_data_history`, and `ai_profiles`.
 - [x] Confirm authenticated users cannot read `migration_reports`.
 - [x] Confirm authenticated users cannot invoke backend-only onboarding RPCs directly.
-- [x] Confirm active profile/history data and profile responses contain no `rawProviderResponse`; full live Worker metadata verification remains open until Worker deployment.
-- [ ] Confirm service-role and Worker signing secrets are present only in backend secret stores.
+- [x] Confirm live Worker responses, active profile/history data, and profile responses contain no `rawProviderResponse`.
+- [x] Confirm service-role, provider, and Worker signing secrets are present only in backend secret stores and are not tracked in Git.
+
+### Salesforce and Google Sheets operational logging
+
+- [ ] Apply migration `0012_external_sync_delivery_ledger.sql`, deploy `external-sync-retry`, and deploy the updated Worker to staging with external delivery disabled.
+- [x] PM approves Salesforce and Google Sheets as destinations and the operational field allowlist: email, name, birth date/time/place/timezone, chart/session ID or URL where applicable, plan/tier, paid amount where applicable, user ID, chart status, `time_unknown`, source, marketing consent, chart type, and operational notes/error status.
+- [ ] Document retention periods for each approved external field and destination; PM has approved the MVP deletion mechanism below.
+- [x] Make `audit` required in the shared signed-Worker contract and update the live Worker smoke request to include the required audit payload.
+- [x] Do not send raw provider responses, complete chart JSON, access tokens, signing secrets, service-role keys, or provider keys; source uses an explicit audit-record projection and rejects `rawProviderResponse` recursively.
+- [x] Restrict outbound fields to the PM-approved allowlist; do not treat approval as permission to send fields that are unnecessary for a given destination or flow.
+- [ ] Keep Salesforce and Google credentials only in Cloudflare secret storage.
+- [ ] Use a Salesforce sandbox/staging destination and separate staging Google Sheet, with explicit environment/source labels during QA.
+- [x] Keep logging non-blocking: Salesforce/Sheets timeout or failure must not fail, delay, or roll back successful chart generation/onboarding.
+- [x] Add request-ID idempotency so concurrent Worker retries cannot create duplicate Cases or Sheet rows; the Durable Object reserves each destination independently.
+- [x] Replace the terminal at-most-once failure state with backend-only `external_sync_events` records containing event/user/chart IDs, destination, idempotency key, status, attempt count/timestamps, safe last error, and external record reference.
+- [ ] Complete the notice-mandated ledger schema with `resolved_by` and `resolved_at`, and add the `cancelled_due_to_deletion` status; document whether internal `processing` remains as an additional transient status.
+- [x] Implement safe automatic retries using the same idempotency key: immediate, approximately +1 hour, and +3 hours, then `failed_final` after three failed attempts.
+- [x] Add source-level daily reporting plus a service-role-only admin report/replay script; replay preserves the original idempotency key.
+- [ ] Configure authenticated hourly retry and daily report schedules in staging and verify their execution history.
+- [ ] QA-simulate against staging: transient failure, successful retry without duplicates, exhausted retries, visible final/manual-review state, and safe manual replay. Local contract/Worker fixtures pass.
+- [x] Redact downstream response bodies and diagnostics from client responses and ordinary logs.
+- [x] Add fixture tests for success, timeout, authentication failure, rate limiting, malformed response, redaction, duplicate concurrency, and destination failure isolation.
+- [ ] Run a live staging test with both integrations enabled and verify exactly one correctly redacted Case and Sheet row, then clean up the disposable records; a hosted chart smoke test while credentials are absent does not verify these integrations.
+- [x] Keep all Salesforce/Google credentials disabled until staging delivery, retry, idempotency, reporting, and manual recovery pass QA.
+- [ ] Implement account-deletion propagation that updates the matching Salesforce record and records the external outcome.
+- [ ] For Google Sheets, append an idempotent deletion marker to a separate staging `Deleted Accounts` tab; do not edit the original Chart Leads/main-Sheet row in place.
+- [ ] Restrict the deletion marker to lookup/operational fields: `user_id`, chart/session ID, email only when required, deletion-requested/completed timestamps, status, and a stable deletion idempotency key.
+- [ ] Configure and verify `VLOOKUP` / `XLOOKUP` or equivalent admin-view formulas so main-Sheet rows are visibly marked or excluded when a matching deletion marker exists.
+- [ ] Route Salesforce updates and Google deletion markers through the external-sync ledger, retry, final-failure, reporting, and manual-replay controls; failed deletion work must remain visible for review.
+- [ ] Staging-test successful deletion propagation, duplicate deletion requests, temporary destination failures and retry, max failure/manual review, safe replay, formula/view behavior, and the external outcome audit record.
 
 ## Gate C — When the Founder/User UI Is Ready
 
+- [ ] Apply and visually verify the full celestial background after the updated Claude Design package is available.
 - [ ] Complete the same-email magic-link flow in the real UI: sign out, sign in, follow the link, reload/reopen, and confirm session restoration.
 - [ ] Confirm Founder test status says `Supabase profile loaded` for an account with a chart.
 - [ ] Confirm the birth-chart card says it loaded from Supabase staging, not local demo.
