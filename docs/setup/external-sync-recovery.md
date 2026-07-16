@@ -16,6 +16,10 @@ never blocked by either destination.
 7. A daily invocation with `{ "mode": "daily_report" }` records the current
    failed-final report in `external_sync_daily_reports`.
 
+`processing` is an additional internal transient state used while a worker owns
+a delivery claim. Stale processing claims are recovered after 15 minutes.
+`resolved_by` and `resolved_at` identify delivered and manually resolved events.
+
 ## Activation Gate
 
 Do not set `EXTERNAL_SYNC_ENABLED=true` until all of these are true:
@@ -42,10 +46,15 @@ mobile app or commit it.
 ```bash
 SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm external-sync:report
 SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm external-sync:replay -- <event_id>
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm external-sync:resolve -- <event_id> <operator_id>
 ```
 
 Manual replay preserves the same idempotency key. It resets the automatic
 attempt window and increments `manual_replay_count`.
+
+`cancelled_due_to_deletion` is reserved for the account-deletion workflow. Do
+not set it until the required Salesforce update and the approved Google Sheets
+action have both been attempted and their outcomes logged.
 
 ## Account Deletion Follow-Up
 

@@ -83,8 +83,13 @@ assert.doesNotMatch(
 );
 assert.match(
   edgeSource,
-  /buildChartContextFromProfile/,
-  "Edge Function must derive chart context from the active stored profile"
+  /buildSafeChatChartContext\(profile\?\.chart_json \?\? null\)/,
+  "Edge Function must sanitize chat context from the active stored profile"
+);
+assert.match(
+  mobileChatSource,
+  /chart_context: buildSafeChatChartContext\(input\.chart\)/,
+  "mobile must sanitize the chart context passed to chat"
 );
 assert.match(
   edgeSource,

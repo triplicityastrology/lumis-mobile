@@ -14,7 +14,8 @@ create table if not exists public.external_sync_events (
       'delivered',
       'retry_pending',
       'failed_final',
-      'manually_resolved'
+      'manually_resolved',
+      'cancelled_due_to_deletion'
     )),
   payload_json jsonb not null,
   attempt_count int not null default 0 check (attempt_count >= 0),
@@ -24,6 +25,8 @@ create table if not exists public.external_sync_events (
   last_error text,
   external_record_id text,
   delivered_at timestamptz,
+  resolved_by text,
+  resolved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -222,6 +225,8 @@ begin
     last_error = case when p_delivered then null else left(coalesce(p_error_code, 'SYNC_DELIVERY_FAILED'), 200) end,
     external_record_id = case when p_delivered then nullif(p_external_record_id, '') else external_record_id end,
     delivered_at = case when p_delivered then now() else delivered_at end,
+    resolved_by = case when p_delivered then 'system:external-sync-retry' else resolved_by end,
+    resolved_at = case when p_delivered then now() else resolved_at end,
     updated_at = now()
   where event_id = p_event_id;
 
@@ -249,6 +254,8 @@ begin
     manual_replay_count = manual_replay_count + 1,
     next_retry_at = now(),
     last_error = null,
+    resolved_by = null,
+    resolved_at = null,
     updated_at = now()
   where event_id = p_event_id
     and status in ('failed_final', 'manually_resolved');
@@ -258,6 +265,45 @@ begin
   end if;
 
   return jsonb_build_object('ok', true, 'event_id', p_event_id, 'status', 'retry_pending');
+end;
+$$;
+
+create or replace function public.resolve_external_sync_event(
+  p_event_id uuid,
+  p_resolved_by text,
+  p_resolution_note text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if nullif(trim(coalesce(p_resolved_by, '')), '') is null then
+    return jsonb_build_object('ok', false, 'error_code', 'SYNC_RESOLVER_REQUIRED');
+  end if;
+
+  update public.external_sync_events
+  set
+    status = 'manually_resolved',
+    next_retry_at = null,
+    last_error = left(coalesce(nullif(trim(p_resolution_note), ''), last_error), 200),
+    resolved_by = trim(p_resolved_by),
+    resolved_at = now(),
+    updated_at = now()
+  where event_id = p_event_id
+    and status = 'failed_final';
+
+  if not found then
+    return jsonb_build_object('ok', false, 'error_code', 'SYNC_EVENT_NOT_RESOLVABLE');
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'event_id', p_event_id,
+    'status', 'manually_resolved',
+    'resolved_by', trim(p_resolved_by)
+  );
 end;
 $$;
 
@@ -275,7 +321,9 @@ begin
     'failed_final_count', count(*),
     'events', coalesce(jsonb_agg(jsonb_build_object(
       'event_id', event_id,
+      'chart_session_id', chart_session_id,
       'destination', destination,
+      'idempotency_key', idempotency_key,
       'attempt_count', attempt_count,
       'manual_replay_count', manual_replay_count,
       'last_attempt_at', last_attempt_at,
@@ -300,8 +348,10 @@ $$;
 revoke all on function public.claim_external_sync_events(int) from public;
 revoke all on function public.complete_external_sync_event(uuid, boolean, text, text) from public;
 revoke all on function public.replay_external_sync_event(uuid) from public;
+revoke all on function public.resolve_external_sync_event(uuid, text, text) from public;
 revoke all on function public.create_external_sync_daily_report() from public;
 grant execute on function public.claim_external_sync_events(int) to service_role;
 grant execute on function public.complete_external_sync_event(uuid, boolean, text, text) to service_role;
 grant execute on function public.replay_external_sync_event(uuid) to service_role;
+grant execute on function public.resolve_external_sync_event(uuid, text, text) to service_role;
 grant execute on function public.create_external_sync_daily_report() to service_role;

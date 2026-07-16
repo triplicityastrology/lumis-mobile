@@ -5,6 +5,7 @@ import {
   type ChatRoute,
   type PersonaStyleKey
 } from "@lumis/shared";
+import { buildSafeChatChartContext } from "@lumis/astrology";
 
 import { getSupabaseClient } from "./supabase";
 
@@ -61,7 +62,7 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
       persona_style: input.personaStyle,
       force_new_thread: input.forceNewThread ?? false,
       thread_id: input.threadId ?? null,
-      chart_context: buildChartContext(input.chart)
+      chart_context: buildSafeChatChartContext(input.chart)
     }
   });
 
@@ -87,7 +88,7 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
 }
 
 function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult {
-  const chartContext = buildChartContext(input.chart);
+  const chartContext = buildSafeChatChartContext(input.chart);
   const route = classifyChatRoute(input.message);
   const routeDecision = getChatRouteDecision(route);
   const chartPhrase =
@@ -138,17 +139,4 @@ function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle
   }
 
   return `${chartPhrase} I hear the question. Let us start with what feels most alive right now, then let Lumis connect it back to your pattern gently.${stylePhrase}`;
-}
-
-function buildChartContext(chart: ChartV2 | null) {
-  const sun = chart?.planets.find((planet) => planet.key === "sun");
-  const moon = chart?.planets.find((planet) => planet.key === "moon");
-  const ascendant = chart?.angles.ascendant;
-
-  return {
-    precision: chart?.precision ?? "unknown",
-    sun: sun?.sign,
-    moon: moon?.sign,
-    rising: ascendant?.sign
-  };
 }

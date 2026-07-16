@@ -1,5 +1,7 @@
 import { corsHeaders, handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createClient } from "@supabase/supabase-js";
+import { buildSafeChatChartContext } from "../../../packages/astrology/src/chat-chart-context.ts";
+import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
 
 type ChatRoute =
   | "casual"
@@ -17,14 +19,6 @@ type ChartContext = {
   sun?: string;
   moon?: string;
   rising?: string;
-};
-
-type ChartV2Like = {
-  precision?: string;
-  planets?: Array<{ key?: string; sign?: string }>;
-  angles?: {
-    ascendant?: { sign?: string } | null;
-  } | null;
 };
 
 type ChatMessageRequest = {
@@ -46,7 +40,7 @@ type PersistedChatContext = {
 type AiProfileRow = {
   id: number;
   chart_version: number;
-  chart_json: ChartV2Like | null;
+  chart_json: ChartV2 | null;
 };
 
 type AuthenticatedChatContext = {
@@ -282,7 +276,7 @@ async function loadAuthenticatedChatContext(
     userId: authData.user.id,
     serviceClient,
     profile,
-    chartContext: buildChartContextFromProfile(profile)
+    chartContext: buildSafeChatChartContext(profile?.chart_json ?? null)
   };
 }
 
@@ -305,20 +299,6 @@ async function loadActiveProfile(
   }
 
   return data as AiProfileRow | null;
-}
-
-function buildChartContextFromProfile(profile: AiProfileRow | null): ChartContext {
-  const chart = profile?.chart_json;
-  const sun = chart?.planets?.find((planet) => planet.key === "sun");
-  const moon = chart?.planets?.find((planet) => planet.key === "moon");
-  const ascendant = chart?.angles?.ascendant;
-
-  return {
-    precision: chart?.precision ?? "unknown",
-    sun: sun?.sign,
-    moon: moon?.sign,
-    rising: ascendant?.sign
-  };
 }
 
 function buildThreadTitle(message: string): string {

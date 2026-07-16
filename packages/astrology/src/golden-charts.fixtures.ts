@@ -1,5 +1,6 @@
 import { compareGoldenChartCase, GOLDEN_CHART_CASES } from "./golden-charts";
 import { buildSafeAiChartContext } from "./chart-sanitizer";
+import { buildSafeChatChartContext } from "./chat-chart-context";
 import type { ChartV2 } from "@lumis/shared";
 
 export function assertGoldenChartFixtures(): void {
@@ -70,6 +71,7 @@ function assertUnknownTimeAiContextGuard(): void {
     }
   };
   const safeContext = buildSafeAiChartContext(unsafeChart);
+  const chatContext = buildSafeChatChartContext(unsafeChart);
 
   if (safeContext.houses.length > 0 || Object.keys(safeContext.angles).length > 0) {
     throw new Error("Unknown-time AI context must not include houses, Ascendant, or MC angles.");
@@ -79,6 +81,10 @@ function assertUnknownTimeAiContextGuard(): void {
     planet.house != null || planet.key === "ascendant" || planet.key === "medium_coeli"
   )) {
     throw new Error("Unknown-time AI context must not include timed points or house placements.");
+  }
+
+  if (chatContext.rising != null || chatContext.precision !== "no_birth_time") {
+    throw new Error("Unknown-time production chat context must not expose a rising sign.");
   }
 }
 

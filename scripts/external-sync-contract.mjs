@@ -16,6 +16,10 @@ assert.match(migration, /interval '1 hour'/i);
 assert.match(migration, /interval '3 hours'/i);
 assert.match(migration, /failed_final/i);
 assert.match(migration, /manual_replay_count/i);
+assert.match(migration, /resolved_by text/i);
+assert.match(migration, /resolved_at timestamptz/i);
+assert.match(migration, /cancelled_due_to_deletion/i);
+assert.match(migration, /resolve_external_sync_event/i);
 assert.match(migration, /create table if not exists public\.external_sync_daily_reports/i);
 assert.match(migration, /create_external_sync_daily_report/i);
 assert.match(migration, /enqueue_chart_external_sync_events_trigger/i);
@@ -46,6 +50,7 @@ assert.doesNotMatch(
 
 assert.match(adminScript, /command === "report"/);
 assert.match(adminScript, /command === "replay"/);
+assert.match(adminScript, /command === "resolve"/);
 assert.match(adminScript, /replay_external_sync_event/);
 
 console.log("external sync contract checks passed");

@@ -18,7 +18,8 @@
     "test:worker-live": "node scripts/cloudflare-worker-smoke.mjs",
     "test:external-sync": "node scripts/external-sync-contract.mjs",
     "external-sync:report": "node scripts/external-sync-admin.mjs report",
-    "external-sync:replay": "node scripts/external-sync-admin.mjs replay"
+    "external-sync:replay": "node scripts/external-sync-admin.mjs replay",
+    "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

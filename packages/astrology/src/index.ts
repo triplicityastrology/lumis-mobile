@@ -30,5 +30,9 @@ export {
   type ProfilePreflightDecision,
   type ProfilePreflightState
 } from "./profile-preflight";
-export { sanitizeChartForClient } from "./chart-sanitizer";
+export { buildSafeAiChartContext, sanitizeChartForClient } from "./chart-sanitizer";
+export {
+  buildSafeChatChartContext,
+  type SafeChatChartContext
+} from "./chat-chart-context";
 export { allowsFixtureFallbackForEnvironment } from "./chart-worker-config";
