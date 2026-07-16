@@ -575,7 +575,9 @@ export class AuditDeliveryCoordinator {
 
     try {
       if (destination === "google_sheets") {
-        const result = await appendMobileChartToSheets(this.env, record, this.dependencies.google);
+        const result = record.operation === "account_deletion"
+          ? await appendDeletedAccountMarker(this.env, record, this.dependencies.google)
+          : await appendMobileChartToSheets(this.env, record, this.dependencies.google);
         await this.state.storage.put(storageKey, {
           status: "delivered",
           request_id: record.request_id,
@@ -587,7 +589,9 @@ export class AuditDeliveryCoordinator {
           external_record_id: result?.externalRecordId ?? null
         });
       } else {
-        const result = await createMobileChartSalesforceCase(this.env, record, this.dependencies.salesforce);
+        const result = record.operation === "account_deletion"
+          ? await redactSalesforceCasesForDeletion(this.env, record, this.dependencies.salesforce)
+          : await createMobileChartSalesforceCase(this.env, record, this.dependencies.salesforce);
         await this.state.storage.put(storageKey, {
           status: "delivered",
           request_id: record.request_id,
@@ -631,11 +635,15 @@ function safeAuditErrorCode(error) {
     "GOOGLE_SHEETS_LOOKUP_FAILED",
     "GOOGLE_SHEETS_APPEND_FAILED",
     "GOOGLE_SHEETS_INVALID_RESPONSE",
+    "GOOGLE_DELETION_MARKER_LOOKUP_FAILED",
+    "GOOGLE_DELETION_MARKER_APPEND_FAILED",
+    "GOOGLE_DELETION_MARKER_INVALID_RESPONSE",
     "SALESFORCE_LOGIN_FAILED",
     "SALESFORCE_LOGIN_INVALID_RESPONSE",
     "SALESFORCE_CASE_LOOKUP_FAILED",
     "SALESFORCE_CASE_FAILED",
     "SALESFORCE_CASE_INVALID_RESPONSE",
+    "SALESFORCE_DELETION_UPDATE_FAILED",
     "AUDIT_DESTINATION_TIMEOUT"
   ].includes(code)
     ? code
@@ -690,6 +698,75 @@ export function buildMobileSheetRow(record) {
     record.point_count,
     record.house_count
   ];
+}
+
+export function buildDeletedAccountMarkerRow(record, processedAt = new Date().toISOString()) {
+  return [
+    record.request_id,
+    record.user_id,
+    Array.isArray(record.session_ids) ? record.session_ids.join(",") : "",
+    record.email_hash || "",
+    record.deletion_requested_at,
+    processedAt,
+    "deleted",
+    record.source || "mobile_app"
+  ];
+}
+
+export async function appendDeletedAccountMarker(env, record, dependencies = {}) {
+  if (!env.GOOGLE_MOBILE_SHEET_ID || !env.GOOGLE_SERVICE_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
+    return;
+  }
+
+  const fetchImpl = dependencies.fetchImpl || fetch;
+  const token = await (dependencies.getGoogleTokenImpl || getGoogleToken)(env, dependencies);
+  const sheetName = env.GOOGLE_DELETED_ACCOUNTS_SHEET_NAME || "Deleted Accounts";
+  const lookupRange = `${encodeURIComponent(sheetName)}!A:A`;
+  const lookupResponse = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${lookupRange}`,
+    {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` }
+    },
+    fetchImpl,
+    dependencies.timeoutMs
+  );
+
+  if (!lookupResponse.ok) throw new Error("GOOGLE_DELETION_MARKER_LOOKUP_FAILED");
+
+  const lookupPayload = await safeJson(lookupResponse);
+  const existingRowIndex = Array.isArray(lookupPayload?.values)
+    ? lookupPayload.values.findIndex((row) => row?.[0] === record.request_id)
+    : -1;
+
+  if (existingRowIndex >= 0) {
+    return { externalRecordId: `${sheetName}!A${existingRowIndex + 1}`, alreadyDelivered: true };
+  }
+
+  const range = `${encodeURIComponent(sheetName)}!A:H`;
+  const response = await fetchWithTimeout(
+    `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ values: [buildDeletedAccountMarkerRow(record)] })
+    },
+    fetchImpl,
+    dependencies.timeoutMs
+  );
+
+  if (!response.ok) throw new Error("GOOGLE_DELETION_MARKER_APPEND_FAILED");
+
+  const payload = await safeJson(response);
+
+  if (!payload?.updates?.updatedRange) {
+    throw new Error("GOOGLE_DELETION_MARKER_INVALID_RESPONSE");
+  }
+
+  return { externalRecordId: payload.updates.updatedRange, alreadyDelivered: false };
 }
 
 export async function appendMobileChartToSheets(env, record, dependencies = {}) {
@@ -879,6 +956,59 @@ export async function createMobileChartSalesforceCase(env, record, dependencies 
   }
 
   return { externalRecordId: payload.id, alreadyDelivered: false };
+}
+
+export async function redactSalesforceCasesForDeletion(env, record, dependencies = {}) {
+  if (!env.SF_LOGIN_URL || !env.SF_USERNAME || !env.SF_PASSWORD) {
+    return;
+  }
+
+  const caseIds = Array.isArray(record.salesforce_case_ids)
+    ? [...new Set(record.salesforce_case_ids.filter(Boolean))]
+    : [];
+
+  if (caseIds.length === 0) {
+    return { externalRecordId: "no-linked-salesforce-case", alreadyDelivered: true };
+  }
+
+  const fetchImpl = dependencies.fetchImpl || fetch;
+  const { sessionId, serverUrl } = await (dependencies.salesforceLoginImpl || salesforceLogin)(
+    env,
+    dependencies
+  );
+  const deletionDescription = [
+    "Lumis account deletion processed",
+    `User reference: ${record.user_id}`,
+    `Deletion request: ${record.deletion_request_id}`,
+    `Requested at: ${record.deletion_requested_at}`
+  ].join(" | ");
+
+  for (const caseId of caseIds) {
+    const response = await fetchWithTimeout(
+      `${serverUrl}/services/data/v59.0/sobjects/Case/${encodeURIComponent(caseId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${sessionId}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          SuppliedEmail: null,
+          SuppliedName: "Deleted Lumis account",
+          Customer_Birthdate__c: null,
+          Customer_BirthTime__c: null,
+          Customer_Birthplace__c: null,
+          Description: deletionDescription
+        })
+      },
+      fetchImpl,
+      dependencies.timeoutMs
+    );
+
+    if (!response.ok) throw new Error("SALESFORCE_DELETION_UPDATE_FAILED");
+  }
+
+  return { externalRecordId: caseIds.join(","), alreadyDelivered: false };
 }
 
 async function salesforceLogin(env, dependencies = {}) {

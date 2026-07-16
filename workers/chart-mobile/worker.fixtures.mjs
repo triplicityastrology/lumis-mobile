@@ -14,10 +14,13 @@ const workerModule = await import(
 const worker = workerModule.default;
 const {
   AuditDeliveryCoordinator,
+  appendDeletedAccountMarker,
   appendMobileChartToSheets,
+  buildDeletedAccountMarkerRow,
   buildMobileAuditRecord,
   buildMobileSheetRow,
-  createMobileChartSalesforceCase
+  createMobileChartSalesforceCase,
+  redactSalesforceCasesForDeletion
 } = workerModule;
 
 const signingSecret = "test-chart-worker-secret";
@@ -35,6 +38,8 @@ await assertAdminSyncRejectsProviderPayload();
 assertMobileAuditContract();
 await assertGoogleSheetsIntegrationContract();
 await assertSalesforceIntegrationContract();
+await assertGoogleDeletionMarkerContract();
+await assertSalesforceDeletionContract();
 await assertAuditTimeoutIsControlled();
 await assertAuditFailuresAreControlled();
 await assertAuditPayloadIsRedacted();
@@ -550,6 +555,75 @@ async function assertSalesforceIntegrationContract() {
   );
 }
 
+async function assertGoogleDeletionMarkerContract() {
+  const calls = [];
+  const record = buildDeletionRecordFixture();
+  const markerRow = buildDeletedAccountMarkerRow(record, "2026-07-16T12:00:00.000Z");
+
+  assert(markerRow.length === 8, "Expected eight deletion marker columns.");
+  assert(markerRow[0] === record.request_id, "Expected stable idempotency key in column A.");
+  assert(markerRow[3] === record.email_hash, "Expected hashed email in deletion marker.");
+  assert(!markerRow.join("|").includes("@"), "Raw email must not enter the deletion marker.");
+
+  await appendDeletedAccountMarker(buildGoogleEnv(), record, {
+    getGoogleTokenImpl: async () => "google-token",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      if (options.method === "GET") return Response.json({ values: [] });
+      return Response.json({ updates: { updatedRange: "Deleted Accounts!A2:H2" } });
+    }
+  });
+
+  assert(calls.length === 2, "Expected deletion marker lookup followed by append.");
+  assert(calls[0].url.includes("Deleted%20Accounts!A:A"), "Expected separate deletion marker tab lookup.");
+  assert(calls[1].options.method === "POST", "Deletion marker must be append-only.");
+
+  const duplicateCalls = [];
+  const duplicate = await appendDeletedAccountMarker(buildGoogleEnv(), record, {
+    getGoogleTokenImpl: async () => "google-token",
+    fetchImpl: async (url, options) => {
+      duplicateCalls.push({ url, options });
+      return Response.json({ values: [[record.request_id]] });
+    }
+  });
+
+  assert(duplicateCalls.length === 1, "Existing deletion marker must not append again.");
+  assert(duplicate.alreadyDelivered === true, "Existing deletion marker should be idempotent.");
+}
+
+async function assertSalesforceDeletionContract() {
+  const calls = [];
+  const record = buildDeletionRecordFixture();
+  const result = await redactSalesforceCasesForDeletion(buildSalesforceEnv(), record, {
+    salesforceLoginImpl: async () => ({
+      sessionId: "salesforce-session",
+      serverUrl: "https://salesforce.example"
+    }),
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return new Response(null, { status: 204 });
+    }
+  });
+
+  assert(calls.length === 2, "Expected every known Salesforce Case to be redacted.");
+  assert(calls.every((call) => call.options.method === "PATCH"), "Salesforce deletion must update existing Cases.");
+  const payload = JSON.parse(calls[0].options.body);
+  assert(payload.SuppliedEmail === null, "Salesforce deletion must clear email.");
+  assert(payload.Customer_Birthdate__c === null, "Salesforce deletion must clear birth date.");
+  assert(result.externalRecordId === "case-1,case-2", "Expected updated Salesforce Case references.");
+
+  await assertRejectsWithCode(
+    () => redactSalesforceCasesForDeletion(buildSalesforceEnv(), record, {
+      salesforceLoginImpl: async () => ({
+        sessionId: "salesforce-session",
+        serverUrl: "https://salesforce.example"
+      }),
+      fetchImpl: async () => Response.json({ error: "failed" }, { status: 500 })
+    }),
+    "SALESFORCE_DELETION_UPDATE_FAILED"
+  );
+}
+
 async function assertAuditTimeoutIsControlled() {
   const record = buildAuditRecordFixture();
   const timeoutFetch = (_url, options) =>
@@ -801,6 +875,20 @@ function buildAuditRecordFixture() {
     buildRequestBody({ birth_time: "16:55", time_unknown: false }),
     { precision: "full", planets: new Array(14).fill({}), houses: new Array(12).fill({}) }
   );
+}
+
+function buildDeletionRecordFixture() {
+  return {
+    operation: "account_deletion",
+    deletion_request_id: "20000000-0000-4000-8000-000000000001",
+    request_id: "lumis:account-deletion:20000000-0000-4000-8000-000000000001:google_sheet",
+    user_id: "10000000-0000-4000-8000-000000000001",
+    session_ids: [101, 102],
+    email_hash: "a".repeat(64),
+    deletion_requested_at: "2026-07-16T10:00:00.000Z",
+    source: "mobile_app",
+    salesforce_case_ids: ["case-1", "case-2"]
+  };
 }
 
 function buildAdminSyncBody() {

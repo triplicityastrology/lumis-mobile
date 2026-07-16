@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const migration = readFileSync("supabase/migrations/0012_external_sync_delivery_ledger.sql", "utf8");
+const deletionMigration = readFileSync("supabase/migrations/0013_account_deletion_external_sync.sql", "utf8");
+const deletionFunction = readFileSync("supabase/functions/account-deletion-request/index.ts", "utf8");
 const retryFunction = readFileSync("supabase/functions/external-sync-retry/index.ts", "utf8");
 const worker = readFileSync("workers/chart-mobile/worker.js", "utf8");
 const adminScript = readFileSync("scripts/external-sync-admin.mjs", "utf8");
@@ -25,6 +27,23 @@ assert.match(migration, /create_external_sync_daily_report/i);
 assert.match(migration, /enqueue_chart_external_sync_events_trigger/i);
 assert.match(migration, /array\['salesforce_case', 'google_sheet'\]/i);
 
+assert.match(deletionMigration, /create table if not exists public\.account_deletion_requests/i);
+assert.match(deletionMigration, /enable row level security/i);
+assert.match(deletionMigration, /revoke all on table public\.account_deletion_requests from anon, authenticated/i);
+assert.match(deletionMigration, /enqueue_account_deletion_external_sync/i);
+assert.match(deletionMigration, /cancelled_due_to_deletion/i);
+assert.match(deletionMigration, /array\['salesforce_case', 'google_sheet'\]/i);
+assert.match(deletionMigration, /lumis:account-deletion:/i);
+assert.match(deletionMigration, /refresh_account_deletion_request_status/i);
+assert.match(deletionMigration, /'operation', 'account_deleted_audit'/i);
+assert.match(deletionMigration, /status in \('delivered', 'manually_resolved'\)/i);
+assert.doesNotMatch(deletionMigration, /'email'/i, "Deletion payload must not store raw email.");
+
+assert.match(deletionFunction, /DELETE MY LUMIS ACCOUNT/);
+assert.match(deletionFunction, /auth\.getUser\(\)/);
+assert.match(deletionFunction, /sha256\(authData\.user\.email/);
+assert.match(deletionFunction, /enqueue_account_deletion_external_sync/);
+
 assert.match(retryFunction, /EXTERNAL_SYNC_ENABLED/);
 assert.match(retryFunction, /claim_external_sync_events/);
 assert.match(retryFunction, /complete_external_sync_event/);
@@ -37,6 +56,10 @@ assert.match(worker, /url\.pathname === "\/mobile\/admin-sync"/);
 assert.match(worker, /GOOGLE_SHEETS_LOOKUP_FAILED/);
 assert.match(worker, /SALESFORCE_CASE_LOOKUP_FAILED/);
 assert.match(worker, /status: "already_delivered"/);
+assert.match(worker, /appendDeletedAccountMarker/);
+assert.match(worker, /GOOGLE_DELETED_ACCOUNTS_SHEET_NAME/);
+assert.match(worker, /redactSalesforceCasesForDeletion/);
+assert.doesNotMatch(worker, /buildDeletedAccountMarkerRow[\s\S]{0,800}record\.email[,\s]/);
 
 const natalHandler = worker.slice(
   worker.indexOf("async function handleMobileNatalChart"),

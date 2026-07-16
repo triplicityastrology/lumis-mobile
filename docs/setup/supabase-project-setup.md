@@ -95,6 +95,7 @@ Current migrations:
 - `0010_strip_legacy_raw_provider_response.sql`
 - `0011_explicit_reflection_thread.sql`
 - `0012_external_sync_delivery_ledger.sql`
+- `0013_account_deletion_external_sync.sql`
 
 These create the user, birth data, versioned chart profile, balance, Lumis Persona,
 Past Reflection thread, and message tables with Row Level Security. They also add
@@ -131,6 +132,8 @@ Current functions:
 - `chat-message`
 - `config`
 - `billing-webhook`
+- `external-sync-retry`
+- `account-deletion-request`
 
 They do not need live deployment for today’s local UI testing. Deploy them once the project, keys, and migrations are ready.
 

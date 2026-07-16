@@ -28,6 +28,7 @@ Do not set `EXTERNAL_SYNC_ENABLED=true` until all of these are true:
 - Google credentials point to a separate staging Sheet.
 - `EXTERNAL_SYNC_CRON_SECRET` is configured.
 - Migration `0012_external_sync_delivery_ledger.sql` is applied.
+- Migration `0013_account_deletion_external_sync.sql` is applied.
 - The Worker and `external-sync-retry` function are deployed.
 - QA has passed delivery, timeout, retry, duplicate, and manual replay tests.
 
@@ -52,12 +53,23 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm external-sync:resolve -- <ev
 Manual replay preserves the same idempotency key. It resets the automatic
 attempt window and increments `manual_replay_count`.
 
-`cancelled_due_to_deletion` is reserved for the account-deletion workflow. Do
-not set it until the required Salesforce update and the approved Google Sheets
-action have both been attempted and their outcomes logged.
+An authenticated deletion request cancels undelivered chart-export events and
+enqueues one idempotent event per destination. Salesforce redacts known Case
+records. Google Sheets appends a marker to the separate `Deleted Accounts` tab;
+it never edits the original chart row. Marker columns are:
+
+```text
+Idempotency Key | User ID | Session IDs | Email Hash | Requested At | Processed At | Status | Source
+```
+
+The operational Sheet should use `VLOOKUP`, `XLOOKUP`, or equivalent against
+the marker tab to mark or exclude deleted accounts. `cancelled_due_to_deletion`
+is used for chart-export events that must no longer be delivered.
 
 ## Account Deletion Follow-Up
 
-Salesforce account-deletion propagation and the final Google policy (delete,
-anonymise, or mark deleted) remain a separate implementation gate. Production
-activation must not proceed until that policy and its external audit log pass QA.
+The external update queue is implemented, but destructive internal account
+deletion remains a separate `DEL-1` step. Do not connect the mobile Delete
+Account action until its confirmation UI and final internal deletion sequence
+have passed staging QA. Production activation still requires live Salesforce
+sandbox and staging `Deleted Accounts` marker tests.

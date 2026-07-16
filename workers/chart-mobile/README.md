@@ -89,6 +89,7 @@ Supabase retries after one hour and three hours, then marks the third failure
 ```text
 GOOGLE_MOBILE_SHEET_ID=
 GOOGLE_MOBILE_SHEET_NAME=Lumis Mobile Charts
+GOOGLE_DELETED_ACCOUNTS_SHEET_NAME=Deleted Accounts
 GOOGLE_SERVICE_EMAIL=
 GOOGLE_PRIVATE_KEY=
 SF_LOGIN_URL=
@@ -104,6 +105,12 @@ The Google Sheet tab uses 20 columns (`A:T`): timestamp, request ID, chart/sessi
 Supabase user ID, email, name, birth date, birth time, place, timezone, plan,
 product, source, flow, chart status, unknown-time flag, chart type, precision,
 point count, and house count.
+
+Account deletion uses a separate append-only `Deleted Accounts` tab with eight
+columns (`A:H`): idempotency key, user ID, chart/session IDs, email hash,
+requested timestamp, processed timestamp, status, and source. The Worker never
+updates the original chart row in place. Known Salesforce Cases are redacted
+using the external record IDs previously stored in the Supabase delivery ledger.
 
 ## Follow-Up
 
