@@ -33,12 +33,12 @@ Status rules:
 - [x] Scaffold chat leaves the tested Starter balance unchanged.
 - [x] Authentication API refresh, sign-out, and sign-back-in succeeded for the temporary QA account.
 - [x] Source scan found no visible legacy wording matches for `Astro`, `token`, `unit`, or `chat history` in the tested mobile/shared paths.
-- [x] Production web export succeeds for commit `e24c037`.
-- [ ] Restore the local Expo preview before visual QA; `http://localhost:8081/` again returned connection refused during QA of `e46f8ed` despite the handoff saying it returned HTTP 200.
+- [x] Production web export succeeds for commit `e90ea99`.
+- [ ] Restore the local Expo preview before visual QA; `http://localhost:8081/` again returned connection refused during QA of `e90ea99` despite the handoff saying it returned HTTP 200.
 
 ## Gate A — Before Pushing or Deploying to Staging
 
-- [ ] Push commit `e46f8ed`; local `main` is currently one commit ahead of `origin/main`.
+- [x] Confirm intended commits are pushed; `e46f8ed`, `e90ea99`, and the checklist-only follow-up `d83b84e` are on `origin/main`.
 - [x] Confirm the worktree contains no unrelated or uncommitted changes before this QA checklist update.
 - [ ] Run and record:
   - [x] `pnpm -r typecheck`
@@ -195,11 +195,14 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Keep the natal wheel data-driven from real chart longitudes/houses/angles; do not reproduce the screenshot with hand-positioned pixels.
 - [ ] Remove prototype-only phone frame, status-bar/notch simulation, Tweaks panel, and Screens/dev menu from the shipped app.
 - [ ] Complete the same-email magic-link flow in the real UI: sign out, sign in, follow the link, reload/reopen, and confirm session restoration.
-- [ ] Treat restored-account routing as the highest-priority UI gap: an account with an existing chart/Persona must route directly to Chat instead of onboarding.
-- [ ] Keep any founder-only Supabase diagnostic hidden from production UI; user-facing restored-account copy must not mention Supabase, scaffold, local demo, API routes, or backend implementation.
+- [x] Source routes a restored signed-in account with an active chart/Persona directly to Chat and selects the most recently updated continuable thread; real magic-link/relaunch verification remains in the flow item above.
+- [x] Source returns a signed-in account without a chart to the Home/chart-onboarding state with clear user-facing copy; device-level state verification remains open.
+- [ ] Remove all remaining visible implementation wording. `e90ea99` cleans the primary restore/auth/profile messages, but Notifications still says `Supabase notifications table` and local-session chat replies still say `The local demo would route...`.
+- [ ] Expand the implementation-copy guard beyond quoted literals and its selected files: scan raw JSX text nodes and `services/chat.ts` so the two current visible violations fail automatically.
 - [ ] Confirm Reload restores the same active chart and balance.
 - [ ] Confirm Past Reflections displays saved account reflections or a specifically designed empty state; search may remain visibly non-functional only if PM accepts it as v1 visual-only scope.
 - [ ] Confirm Past Reflections includes the approved search, `Start a new topic`, `Continue reflection`, and `Saved Insights` hierarchy.
+- [x] Chat now exposes a visible Past Reflections header action, and source restore loads the latest continuable conversation by `updated_at DESC`.
 - [x] Remove all credit pills, per-message credit estimates, and `test mode`/no-charge labels from Chat and other non-Profile/Paywall surfaces; Notifications and Care Circle billing wording was removed in `e24c037`.
 - [x] Expand `test:mobile-ui` across all current screen modules and the non-Paywall portion of `App.tsx`; the broader literal-string billing scan passes across five current non-billing source surfaces.
 - [x] Source provides one shared persistent four-tab bar for Talk, Insights, Dice, and You across the four primary tab screens; interactive navigation, back behavior, and restored-session entry still require device/browser QA.
