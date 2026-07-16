@@ -705,10 +705,9 @@ export function buildDeletedAccountMarkerRow(record, processedAt = new Date().to
     record.request_id,
     record.user_id,
     Array.isArray(record.session_ids) ? record.session_ids.join(",") : "",
-    record.email_hash || "",
     record.deletion_requested_at,
     processedAt,
-    "deleted",
+    "external_cleanup_requested",
     record.source || "mobile_app"
   ];
 }
@@ -743,7 +742,7 @@ export async function appendDeletedAccountMarker(env, record, dependencies = {})
     return { externalRecordId: `${sheetName}!A${existingRowIndex + 1}`, alreadyDelivered: true };
   }
 
-  const range = `${encodeURIComponent(sheetName)}!A:H`;
+  const range = `${encodeURIComponent(sheetName)}!A:G`;
   const response = await fetchWithTimeout(
     `https://sheets.googleapis.com/v4/spreadsheets/${env.GOOGLE_MOBILE_SHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
@@ -963,21 +962,45 @@ export async function redactSalesforceCasesForDeletion(env, record, dependencies
     return;
   }
 
-  const caseIds = Array.isArray(record.salesforce_case_ids)
-    ? [...new Set(record.salesforce_case_ids.filter(Boolean))]
-    : [];
-
-  if (caseIds.length === 0) {
-    return { externalRecordId: "no-linked-salesforce-case", alreadyDelivered: true };
-  }
-
   const fetchImpl = dependencies.fetchImpl || fetch;
   const { sessionId, serverUrl } = await (dependencies.salesforceLoginImpl || salesforceLogin)(
     env,
     dependencies
   );
+  const caseIds = new Set(
+    Array.isArray(record.salesforce_case_ids) ? record.salesforce_case_ids.filter(Boolean) : []
+  );
+  const caseSubjects = Array.isArray(record.salesforce_case_subjects)
+    ? [...new Set(record.salesforce_case_subjects.filter(Boolean))]
+    : [];
+
+  for (const subject of caseSubjects) {
+    const query = encodeURIComponent(
+      `SELECT Id FROM Case WHERE Subject = '${escapeSoql(subject)}' LIMIT 1`
+    );
+    const lookupResponse = await fetchWithTimeout(
+      `${serverUrl}/services/data/v59.0/query?q=${query}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${sessionId}` }
+      },
+      fetchImpl,
+      dependencies.timeoutMs
+    );
+
+    if (!lookupResponse.ok) throw new Error("SALESFORCE_DELETION_LOOKUP_FAILED");
+
+    const lookupPayload = await safeJson(lookupResponse);
+    const discoveredCaseId = lookupPayload?.records?.[0]?.Id;
+    if (discoveredCaseId) caseIds.add(discoveredCaseId);
+  }
+
+  if (caseIds.size === 0) {
+    return { externalRecordId: "no-linked-salesforce-case", alreadyDelivered: true };
+  }
+
   const deletionDescription = [
-    "Lumis account deletion processed",
+    "Lumis external account cleanup processed",
     `User reference: ${record.user_id}`,
     `Deletion request: ${record.deletion_request_id}`,
     `Requested at: ${record.deletion_requested_at}`
@@ -1008,7 +1031,7 @@ export async function redactSalesforceCasesForDeletion(env, record, dependencies
     if (!response.ok) throw new Error("SALESFORCE_DELETION_UPDATE_FAILED");
   }
 
-  return { externalRecordId: caseIds.join(","), alreadyDelivered: false };
+  return { externalRecordId: [...caseIds].join(","), alreadyDelivered: false };
 }
 
 async function salesforceLogin(env, dependencies = {}) {

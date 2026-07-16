@@ -258,6 +258,72 @@ try {
   assert(restoredThreads.length === 2, "Same-email sign-in could not read saved reflections.");
   pass("Same-email sign-in can reload the saved profile and Past Reflections");
 
+  const chartExportEvents = await serviceSelect(
+    "external_sync_events",
+    `user_id=eq.${primary.id}&destination=eq.salesforce_case&select=event_id,idempotency_key,payload_json&order=created_at.asc`
+  );
+  assert(chartExportEvents.length === 1, "Expected one Salesforce chart-export event before deletion.");
+  const inFlightEvent = chartExportEvents[0];
+  await servicePatch("external_sync_events", `event_id=eq.${inFlightEvent.event_id}`, {
+    status: "processing",
+    attempt_count: 1,
+    last_attempt_at: new Date().toISOString()
+  });
+
+  const [deletionRequest, lateCompletion] = await Promise.all([
+    invokeFunction("account-deletion-request", restoredSession.access_token, {
+      confirmation: "DELETE MY LUMIS ACCOUNT"
+    }),
+    new Promise((resolve) => setTimeout(resolve, 25)).then(() =>
+      serviceRequest("/rest/v1/rpc/complete_external_sync_event", {
+        method: "POST",
+        body: {
+          p_event_id: inFlightEvent.event_id,
+          p_delivered: true,
+          p_external_record_id: "case-created-during-deletion",
+          p_error_code: null
+        }
+      })
+    )
+  ]);
+  assert(deletionRequest.status === 202, `Deletion request returned HTTP ${deletionRequest.status}.`);
+  assert(lateCompletion.ok === true, "Late in-flight completion was not recorded.");
+
+  const deletionEvents = await serviceSelect(
+    "external_sync_events",
+    `user_id=eq.${primary.id}&payload_json->>operation=eq.account_deletion&select=destination,idempotency_key,payload_json`
+  );
+  assert(deletionEvents.length === 2, `Expected two deletion events, found ${deletionEvents.length}.`);
+  const salesforceDeletion = deletionEvents.find((event) => event.destination === "salesforce_case");
+  assert(
+    salesforceDeletion?.payload_json?.salesforce_case_ids?.includes("case-created-during-deletion"),
+    "Deletion cleanup omitted the late Salesforce Case ID."
+  );
+  assert(
+    salesforceDeletion?.payload_json?.salesforce_case_subjects?.includes(
+      `LUMIS-${inFlightEvent.payload_json.request_id}`
+    ),
+    "Deletion cleanup omitted deterministic Salesforce Case discovery."
+  );
+  assert(!containsKey(deletionEvents, "email_hash"), "Deletion events retained an email hash.");
+
+  await serviceRequest("/rest/v1/external_sync_events", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      user_id: primary.id,
+      destination: "google_sheet",
+      idempotency_key: `lumis:post-deletion-export:${runId}`,
+      payload_json: { operation: "chart_generation", request_id: `blocked-${runId}` }
+    }
+  });
+  const blockedExports = await serviceSelect(
+    "external_sync_events",
+    `idempotency_key=eq.lumis:post-deletion-export:${runId}&select=event_id`
+  );
+  assert(blockedExports.length === 0, "A new chart export was accepted after deletion began.");
+  pass("Deletion race captures late Case IDs, rediscovers deterministic Cases, and blocks new exports");
+
   console.log(JSON.stringify({ ok: true, checks: results }, null, 2));
 } finally {
   for (const userId of createdUserIds) {
@@ -423,6 +489,8 @@ async function serviceRequest(path, options = {}) {
 }
 
 async function cleanupUser(userId) {
+  await serviceDelete("external_sync_events", `user_id=eq.${userId}`);
+  await serviceDelete("account_deletion_requests", `user_id=eq.${userId}`);
   await serviceDelete("users", `id=eq.${userId}`);
   const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
     method: "DELETE",

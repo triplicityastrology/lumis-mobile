@@ -560,17 +560,18 @@ async function assertGoogleDeletionMarkerContract() {
   const record = buildDeletionRecordFixture();
   const markerRow = buildDeletedAccountMarkerRow(record, "2026-07-16T12:00:00.000Z");
 
-  assert(markerRow.length === 8, "Expected eight deletion marker columns.");
+  assert(markerRow.length === 7, "Expected seven deletion marker columns.");
   assert(markerRow[0] === record.request_id, "Expected stable idempotency key in column A.");
-  assert(markerRow[3] === record.email_hash, "Expected hashed email in deletion marker.");
   assert(!markerRow.join("|").includes("@"), "Raw email must not enter the deletion marker.");
+  assert(!markerRow.join("|").includes("a".repeat(64)), "Email hashes must not enter the deletion marker.");
+  assert(markerRow[5] === "external_cleanup_requested", "Marker status must reflect the external cleanup stage.");
 
   await appendDeletedAccountMarker(buildGoogleEnv(), record, {
     getGoogleTokenImpl: async () => "google-token",
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
       if (options.method === "GET") return Response.json({ values: [] });
-      return Response.json({ updates: { updatedRange: "Deleted Accounts!A2:H2" } });
+      return Response.json({ updates: { updatedRange: "Deleted Accounts!A2:G2" } });
     }
   });
 
@@ -601,16 +602,20 @@ async function assertSalesforceDeletionContract() {
     }),
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
+      if (options.method === "GET") {
+        return Response.json({ records: [{ Id: url.includes("late") ? "case-late" : "case-1" }] });
+      }
       return new Response(null, { status: 204 });
     }
   });
 
-  assert(calls.length === 2, "Expected every known Salesforce Case to be redacted.");
-  assert(calls.every((call) => call.options.method === "PATCH"), "Salesforce deletion must update existing Cases.");
-  const payload = JSON.parse(calls[0].options.body);
+  const patchCalls = calls.filter((call) => call.options.method === "PATCH");
+  assert(calls.filter((call) => call.options.method === "GET").length === 2, "Expected deterministic Case discovery.");
+  assert(patchCalls.length === 3, "Expected known and late-discovered Salesforce Cases to be redacted.");
+  const payload = JSON.parse(patchCalls[0].options.body);
   assert(payload.SuppliedEmail === null, "Salesforce deletion must clear email.");
   assert(payload.Customer_Birthdate__c === null, "Salesforce deletion must clear birth date.");
-  assert(result.externalRecordId === "case-1,case-2", "Expected updated Salesforce Case references.");
+  assert(result.externalRecordId === "case-1,case-2,case-late", "Expected updated Salesforce Case references.");
 
   await assertRejectsWithCode(
     () => redactSalesforceCasesForDeletion(buildSalesforceEnv(), record, {
@@ -618,7 +623,9 @@ async function assertSalesforceDeletionContract() {
         sessionId: "salesforce-session",
         serverUrl: "https://salesforce.example"
       }),
-      fetchImpl: async () => Response.json({ error: "failed" }, { status: 500 })
+      fetchImpl: async (_url, options) => options.method === "GET"
+        ? Response.json({ records: [] })
+        : Response.json({ error: "failed" }, { status: 500 })
     }),
     "SALESFORCE_DELETION_UPDATE_FAILED"
   );
@@ -884,10 +891,10 @@ function buildDeletionRecordFixture() {
     request_id: "lumis:account-deletion:20000000-0000-4000-8000-000000000001:google_sheet",
     user_id: "10000000-0000-4000-8000-000000000001",
     session_ids: [101, 102],
-    email_hash: "a".repeat(64),
     deletion_requested_at: "2026-07-16T10:00:00.000Z",
     source: "mobile_app",
-    salesforce_case_ids: ["case-1", "case-2"]
+    salesforce_case_ids: ["case-1", "case-2"],
+    salesforce_case_subjects: ["LUMIS-chart-stable", "LUMIS-chart-late"]
   };
 }
 

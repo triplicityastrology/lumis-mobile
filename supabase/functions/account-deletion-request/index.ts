@@ -46,10 +46,16 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: { code: "AUTH_REQUIRED", message: "Sign in is required" } }, { status: 401 });
   }
 
+  if (!isRecentAuthentication(authData.user.last_sign_in_at)) {
+    return jsonResponse(
+      { error: { code: "RECENT_AUTH_REQUIRED", message: "Please sign in again before deleting your account" } },
+      { status: 403 }
+    );
+  }
+
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
   const { data, error } = await serviceClient.rpc("enqueue_account_deletion_external_sync", {
-    p_user_id: authData.user.id,
-    p_email_hash: authData.user.email ? await sha256(authData.user.email.trim().toLowerCase()) : null
+    p_user_id: authData.user.id
   });
 
   if (error) {
@@ -77,11 +83,9 @@ Deno.serve(async (request) => {
   );
 });
 
-async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+function isRecentAuthentication(lastSignInAt?: string): boolean {
+  const lastSignInTime = Date.parse(lastSignInAt ?? "");
+  return Number.isFinite(lastSignInTime) && Date.now() - lastSignInTime <= 10 * 60 * 1000;
 }
 
 function requireEnvironment(name: string): string {

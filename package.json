@@ -15,6 +15,7 @@
     "test:profile": "tsc -p packages/astrology/tsconfig.profile-test.json && node .tmp/profile-onboarding-tests/astrology/src/profile-onboarding.fixtures.js && node supabase/functions/profile/profile-recovery-contract.fixtures.mjs",
     "test:chat-persistence": "node supabase/functions/chat-message/chat-persistence.fixtures.mjs",
     "test:staging-backend": "node scripts/staging-backend-smoke.mjs",
+    "test:account-deletion-db": "node scripts/staging-backend-smoke.mjs",
     "test:worker-live": "node scripts/cloudflare-worker-smoke.mjs",
     "test:external-sync": "node scripts/external-sync-contract.mjs",
     "test:mobile-ui": "node scripts/mobile-ui-contract.mjs",

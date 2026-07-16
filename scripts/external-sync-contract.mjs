@@ -35,13 +35,21 @@ assert.match(deletionMigration, /cancelled_due_to_deletion/i);
 assert.match(deletionMigration, /array\['salesforce_case', 'google_sheet'\]/i);
 assert.match(deletionMigration, /lumis:account-deletion:/i);
 assert.match(deletionMigration, /refresh_account_deletion_request_status/i);
+assert.match(deletionMigration, /block_external_export_after_deletion_request/i);
+assert.match(deletionMigration, /waiting_for_in_flight_exports/i);
+assert.match(deletionMigration, /continue_account_deletion_after_export/i);
+assert.match(deletionMigration, /salesforce_case_subjects/i);
+assert.match(deletionMigration, /internally_deleted/i);
 assert.match(deletionMigration, /'operation', 'account_deleted_audit'/i);
 assert.match(deletionMigration, /status in \('delivered', 'manually_resolved'\)/i);
 assert.doesNotMatch(deletionMigration, /'email'/i, "Deletion payload must not store raw email.");
+assert.doesNotMatch(deletionMigration, /email_hash/i, "Deletion workflow must not retain an email hash.");
 
 assert.match(deletionFunction, /DELETE MY LUMIS ACCOUNT/);
 assert.match(deletionFunction, /auth\.getUser\(\)/);
-assert.match(deletionFunction, /sha256\(authData\.user\.email/);
+assert.match(deletionFunction, /RECENT_AUTH_REQUIRED/);
+assert.match(deletionFunction, /last_sign_in_at/);
+assert.doesNotMatch(deletionFunction, /sha256|email_hash/i);
 assert.match(deletionFunction, /enqueue_account_deletion_external_sync/);
 
 assert.match(retryFunction, /EXTERNAL_SYNC_ENABLED/);
@@ -59,6 +67,8 @@ assert.match(worker, /status: "already_delivered"/);
 assert.match(worker, /appendDeletedAccountMarker/);
 assert.match(worker, /GOOGLE_DELETED_ACCOUNTS_SHEET_NAME/);
 assert.match(worker, /redactSalesforceCasesForDeletion/);
+assert.match(worker, /SALESFORCE_DELETION_LOOKUP_FAILED/);
+assert.match(worker, /external_cleanup_requested/);
 assert.doesNotMatch(worker, /buildDeletedAccountMarkerRow[\s\S]{0,800}record\.email[,\s]/);
 
 const natalHandler = worker.slice(

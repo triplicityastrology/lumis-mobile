@@ -53,14 +53,20 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... pnpm external-sync:resolve -- <ev
 Manual replay preserves the same idempotency key. It resets the automatic
 attempt window and increments `manual_replay_count`.
 
-An authenticated deletion request cancels undelivered chart-export events and
-enqueues one idempotent event per destination. Salesforce redacts known Case
-records. Google Sheets appends a marker to the separate `Deleted Accounts` tab;
-it never edits the original chart row. Marker columns are:
+An authenticated, recently signed-in deletion request blocks new chart exports
+and cancels undelivered work. If a Worker already owns an export, deletion waits
+for that claim to settle before queuing cleanup. Salesforce rediscovers Cases by
+their deterministic subjects as well as saved record IDs. Google Sheets appends
+a marker to the separate `Deleted Accounts` tab; it never edits the original
+chart row. Marker columns are:
 
 ```text
-Idempotency Key | User ID | Session IDs | Email Hash | Requested At | Processed At | Status | Source
+Idempotency Key | User ID | Session IDs | Requested At | Processed At | Status | Source
 ```
+
+The marker status is `external_cleanup_requested`; it does not claim that the
+internal Lumis account has already been deleted. No email or email hash is sent
+to the deletion marker tab.
 
 The operational Sheet should use `VLOOKUP`, `XLOOKUP`, or equivalent against
 the marker tab to mark or exclude deleted accounts. `cancelled_due_to_deletion`
