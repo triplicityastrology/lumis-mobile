@@ -1,12 +1,15 @@
 const projectRef = process.env.SUPABASE_PROJECT_REF ?? "bmqhwofmdgebpcihjlnb";
 const supabaseUrl = `https://${projectRef}.supabase.co`;
 const anonKey = requireEnvironment("SUPABASE_ANON_KEY");
-const serviceRoleKey = requireEnvironment("SUPABASE_SERVICE_ROLE_KEY");
+const secretKey = requireSecretKey();
 const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const password = `Lumis-QA-${crypto.randomUUID()}!`;
 const createdUserIds = [];
 
 const results = [];
+
+console.log(`Hosted QA run ID: ${runId}`);
+console.log(`If this process is interrupted, run: pnpm test:staging-backend:cleanup -- ${runId}`);
 
 try {
   await auditExistingChartVersionInvariants();
@@ -548,10 +551,17 @@ async function cleanupUser(userId) {
 
 function serviceHeaders() {
   return {
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
+    apikey: secretKey,
     "Content-Type": "application/json"
   };
+}
+
+function requireSecretKey() {
+  const value = requireEnvironment("SUPABASE_SECRET_KEY");
+  if (!value.startsWith("sb_secret_")) {
+    throw new Error("SUPABASE_SECRET_KEY must be a separately revocable sb_secret_ key, not a legacy service_role JWT.");
+  }
+  return value;
 }
 
 function containsKey(value, target) {

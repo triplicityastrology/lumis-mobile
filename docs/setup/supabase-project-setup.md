@@ -55,18 +55,31 @@ Use either `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or `EXPO_PUBLIC_SUPABASE_ANON_
 
 ### Run the privileged staging QA suite safely
 
-Use the guarded launcher so the temporary legacy `service_role` key is entered
+In Supabase **Settings → API Keys**, create a dedicated secret key for this QA
+run. Its value must begin with `sb_secret_`. Do not use the legacy
+`service_role` JWT. Use the guarded launcher so the dedicated key is entered
 with hidden Terminal input and never appears in shell history:
 
 ```bash
 pnpm test:staging-backend:secure
 ```
 
-The launcher is locked to the Lumis staging project. It creates disposable QA
-users, runs the hosted race, RLS, persistence, and deletion checks, and removes
-the disposable users and records in a cleanup step. Revoke or rotate the
-temporary legacy key in Supabase immediately after the test finishes. Never put
-this key in `.env`, Expo configuration, Codex, screenshots, or chat messages.
+The launcher is locked to the Lumis staging project. It prints a QA run ID,
+creates disposable users, runs the hosted race, RLS, persistence, and deletion
+checks, and normally removes the disposable records in a cleanup step. Never
+put the secret key in `.env`, Expo configuration, Codex, screenshots, or chat
+messages. A dedicated key can be deleted independently in Supabase when the QA
+work is complete; do not rotate the project's legacy JWT secret for this test.
+
+If Terminal or Node is stopped before normal cleanup finishes, use the printed
+run ID:
+
+```bash
+pnpm test:staging-backend:cleanup -- 1750000000000-abcd1234
+```
+
+The cleanup command prompts invisibly for the same dedicated `sb_secret_` key,
+finds only disposable users belonging to that run ID, and removes their records.
 
 ## Step 3: Keep Backend Secrets Out Of The Mobile App
 
@@ -75,7 +88,7 @@ Do not put secret keys in Expo/mobile environment variables.
 Backend-only values belong in Supabase Edge Function secrets:
 
 ```bash
-SUPABASE_SERVICE_ROLE_KEY=service_role_or_secret_key
+SUPABASE_SECRET_KEYS=Supabase_managed_JSON_object_of_named_secret_keys
 CHART_WORKER_URL=cloudflare_worker_url
 CHART_WORKER_ENDPOINT=/mobile/natal-chart
 CHART_WORKER_SIGNING_SECRET=cloudflare_worker_signing_secret

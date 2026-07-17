@@ -47,6 +47,8 @@ assert.match(appSource, /Start a new topic/);
 assert.match(appSource, /Continue reflection/);
 assert.match(appSource, /Read reflection/);
 assert.match(appSource, /SAVED INSIGHTS/);
+assert.doesNotMatch(appSource, /Use Save insight on a Lumis reply/);
+assert.match(appSource, /Saved Insights will appear here after this feature becomes available/);
 assert.match(appSource, /const filteredThreads = normalizedQuery/);
 assert.match(appSource, /No matching reflections/);
 assert.match(appSource, /onNotifications=\{\(\) => setScreen\("notifications"\)\}/);

@@ -1595,7 +1595,7 @@ function PastReflectionsScreen({
                     <View style={styles.reflectionThreadCopy}>
                       <Text style={styles.reflectionThreadTitle}>Nothing saved yet</Text>
                       <Text style={styles.reflectionThreadPreview}>
-                        Use Save insight on a Lumis reply to keep it here.
+                        Saved Insights will appear here after this feature becomes available.
                       </Text>
                     </View>
                   </View>
