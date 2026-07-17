@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/birth-date-tests",
+    "rootDir": "src"
+  },
+  "include": ["src/config/birth-date.ts", "src/config/birth-date.fixtures.ts"]
+}

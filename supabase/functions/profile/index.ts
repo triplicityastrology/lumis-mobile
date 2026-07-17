@@ -7,6 +7,7 @@ import { sanitizeChartForClient } from "../../../packages/astrology/src/chart-sa
 import { decideProfilePreflight } from "../../../packages/astrology/src/profile-preflight.ts";
 import { createClient } from "@supabase/supabase-js";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
+import { isValidBirthDate } from "../../../packages/shared/src/config/birth-date.ts";
 
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
@@ -103,6 +104,18 @@ Deno.serve(async (request) => {
         error: {
           code: "PROFILE_INCOMPLETE",
           message: "birth_date, birth_time or time_unknown, and place_name are required"
+        }
+      },
+      { status: 400 }
+    );
+  }
+
+  if (!isValidBirthDate(body.birth_date)) {
+    return jsonResponse(
+      {
+        error: {
+          code: "PROFILE_BIRTH_DATE_INVALID",
+          message: "Birth date must be a real date and cannot be in the future."
         }
       },
       { status: 400 }

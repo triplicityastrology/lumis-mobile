@@ -1,5 +1,5 @@
 import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology";
-import { PERSONA_STYLES, type ChartV2, type PersonaStyleKey } from "@lumis/shared";
+import { isValidBirthDate, PERSONA_STYLES, type ChartV2, type PersonaStyleKey } from "@lumis/shared";
 
 import { resolveBirthPlace, type BirthPlaceResolution } from "./location";
 import { getSupabaseClient } from "./supabase";
@@ -108,7 +108,7 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
   if (!isValidBirthDate(birthDate)) {
     return {
       isValid: false,
-      message: "Please enter birth date as YYYY-MM-DD."
+      message: "Please enter a real birth date that is not in the future."
     };
   }
 
@@ -136,25 +136,6 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
   }
 
   return { isValid: true };
-}
-
-export function isValidBirthDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-
-  if (!match) {
-    return false;
-  }
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
 }
 
 export function isValidBirthTime(value: string): boolean {

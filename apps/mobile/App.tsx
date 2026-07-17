@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import {
   ArrowLeft,
   Bell,
+  Check,
   ChevronRight,
   History,
   MessageCircle,
@@ -921,8 +922,22 @@ function ChartPreviewScreen({
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generationStep, setGenerationStep] = useState(0);
   const previewValidation = validateBirthProfileForm(profileData);
   const canGenerate = previewValidation.isValid && !isSubmitting;
+
+  useEffect(() => {
+    if (!isSubmitting) {
+      setGenerationStep(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setGenerationStep((current) => Math.min(current + 1, 3));
+    }, 900);
+
+    return () => clearInterval(interval);
+  }, [isSubmitting]);
 
   async function handleGenerateChartProfile() {
     if (!previewValidation.isValid) {
@@ -941,6 +956,10 @@ function ChartPreviewScreen({
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isSubmitting) {
+    return <ChartGeneratingScreen activeStep={generationStep} name={profileData.name} />;
   }
 
   return (
@@ -1018,13 +1037,50 @@ function ChartPreviewScreen({
           disabled={!canGenerate}
         >
           <Text style={styles.fullPrimaryButtonText}>
-            {isSubmitting ? "Preparing chart request..." : "Generate chart profile"}
+            Create my chart
           </Text>
         </Pressable>
         <Pressable style={styles.ghostButton} onPress={onStartOver}>
           <Text style={styles.ghostButtonText}>Start over</Text>
         </Pressable>
       </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function ChartGeneratingScreen({ activeStep, name }: { activeStep: number; name: string }) {
+  const steps = [
+    "Validating your birth details",
+    "Positioning your sky",
+    "Building your natal chart",
+    "Shaping your Lumis profile"
+  ];
+
+  return (
+    <SafeAreaView style={styles.generatingSafe}>
+      <StatusBar style="light" />
+      <CelestialBackground />
+      <View style={styles.generatingFrame}>
+        <View style={styles.generatingWheel}><ChartWheel /></View>
+        <Text style={styles.generatingEyebrow}>READING YOUR SKY</Text>
+        <Text style={styles.generatingTitle}>Building your sanctuary, {name}.</Text>
+        <Text style={styles.generatingBody}>Lumis is calculating your chart and shaping your private profile.</Text>
+        <View style={styles.generatingSteps}>
+          {steps.map((step, index) => {
+            const isComplete = index < activeStep;
+            const isActive = index === activeStep;
+            return (
+              <View key={step} style={styles.generatingStep}>
+                <View style={[styles.generatingStepIcon, isActive && styles.generatingStepIconActive, isComplete && styles.generatingStepIconComplete]}>
+                  {isComplete ? <Check color="#071321" size={15} strokeWidth={3} /> : <Text style={[styles.generatingStepNumber, isActive && styles.generatingStepNumberActive]}>{index + 1}</Text>}
+                </View>
+                <Text style={[styles.generatingStepText, (isActive || isComplete) && styles.generatingStepTextActive]}>{step}</Text>
+              </View>
+            );
+          })}
+        </View>
+        <Text style={styles.generatingPrivacy}>Your birth details stay linked to your private Lumis account.</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -3336,6 +3392,102 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 14,
     width: 132
+  },
+  generatingSafe: {
+    backgroundColor: "#071321",
+    flex: 1
+  },
+  generatingFrame: {
+    alignItems: "center",
+    alignSelf: "center",
+    flex: 1,
+    justifyContent: "center",
+    maxWidth: 480,
+    paddingHorizontal: 28,
+    width: "100%"
+  },
+  generatingWheel: {
+    alignItems: "center",
+    backgroundColor: "rgba(11,25,48,0.88)",
+    borderColor: "rgba(201,169,110,0.36)",
+    borderRadius: 78,
+    borderWidth: 1,
+    height: 156,
+    justifyContent: "center",
+    marginBottom: 25,
+    width: 156
+  },
+  generatingEyebrow: {
+    color: "#C9A96E",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.6
+  },
+  generatingTitle: {
+    color: "#F0F4F8",
+    fontFamily: "Georgia",
+    fontSize: 28,
+    lineHeight: 35,
+    marginTop: 12,
+    textAlign: "center"
+  },
+  generatingBody: {
+    color: "#AEBAC8",
+    fontSize: 13.5,
+    lineHeight: 20,
+    marginTop: 10,
+    maxWidth: 340,
+    textAlign: "center"
+  },
+  generatingSteps: {
+    alignSelf: "stretch",
+    gap: 14,
+    marginTop: 30
+  },
+  generatingStep: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12
+  },
+  generatingStepIcon: {
+    alignItems: "center",
+    borderColor: "rgba(255,255,255,0.18)",
+    borderRadius: 17,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    width: 34
+  },
+  generatingStepIconActive: {
+    backgroundColor: "rgba(139,147,212,0.2)",
+    borderColor: "#8B93D4"
+  },
+  generatingStepIconComplete: {
+    backgroundColor: "#C9A96E",
+    borderColor: "#C9A96E"
+  },
+  generatingStepNumber: {
+    color: "#71839A",
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  generatingStepNumberActive: {
+    color: "#F0F4F8"
+  },
+  generatingStepText: {
+    color: "#71839A",
+    fontSize: 13
+  },
+  generatingStepTextActive: {
+    color: "#E4EAF0",
+    fontWeight: "700"
+  },
+  generatingPrivacy: {
+    color: "#71839A",
+    fontSize: 10.5,
+    lineHeight: 16,
+    marginTop: 28,
+    textAlign: "center"
   },
   summaryPanel: {
     backgroundColor: "#FBF7EE",

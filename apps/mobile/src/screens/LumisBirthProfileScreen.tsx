@@ -1,10 +1,10 @@
 import { Check, ChevronRight, Clock3, LockKeyhole, MapPin, Search } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { isValidBirthDate } from "@lumis/shared";
 
 import { FlowScreen, flowStyles } from "../components/FlowScreen";
 import {
-  isValidBirthDate,
   isValidBirthTime,
   validateBirthProfileForm,
   type BirthProfileForm
@@ -47,7 +47,7 @@ export function LumisBirthProfileScreen({
       return;
     }
     if (!isValidBirthDate(birthDate.trim())) {
-      setError("Please enter a real birth date as YYYY-MM-DD.");
+      setError("Please enter a real birth date as YYYY-MM-DD that is not in the future.");
       return;
     }
     setError("");

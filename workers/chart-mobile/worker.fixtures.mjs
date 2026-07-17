@@ -31,6 +31,7 @@ await assertBadSignatureIsRejected();
 await assertExpiredSignatureIsRejected();
 await assertMissingSignatureIsRejected();
 await assertMismatchedIdentityHeadersAreRejected();
+await assertFutureBirthDateIsRejected();
 await assertMissingProviderConfigurationFailsClosed();
 await assertProviderFailureIsRedacted();
 await assertSignedAdminSyncRequest();
@@ -170,6 +171,24 @@ async function assertBadSignatureIsRejected() {
 
     assert(response.status === 401, "Expected invalid signature to be rejected.");
     assert(fetchCalls.length === 0, "Expected invalid signature to skip astrology API call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertFutureBirthDateIsRejected() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({
+    birth_date: "2099-01-01",
+    birth_time: "16:55",
+    time_unknown: false
+  });
+
+  try {
+    const response = await worker.fetch(await signedRequest(body), buildEnv(), buildCtx());
+    assert(response.status === 400, "Expected future birth date to be rejected.");
+    assert(fetchCalls.length === 0, "Expected future birth date to skip astrology API call.");
   } finally {
     restoreFetch();
   }

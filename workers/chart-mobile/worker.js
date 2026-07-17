@@ -300,9 +300,32 @@ function validateMobilePayload(body, request, env) {
     throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 
+  if (!isValidBirthDate(birthData.birth_date)) {
+    throw new WorkerRequestError("INVALID_REQUEST", 400);
+  }
+
   if (!birthData.time_unknown && !birthData.birth_time) {
     throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
+}
+
+function isValidBirthDate(value, today = new Date()) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+  if (!match || Number.isNaN(today.getTime())) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const birthDateUtc = Date.UTC(year, month - 1, day);
+  const parsedDate = new Date(birthDateUtc);
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+
+  return (
+    parsedDate.getUTCFullYear() === year &&
+    parsedDate.getUTCMonth() === month - 1 &&
+    parsedDate.getUTCDate() === day &&
+    birthDateUtc <= todayUtc
+  );
 }
 
 function buildAstrologyApiPayload(birthData) {

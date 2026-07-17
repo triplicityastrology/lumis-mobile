@@ -52,6 +52,11 @@ assert(
     !profileFunction.includes("legacy_profile_repaired_without_worker"),
   "Recovery must not contain an unpersisted audit marker."
 );
+assert(
+  profileFunction.includes("isValidBirthDate(body.birth_date)") &&
+    profileFunction.includes("PROFILE_BIRTH_DATE_INVALID"),
+  "Profile function must reject malformed and future birth dates before Worker generation."
+);
 
 console.log("Profile recovery contract fixtures passed.");
 
