@@ -4,4 +4,5 @@ export * from "./config/routes";
 export * from "./config/chat-router";
 export * from "./config/entitlements";
 export * from "./config/birth-date";
+export * from "./config/account-entitlement";
 export * from "./types/chart";

@@ -7,6 +7,10 @@ mobile_env="apps/mobile/.env"
 mode="${1:-run}"
 cleanup_run_id="${2:-}"
 
+if [[ "$mode" == "cleanup" && "$cleanup_run_id" == "--" ]]; then
+  cleanup_run_id="${3:-}"
+fi
+
 if [[ "$project_ref" != "bmqhwofmdgebpcihjlnb" ]]; then
   printf 'Refusing to run: expected Lumis staging project bmqhwofmdgebpcihjlnb, received %s.\n' "$project_ref" >&2
   exit 1

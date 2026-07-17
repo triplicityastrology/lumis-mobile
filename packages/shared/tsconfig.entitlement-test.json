@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/entitlement-tests",
+    "rootDir": "src"
+  },
+  "include": [
+    "src/config/account-entitlement.ts",
+    "src/config/account-entitlement.fixtures.ts",
+    "src/config/entitlements.ts",
+    "src/config/routes.ts"
+  ]
+}

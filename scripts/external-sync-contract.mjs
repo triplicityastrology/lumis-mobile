@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const migration = readFileSync("supabase/migrations/0012_external_sync_delivery_ledger.sql", "utf8");
 const deletionMigration = readFileSync("supabase/migrations/0013_account_deletion_external_sync.sql", "utf8");
@@ -64,6 +65,15 @@ assert.match(hostedQaSmoke, /SUPABASE_SECRET_KEY/);
 assert.doesNotMatch(hostedQaSmoke, /Authorization.*Bearer.*secretKey/);
 assert.match(hostedQaCleanup, /endsWith\(`\.\$\{runId\}@example\.com`\)/);
 assert.match(hostedQaCleanup, /auth\/v1\/admin\/users/);
+
+const documentedCleanupInvocation = spawnSync(
+  "bash",
+  ["scripts/run-staging-backend-test.sh", "cleanup", "--", "1750000000000-abcd1234"],
+  { encoding: "utf8", input: "not-a-secret\n" }
+);
+assert.match(documentedCleanupInvocation.stdout, /hosted QA run 1750000000000-abcd1234/);
+assert.doesNotMatch(documentedCleanupInvocation.stderr, /valid hosted QA run ID/);
+assert.match(documentedCleanupInvocation.stderr, /dedicated sb_secret_ key is required/);
 
 assert.match(retryFunction, /EXTERNAL_SYNC_ENABLED/);
 assert.match(retryFunction, /claim_external_sync_events/);

@@ -25,7 +25,6 @@ type AiProfileRow = {
 };
 
 type BalanceRow = {
-  allocated: number;
   remaining: number;
 };
 
@@ -99,7 +98,8 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     birthResult,
     profileResult,
     balanceResult,
-    threadsResult
+    threadsResult,
+    planResult
   ] = await Promise.all([
     supabase
       .from("users")
@@ -122,7 +122,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .maybeSingle(),
     supabase
       .from("monthly_balance")
-      .select("allocated, remaining")
+      .select("remaining")
       .eq("user_id", userId)
       .order("period_start", { ascending: false })
       .limit(1)
@@ -132,10 +132,11 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .select("id, persona_style, title, created_at, updated_at, chart_version, status")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
-      .limit(20)
+      .limit(20),
+    supabase.rpc("resolve_active_plan_tier", { p_user_id: userId })
   ]);
 
-  const firstError = userResult.error ?? birthResult.error ?? profileResult.error ?? balanceResult.error ?? threadsResult.error;
+  const firstError = userResult.error ?? birthResult.error ?? profileResult.error ?? balanceResult.error ?? threadsResult.error ?? planResult.error;
 
   if (firstError) {
     throw new Error(firstError.message);
@@ -193,7 +194,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     chatTurns,
     reflectionThreads,
     mainFocus: user?.focus?.trim() || null,
-    planTier: derivePlanTier(balance?.allocated),
+    planTier: normalizePlanTier(planResult.data),
     remainingCredits: balance?.remaining ?? null,
     message:
       reflectionThreads.length > 0
@@ -202,10 +203,8 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   };
 }
 
-export function derivePlanTier(allocatedCredits?: number | null): PlanTier {
-  if ((allocatedCredits ?? 0) >= 350) return "prime";
-  if ((allocatedCredits ?? 0) >= 150) return "essential";
-  return "starter";
+function normalizePlanTier(value: unknown): PlanTier {
+  return value === "essential" || value === "prime" ? value : "starter";
 }
 
 async function loadThreadTurns(threadId: string): Promise<RestoredChatTurn[]> {

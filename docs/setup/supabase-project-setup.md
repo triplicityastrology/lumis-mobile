@@ -124,10 +124,13 @@ Current migrations:
 - `0011_explicit_reflection_thread.sql`
 - `0012_external_sync_delivery_ledger.sql`
 - `0013_account_deletion_external_sync.sql`
+- `0014_authoritative_account_entitlements.sql`
 
 These create the user, birth data, versioned chart profile, balance, Lumis Persona,
-Past Reflection thread, and message tables with Row Level Security. They also add
-transactional onboarding/chat RPCs and protected restoration of a selected thread.
+Past Reflection thread, message, and authoritative current-plan tables with Row
+Level Security. They also add transactional onboarding/chat RPCs, protected
+restoration of a selected thread, and server-time plan expiry resolution. Credit
+allocation does not determine an account's plan.
 
 ## Step 5: Enable Auth
 

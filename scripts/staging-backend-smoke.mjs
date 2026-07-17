@@ -67,6 +67,18 @@ try {
   );
   pass("Repeat onboarding is rejected before chart generation");
 
+  const starterEntitlement = await serviceSelectOne("account_entitlements", primary.id, "user_id");
+  assert(starterEntitlement.plan_tier === "starter", "Onboarding entitlement is not Starter.");
+  assert(starterEntitlement.product_code === "STARTER", "Onboarding entitlement has the wrong product.");
+  assert(starterEntitlement.status === "active", "Onboarding entitlement is not active.");
+  const resolvedStarterPlan = await userRequest(
+    primarySession.access_token,
+    "/rest/v1/rpc/resolve_active_plan_tier",
+    { method: "POST", body: { p_user_id: primary.id } }
+  );
+  assert(resolvedStarterPlan.ok && resolvedStarterPlan.body === "starter", "Active Starter plan did not resolve authoritatively.");
+  pass("Onboarding creates an authoritative active Starter entitlement");
+
   const initialUser = await serviceSelectOne("users", primary.id);
   const initialBirth = await serviceSelectOne("birth_data", primary.id, "user_id");
   const initialProfile = await serviceSelectOne("ai_profiles", primary.id, "user_id");
@@ -195,6 +207,11 @@ try {
       secondarySession.access_token,
       "birth_data_history",
       `user_id=eq.${primary.id}&select=id`
+    ),
+    userSelect(
+      secondarySession.access_token,
+      "account_entitlements",
+      `user_id=eq.${primary.id}&select=user_id`
     )
   ]);
   assert(crossUserRows.every((rows) => rows.length === 0), "RLS exposed another user's chart data.");
@@ -230,6 +247,12 @@ try {
     }
   );
   assert(!backendRpcResponse.ok, "Authenticated user could invoke backend-only onboarding RPC.");
+  const crossUserPlanResponse = await userRequest(
+    secondarySession.access_token,
+    "/rest/v1/rpc/resolve_active_plan_tier",
+    { method: "POST", body: { p_user_id: primary.id } }
+  );
+  assert(!crossUserPlanResponse.ok, "Authenticated user resolved another account's plan.");
   pass("RLS and grants block cross-user chart data, migration reports, and backend-only RPCs");
 
   await servicePatch("ai_profiles", `id=eq.${repairedAiProfile.id}`, { is_active: false });
