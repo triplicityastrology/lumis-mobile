@@ -65,6 +65,7 @@ assert.match(diceSource, /function cancelRoll\(\)[\s\S]{0,160}clearRollTimers\(\
 assert.match(diceSource, /onPress=\{step === "result" \? reset : cancelRoll\}/);
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
 const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
+const birthProfileSource = await readFile(path.join(screensPath, "LumisBirthProfileScreen.tsx"), "utf8");
 for (const requiredProfileSurface of [
   "YOUR CHART",
   "LUMIS PERSONA",
@@ -79,6 +80,21 @@ for (const requiredProfileSurface of [
 assert.match(profileScreenSource, /Preview only\. Check-ins and carer links are not active yet\./);
 assert.match(profileScreenSource, /showPendingNotice\("Account deletion"\)/);
 assert.match(profileScreenSource, /will be connected after its security review is complete/);
+assert.match(profileScreenSource, /PRODUCTS\.find\(\(product\) => product\.tier === planTier\)/);
+assert.match(profileScreenSource, /value=\{formatMainFocus\(mainFocus\)\}/);
+assert.match(profileScreenSource, /function formatMainFocus/);
+assert.doesNotMatch(profileScreenSource, /value="Personal growth"/);
+assert.doesNotMatch(profileScreenSource, />Starter member</);
+assert.match(accountStateSource, /select\("display_name, focus, persona_style"\)/);
+assert.match(accountStateSource, /derivePlanTier\(balance\?\.allocated\)/);
+assert.match(profileScreenSource, /accessibilityLabel=\{value \? `\$\{label\}: \$\{value\}` : label\}/);
+assert.match(birthProfileSource, /type BirthStep = "date" \| "time" \| "place"/);
+assert.match(birthProfileSource, /badge="1 OF 3"/);
+assert.match(birthProfileSource, /badge="2 OF 3"/);
+assert.match(birthProfileSource, /badge="3 OF 3"/);
+assert.match(birthProfileSource, /Ascendant, MC, houses, or planet house placements/);
+assert.match(birthProfileSource, /PLACE_SUGGESTIONS/);
+assert.match(birthProfileSource, /Create my chart/);
 assertNoVisibleImplementationCopy(appSource, "App surfaces");
 assertNoVisibleImplementationCopy(accountStateSource, "account restore messages");
 assertNoVisibleImplementationCopy(authSource, "authentication messages");

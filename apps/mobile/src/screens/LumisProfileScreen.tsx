@@ -19,7 +19,7 @@ import {
 } from "lucide-react-native";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
-import type { PersonaStyleKey } from "@lumis/shared";
+import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
 
 import { CelestialBackground } from "../components/CelestialBackground";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
@@ -30,7 +30,9 @@ export function LumisProfileScreen({
   birthPlace,
   birthTime,
   email,
+  mainFocus,
   name,
+  planTier,
   personaStyle,
   remainingCredits,
   timeUnknown,
@@ -46,7 +48,9 @@ export function LumisProfileScreen({
   birthPlace: string;
   birthTime: string;
   email?: string;
+  mainFocus: string | null;
   name: string;
+  planTier: PlanTier;
   personaStyle: PersonaStyleKey;
   remainingCredits: number;
   timeUnknown: boolean;
@@ -60,6 +64,7 @@ export function LumisProfileScreen({
 }) {
   const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [notice, setNotice] = useState("");
+  const plan = PRODUCTS.find((product) => product.tier === planTier) ?? PRODUCTS[0];
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
   return (
@@ -78,7 +83,7 @@ export function LumisProfileScreen({
             <View style={styles.avatar}><Text style={styles.avatarText}>{name.trim().slice(0, 1).toUpperCase() || "L"}</Text></View>
             <View style={styles.heroCopy}>
               <Text style={styles.name}>{name}</Text>
-              <View style={styles.memberBadge}><Sparkles color={colors.gold} size={12} /><Text style={styles.memberText}>Starter member</Text></View>
+              <View style={styles.memberBadge}><Sparkles color={colors.gold} size={12} /><Text style={styles.memberText}>{plan.name} member</Text></View>
             </View>
           </View>
 
@@ -94,11 +99,11 @@ export function LumisProfileScreen({
               <View style={styles.rowCopy}><Text style={styles.rowLabel}>Lumis</Text><Text style={styles.rowValue}>{formatPersona(personaStyle)}</Text></View>
               <Pressable style={styles.changeButton} onPress={onPersona}><Text style={styles.changeText}>Change</Text></Pressable>
             </View>
-            <ProfileRow icon={<Compass color={colors.periwinkle} size={17} />} label="Main focus" value="Personal growth" showChevron={false} />
+            <ProfileRow icon={<Compass color={colors.periwinkle} size={17} />} label="Main focus" value={formatMainFocus(mainFocus)} showChevron={false} />
           </ProfileSection>
 
           <ProfileSection label="PLAN">
-            <ProfileRow icon={<Sparkles color={colors.gold} size={17} />} label="Plan" value="Starter" onPress={onPlans} />
+            <ProfileRow icon={<Sparkles color={colors.gold} size={17} />} label="Plan" value={plan.name} onPress={onPlans} />
             <ProfileRow icon={<UserRound color={colors.gold} size={17} />} label="Credit balance" value={`${remainingCredits} credits`} onPress={onPlans} />
           </ProfileSection>
 
@@ -171,10 +176,16 @@ function ProfileRow({
   value?: string;
 }) {
   return (
-    <Pressable disabled={!onPress} onPress={onPress} style={styles.row}>
+    <Pressable
+      accessibilityLabel={value ? `${label}: ${value}` : label}
+      accessibilityRole={onPress ? "button" : "text"}
+      disabled={!onPress}
+      onPress={onPress}
+      style={styles.row}
+    >
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>{icon}</View>
       <View style={styles.rowCopy}><Text style={[styles.rowLabel, danger && styles.dangerText]}>{label}</Text></View>
-      {value ? <Text numberOfLines={1} style={[styles.rowTrailing, danger && styles.dangerText]}>{value}</Text> : null}
+      {value ? <Text numberOfLines={2} style={[styles.rowTrailing, danger && styles.dangerText]}>{value}</Text> : null}
       {showChevron && onPress ? <ChevronRight color={danger ? colors.warn : colors.muted} size={17} /> : null}
     </Pressable>
   );
@@ -182,6 +193,14 @@ function ProfileRow({
 
 function formatPersona(value: PersonaStyleKey) {
   return value === "spark" ? "Spark" : value === "awareness" ? "Awareness" : "Acceptance";
+}
+
+function formatMainFocus(value: string | null) {
+  if (!value?.trim()) return "Not set";
+  return value
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 const styles = StyleSheet.create({
@@ -208,7 +227,7 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.ice, fontSize: 13, fontWeight: "600" },
   rowValue: { color: colors.muted, fontSize: 10.5, marginTop: 3 },
-  rowTrailing: { color: colors.textSoft, flexShrink: 1, fontSize: 11.5, maxWidth: "45%", textAlign: "right" },
+  rowTrailing: { color: colors.textSoft, flexShrink: 1, fontSize: 11.5, lineHeight: 16, maxWidth: "48%", textAlign: "right" },
   dangerText: { color: colors.warn },
   personaRow: { alignItems: "center", flexDirection: "row", gap: 11, minHeight: 70, paddingHorizontal: 13 },
   personaAvatar: { alignItems: "center", backgroundColor: colors.periwinkle, borderRadius: 23, height: 46, justifyContent: "center", width: 46 },

@@ -105,14 +105,14 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
     };
   }
 
-  if (!isValidIsoDate(birthDate)) {
+  if (!isValidBirthDate(birthDate)) {
     return {
       isValid: false,
       message: "Please enter birth date as YYYY-MM-DD."
     };
   }
 
-  if (!form.timeUnknown && !isValidTime(birthTime)) {
+  if (!form.timeUnknown && !isValidBirthTime(birthTime)) {
     return {
       isValid: false,
       message: "Please enter birth time as HH:MM using 24-hour time."
@@ -138,7 +138,7 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
   return { isValid: true };
 }
 
-function isValidIsoDate(value: string): boolean {
+export function isValidBirthDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
 
   if (!match) {
@@ -157,7 +157,7 @@ function isValidIsoDate(value: string): boolean {
   );
 }
 
-function isValidTime(value: string): boolean {
+export function isValidBirthTime(value: string): boolean {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
 
   if (!match) {

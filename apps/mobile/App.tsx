@@ -141,6 +141,8 @@ export default function App() {
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [reflectionThreads, setReflectionThreads] = useState<RestoredReflectionThread[]>([]);
+  const [mainFocus, setMainFocus] = useState<string | null>(null);
+  const [planTier, setPlanTier] = useState<PlanTier>("starter");
   const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
@@ -162,6 +164,8 @@ export default function App() {
     setPersonaStyle("acceptance");
     setChatTurns([]);
     setReflectionThreads([]);
+    setMainFocus(null);
+    setPlanTier("starter");
     setRemainingCredits(STARTER_CREDITS);
     setHasLocalDemoSession(false);
     setAccountSource("none");
@@ -184,6 +188,8 @@ export default function App() {
       setPersonaStyle(accountState.personaStyle);
       setChatTurns(accountState.chatTurns);
       setReflectionThreads(accountState.reflectionThreads);
+      setMainFocus(accountState.mainFocus);
+      setPlanTier(accountState.planTier);
       setRemainingCredits(accountState.remainingCredits ?? STARTER_CREDITS);
       setHasLocalDemoSession(false);
       setAccountSource("supabase");
@@ -234,6 +240,8 @@ export default function App() {
       setPersonaStyle(localSession.personaStyle);
       setChatTurns(localSession.chatTurns ?? []);
       setReflectionThreads([]);
+      setMainFocus(null);
+      setPlanTier("starter");
       setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
       setHasLocalDemoSession(true);
       setAccountSource("local_demo");
@@ -351,6 +359,8 @@ export default function App() {
           setChartProfile(result.chart);
           setChatTurns([]);
           setReflectionThreads([]);
+          setMainFocus(null);
+          setPlanTier("starter");
           setRemainingCredits(STARTER_CREDITS);
 
           if (result.mode === "supabase") {
@@ -478,7 +488,7 @@ export default function App() {
   if (screen === "plans") {
     return (
       <PlansAccessScreen
-        currentPlan="starter"
+        currentPlan={planTier}
         onBack={() => setScreen("home")}
       />
     );
@@ -505,6 +515,8 @@ export default function App() {
         birthTime={profileData.birthTime}
         email={authStatus?.user?.email}
         name={profileData.name}
+        mainFocus={mainFocus}
+        planTier={planTier}
         personaStyle={personaStyle}
         remainingCredits={remainingCredits}
         timeUnknown={profileData.timeUnknown}

@@ -1,4 +1,4 @@
-import type { ChartV2, PersonaStyleKey } from "@lumis/shared";
+import type { ChartV2, PersonaStyleKey, PlanTier } from "@lumis/shared";
 
 import type { SendChatMessageResult } from "./chat";
 import { getSupabaseClient } from "./supabase";
@@ -6,6 +6,7 @@ import type { BirthProfileForm } from "./profile";
 
 type UserRow = {
   display_name: string | null;
+  focus: string | null;
   persona_style: PersonaStyleKey | null;
 };
 
@@ -24,6 +25,7 @@ type AiProfileRow = {
 };
 
 type BalanceRow = {
+  allocated: number;
   remaining: number;
 };
 
@@ -72,6 +74,8 @@ export type SupabaseAccountState = {
   personaStyle: PersonaStyleKey;
   chatTurns: RestoredChatTurn[];
   reflectionThreads: RestoredReflectionThread[];
+  mainFocus: string | null;
+  planTier: PlanTier;
   remainingCredits: number | null;
   message: string;
 };
@@ -99,7 +103,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("display_name, persona_style")
+      .select("display_name, focus, persona_style")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -118,7 +122,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .maybeSingle(),
     supabase
       .from("monthly_balance")
-      .select("remaining")
+      .select("allocated, remaining")
       .eq("user_id", userId)
       .order("period_start", { ascending: false })
       .limit(1)
@@ -188,12 +192,20 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     personaStyle,
     chatTurns,
     reflectionThreads,
+    mainFocus: user?.focus?.trim() || null,
+    planTier: derivePlanTier(balance?.allocated),
     remainingCredits: balance?.remaining ?? null,
     message:
       reflectionThreads.length > 0
         ? "Your chart and Past Reflections are ready."
         : "Your chart is ready. No Past Reflections have been saved yet."
   };
+}
+
+export function derivePlanTier(allocatedCredits?: number | null): PlanTier {
+  if ((allocatedCredits ?? 0) >= 350) return "prime";
+  if ((allocatedCredits ?? 0) >= 150) return "essential";
+  return "starter";
 }
 
 async function loadThreadTurns(threadId: string): Promise<RestoredChatTurn[]> {
@@ -251,6 +263,8 @@ function emptyAccountState(message: string): SupabaseAccountState {
     personaStyle: "acceptance",
     chatTurns: [],
     reflectionThreads: [],
+    mainFocus: null,
+    planTier: "starter",
     remainingCredits: null,
     message
   };
