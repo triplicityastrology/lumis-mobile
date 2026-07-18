@@ -10,7 +10,9 @@ import {
   Plus,
   Search,
   Send,
-  Sparkles
+  Sparkles,
+  UsersRound,
+  Compass
 } from "lucide-react-native";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -394,7 +396,6 @@ export default function App() {
           }
           setScreen("chat");
         }}
-        onStartOver={startOver}
       />
     );
   }
@@ -1240,19 +1241,16 @@ function PersonaStyleScreen({
   selectedStyle,
   onSelectStyle,
   onBack,
-  onEnterChat,
-  onStartOver
+  onEnterChat
 }: {
   name: string;
   selectedStyle: PersonaStyleKey;
   onSelectStyle: (style: PersonaStyleKey) => void;
   onBack: () => void;
   onEnterChat: () => Promise<void>;
-  onStartOver: () => void;
 }) {
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
 
   async function handleEnterChat() {
     setSaveError("");
@@ -1268,28 +1266,22 @@ function PersonaStyleScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+    <SafeAreaView style={styles.personaSafe}>
+      <StatusBar style="light" />
+      <CelestialBackground />
+      <ScrollView contentContainerStyle={styles.personaContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.personaTopBar}>
+          <Pressable accessibilityLabel="Back" style={styles.personaBackButton} onPress={onBack}>
+            <ArrowLeft color="#F7EBDD" size={20} />
           </Pressable>
-          <View style={styles.formStepPill}>
-            <Text style={styles.formStepText}>Profile 3 of 3</Text>
+          <View accessibilityLabel="Language: English" style={styles.personaLanguage}>
+            <Text style={styles.personaLanguageText}>EN</Text>
           </View>
         </View>
 
-        <View style={styles.formHero}>
-          <View style={styles.formLogo}>
-            <LumisLogo size={84} />
-          </View>
-          <Text style={styles.kicker}>Lumis Persona</Text>
-          <Text style={styles.formTitle}>How should Lumis meet {name}?</Text>
-          <Text style={styles.formIntro}>
-            This sets the first interaction style. It can be changed later from profile settings.
-          </Text>
-        </View>
+        <Text style={styles.personaEyebrow}>CHOOSE YOUR LUMIS PERSONA</Text>
+        <Text style={styles.personaTitle}>How should Lumis show up for you?</Text>
+        <Text style={styles.personaIntro}>Pick the persona that fits you, {name}. You can change it anytime.</Text>
 
         <View style={styles.personaChoiceList}>
           {PERSONA_STYLES.map((style, index) => {
@@ -1301,28 +1293,24 @@ function PersonaStyleScreen({
                 style={[styles.personaChoiceCard, isSelected && styles.personaChoiceCardActive]}
                 onPress={() => onSelectStyle(style.key)}
               >
-                <View style={styles.personaIcon}>
-                  <Text style={styles.personaIconText}>{index + 1}</Text>
+                <View style={[styles.personaIcon, isSelected && styles.personaIconActive]}>
+                  <PersonaRoleIcon index={index} />
                 </View>
                 <View style={styles.personaText}>
-                  <Text style={styles.personaName}>
-                    {style.labelEn} / {style.labelZh}
-                  </Text>
+                  <View style={styles.personaCardHeading}>
+                    <Text style={styles.personaName}>{style.labelEn}</Text>
+                    {isSelected ? (
+                      <View style={styles.personaSelectedMark}>
+                        <Check color="#152238" size={13} strokeWidth={3} />
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={styles.personaPromise}>{style.promiseEn}</Text>
-                  <Text style={styles.personaPromiseZh}>{style.promiseZh}</Text>
+                  <Text style={styles.personaQuote}>{personaExample(style.key)}</Text>
                 </View>
-                {isSelected ? <Text style={styles.selectedMark}>Selected</Text> : null}
               </Pressable>
             );
           })}
-        </View>
-
-        <View style={styles.completionCard}>
-          <Text style={styles.noticeTitle}>Profile setup checkpoint</Text>
-          <Text style={styles.noticeBody}>
-            {selectedPersona.labelEn} will shape the first Lumis chat. You can adjust this later as
-            your relationship with Lumis evolves.
-          </Text>
         </View>
 
         {saveError ? (
@@ -1332,20 +1320,29 @@ function PersonaStyleScreen({
         ) : null}
 
         <Pressable
-          style={[styles.fullPrimaryButton, isSaving && styles.disabledButton]}
+          accessibilityRole="button"
+          style={[styles.personaContinue, isSaving && styles.disabledButton]}
           onPress={handleEnterChat}
           disabled={isSaving}
         >
-          <Text style={styles.fullPrimaryButtonText}>
-            {isSaving ? "Saving Lumis Persona..." : "Enter Lumis chat"}
-          </Text>
-        </Pressable>
-        <Pressable style={styles.ghostButton} onPress={onStartOver}>
-          <Text style={styles.ghostButtonText}>Start over</Text>
+          <Text style={styles.personaContinueText}>{isSaving ? "Saving your Persona..." : "Enter your sanctuary"}</Text>
+          <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function PersonaRoleIcon({ index }: { index: number }) {
+  if (index === 0) return <UsersRound color="#D8DDFB" size={27} strokeWidth={1.6} />;
+  if (index === 1) return <Sparkles color="#F3C96F" size={27} strokeWidth={1.7} />;
+  return <Compass color="#9DD6B7" size={27} strokeWidth={1.7} />;
+}
+
+function personaExample(style: PersonaStyleKey) {
+  if (style === "acceptance") return "I will take this slowly with you. No pressure.";
+  if (style === "spark") return "Let us find the fresh angle that gets things moving.";
+  return "Let us notice the pattern beneath what keeps repeating.";
 }
 
 function ChatShellScreen({
@@ -2603,7 +2600,7 @@ const styles = StyleSheet.create({
     gap: 10
   },
   personaChoiceList: {
-    gap: 12
+    gap: 11
   },
   personaCard: {
     alignItems: "center",
@@ -2621,24 +2618,22 @@ const styles = StyleSheet.create({
   },
   personaIcon: {
     alignItems: "center",
-    backgroundColor: "#F1E4C8",
-    borderRadius: 16,
-    height: 46,
+    backgroundColor: "rgba(121,133,204,0.18)",
+    borderRadius: 8,
+    height: 54,
     justifyContent: "center",
-    width: 46
+    width: 54
   },
-  personaIconText: {
-    color: "#8B6429",
-    fontSize: 15,
-    fontWeight: "800"
+  personaIconActive: {
+    backgroundColor: "rgba(121,133,204,0.30)"
   },
   personaText: {
     flex: 1
   },
   personaName: {
-    color: "#2F2B25",
-    fontSize: 16,
-    fontWeight: "700"
+    color: "#FFF5E8",
+    fontSize: 18,
+    fontWeight: "800"
   },
   personaZh: {
     color: "#8A7659",
@@ -2647,35 +2642,124 @@ const styles = StyleSheet.create({
   },
   personaChoiceCard: {
     alignItems: "flex-start",
-    backgroundColor: "#FBF7EE",
-    borderColor: "rgba(120,90,40,0.12)",
-    borderRadius: 22,
+    backgroundColor: "rgba(25,43,70,0.72)",
+    borderColor: "rgba(247,235,221,0.16)",
+    borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 13,
-    padding: 16
+    gap: 12,
+    padding: 15
   },
   personaChoiceCardActive: {
-    backgroundColor: "rgba(180,134,63,0.10)",
-    borderColor: "#B4863F"
+    backgroundColor: "rgba(42,61,94,0.86)",
+    borderColor: "#DDB45E",
+    borderWidth: 1.5
+  },
+  personaCardHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  personaSelectedMark: {
+    alignItems: "center",
+    backgroundColor: "#F0C76D",
+    borderRadius: 999,
+    height: 24,
+    justifyContent: "center",
+    width: 24
   },
   personaPromise: {
-    color: "#6F6252",
+    color: "rgba(247,235,221,0.76)",
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 6
-  },
-  personaPromiseZh: {
-    color: "#8A7659",
-    fontSize: 13,
-    lineHeight: 20,
     marginTop: 4
   },
-  selectedMark: {
-    color: "#B4863F",
+  personaQuote: {
+    borderLeftColor: "rgba(224,180,93,0.55)",
+    borderLeftWidth: 2,
+    color: "#E3CA93",
+    fontSize: 12,
+    fontStyle: "italic",
+    lineHeight: 18,
+    marginTop: 9,
+    paddingLeft: 9
+  },
+  personaSafe: {
+    backgroundColor: "#091525",
+    flex: 1
+  },
+  personaContent: {
+    alignSelf: "center",
+    gap: 15,
+    maxWidth: 480,
+    paddingBottom: 36,
+    paddingHorizontal: 22,
+    width: "100%"
+  },
+  personaTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 8
+  },
+  personaBackButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(9,21,37,0.52)",
+    borderColor: "rgba(247,235,221,0.22)",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: "center",
+    width: 42
+  },
+  personaLanguage: {
+    alignItems: "center",
+    backgroundColor: "rgba(9,21,37,0.52)",
+    borderColor: "rgba(247,235,221,0.22)",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 38,
+    minWidth: 46
+  },
+  personaLanguageText: {
+    color: "#F7EBDD",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  personaEyebrow: {
+    color: "#E0B45D",
     fontSize: 11,
     fontWeight: "800",
-    textTransform: "uppercase"
+    letterSpacing: 1.15,
+    marginTop: 6
+  },
+  personaTitle: {
+    color: "#FFF5E8",
+    fontSize: 31,
+    fontWeight: "700",
+    lineHeight: 38
+  },
+  personaIntro: {
+    color: "rgba(247,235,221,0.76)",
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 4
+  },
+  personaContinue: {
+    alignItems: "center",
+    backgroundColor: "#F1C86F",
+    borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 3,
+    minHeight: 54,
+    paddingHorizontal: 20
+  },
+  personaContinueText: {
+    color: "#152238",
+    fontSize: 16,
+    fontWeight: "800"
   },
   quickGrid: {
     flexDirection: "row",

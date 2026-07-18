@@ -105,20 +105,6 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
     };
   }
 
-  if (!isValidBirthDate(birthDate)) {
-    return {
-      isValid: false,
-      message: "Please enter a real birth date that is not in the future."
-    };
-  }
-
-  if (!form.timeUnknown && !isValidBirthTime(birthTime)) {
-    return {
-      isValid: false,
-      message: "Please enter birth time as HH:MM using 24-hour time."
-    };
-  }
-
   if (!isUsefulPlaceInput(birthPlace)) {
     return {
       isValid: false,
@@ -132,6 +118,20 @@ export function validateBirthProfileForm(form: BirthProfileForm): BirthProfileVa
     return {
       isValid: false,
       message: "Please choose a supported test place for now: Hong Kong, London, UK, or New York, US."
+    };
+  }
+
+  if (!isValidBirthDate(birthDate, new Date(), location.timezone)) {
+    return {
+      isValid: false,
+      message: "Please enter a real birth date that is not in the future."
+    };
+  }
+
+  if (!form.timeUnknown && !isValidBirthTime(birthTime)) {
+    return {
+      isValid: false,
+      message: "Please enter birth time as HH:MM using 24-hour time."
     };
   }
 

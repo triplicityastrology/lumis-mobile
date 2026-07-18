@@ -20,6 +20,7 @@ const {
   buildMobileAuditRecord,
   buildMobileSheetRow,
   createMobileChartSalesforceCase,
+  isValidBirthDate,
   redactSalesforceCasesForDeletion
 } = workerModule;
 
@@ -32,6 +33,7 @@ await assertExpiredSignatureIsRejected();
 await assertMissingSignatureIsRejected();
 await assertMismatchedIdentityHeadersAreRejected();
 await assertFutureBirthDateIsRejected();
+assertBirthDateTimezoneBoundaries();
 await assertMissingProviderConfigurationFailsClosed();
 await assertProviderFailureIsRedacted();
 await assertSignedAdminSyncRequest();
@@ -49,6 +51,15 @@ await assertGoogleDeliveryIsIdempotentUnderConcurrency();
 await assertDestinationLookupPreventsReplayDuplicates();
 await assertFailedDeliveryCanRetrySafely();
 await assertStaleProcessingDeliveryRecovers();
+
+function assertBirthDateTimezoneBoundaries() {
+  const boundary = new Date("2026-07-17T16:36:00.000Z");
+  assert(isValidBirthDate("2026-07-18", boundary, "Asia/Hong_Kong"), "Expected Hong Kong local today to pass.");
+  assert(!isValidBirthDate("2026-07-19", boundary, "Asia/Hong_Kong"), "Expected Hong Kong local tomorrow to fail.");
+  assert(isValidBirthDate("2026-07-17", boundary, "America/New_York"), "Expected New York local today to pass.");
+  assert(!isValidBirthDate("2026-07-18", boundary, "America/New_York"), "Expected New York local tomorrow to fail.");
+  assert(!isValidBirthDate("2026-07-17", boundary, "Not/A_Timezone"), "Expected an invalid timezone to fail closed.");
+}
 
 async function assertValidFullTimeRequest() {
   const fetchCalls = [];

@@ -300,7 +300,7 @@ function validateMobilePayload(body, request, env) {
     throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 
-  if (!isValidBirthDate(birthData.birth_date)) {
+  if (!isValidBirthDate(birthData.birth_date, new Date(), birthData.tz_str)) {
     throw new WorkerRequestError("INVALID_REQUEST", 400);
   }
 
@@ -309,7 +309,7 @@ function validateMobilePayload(body, request, env) {
   }
 }
 
-function isValidBirthDate(value, today = new Date()) {
+export function isValidBirthDate(value, today = new Date(), timeZone = "UTC") {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
   if (!match || Number.isNaN(today.getTime())) return false;
 
@@ -318,7 +318,11 @@ function isValidBirthDate(value, today = new Date()) {
   const day = Number(match[3]);
   const birthDateUtc = Date.UTC(year, month - 1, day);
   const parsedDate = new Date(birthDateUtc);
-  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const localToday = calendarDateInTimeZone(today, timeZone);
+
+  if (!localToday) return false;
+
+  const todayUtc = Date.UTC(localToday.year, localToday.month - 1, localToday.day);
 
   return (
     parsedDate.getUTCFullYear() === year &&
@@ -326,6 +330,27 @@ function isValidBirthDate(value, today = new Date()) {
     parsedDate.getUTCDate() === day &&
     birthDateUtc <= todayUtc
   );
+}
+
+function calendarDateInTimeZone(date, timeZone) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone,
+      year: "numeric"
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const year = Number(values.year);
+    const month = Number(values.month);
+    const day = Number(values.day);
+
+    return Number.isInteger(year) && Number.isInteger(month) && Number.isInteger(day)
+      ? { year, month, day }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildAstrologyApiPayload(birthData) {

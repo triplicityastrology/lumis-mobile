@@ -110,24 +110,24 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!isValidBirthDate(body.birth_date)) {
-    return jsonResponse(
-      {
-        error: {
-          code: "PROFILE_BIRTH_DATE_INVALID",
-          message: "Birth date must be a real date and cannot be in the future."
-        }
-      },
-      { status: 400 }
-    );
-  }
-
   if (!body.country_code || body.lat == null || body.lng == null || !body.tz_str) {
     return jsonResponse(
       {
         error: {
           code: "LOCATION_UNRESOLVED",
           message: "country_code, lat, lng, and tz_str are required before chart generation"
+        }
+      },
+      { status: 400 }
+    );
+  }
+
+  if (!isValidBirthDate(body.birth_date, new Date(), body.tz_str)) {
+    return jsonResponse(
+      {
+        error: {
+          code: "PROFILE_BIRTH_DATE_INVALID",
+          message: "Birth date must be a real date and cannot be in the future."
         }
       },
       { status: 400 }
