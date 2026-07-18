@@ -5,6 +5,8 @@ import { getSupabaseClient } from "./supabase";
 import type { BirthProfileForm } from "./profile";
 
 type UserRow = {
+  buddy_avatar_key: string;
+  buddy_name: string;
   display_name: string | null;
   focus: string | null;
   persona_style: PersonaStyleKey | null;
@@ -71,6 +73,8 @@ export type SupabaseAccountState = {
   profileData: BirthProfileForm | null;
   chartProfile: ChartV2 | null;
   personaStyle: PersonaStyleKey;
+  buddyName: string;
+  buddyAvatarKey: string;
   chatTurns: RestoredChatTurn[];
   reflectionThreads: RestoredReflectionThread[];
   mainFocus: string | null;
@@ -103,7 +107,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("display_name, focus, persona_style")
+      .select("display_name, focus, persona_style, buddy_name, buddy_avatar_key")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -191,6 +195,8 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     },
     chartProfile: profile.chart_json,
     personaStyle,
+    buddyName: user?.buddy_name?.trim() || "Lumis",
+    buddyAvatarKey: user?.buddy_avatar_key?.trim() || "psyche",
     chatTurns,
     reflectionThreads,
     mainFocus: user?.focus?.trim() || null,
@@ -260,6 +266,8 @@ function emptyAccountState(message: string): SupabaseAccountState {
     profileData: null,
     chartProfile: null,
     personaStyle: "acceptance",
+    buddyName: "Lumis",
+    buddyAvatarKey: "psyche",
     chatTurns: [],
     reflectionThreads: [],
     mainFocus: null,

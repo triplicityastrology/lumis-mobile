@@ -12,6 +12,9 @@ export type LocalDemoSession = {
   profileData: BirthProfileForm;
   chartProfile: ChartV2;
   personaStyle: PersonaStyleKey;
+  buddyName?: string;
+  buddyAvatarKey?: string;
+  mainFocus?: string | null;
   chatTurns?: LocalDemoChatTurn[];
   remainingCredits?: number;
   updatedAt: string;

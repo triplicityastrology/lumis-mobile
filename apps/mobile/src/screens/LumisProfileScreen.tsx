@@ -32,6 +32,7 @@ export function LumisProfileScreen({
   email,
   mainFocus,
   name,
+  personaName,
   planTier,
   personaStyle,
   remainingCredits,
@@ -50,6 +51,7 @@ export function LumisProfileScreen({
   email?: string;
   mainFocus: string | null;
   name: string;
+  personaName: string;
   planTier: PlanTier;
   personaStyle: PersonaStyleKey;
   remainingCredits: number;
@@ -96,7 +98,7 @@ export function LumisProfileScreen({
           <ProfileSection label="LUMIS PERSONA">
             <View style={styles.personaRow}>
               <View style={styles.personaAvatar}><Sparkles color={colors.ice} size={19} /></View>
-              <View style={styles.rowCopy}><Text style={styles.rowLabel}>Lumis</Text><Text style={styles.rowValue}>{formatPersona(personaStyle)}</Text></View>
+              <View style={styles.rowCopy}><Text style={styles.rowLabel}>{personaName}</Text><Text style={styles.rowValue}>{formatPersona(personaStyle)}</Text></View>
               <Pressable style={styles.changeButton} onPress={onPersona}><Text style={styles.changeText}>Change</Text></Pressable>
             </View>
             <ProfileRow icon={<Compass color={colors.periwinkle} size={17} />} label="Main focus" value={formatMainFocus(mainFocus)} showChevron={false} />

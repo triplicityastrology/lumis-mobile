@@ -36,7 +36,8 @@ import {
   submitChartProfile,
   validateBirthProfileForm,
   type BirthProfileForm,
-  type ChartProfileResult
+  type ChartProfileResult,
+  type PersonaIdentityPreference
 } from "./src/services/profile";
 import {
   loadSupabaseAccountState,
@@ -138,6 +139,8 @@ export default function App() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
+  const [personaName, setPersonaName] = useState("Lumis");
+  const [personaAvatarKey, setPersonaAvatarKey] = useState("psyche");
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [authNotice, setAuthNotice] = useState("");
   const [authError, setAuthError] = useState("");
@@ -165,6 +168,8 @@ export default function App() {
     setProfileData(null);
     setChartProfile(null);
     setPersonaStyle("acceptance");
+    setPersonaName("Lumis");
+    setPersonaAvatarKey("psyche");
     setChatTurns([]);
     setReflectionThreads([]);
     setMainFocus(null);
@@ -189,6 +194,8 @@ export default function App() {
       setProfileData(accountState.profileData);
       setChartProfile(accountState.chartProfile);
       setPersonaStyle(accountState.personaStyle);
+      setPersonaName(accountState.buddyName);
+      setPersonaAvatarKey(accountState.buddyAvatarKey);
       setChatTurns(accountState.chatTurns);
       setReflectionThreads(accountState.reflectionThreads);
       setMainFocus(accountState.mainFocus);
@@ -241,9 +248,11 @@ export default function App() {
       setProfileData(localSession.profileData);
       setChartProfile(localSession.chartProfile);
       setPersonaStyle(localSession.personaStyle);
+      setPersonaName(localSession.buddyName ?? "Lumis");
+      setPersonaAvatarKey(localSession.buddyAvatarKey ?? "psyche");
       setChatTurns(localSession.chatTurns ?? []);
       setReflectionThreads([]);
-      setMainFocus(null);
+      setMainFocus(localSession.mainFocus ?? null);
       setPlanTier("starter");
       setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
       setHasLocalDemoSession(true);
@@ -263,7 +272,12 @@ export default function App() {
     nextChartProfile: ChartV2,
     nextPersonaStyle: PersonaStyleKey,
     nextChatTurns = chatTurns,
-    nextRemainingCredits = remainingCredits
+    nextRemainingCredits = remainingCredits,
+    nextIdentity: PersonaIdentityPreference = {
+      buddyName: personaName,
+      avatarKey: personaAvatarKey,
+      mainFocus
+    }
   ) {
     if (authStatus?.isConfigured && authStatus.user) {
       return;
@@ -273,6 +287,9 @@ export default function App() {
       profileData: nextProfileData,
       chartProfile: nextChartProfile,
       personaStyle: nextPersonaStyle,
+      buddyName: nextIdentity.buddyName,
+      buddyAvatarKey: nextIdentity.avatarKey,
+      mainFocus: nextIdentity.mainFocus,
       chatTurns: nextChatTurns,
       remainingCredits: nextRemainingCredits
     });
@@ -386,13 +403,28 @@ export default function App() {
     return (
       <PersonaStyleScreen
         name={profileData.name}
+        initialIdentity={{
+          buddyName: personaName,
+          avatarKey: personaAvatarKey,
+          mainFocus
+        }}
         selectedStyle={personaStyle}
         onSelectStyle={setPersonaStyle}
         onBack={() => setScreen("preview")}
-        onEnterChat={async () => {
-          await savePersonaStylePreference(personaStyle);
+        onEnterChat={async (identity) => {
+          await savePersonaStylePreference(personaStyle, identity);
+          setPersonaName(identity.buddyName);
+          setPersonaAvatarKey(identity.avatarKey);
+          setMainFocus(identity.mainFocus);
           if (chartProfile) {
-            await saveDemoSession(profileData, chartProfile, personaStyle);
+            await saveDemoSession(
+              profileData,
+              chartProfile,
+              personaStyle,
+              chatTurns,
+              remainingCredits,
+              identity
+            );
           }
           setScreen("chat");
         }}
@@ -408,6 +440,7 @@ export default function App() {
     return (
       <ChatShellScreen
         name={profileData.name}
+        lumisName={personaName}
         chart={chartProfile}
         initialDraft={pendingChatDraft}
         selectedStyle={personaStyle}
@@ -517,6 +550,7 @@ export default function App() {
         birthTime={profileData.birthTime}
         email={authStatus?.user?.email}
         name={profileData.name}
+        personaName={personaName}
         mainFocus={mainFocus}
         planTier={planTier}
         personaStyle={personaStyle}
@@ -1238,17 +1272,23 @@ function pointOnWheel(longitude: number, radius: number) {
 
 function PersonaStyleScreen({
   name,
+  initialIdentity,
   selectedStyle,
   onSelectStyle,
   onBack,
   onEnterChat
 }: {
   name: string;
+  initialIdentity: PersonaIdentityPreference;
   selectedStyle: PersonaStyleKey;
   onSelectStyle: (style: PersonaStyleKey) => void;
   onBack: () => void;
-  onEnterChat: () => Promise<void>;
+  onEnterChat: (identity: PersonaIdentityPreference) => Promise<void>;
 }) {
+  const [step, setStep] = useState<"style" | "identity">("style");
+  const [buddyName, setBuddyName] = useState(initialIdentity.buddyName);
+  const [avatarKey, setAvatarKey] = useState(initialIdentity.avatarKey);
+  const [focus, setFocus] = useState<string | null>(initialIdentity.mainFocus);
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -1257,12 +1297,113 @@ function PersonaStyleScreen({
     setIsSaving(true);
 
     try {
-      await onEnterChat();
+      await onEnterChat({
+        buddyName: buddyName.trim() || "Lumis",
+        avatarKey,
+        mainFocus: focus
+      });
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Unable to save Lumis Persona.");
     } finally {
       setIsSaving(false);
     }
+  }
+
+  if (step === "identity") {
+    const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
+    const selectedAvatar = PERSONA_AVATARS.find((avatar) => avatar.key === avatarKey) ?? PERSONA_AVATARS[5];
+
+    return (
+      <SafeAreaView style={styles.personaSafe}>
+        <StatusBar style="light" />
+        <CelestialBackground />
+        <ScrollView contentContainerStyle={styles.personaContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.personaTopBar}>
+            <Pressable accessibilityLabel="Back" style={styles.personaBackButton} onPress={() => setStep("style")}>
+              <ArrowLeft color="#F7EBDD" size={20} />
+            </Pressable>
+            <View accessibilityLabel="Language: English" style={styles.personaLanguage}>
+              <Text style={styles.personaLanguageText}>EN</Text>
+            </View>
+          </View>
+
+          <Text style={styles.personaEyebrow}>ENTER YOUR SANCTUARY</Text>
+          <Text style={styles.personaTitle}>Give Lumis a face.</Text>
+          <Text style={styles.personaIntro}>Pick a celestial spirit or choose your own name. This becomes their face in chat.</Text>
+
+          <View style={styles.personaIdentityPreview}>
+            <AsteroidAvatar avatar={selectedAvatar} size={72} />
+            <View style={styles.personaIdentityPreviewText}>
+              <Text style={styles.personaIdentityName}>{buddyName.trim() || "(unnamed)"}</Text>
+              <Text style={styles.personaIdentityRole}>{selectedPersona.labelEn}</Text>
+            </View>
+          </View>
+
+          <View style={styles.personaAvatarGrid}>
+            {PERSONA_AVATARS.map((avatar) => {
+              const selected = avatar.key === avatarKey;
+              return (
+                <Pressable
+                  accessibilityLabel={`Choose ${avatar.label} avatar`}
+                  key={avatar.key}
+                  onPress={() => {
+                    setAvatarKey(avatar.key);
+                    setBuddyName(avatar.label);
+                  }}
+                  style={[styles.personaAvatarOption, selected && styles.personaAvatarOptionActive]}
+                >
+                  <AsteroidAvatar avatar={avatar} size={48} />
+                  <Text style={styles.personaAvatarLabel}>{avatar.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.personaNameField}>
+            <Text style={styles.personaFieldLabel}>CUSTOM NAME</Text>
+            <TextInput
+              accessibilityLabel="Custom Lumis Persona name"
+              maxLength={24}
+              onChangeText={setBuddyName}
+              placeholder="Lumis"
+              placeholderTextColor="rgba(247,235,221,0.42)"
+              style={styles.personaNameInput}
+              value={buddyName}
+            />
+          </View>
+
+          <Text style={styles.personaFieldLabel}>WHAT SHOULD LUMIS HELP YOU FOCUS ON?</Text>
+          <View style={styles.personaFocusRow}>
+            {PERSONA_FOCUSES.map((option) => {
+              const selected = focus === option.key;
+              return (
+                <Pressable
+                  accessibilityState={{ selected }}
+                  key={option.key}
+                  onPress={() => setFocus(selected ? null : option.key)}
+                  style={[styles.personaFocusChip, selected && styles.personaFocusChipActive]}
+                >
+                  {selected ? <Check color="#152238" size={13} strokeWidth={3} /> : null}
+                  <Text style={[styles.personaFocusText, selected && styles.personaFocusTextActive]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {saveError ? <View style={styles.errorCard}><Text style={styles.errorText}>{saveError}</Text></View> : null}
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSaving}
+            onPress={handleEnterChat}
+            style={[styles.personaContinue, isSaving && styles.disabledButton]}
+          >
+            <Text style={styles.personaContinueText}>{isSaving ? "Saving your Persona..." : "Enter your sanctuary"}</Text>
+            <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -1321,15 +1462,52 @@ function PersonaStyleScreen({
 
         <Pressable
           accessibilityRole="button"
-          style={[styles.personaContinue, isSaving && styles.disabledButton]}
-          onPress={handleEnterChat}
-          disabled={isSaving}
+          style={styles.personaContinue}
+          onPress={() => setStep("identity")}
         >
-          <Text style={styles.personaContinueText}>{isSaving ? "Saving your Persona..." : "Enter your sanctuary"}</Text>
+          <Text style={styles.personaContinueText}>Continue</Text>
           <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+type PersonaAvatarOption = {
+  key: string;
+  label: string;
+  glyph: string;
+  color: string;
+};
+
+const PERSONA_AVATARS: PersonaAvatarOption[] = [
+  { key: "ceres", label: "Ceres", glyph: "C", color: "#D6AD51" },
+  { key: "pallas", label: "Pallas", glyph: "◇", color: "#7D86CF" },
+  { key: "juno", label: "Juno", glyph: "◎", color: "#D47D88" },
+  { key: "vesta", label: "Vesta", glyph: "◊", color: "#D98148" },
+  { key: "chiron", label: "Chiron", glyph: "⚷", color: "#6E9BBD" },
+  { key: "psyche", label: "Psyche", glyph: "Ψ", color: "#9A79C4" },
+  { key: "eros", label: "Eros", glyph: "♡", color: "#D96887" },
+  { key: "iris", label: "Iris", glyph: "◒", color: "#A5A3D0" },
+  { key: "hygiea", label: "Hygiea", glyph: "⌁", color: "#62A27E" },
+  { key: "astraea", label: "Astraea", glyph: "★", color: "#B39255" }
+];
+
+const PERSONA_FOCUSES = [
+  { key: "career", label: "Career" },
+  { key: "love", label: "Relationships" },
+  { key: "emotion", label: "Emotions" },
+  { key: "timing", label: "Timing" },
+  { key: "growth", label: "Growth" }
+];
+
+function AsteroidAvatar({ avatar, size }: { avatar: PersonaAvatarOption; size: number }) {
+  return (
+    <Svg height={size} viewBox="0 0 64 64" width={size}>
+      <Circle cx="32" cy="32" fill={avatar.color} opacity="0.96" r="30" stroke="rgba(255,255,255,0.62)" strokeWidth="1.5" />
+      <Circle cx="24" cy="22" fill="rgba(255,255,255,0.22)" r="10" />
+      <SvgText fill="#FFFFFF" fontSize="24" fontWeight="600" textAnchor="middle" x="32" y="40">{avatar.glyph}</SvgText>
+    </Svg>
   );
 }
 
@@ -1347,6 +1525,7 @@ function personaExample(style: PersonaStyleKey) {
 
 function ChatShellScreen({
   name,
+  lumisName,
   chart,
   initialDraft,
   selectedStyle,
@@ -1365,6 +1544,7 @@ function ChatShellScreen({
   onBack
 }: {
   name: string;
+  lumisName: string;
   chart: ChartV2 | null;
   initialDraft: string | null;
   selectedStyle: PersonaStyleKey;
@@ -1469,7 +1649,7 @@ function ChatShellScreen({
             <Sparkles color="#071321" size={18} />
           </View>
           <View style={styles.chatTitleWrap}>
-            <Text style={styles.chatTitle}>Lumis</Text>
+            <Text style={styles.chatTitle}>{lumisName}</Text>
             <View style={styles.chatPresenceRow}>
               <View style={styles.chatPresenceDot} />
               <Text style={styles.chatSubtitle}>{selectedPersona.labelEn} · Chart connected</Text>
@@ -2760,6 +2940,105 @@ const styles = StyleSheet.create({
     color: "#152238",
     fontSize: 16,
     fontWeight: "800"
+  },
+  personaIdentityPreview: {
+    alignItems: "center",
+    backgroundColor: "rgba(38,57,88,0.76)",
+    borderColor: "rgba(247,235,221,0.18)",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 15,
+    padding: 15
+  },
+  personaIdentityPreviewText: {
+    flex: 1,
+    gap: 4
+  },
+  personaIdentityName: {
+    color: "#FFF5E8",
+    fontSize: 20,
+    fontWeight: "800"
+  },
+  personaIdentityRole: {
+    color: "#D9B35D",
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  personaAvatarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  personaAvatarOption: {
+    alignItems: "center",
+    backgroundColor: "rgba(18,34,56,0.64)",
+    borderColor: "rgba(247,235,221,0.14)",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 5,
+    minHeight: 78,
+    paddingHorizontal: 5,
+    paddingVertical: 8,
+    width: "22.8%"
+  },
+  personaAvatarOptionActive: {
+    backgroundColor: "rgba(48,61,91,0.88)",
+    borderColor: "#DDB45E",
+    borderWidth: 1.5
+  },
+  personaAvatarLabel: {
+    color: "rgba(247,235,221,0.82)",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  personaNameField: {
+    gap: 7,
+    marginTop: 3
+  },
+  personaFieldLabel: {
+    color: "rgba(247,235,221,0.68)",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.9
+  },
+  personaNameInput: {
+    backgroundColor: "rgba(9,21,37,0.68)",
+    borderColor: "rgba(247,235,221,0.18)",
+    borderRadius: 8,
+    borderWidth: 1,
+    color: "#FFF5E8",
+    fontSize: 16,
+    minHeight: 50,
+    paddingHorizontal: 14
+  },
+  personaFocusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  personaFocusChip: {
+    alignItems: "center",
+    backgroundColor: "rgba(18,34,56,0.66)",
+    borderColor: "rgba(247,235,221,0.17)",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    minHeight: 38,
+    paddingHorizontal: 11
+  },
+  personaFocusChipActive: {
+    backgroundColor: "#E8BE66",
+    borderColor: "#E8BE66"
+  },
+  personaFocusText: {
+    color: "rgba(247,235,221,0.8)",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  personaFocusTextActive: {
+    color: "#152238"
   },
   quickGrid: {
     flexDirection: "row",

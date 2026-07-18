@@ -64,6 +64,12 @@ export type PersonaPreferenceResult = {
   status: "saved" | "skipped";
 };
 
+export type PersonaIdentityPreference = {
+  buddyName: string;
+  avatarKey: string;
+  mainFocus: string | null;
+};
+
 export function prepareChartProfileRequest(
   form: BirthProfileForm
 ): PreparedChartProfileRequest {
@@ -222,7 +228,8 @@ function isEdgeFunctionTransportError(message: string): boolean {
 }
 
 export async function savePersonaStylePreference(
-  personaStyle: PersonaStyleKey
+  personaStyle: PersonaStyleKey,
+  identity: PersonaIdentityPreference
 ): Promise<PersonaPreferenceResult> {
   const supabase = getSupabaseClient();
 
@@ -240,6 +247,9 @@ export async function savePersonaStylePreference(
   const { error } = await supabase
     .from("users")
     .update({
+      buddy_avatar_key: identity.avatarKey,
+      buddy_name: identity.buddyName,
+      focus: identity.mainFocus,
       persona_style: selectedPersona.key,
       role: selectedPersona.internalRole
     })
