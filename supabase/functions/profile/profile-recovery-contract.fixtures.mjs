@@ -53,7 +53,8 @@ assert(
   "Recovery must not contain an unpersisted audit marker."
 );
 assert(
-  profileFunction.includes("isValidBirthDate(body.birth_date, new Date(), body.tz_str)") &&
+  profileFunction.includes("isValidBirthDate(body.birth_date, new Date(), trustedLocation.tz_str)") &&
+    profileFunction.includes('serviceClient.rpc("resolve_trusted_birth_location"') &&
     profileFunction.includes("PROFILE_BIRTH_DATE_INVALID"),
   "Profile function must reject malformed and future birth dates before Worker generation."
 );

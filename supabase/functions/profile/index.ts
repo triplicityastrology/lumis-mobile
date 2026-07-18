@@ -40,6 +40,15 @@ type ChartGenerationResult = {
   nextStep: string;
 };
 
+type TrustedBirthLocation = {
+  location_key: string;
+  place_name: string;
+  country_code: string;
+  lat: number;
+  lng: number;
+  tz_str: string;
+};
+
 type ExistingProfileState = {
   hasBirthData: boolean;
   hasProfile: boolean;
@@ -110,24 +119,12 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!body.country_code || body.lat == null || body.lng == null || !body.tz_str) {
+  if (!body.country_code || body.lat == null || body.lng == null) {
     return jsonResponse(
       {
         error: {
           code: "LOCATION_UNRESOLVED",
-          message: "country_code, lat, lng, and tz_str are required before chart generation"
-        }
-      },
-      { status: 400 }
-    );
-  }
-
-  if (!isValidBirthDate(body.birth_date, new Date(), body.tz_str)) {
-    return jsonResponse(
-      {
-        error: {
-          code: "PROFILE_BIRTH_DATE_INVALID",
-          message: "Birth date must be a real date and cannot be in the future."
+          message: "country_code, lat, and lng are required before chart generation"
         }
       },
       { status: 400 }
@@ -146,7 +143,7 @@ Deno.serve(async (request) => {
       country_code: body.country_code,
       lat: body.lat,
       lng: body.lng,
-      tz_str: body.tz_str
+      tz_str: body.tz_str ?? "UTC"
     },
     audit: {
       source: "mobile_app",
@@ -163,6 +160,17 @@ Deno.serve(async (request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey) {
+    if (!body.tz_str) {
+      return jsonResponse(
+        { error: { code: "LOCATION_UNRESOLVED", message: "A resolved timezone is required in local preview mode." } },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidBirthDate(body.birth_date, new Date(), body.tz_str)) {
+      return invalidBirthDateResponse();
+    }
+
     return jsonResponse({
       profile_version: 0,
       status: "profile_request_prepared",
@@ -225,6 +233,46 @@ Deno.serve(async (request) => {
     });
   }
 
+  const trustedLocationResult = await serviceClient.rpc("resolve_trusted_birth_location", {
+    p_place_name: body.place_name,
+    p_country_code: body.country_code,
+    p_lat: body.lat,
+    p_lng: body.lng
+  });
+
+  if (trustedLocationResult.error) {
+    console.error("PROFILE_LOCATION_RESOLUTION_FAILED", {
+      user_id: userId,
+      code: trustedLocationResult.error.code
+    });
+    return jsonResponse(
+      { error: { code: "LOCATION_RESOLUTION_FAILED", message: "Unable to verify this birthplace right now." } },
+      { status: 503 }
+    );
+  }
+
+  const trustedLocation = trustedLocationResult.data as TrustedBirthLocation | null;
+
+  if (!trustedLocation) {
+    return jsonResponse(
+      { error: { code: "LOCATION_UNRESOLVED", message: "Please choose a supported birthplace and try again." } },
+      { status: 400 }
+    );
+  }
+
+  chartRequest.birth_data = {
+    ...chartRequest.birth_data,
+    place_name: trustedLocation.place_name,
+    country_code: trustedLocation.country_code,
+    lat: trustedLocation.lat,
+    lng: trustedLocation.lng,
+    tz_str: trustedLocation.tz_str
+  };
+
+  if (!isValidBirthDate(body.birth_date, new Date(), trustedLocation.tz_str)) {
+    return invalidBirthDateResponse();
+  }
+
   let chartResult: ChartGenerationResult;
 
   try {
@@ -255,11 +303,11 @@ Deno.serve(async (request) => {
       p_birth_date: body.birth_date,
       p_birth_time: body.time_unknown ? null : body.birth_time,
       p_time_unknown: body.time_unknown ?? false,
-      p_place_name: body.place_name,
-      p_country_code: body.country_code,
-      p_lat: body.lat,
-      p_lng: body.lng,
-      p_tz_str: body.tz_str,
+      p_place_name: trustedLocation.place_name,
+      p_country_code: trustedLocation.country_code,
+      p_lat: trustedLocation.lat,
+      p_lng: trustedLocation.lng,
+      p_tz_str: trustedLocation.tz_str,
       p_role: role,
       p_chart_json: chart,
       p_raw_chart_json: {
@@ -309,6 +357,18 @@ Deno.serve(async (request) => {
     next_step: chartResult.nextStep
   });
 });
+
+function invalidBirthDateResponse(): Response {
+  return jsonResponse(
+    {
+      error: {
+        code: "PROFILE_BIRTH_DATE_INVALID",
+        message: "Birth date must be a real date and cannot be in the future."
+      }
+    },
+    { status: 400 }
+  );
+}
 
 async function loadExistingProfileState(
   serviceClient: ReturnType<typeof createClient>,

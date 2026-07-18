@@ -1177,7 +1177,14 @@ function ChartRevealScreen({
 }
 
 function formatPlacement(placement: ChartV2["planets"][number] | undefined) {
-  return placement ? `${placement.sign} ${Math.round(placement.degree)}°` : "Not available";
+  if (!placement) return "Not available";
+
+  const normalizedDegree = ((placement.degree % 30) + 30) % 30;
+  const totalMinutes = Math.floor(normalizedDegree * 60);
+  const degrees = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${placement.sign} ${degrees}°${String(minutes).padStart(2, "0")}′`;
 }
 
 const SIGN_INDEX: Record<string, number> = {
@@ -1345,6 +1352,8 @@ function PersonaStyleScreen({
               return (
                 <Pressable
                   accessibilityLabel={`Choose ${avatar.label} avatar`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
                   key={avatar.key}
                   onPress={() => {
                     setAvatarKey(avatar.key);
@@ -1430,6 +1439,8 @@ function PersonaStyleScreen({
 
             return (
               <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
                 key={style.key}
                 style={[styles.personaChoiceCard, isSelected && styles.personaChoiceCardActive]}
                 onPress={() => onSelectStyle(style.key)}

@@ -13,6 +13,7 @@ console.log(`If this process is interrupted, run: pnpm test:staging-backend:clea
 
 try {
   await auditExistingChartVersionInvariants();
+  await verifyTrustedBirthLocationResolver();
 
   const primary = await createConfirmedUser(`lumis.qa.primary.${runId}@example.com`, password);
   const secondary = await createConfirmedUser(`lumis.qa.secondary.${runId}@example.com`, password);
@@ -404,6 +405,55 @@ try {
       console.error(`Cleanup failed for disposable user ${userId}:`, safeError(error));
     });
   }
+}
+
+async function verifyTrustedBirthLocationResolver() {
+  const endpoint = "/rest/v1/rpc/resolve_trusted_birth_location";
+  const hongKong = await serviceRequest(endpoint, {
+    method: "POST",
+    body: {
+      p_place_name: "Hong Kong",
+      p_country_code: "HK",
+      p_lat: 22.3193,
+      p_lng: 114.1694
+    }
+  });
+  assert(hongKong?.tz_str === "Asia/Hong_Kong", "Trusted resolver returned the wrong Hong Kong timezone.");
+
+  const spoofedCountry = await serviceRequest(endpoint, {
+    method: "POST",
+    body: {
+      p_place_name: "Hong Kong",
+      p_country_code: "US",
+      p_lat: 22.3193,
+      p_lng: 114.1694
+    }
+  });
+  assert(spoofedCountry == null, "Trusted resolver accepted a mismatched country.");
+
+  const spoofedCoordinates = await serviceRequest(endpoint, {
+    method: "POST",
+    body: {
+      p_place_name: "Hong Kong",
+      p_country_code: "HK",
+      p_lat: 40.7128,
+      p_lng: -74.006
+    }
+  });
+  assert(spoofedCoordinates == null, "Trusted resolver accepted mismatched coordinates.");
+
+  const anonymous = await fetch(`${supabaseUrl}${endpoint}`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      p_place_name: "Hong Kong",
+      p_country_code: "HK",
+      p_lat: 22.3193,
+      p_lng: 114.1694
+    })
+  });
+  assert(!anonymous.ok, "Anonymous caller reached the trusted birthplace resolver.");
+  pass("Backend-owned birthplace resolver rejects client timezone and mismatched location data");
 }
 
 async function auditExistingChartVersionInvariants() {
