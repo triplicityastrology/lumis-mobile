@@ -962,6 +962,17 @@ function ChartPreviewScreen({
     return <ChartGeneratingScreen activeStep={generationStep} name={profileData.name} />;
   }
 
+  if (chartResult) {
+    return (
+      <ChartRevealScreen
+        chart={chartResult.chart}
+        name={profileData.name}
+        onBack={onBack}
+        onContinue={() => onContinuePersona(chartResult)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
@@ -1002,27 +1013,6 @@ function ChartPreviewScreen({
               {previewValidation.message ?? "Please edit the birth details before generating."}
             </Text>
           </View>
-        ) : null}
-
-        {chartResult ? (
-          <View style={styles.successCard}>
-            <Text style={styles.successTitle}>
-              Your chart is ready
-            </Text>
-            <Text style={styles.successBody}>
-              {chartResult.mode === "supabase"
-                ? chartResult.message
-                : chartResult.message}
-            </Text>
-          </View>
-        ) : null}
-
-        {chartResult ? (
-          <ChartRevealPanel
-            chart={chartResult.chart}
-            name={profileData.name}
-            onContinuePersona={() => onContinuePersona(chartResult)}
-          />
         ) : null}
 
         {submitError ? (
@@ -1085,56 +1075,164 @@ function ChartGeneratingScreen({ activeStep, name }: { activeStep: number; name:
   );
 }
 
-function ChartRevealPanel({
+function ChartRevealScreen({
   chart,
   name,
-  onContinuePersona
+  onBack,
+  onContinue
 }: {
   chart: ChartV2;
   name: string;
-  onContinuePersona: (chart: ChartV2) => void;
+  onBack: () => void;
+  onContinue: () => void;
 }) {
   const sun = chart.planets.find((planet) => planet.key === "sun");
   const moon = chart.planets.find((planet) => planet.key === "moon");
-  const ascendant = chart.angles.ascendant;
+  const ascendant = chart.precision === "full" ? chart.angles.ascendant : undefined;
 
   return (
-    <View style={styles.revealPanel}>
-      <View style={styles.revealHeader}>
-        <View style={styles.revealWheel}>
-          <ChartWheel />
+    <SafeAreaView style={styles.chartRevealSafe}>
+      <StatusBar style="light" />
+      <CelestialBackground />
+      <ScrollView contentContainerStyle={styles.chartRevealContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.chartRevealTopBar}>
+          <Pressable accessibilityLabel="Back" onPress={onBack} style={styles.chartRevealIconButton}>
+            <ArrowLeft color="#F7EBDD" size={20} />
+          </Pressable>
+          <View accessibilityLabel="Language: English" style={styles.chartRevealLanguage}>
+            <Text style={styles.chartRevealLanguageText}>EN</Text>
+          </View>
         </View>
-        <View style={styles.revealHeaderText}>
-          <Text style={styles.sectionEyebrow}>Chart profile ready</Text>
-          <Text style={styles.revealTitle}>{name}'s Lumis Persona seed</Text>
-          <Text style={styles.revealBody}>
+
+        <Text style={styles.chartRevealEyebrow}>YOUR CHART</Text>
+        <Text style={styles.chartRevealTitle}>{name}, this is your inner universe.</Text>
+        <Text style={styles.chartRevealIntro}>
+          Your chart is a map of the sky at the moment you were born. Lumis uses it to make every reflection more personal to you.
+        </Text>
+
+        <Text style={styles.chartRevealSectionLabel}>YOUR PSYCHOLOGICAL CHART</Text>
+        <View style={styles.chartRevealWheelPanel}>
+          <View style={styles.chartRevealWheelCanvas}>
+            <NatalChartWheel chart={chart} />
+          </View>
+          <Text style={styles.chartRevealPrecision}>
             {chart.precision === "full"
-              ? "Your birth time is included, so Lumis can use your complete chart."
-              : "No birth time selected. Lumis will not use houses, Ascendant, or MC in your reflections."}
+              ? "Calculated with your birth time"
+              : "Birth time unknown - planets shown without Ascendant, MC, houses, or planet house placements"}
           </Text>
         </View>
-      </View>
 
-      <View style={styles.bigThreeGrid}>
-        <BigThreeCard label="Sun" value={sun ? `${sun.sign} ${sun.degree}°` : "Pending"} />
-        <BigThreeCard label="Moon" value={moon ? `${moon.sign} ${moon.degree}°` : "Pending"} />
-        <BigThreeCard
-          label="Rising"
-          value={ascendant ? `${ascendant.sign} ${ascendant.degree}°` : "Unknown"}
-        />
-      </View>
+        <View style={styles.chartRevealPlacements}>
+          <BigThreeCard label="Sun" value={formatPlacement(sun)} />
+          <BigThreeCard label="Moon" value={formatPlacement(moon)} />
+          {ascendant ? <BigThreeCard label="Rising" value={formatPlacement(ascendant)} /> : null}
+        </View>
 
-      <View style={styles.precisionPill}>
-        <Text style={styles.precisionText}>
-          Precision: {chart.precision === "full" ? "Full chart" : "No birth time"}
+        <Text style={styles.chartRevealStory}>
+          These placements are the opening notes of your Lumis Persona. You can explore their patterns gently, one conversation at a time.
         </Text>
-      </View>
 
-      <Pressable style={styles.fullPrimaryButton} onPress={() => onContinuePersona(chart)}>
-        <Text style={styles.fullPrimaryButtonText}>Choose Lumis Persona</Text>
-      </Pressable>
-    </View>
+        <Pressable accessibilityRole="button" onPress={onContinue} style={styles.chartRevealCta}>
+          <Text style={styles.chartRevealCtaText}>Meet Lumis</Text>
+          <ChevronRight color="#132238" size={19} strokeWidth={2.5} />
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
+}
+
+function formatPlacement(placement: ChartV2["planets"][number] | undefined) {
+  return placement ? `${placement.sign} ${Math.round(placement.degree)}°` : "Not available";
+}
+
+const SIGN_INDEX: Record<string, number> = {
+  aries: 0,
+  taurus: 1,
+  gemini: 2,
+  cancer: 3,
+  leo: 4,
+  virgo: 5,
+  libra: 6,
+  scorpio: 7,
+  sagittarius: 8,
+  capricorn: 9,
+  aquarius: 10,
+  pisces: 11
+};
+
+const PLANET_GLYPHS: Partial<Record<ChartV2["planets"][number]["key"], string>> = {
+  sun: "☉",
+  moon: "☽",
+  mercury: "☿",
+  venus: "♀",
+  mars: "♂",
+  jupiter: "♃",
+  saturn: "♄",
+  uranus: "♅",
+  neptune: "♆",
+  pluto: "♇",
+  chiron: "⚷",
+  true_node: "☊",
+  south_node: "☋"
+};
+
+function NatalChartWheel({ chart }: { chart: ChartV2 }) {
+  const center = 150;
+  const plottedPlanets = chart.planets.filter(
+    (planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli"
+  );
+  const houseAngles = chart.precision === "full"
+    ? chart.houses.map((house) => zodiacLongitude(house.sign, house.cuspDegree))
+    : [];
+
+  return (
+    <Svg accessibilityLabel="Natal chart wheel" height="100%" viewBox="0 0 300 300" width="100%">
+      <Circle cx={center} cy={center} fill="rgba(7,19,33,0.82)" r="137" stroke="#D7A950" strokeWidth="1.2" />
+      <Circle cx={center} cy={center} fill="none" opacity="0.72" r="112" stroke="#EDE3D4" strokeWidth="0.7" />
+      <Circle cx={center} cy={center} fill="none" opacity="0.52" r="80" stroke="#9298D5" strokeWidth="0.8" />
+      <Circle cx={center} cy={center} fill="none" opacity="0.42" r="46" stroke="#EDE3D4" strokeWidth="0.6" />
+      {Array.from({ length: 12 }).map((_, index) => {
+        const outer = pointOnWheel(index * 30, 136);
+        const inner = pointOnWheel(index * 30, 112);
+        return <Line key={`sign-${index}`} opacity="0.48" stroke="#EDE3D4" strokeWidth="0.65" x1={inner.x} x2={outer.x} y1={inner.y} y2={outer.y} />;
+      })}
+      {houseAngles.map((angle, index) => {
+        const outer = pointOnWheel(angle, 111);
+        const inner = pointOnWheel(angle, 46);
+        return <Line key={`house-${index}`} opacity="0.28" stroke="#D7A950" strokeWidth="0.7" x1={inner.x} x2={outer.x} y1={inner.y} y2={outer.y} />;
+      })}
+      {plottedPlanets.map((planet, index) => {
+        const angle = planet.absoluteLongitude ?? zodiacLongitude(planet.sign, planet.degree);
+        const point = pointOnWheel(angle, 94 - (index % 3) * 9);
+        return (
+          <SvgText
+            fill={planet.key === "sun" || planet.key === "moon" ? "#F1C56B" : "#F7EBDD"}
+            fontSize={planet.key === "sun" || planet.key === "moon" ? 17 : 14}
+            fontWeight="600"
+            key={`${planet.key}-${index}`}
+            textAnchor="middle"
+            x={point.x}
+            y={point.y + 5}
+          >
+            {PLANET_GLYPHS[planet.key] ?? "•"}
+          </SvgText>
+        );
+      })}
+      <Circle cx={center} cy={center} fill="#D7A950" r="3.5" />
+    </Svg>
+  );
+}
+
+function zodiacLongitude(sign: string, degree: number) {
+  return (SIGN_INDEX[sign.toLowerCase()] ?? 0) * 30 + degree;
+}
+
+function pointOnWheel(longitude: number, radius: number) {
+  const radians = ((longitude - 90) * Math.PI) / 180;
+  return {
+    x: 150 + Math.cos(radians) * radius,
+    y: 150 + Math.sin(radians) * radius
+  };
 }
 
 function PersonaStyleScreen({
@@ -3555,81 +3653,139 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800"
   },
-  revealPanel: {
-    backgroundColor: "#FBF7EE",
-    borderColor: "rgba(120,90,40,0.12)",
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 16,
-    padding: 16
-  },
-  revealHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 14
-  },
-  revealWheel: {
-    alignItems: "center",
-    backgroundColor: "#0B1930",
-    borderRadius: 22,
-    height: 106,
-    justifyContent: "center",
-    width: 106
-  },
-  revealHeaderText: {
+  chartRevealSafe: {
+    backgroundColor: "#091525",
     flex: 1
   },
-  revealTitle: {
-    color: "#2F2B25",
-    fontSize: 18,
+  chartRevealContent: {
+    alignSelf: "center",
+    gap: 14,
+    maxWidth: 480,
+    paddingBottom: 38,
+    paddingHorizontal: 22,
+    width: "100%"
+  },
+  chartRevealTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 8
+  },
+  chartRevealIconButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(9,21,37,0.52)",
+    borderColor: "rgba(247,235,221,0.22)",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: "center",
+    width: 42
+  },
+  chartRevealLanguage: {
+    alignItems: "center",
+    backgroundColor: "rgba(9,21,37,0.52)",
+    borderColor: "rgba(247,235,221,0.22)",
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 38,
+    minWidth: 46
+  },
+  chartRevealLanguageText: {
+    color: "#F7EBDD",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  chartRevealEyebrow: {
+    color: "#E0B45D",
+    fontSize: 12,
     fontWeight: "800",
+    letterSpacing: 1.2,
+    marginTop: 8
+  },
+  chartRevealTitle: {
+    color: "#FFF5E8",
+    fontSize: 31,
+    fontWeight: "800",
+    lineHeight: 38
+  },
+  chartRevealIntro: {
+    color: "rgba(247,235,221,0.78)",
+    fontSize: 15,
     lineHeight: 23
   },
-  revealBody: {
-    color: "#6F6252",
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 6
+  chartRevealSectionLabel: {
+    color: "rgba(247,235,221,0.68)",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    marginTop: 10
   },
-  bigThreeGrid: {
+  chartRevealWheelPanel: {
+    alignItems: "center",
+    backgroundColor: "rgba(8,19,34,0.66)",
+    borderColor: "rgba(224,180,93,0.32)",
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 14
+  },
+  chartRevealWheelCanvas: {
+    aspectRatio: 1,
+    maxWidth: 330,
+    width: "100%"
+  },
+  chartRevealPrecision: {
+    color: "rgba(247,235,221,0.68)",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+    textAlign: "center"
+  },
+  chartRevealPlacements: {
     flexDirection: "row",
-    gap: 10
+    gap: 8
   },
   bigThreeCard: {
-    backgroundColor: "#F7F0E3",
-    borderColor: "rgba(120,90,40,0.12)",
-    borderRadius: 16,
+    backgroundColor: "rgba(9,21,37,0.64)",
+    borderColor: "rgba(247,235,221,0.18)",
+    borderRadius: 8,
     borderWidth: 1,
     flex: 1,
-    minHeight: 78,
+    minHeight: 76,
     padding: 12
   },
   bigThreeLabel: {
-    color: "#8A7659",
+    color: "#E0B45D",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 0.8,
     textTransform: "uppercase"
   },
   bigThreeValue: {
-    color: "#2F2B25",
+    color: "#FFF5E8",
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 20,
     marginTop: 8
   },
-  precisionPill: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(91,99,183,0.10)",
-    borderColor: "rgba(91,99,183,0.16)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8
+  chartRevealStory: {
+    color: "rgba(247,235,221,0.74)",
+    fontSize: 14,
+    lineHeight: 22,
+    paddingVertical: 4
   },
-  precisionText: {
-    color: "#454286",
-    fontSize: 12,
+  chartRevealCta: {
+    alignItems: "center",
+    backgroundColor: "#F2C86F",
+    borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    minHeight: 54,
+    paddingHorizontal: 20
+  },
+  chartRevealCtaText: {
+    color: "#132238",
+    fontSize: 16,
     fontWeight: "800"
   },
   lumisDarkSafe: {

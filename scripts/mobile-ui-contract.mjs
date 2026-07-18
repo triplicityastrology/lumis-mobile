@@ -99,6 +99,13 @@ assert.match(birthProfileSource, /Ascendant, MC, houses, or planet house placeme
 assert.match(birthProfileSource, /PLACE_SUGGESTIONS/);
 assert.match(birthProfileSource, /Create my chart/);
 assert.match(appSource, /function ChartGeneratingScreen/);
+assert.match(appSource, /function ChartRevealScreen/);
+assert.match(appSource, /function NatalChartWheel/);
+assert.match(appSource, /this is your inner universe/);
+assert.match(appSource, />Meet Lumis</);
+assert.match(appSource, /const ascendant = chart\.precision === "full" \? chart\.angles\.ascendant : undefined/);
+assert.match(appSource, /Birth time unknown - planets shown without Ascendant, MC, houses, or planet house placements/);
+assert.doesNotMatch(appSource, /function ChartRevealPanel/);
 assert.match(appSource, /Validating your birth details/);
 assert.match(appSource, /Positioning your sky/);
 assert.match(appSource, /Building your natal chart/);
