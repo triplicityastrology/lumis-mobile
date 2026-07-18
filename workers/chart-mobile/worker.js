@@ -36,6 +36,15 @@ const POINT_KEY_MAP = {
 };
 
 const DEFAULT_ALLOWED_ORIGIN = "https://triplicityastrology.com";
+const ALLOWED_LUMIS_ENVIRONMENTS = new Set([
+  "local",
+  "dev",
+  "development",
+  "test",
+  "staging",
+  "production"
+]);
+const DEFAULT_ASTRO_PROVIDER_TIMEOUT_MS = 12_000;
 
 const SIGN_NAME_MAP = {
   Ari: "Aries",
@@ -78,42 +87,15 @@ async function handleMobileNatalChart(request, env, ctx) {
 
   try {
     await verifyMobileSignature(request, env, rawBody);
+    requireWorkerEnvironment(env);
 
     const body = JSON.parse(rawBody);
     validateMobilePayload(body, request, env);
 
-    if (!env.ASTRO_API_KEY) {
+    if (!env.ASTRO_API_KEY || !env.CHART_REQUEST_COORDINATOR) {
       throw new WorkerRequestError("WORKER_CONFIGURATION_ERROR", 503);
     }
-
-    const astroPayload = buildAstrologyApiPayload(body.birth_data);
-    const astroResp = await fetch("https://api.astrology-api.io/api/v3/charts/natal", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${env.ASTRO_API_KEY}`
-      },
-      body: JSON.stringify(astroPayload)
-    });
-    if (!astroResp.ok) {
-      console.error("ASTROLOGY_API_FAILED", {
-        request_id: body.request_id,
-        provider_status: astroResp.status
-      });
-      throw new WorkerRequestError("ASTROLOGY_API_FAILED", 502);
-    }
-
-    let providerChart;
-
-    try {
-      providerChart = await astroResp.json();
-    } catch {
-      throw new WorkerRequestError("ASTROLOGY_API_INVALID_RESPONSE", 502);
-    }
-    const chartV2 = buildChartV2({
-      providerChart,
-      timeUnknown: body.birth_data.time_unknown
-    });
+    const chartV2 = await generateMobileChartOnce(env, body, rawBody);
 
     return json(
       {
@@ -150,6 +132,7 @@ async function handleMobileAdminSync(request, env) {
 
   try {
     await verifyMobileSignature(request, env, rawBody);
+    requireWorkerEnvironment(env);
     const body = JSON.parse(rawBody);
 
     if (
@@ -219,6 +202,44 @@ async function verifyMobileSignature(request, env, rawBody) {
   if (!constantTimeEqual(signature, expectedSignature)) {
     throw new WorkerRequestError("UNAUTHORIZED", 401);
   }
+}
+
+function requireWorkerEnvironment(env) {
+  if (!ALLOWED_LUMIS_ENVIRONMENTS.has(env.LUMIS_ENV)) {
+    throw new WorkerRequestError("WORKER_CONFIGURATION_ERROR", 503);
+  }
+}
+
+async function generateMobileChartOnce(env, body, rawBody) {
+  const coordinatorId = env.CHART_REQUEST_COORDINATOR.idFromName(
+    `${body.user_id}:${body.request_id}`
+  );
+  const coordinator = env.CHART_REQUEST_COORDINATOR.get(coordinatorId);
+  const response = await coordinator.fetch("https://chart-request.internal/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      request_id: body.request_id,
+      user_id: body.user_id,
+      request_digest: await sha256Hex(rawBody),
+      request: body
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok || !payload.chart_v2) {
+    throw new WorkerRequestError(
+      safeChartRequestErrorCode(payload.error),
+      response.status >= 400 ? response.status : 500
+    );
+  }
+
+  return payload.chart_v2;
+}
+
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return bytesToHex(new Uint8Array(digest));
 }
 
 async function sign(value, signingSecret) {
@@ -560,6 +581,12 @@ export class AuditDeliveryCoordinator {
   }
 
   async fetch(request) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/generate") {
+      return this.handleChartGeneration(request);
+    }
+
     if (request.method !== "POST") {
       return auditCoordinatorResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
     }
@@ -661,6 +688,169 @@ export class AuditDeliveryCoordinator {
       return auditCoordinatorResponse({ error: "AUDIT_DELIVERY_FAILED" }, 502);
     }
   }
+
+  async handleChartGeneration(request) {
+    if (request.method !== "POST") {
+      return auditCoordinatorResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    let payload;
+
+    try {
+      payload = await request.json();
+    } catch {
+      return auditCoordinatorResponse({ error: "INVALID_REQUEST" }, 400);
+    }
+
+    if (
+      !payload?.request_id ||
+      !payload?.user_id ||
+      !payload?.request_digest ||
+      !payload?.request?.birth_data ||
+      payload.request.request_id !== payload.request_id ||
+      payload.request.user_id !== payload.user_id
+    ) {
+      return auditCoordinatorResponse({ error: "INVALID_REQUEST" }, 400);
+    }
+
+    const storageKey = "chart:result";
+    const reservation = await this.state.storage.transaction(async (transaction) => {
+      const existing = await transaction.get(storageKey);
+
+      if (existing && existing.request_digest !== payload.request_digest) {
+        return { action: "conflict" };
+      }
+
+      if (existing?.status === "completed" && existing.chart_v2) {
+        return { action: "cached", chart_v2: existing.chart_v2 };
+      }
+
+      if (existing?.status === "processing") {
+        const startedAt = Date.parse(existing.started_at || "");
+        const isStale = Number.isFinite(startedAt) && Date.now() - startedAt > 60_000;
+
+        if (!isStale) {
+          return { action: "in_progress" };
+        }
+      }
+
+      await transaction.put(storageKey, {
+        status: "processing",
+        request_digest: payload.request_digest,
+        started_at: new Date().toISOString()
+      });
+      return { action: "generate" };
+    });
+
+    if (reservation.action === "conflict") {
+      return auditCoordinatorResponse({ error: "CHART_REQUEST_CONFLICT" }, 409);
+    }
+
+    if (reservation.action === "cached") {
+      return auditCoordinatorResponse({
+        status: "already_generated",
+        chart_v2: reservation.chart_v2
+      });
+    }
+
+    if (reservation.action === "in_progress") {
+      return auditCoordinatorResponse({ error: "CHART_REQUEST_IN_PROGRESS" }, 409);
+    }
+
+    try {
+      const chartV2 = await generateChartFromProvider(
+        this.env,
+        payload.request,
+        this.dependencies.chart?.fetchImpl || fetch
+      );
+      await this.state.storage.put(storageKey, {
+        status: "completed",
+        request_digest: payload.request_digest,
+        chart_v2: chartV2,
+        completed_at: new Date().toISOString()
+      });
+      return auditCoordinatorResponse({ status: "generated", chart_v2: chartV2 });
+    } catch (error) {
+      const workerError = normalizeWorkerError(error);
+      await this.state.storage.put(storageKey, {
+        status: "failed",
+        request_digest: payload.request_digest,
+        error_code: workerError.code,
+        failed_at: new Date().toISOString()
+      });
+      return auditCoordinatorResponse({ error: workerError.code }, workerError.status);
+    }
+  }
+}
+
+async function generateChartFromProvider(env, body, fetchImpl) {
+  const astroPayload = buildAstrologyApiPayload(body.birth_data);
+  const configuredTimeout = Number(env.ASTRO_PROVIDER_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(configuredTimeout)
+    ? Math.min(30_000, Math.max(1_000, configuredTimeout))
+    : DEFAULT_ASTRO_PROVIDER_TIMEOUT_MS;
+  const astroResp = await fetchAstrologyProvider(
+    "https://api.astrology-api.io/api/v3/charts/natal",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.ASTRO_API_KEY}`
+      },
+      body: JSON.stringify(astroPayload)
+    },
+    fetchImpl,
+    timeoutMs
+  );
+
+  if (!astroResp.ok) {
+    console.error("ASTROLOGY_API_FAILED", {
+      request_id: body.request_id,
+      provider_status: astroResp.status
+    });
+    throw new WorkerRequestError("ASTROLOGY_API_FAILED", 502);
+  }
+
+  let providerChart;
+
+  try {
+    providerChart = await astroResp.json();
+  } catch {
+    throw new WorkerRequestError("ASTROLOGY_API_INVALID_RESPONSE", 502);
+  }
+
+  return buildChartV2({
+    providerChart,
+    timeUnknown: body.birth_data.time_unknown
+  });
+}
+
+async function fetchAstrologyProvider(url, options, fetchImpl, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetchImpl(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new WorkerRequestError("ASTROLOGY_API_TIMEOUT", 504);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function safeChartRequestErrorCode(code) {
+  return [
+    "ASTROLOGY_API_FAILED",
+    "ASTROLOGY_API_INVALID_RESPONSE",
+    "ASTROLOGY_API_TIMEOUT",
+    "CHART_REQUEST_CONFLICT",
+    "CHART_REQUEST_IN_PROGRESS"
+  ].includes(code)
+    ? code
+    : "CHART_WORKER_FAILED";
 }
 
 function auditCoordinatorResponse(body, status = 200) {

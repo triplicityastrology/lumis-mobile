@@ -14,6 +14,7 @@
     "test:birth-location": "node scripts/birth-location-contract.mjs",
     "test:entitlement": "tsc -p packages/shared/tsconfig.entitlement-test.json && node .tmp/entitlement-tests/config/account-entitlement.fixtures.js",
     "test:billing-entitlement": "node scripts/billing-entitlement-contract.mjs",
+    "test:care-circle": "node scripts/care-circle-contract.mjs",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
     "test:worker": "node --check workers/chart-mobile/worker.js && node workers/chart-mobile/worker.fixtures.mjs",
     "test:profile": "tsc -p packages/astrology/tsconfig.profile-test.json && node .tmp/profile-onboarding-tests/astrology/src/profile-onboarding.fixtures.js && node supabase/functions/profile/profile-recovery-contract.fixtures.mjs",

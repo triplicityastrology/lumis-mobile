@@ -8,6 +8,10 @@ preview_urls = false
 name = "AUDIT_DELIVERY_COORDINATOR"
 class_name = "AuditDeliveryCoordinator"
 
+[[durable_objects.bindings]]
+name = "CHART_REQUEST_COORDINATOR"
+class_name = "AuditDeliveryCoordinator"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["AuditDeliveryCoordinator"]
@@ -15,3 +19,4 @@ new_sqlite_classes = ["AuditDeliveryCoordinator"]
 [vars]
 LUMIS_ENV = "staging"
 ALLOWED_ORIGIN = "https://triplicityastrology.com"
+ASTRO_PROVIDER_TIMEOUT_MS = "12000"

@@ -17,6 +17,29 @@ assert(fullTime.body.chart_v2?.planets?.length > 0, "Full-time chart contains no
 assert(!containsKey(fullTime.body, "rawProviderResponse"), "Worker exposed raw provider output.");
 pass("Valid signed full-time request succeeds without raw provider output");
 
+const fullTimeReplay = await invokeSigned(fullTimeBody);
+assert(fullTimeReplay.status === 200, `Exact replay returned HTTP ${fullTimeReplay.status}.`);
+assert(
+  JSON.stringify(fullTimeReplay.body.chart_v2) === JSON.stringify(fullTime.body.chart_v2),
+  "Exact replay did not return the original chart."
+);
+pass("Exact signed request replay returns the cached chart");
+
+const conflictingReplayBody = {
+  ...fullTimeBody,
+  birth_data: {
+    ...fullTimeBody.birth_data,
+    birth_date: "1986-02-21"
+  }
+};
+const conflictingReplay = await invokeSigned(conflictingReplayBody);
+assert(conflictingReplay.status === 409, "Changed-body replay was not rejected.");
+assert(
+  conflictingReplay.body.error === "CHART_REQUEST_CONFLICT",
+  "Changed-body replay returned the wrong safe error."
+);
+pass("Reused request ID with changed signed body is rejected");
+
 const unknownTimeBody = buildBody({
   request_id: `worker-smoke-unknown-${crypto.randomUUID()}`,
   birth_time: null,

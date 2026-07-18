@@ -15,6 +15,10 @@ It is based on the current website Worker at:
 ## Current Scope
 
 - Verifies the Supabase Edge Function HMAC signature.
+- Rejects missing or unknown `LUMIS_ENV` values before provider work.
+- Uses a Durable Object request lock so signed request replays return the original chart without another provider call.
+- Rejects a reused request ID when the signed body digest changes.
+- Aborts astrology-api.io after a bounded provider timeout.
 - Builds the astrology-api.io natal chart payload server-side.
 - Uses Placidus, Tropical zodiac, and the active points from the website flow.
 - Returns `chart_v2` for Supabase storage.
@@ -105,6 +109,11 @@ The Google Sheet tab uses 20 columns (`A:T`): timestamp, request ID, chart/sessi
 Supabase user ID, email, name, birth date, birth time, place, timezone, plan,
 product, source, flow, chart status, unknown-time flag, chart type, precision,
 point count, and house count.
+
+Chart replay protection uses the `CHART_REQUEST_COORDINATOR` binding declared in
+`wrangler.toml`. It targets the existing Durable Object class but uses a separate
+namespace keyed by `user_id + request_id`. `ASTRO_PROVIDER_TIMEOUT_MS` defaults to
+12 seconds and is bounded to 1-30 seconds.
 
 Account deletion uses a separate append-only `Deleted Accounts` tab with seven
 columns (`A:G`): idempotency key, user ID, chart/session IDs, requested

@@ -34,8 +34,14 @@ await assertMissingSignatureIsRejected();
 await assertMismatchedIdentityHeadersAreRejected();
 await assertFutureBirthDateIsRejected();
 assertBirthDateTimezoneBoundaries();
+await assertMissingEnvironmentFailsClosed();
+await assertInvalidEnvironmentFailsClosed();
 await assertMissingProviderConfigurationFailsClosed();
+await assertMissingChartCoordinatorFailsClosed();
 await assertProviderFailureIsRedacted();
+await assertProviderTimeoutIsControlled();
+await assertSignedChartReplayIsIdempotent();
+await assertRequestIdConflictIsRejected();
 await assertSignedAdminSyncRequest();
 await assertAdminSyncRejectsProviderPayload();
 assertMobileAuditContract();
@@ -282,6 +288,140 @@ async function assertMissingProviderConfigurationFailsClosed() {
   }
 }
 
+async function assertMissingEnvironmentFailsClosed() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body),
+      buildEnv({ LUMIS_ENV: undefined }),
+      buildCtx()
+    );
+    const payload = await response.json();
+
+    assert(response.status === 503, "Expected missing LUMIS_ENV to fail closed.");
+    assert(payload.error === "WORKER_CONFIGURATION_ERROR", "Expected safe environment error.");
+    assert(fetchCalls.length === 0, "Expected missing environment to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertInvalidEnvironmentFailsClosed() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body),
+      buildEnv({ LUMIS_ENV: "unexpected" }),
+      buildCtx()
+    );
+    assert(response.status === 503, "Expected invalid LUMIS_ENV to fail closed.");
+    assert(fetchCalls.length === 0, "Expected invalid environment to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertMissingChartCoordinatorFailsClosed() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body),
+      buildEnv({ CHART_REQUEST_COORDINATOR: undefined }),
+      buildCtx()
+    );
+    assert(response.status === 503, "Expected missing chart coordinator to fail closed.");
+    assert(fetchCalls.length === 0, "Expected missing coordinator to skip provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertProviderTimeoutIsControlled() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls, async (_url, options) =>
+    new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        const error = new Error("provider timed out");
+        error.name = "AbortError";
+        reject(error);
+      });
+    })
+  );
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const response = await worker.fetch(
+      await signedRequest(body),
+      buildEnv({ ASTRO_PROVIDER_TIMEOUT_MS: "1000" }),
+      buildCtx()
+    );
+    const payload = await response.json();
+
+    assert(response.status === 504, "Expected astrology provider timeout to return 504.");
+    assert(payload.error === "ASTROLOGY_API_TIMEOUT", "Expected safe provider timeout code.");
+    assert(fetchCalls.length === 1, "Expected exactly one timed-out provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertSignedChartReplayIsIdempotent() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const env = buildEnv();
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+
+  try {
+    const first = await worker.fetch(await signedRequest(body), env, buildCtx());
+    const second = await worker.fetch(await signedRequest(body), env, buildCtx());
+    const firstPayload = await first.json();
+    const secondPayload = await second.json();
+
+    assert(first.status === 200 && second.status === 200, "Expected replay to return cached success.");
+    assert(fetchCalls.length === 1, "Signed replay caused a second astrology provider call.");
+    assert(
+      JSON.stringify(firstPayload.chart_v2) === JSON.stringify(secondPayload.chart_v2),
+      "Signed replay did not return the original chart."
+    );
+  } finally {
+    restoreFetch();
+  }
+}
+
+async function assertRequestIdConflictIsRejected() {
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+  const env = buildEnv();
+  const firstBody = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const changedBody = buildRequestBody({
+    birth_date: "1986-02-21",
+    birth_time: "16:55",
+    time_unknown: false
+  });
+
+  try {
+    const first = await worker.fetch(await signedRequest(firstBody), env, buildCtx());
+    const second = await worker.fetch(await signedRequest(changedBody), env, buildCtx());
+    const payload = await second.json();
+
+    assert(first.status === 200, "Expected initial request to succeed.");
+    assert(second.status === 409, "Expected reused request ID with changed body to conflict.");
+    assert(payload.error === "CHART_REQUEST_CONFLICT", "Expected safe replay-conflict code.");
+    assert(fetchCalls.length === 1, "Conflicting request caused a second provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
 async function assertProviderFailureIsRedacted() {
   const fetchCalls = [];
   const providerDebug = "sensitive provider diagnostic must not escape";
@@ -504,11 +644,37 @@ function buildProviderResponse() {
 }
 
 function buildEnv(overrides = {}) {
-  return {
+  const env = {
     ASTRO_API_KEY: "test-astro-key",
     CHART_WORKER_SIGNING_SECRET: signingSecret,
     LUMIS_ENV: "staging",
     ...overrides
+  };
+
+  if (!Object.prototype.hasOwnProperty.call(overrides, "CHART_REQUEST_COORDINATOR")) {
+    env.CHART_REQUEST_COORDINATOR = buildChartCoordinatorBinding(env);
+  }
+
+  return env;
+}
+
+function buildChartCoordinatorBinding(env) {
+  const coordinators = new Map();
+
+  return {
+    idFromName(value) {
+      return value;
+    },
+    get(id) {
+      if (!coordinators.has(id)) {
+        coordinators.set(
+          id,
+          new AuditDeliveryCoordinator({ storage: buildTransactionalStorage() }, env)
+        );
+      }
+      const coordinator = coordinators.get(id);
+      return { fetch: (url, options) => coordinator.fetch(new Request(url, options)) };
+    }
   };
 }
 
