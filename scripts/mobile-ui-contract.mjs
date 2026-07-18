@@ -67,6 +67,10 @@ assert.match(diceSource, /function cancelRoll\(\)[\s\S]{0,160}clearRollTimers\(\
 assert.match(diceSource, /onPress=\{step === "result" \? reset : cancelRoll\}/);
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
 const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
+const personaAvatarSource = await readFile(
+  path.join(root, "apps/mobile/src/components/LumisPersonaAvatar.tsx"),
+  "utf8"
+);
 const birthProfileSource = await readFile(path.join(screensPath, "LumisBirthProfileScreen.tsx"), "utf8");
 for (const requiredProfileSurface of [
   "YOUR CHART",
@@ -84,6 +88,12 @@ assert.match(profileScreenSource, /showPendingNotice\("Account deletion"\)/);
 assert.match(profileScreenSource, /will be connected after its security review is complete/);
 assert.match(profileScreenSource, /PRODUCTS\.find\(\(product\) => product\.tier === planTier\)/);
 assert.match(profileScreenSource, /value=\{formatMainFocus\(mainFocus\)\}/);
+assert.match(profileScreenSource, /<LumisPersonaAvatar avatarKey=\{personaAvatarKey\} size=\{46\}/);
+assert.match(appSource, /<LumisPersonaAvatar avatarKey=\{lumisAvatarKey\} size=\{38\}/);
+assert.match(appSource, /lumisAvatarKey=\{personaAvatarKey\}/);
+assert.match(appSource, /personaAvatarKey=\{personaAvatarKey\}/);
+assert.match(personaAvatarSource, /PERSONA_AVATARS\.find\(\(option\) => option\.key === avatarKey\)/);
+assert.match(personaAvatarSource, /accessibilityLabel=\{`\$\{avatar\.label\} Persona avatar`\}/);
 assert.match(profileScreenSource, /function formatMainFocus/);
 assert.doesNotMatch(profileScreenSource, /value="Personal growth"/);
 assert.doesNotMatch(profileScreenSource, />Starter member</);
@@ -121,9 +131,11 @@ assert.match(appSource, /PERSONA_AVATARS/);
 assert.match(appSource, /CUSTOM NAME/);
 assert.match(appSource, /WHAT SHOULD LUMIS HELP YOU FOCUS ON/);
 assert.match(appSource, /savePersonaStylePreference\(personaStyle, identity\)/);
-assert.match(profileSource, /buddy_avatar_key: identity\.avatarKey/);
-assert.match(profileSource, /buddy_name: identity\.buddyName/);
-assert.match(profileSource, /focus: identity\.mainFocus/);
+assert.match(profileSource, /rpc\("update_lumis_persona"/);
+assert.match(profileSource, /p_buddy_avatar_key: identity\.avatarKey/);
+assert.match(profileSource, /p_buddy_name: identity\.buddyName/);
+assert.match(profileSource, /p_focus: identity\.mainFocus/);
+assert.doesNotMatch(profileSource, /\.from\("users"\)[\s\S]{0,120}\.update\(/);
 assert.match(accountStateSource, /buddyName: user\?\.buddy_name\?\.trim\(\) \|\| "Lumis"/);
 assert.match(appSource, /Validating your birth details/);
 assert.match(appSource, /Positioning your sky/);

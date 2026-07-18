@@ -80,6 +80,104 @@ try {
   assert(resolvedStarterPlan.ok && resolvedStarterPlan.body === "starter", "Active Starter plan did not resolve authoritatively.");
   pass("Onboarding creates an authoritative active Starter entitlement");
 
+  const personaUpdate = await userRequest(
+    primarySession.access_token,
+    "/rest/v1/rpc/update_lumis_persona",
+    {
+      method: "POST",
+      body: {
+        p_persona_style: "awareness",
+        p_buddy_name: "Nova",
+        p_buddy_avatar_key: "iris",
+        p_focus: "timing"
+      }
+    }
+  );
+  assert(personaUpdate.ok, "Owner could not update the Lumis Persona through the protected RPC.");
+  const savedPersona = await serviceSelectOne("users", primary.id);
+  assert(savedPersona.buddy_name === "Nova", "Protected Persona RPC did not save the name.");
+  assert(savedPersona.buddy_avatar_key === "iris", "Protected Persona RPC did not save the avatar.");
+  assert(savedPersona.focus === "timing", "Protected Persona RPC did not save the focus.");
+  assert(savedPersona.persona_style === "awareness", "Protected Persona RPC did not save the style.");
+  const invalidPersona = await userRequest(
+    primarySession.access_token,
+    "/rest/v1/rpc/update_lumis_persona",
+    {
+      method: "POST",
+      body: {
+        p_persona_style: "awareness",
+        p_buddy_name: "Nova",
+        p_buddy_avatar_key: "unapproved-avatar",
+        p_focus: "timing"
+      }
+    }
+  );
+  assert(!invalidPersona.ok, "Protected Persona RPC accepted an unapproved avatar.");
+  const directPersonaWrite = await userRequest(
+    primarySession.access_token,
+    `/rest/v1/users?id=eq.${primary.id}`,
+    { method: "PATCH", body: { buddy_avatar_key: "ceres" }, prefer: "return=representation" }
+  );
+  assert(
+    !directPersonaWrite.ok || directPersonaWrite.body?.length === 0,
+    "Authenticated client retained broad direct user-update access."
+  );
+  pass("Persona RPC persists approved identity values and rejects unapproved/direct writes");
+
+  const eventBase = new Date();
+  const newestEventAt = new Date(eventBase.getTime() + 60_000).toISOString();
+  const olderEventAt = eventBase.toISOString();
+  const newestEvent = {
+    p_provider: "revenuecat",
+    p_provider_event_id: `qa-new-${runId}`,
+    p_user_id: primary.id,
+    p_provider_customer_id: `qa-customer-${runId}`,
+    p_event_type: "INITIAL_PURCHASE",
+    p_entitlement_label: "prime",
+    p_product_code: "PRIME_M",
+    p_plan_tier: "prime",
+    p_entitlement_status: "active",
+    p_valid_from: eventBase.toISOString(),
+    p_valid_until: new Date(eventBase.getTime() + 30 * 86_400_000).toISOString(),
+    p_provider_event_at: newestEventAt,
+    p_payload_digest: `sha256:new-${runId}`
+  };
+  const firstProviderEvent = await serviceRequest("/rest/v1/rpc/apply_entitlement_provider_event", {
+    method: "POST",
+    body: newestEvent
+  });
+  assert(firstProviderEvent.applied === true, "Newest provider event was not applied.");
+  const duplicateProviderEvent = await serviceRequest("/rest/v1/rpc/apply_entitlement_provider_event", {
+    method: "POST",
+    body: newestEvent
+  });
+  assert(
+    duplicateProviderEvent.duplicate === true && duplicateProviderEvent.applied === false,
+    "Duplicate provider event was not an idempotent no-op."
+  );
+  const olderProviderEvent = await serviceRequest("/rest/v1/rpc/apply_entitlement_provider_event", {
+    method: "POST",
+    body: {
+      ...newestEvent,
+      p_provider_event_id: `qa-old-${runId}`,
+      p_event_type: "RENEWAL",
+      p_entitlement_label: "essential",
+      p_product_code: "ESSENTIAL_M",
+      p_plan_tier: "essential",
+      p_provider_event_at: olderEventAt,
+      p_payload_digest: `sha256:old-${runId}`
+    }
+  });
+  assert(olderProviderEvent.applied === false, "Older provider replay replaced the current entitlement.");
+  const currentEntitlement = await serviceSelectOne("account_entitlements", primary.id, "user_id");
+  const providerEvents = await serviceSelect(
+    "entitlement_provider_events",
+    `user_id=eq.${primary.id}&select=provider_event_id,plan_tier&order=provider_event_at.asc`
+  );
+  assert(currentEntitlement.plan_tier === "prime", "Older replay changed the current plan.");
+  assert(providerEvents.length === 2, `Expected two append-only provider events, found ${providerEvents.length}.`);
+  pass("Provider event ledger suppresses duplicates and preserves out-of-order history without plan rollback");
+
   const initialUser = await serviceSelectOne("users", primary.id);
   const initialBirth = await serviceSelectOne("birth_data", primary.id, "user_id");
   const initialProfile = await serviceSelectOne("ai_profiles", primary.id, "user_id");
@@ -544,7 +642,8 @@ async function invokeFunction(name, accessToken, body) {
     headers: {
       apikey: anonKey,
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(options.prefer ? { Prefer: options.prefer } : {})
     },
     body: JSON.stringify(body)
   });

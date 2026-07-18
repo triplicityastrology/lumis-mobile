@@ -244,16 +244,12 @@ export async function savePersonaStylePreference(
   }
 
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === personaStyle) ?? PERSONA_STYLES[0];
-  const { error } = await supabase
-    .from("users")
-    .update({
-      buddy_avatar_key: identity.avatarKey,
-      buddy_name: identity.buddyName,
-      focus: identity.mainFocus,
-      persona_style: selectedPersona.key,
-      role: selectedPersona.internalRole
-    })
-    .eq("id", authData.user.id);
+  const { error } = await supabase.rpc("update_lumis_persona", {
+    p_persona_style: selectedPersona.key,
+    p_buddy_name: identity.buddyName,
+    p_buddy_avatar_key: identity.avatarKey,
+    p_focus: identity.mainFocus
+  });
 
   if (error) {
     throw new Error(error.message);

@@ -22,6 +22,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } f
 import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
 
 import { CelestialBackground } from "../components/CelestialBackground";
+import { LumisPersonaAvatar } from "../components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { colors, spacing } from "../theme/tokens";
 
@@ -32,6 +33,7 @@ export function LumisProfileScreen({
   email,
   mainFocus,
   name,
+  personaAvatarKey,
   personaName,
   planTier,
   personaStyle,
@@ -51,6 +53,7 @@ export function LumisProfileScreen({
   email?: string;
   mainFocus: string | null;
   name: string;
+  personaAvatarKey: string;
   personaName: string;
   planTier: PlanTier;
   personaStyle: PersonaStyleKey;
@@ -97,7 +100,9 @@ export function LumisProfileScreen({
 
           <ProfileSection label="LUMIS PERSONA">
             <View style={styles.personaRow}>
-              <View style={styles.personaAvatar}><Sparkles color={colors.ice} size={19} /></View>
+              <View style={styles.personaAvatar}>
+                <LumisPersonaAvatar avatarKey={personaAvatarKey} size={46} />
+              </View>
               <View style={styles.rowCopy}><Text style={styles.rowLabel}>{personaName}</Text><Text style={styles.rowValue}>{formatPersona(personaStyle)}</Text></View>
               <Pressable style={styles.changeButton} onPress={onPersona}><Text style={styles.changeText}>Change</Text></Pressable>
             </View>
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
   rowTrailing: { color: colors.textSoft, flexShrink: 1, fontSize: 11.5, lineHeight: 16, maxWidth: "48%", textAlign: "right" },
   dangerText: { color: colors.warn },
   personaRow: { alignItems: "center", flexDirection: "row", gap: 11, minHeight: 70, paddingHorizontal: 13 },
-  personaAvatar: { alignItems: "center", backgroundColor: colors.periwinkle, borderRadius: 23, height: 46, justifyContent: "center", width: 46 },
+  personaAvatar: { alignItems: "center", borderRadius: 23, height: 46, justifyContent: "center", width: 46 },
   changeButton: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 38, paddingHorizontal: 13, justifyContent: "center" },
   changeText: { color: colors.ice, fontSize: 11.5, fontWeight: "700" },
   switchRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 13 },

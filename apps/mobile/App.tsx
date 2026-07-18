@@ -60,6 +60,7 @@ import {
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
 import { CelestialBackground } from "./src/components/CelestialBackground";
+import { LumisPersonaAvatar, PERSONA_AVATARS } from "./src/components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "./src/components/MainTabBar";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
@@ -441,6 +442,7 @@ export default function App() {
       <ChatShellScreen
         name={profileData.name}
         lumisName={personaName}
+        lumisAvatarKey={personaAvatarKey}
         chart={chartProfile}
         initialDraft={pendingChatDraft}
         selectedStyle={personaStyle}
@@ -551,6 +553,7 @@ export default function App() {
         email={authStatus?.user?.email}
         name={profileData.name}
         personaName={personaName}
+        personaAvatarKey={personaAvatarKey}
         mainFocus={mainFocus}
         planTier={planTier}
         personaStyle={personaStyle}
@@ -1339,7 +1342,7 @@ function PersonaStyleScreen({
           <Text style={styles.personaIntro}>Pick a celestial spirit or choose your own name. This becomes their face in chat.</Text>
 
           <View style={styles.personaIdentityPreview}>
-            <AsteroidAvatar avatar={selectedAvatar} size={72} />
+            <LumisPersonaAvatar avatarKey={selectedAvatar.key} size={72} />
             <View style={styles.personaIdentityPreviewText}>
               <Text style={styles.personaIdentityName}>{buddyName.trim() || "(unnamed)"}</Text>
               <Text style={styles.personaIdentityRole}>{selectedPersona.labelEn}</Text>
@@ -1361,7 +1364,7 @@ function PersonaStyleScreen({
                   }}
                   style={[styles.personaAvatarOption, selected && styles.personaAvatarOptionActive]}
                 >
-                  <AsteroidAvatar avatar={avatar} size={48} />
+                  <LumisPersonaAvatar avatarKey={avatar.key} size={48} />
                   <Text style={styles.personaAvatarLabel}>{avatar.label}</Text>
                 </Pressable>
               );
@@ -1484,26 +1487,6 @@ function PersonaStyleScreen({
   );
 }
 
-type PersonaAvatarOption = {
-  key: string;
-  label: string;
-  glyph: string;
-  color: string;
-};
-
-const PERSONA_AVATARS: PersonaAvatarOption[] = [
-  { key: "ceres", label: "Ceres", glyph: "C", color: "#D6AD51" },
-  { key: "pallas", label: "Pallas", glyph: "◇", color: "#7D86CF" },
-  { key: "juno", label: "Juno", glyph: "◎", color: "#D47D88" },
-  { key: "vesta", label: "Vesta", glyph: "◊", color: "#D98148" },
-  { key: "chiron", label: "Chiron", glyph: "⚷", color: "#6E9BBD" },
-  { key: "psyche", label: "Psyche", glyph: "Ψ", color: "#9A79C4" },
-  { key: "eros", label: "Eros", glyph: "♡", color: "#D96887" },
-  { key: "iris", label: "Iris", glyph: "◒", color: "#A5A3D0" },
-  { key: "hygiea", label: "Hygiea", glyph: "⌁", color: "#62A27E" },
-  { key: "astraea", label: "Astraea", glyph: "★", color: "#B39255" }
-];
-
 const PERSONA_FOCUSES = [
   { key: "career", label: "Career" },
   { key: "love", label: "Relationships" },
@@ -1511,16 +1494,6 @@ const PERSONA_FOCUSES = [
   { key: "timing", label: "Timing" },
   { key: "growth", label: "Growth" }
 ];
-
-function AsteroidAvatar({ avatar, size }: { avatar: PersonaAvatarOption; size: number }) {
-  return (
-    <Svg height={size} viewBox="0 0 64 64" width={size}>
-      <Circle cx="32" cy="32" fill={avatar.color} opacity="0.96" r="30" stroke="rgba(255,255,255,0.62)" strokeWidth="1.5" />
-      <Circle cx="24" cy="22" fill="rgba(255,255,255,0.22)" r="10" />
-      <SvgText fill="#FFFFFF" fontSize="24" fontWeight="600" textAnchor="middle" x="32" y="40">{avatar.glyph}</SvgText>
-    </Svg>
-  );
-}
 
 function PersonaRoleIcon({ index }: { index: number }) {
   if (index === 0) return <UsersRound color="#D8DDFB" size={27} strokeWidth={1.6} />;
@@ -1537,6 +1510,7 @@ function personaExample(style: PersonaStyleKey) {
 function ChatShellScreen({
   name,
   lumisName,
+  lumisAvatarKey,
   chart,
   initialDraft,
   selectedStyle,
@@ -1556,6 +1530,7 @@ function ChatShellScreen({
 }: {
   name: string;
   lumisName: string;
+  lumisAvatarKey: string;
   chart: ChartV2 | null;
   initialDraft: string | null;
   selectedStyle: PersonaStyleKey;
@@ -1657,7 +1632,7 @@ function ChatShellScreen({
             <ArrowLeft color="#F0F4F8" size={20} />
           </Pressable>
           <View style={styles.chatAvatar}>
-            <Sparkles color="#071321" size={18} />
+            <LumisPersonaAvatar avatarKey={lumisAvatarKey} size={38} />
           </View>
           <View style={styles.chatTitleWrap}>
             <Text style={styles.chatTitle}>{lumisName}</Text>
@@ -4178,7 +4153,6 @@ const styles = StyleSheet.create({
   },
   chatAvatar: {
     alignItems: "center",
-    backgroundColor: "#C9A96E",
     borderRadius: 999,
     height: 38,
     justifyContent: "center",
