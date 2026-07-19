@@ -163,6 +163,7 @@ set search_path = public
 as $$
 declare
   inserted_event_id text;
+  existing_payload_digest text;
   entitlement_rows_updated integer := 0;
 begin
   if auth.role() <> 'service_role' then
@@ -210,6 +211,16 @@ begin
   returning provider_event_id into inserted_event_id;
 
   if inserted_event_id is null then
+    select payload_digest
+    into existing_payload_digest
+    from public.entitlement_provider_events
+    where provider = p_provider
+      and provider_event_id = trim(p_provider_event_id);
+
+    if existing_payload_digest is distinct from trim(p_payload_digest) then
+      raise exception 'ENTITLEMENT_EVENT_INTEGRITY_CONFLICT' using errcode = '23505';
+    end if;
+
     return jsonb_build_object('duplicate', true, 'applied', false);
   end if;
 
@@ -247,7 +258,11 @@ begin
     provider_event_id = excluded.provider_event_id,
     provider_event_at = excluded.provider_event_at
   where public.account_entitlements.provider_event_at is null
-    or excluded.provider_event_at >= public.account_entitlements.provider_event_at;
+    or excluded.provider_event_at > public.account_entitlements.provider_event_at
+    or (
+      excluded.provider_event_at = public.account_entitlements.provider_event_at
+      and excluded.provider_event_id > coalesce(public.account_entitlements.provider_event_id, '')
+    );
 
   get diagnostics entitlement_rows_updated = row_count;
 

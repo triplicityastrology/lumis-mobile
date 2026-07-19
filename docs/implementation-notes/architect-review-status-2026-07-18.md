@@ -9,7 +9,7 @@ This handoff reconciles `AC-ADMIN-11` with the repository state on 2026-07-18.
 | 2 | Astrology provider timeout | Deployed, signed live QA pending | `workers/chart-mobile/worker.js` aborts astrology-api.io after a bounded `ASTRO_PROVIDER_TIMEOUT_MS`; `pnpm test:worker` covers controlled `504 ASTROLOGY_API_TIMEOUT`. Staging Worker version `4b60a581-0dc4-4259-9060-2b174f2afd58` has the 12-second setting. Run the signed live smoke with hidden credentials. |
 | 3 | Signed chart replay/idempotency | Deployed, signed live QA pending | The Worker uses `CHART_REQUEST_COORDINATOR`, keyed by user/request ID and signed-body digest. Exact replays return the saved chart; changed-body reuse returns `CHART_REQUEST_CONFLICT`. Local Worker fixtures pass and the staging binding is deployed. Durable Object storage size, replay, and concurrency still need the signed live smoke. |
 | 4 | Fail closed for missing/invalid `LUMIS_ENV` | Deployed; configuration fixture passed | `workers/chart-mobile/worker.js` accepts an explicit environment allowlist only. Worker fixtures prove missing/unknown values skip provider access. Staging deploy exposes explicit `LUMIS_ENV=staging`; an unsigned live call returned `401 UNAUTHORIZED`. |
-| 5 | Append-only provider-event ledger | Source complete, migration pending | `supabase/migrations/0017_persona_policy_and_entitlement_events.sql` adds backend-only `entitlement_provider_events` and an idempotent, ordered apply RPC. `pnpm test:billing-entitlement` passes. Apply `0017`, then run hosted duplicate/out-of-order/RLS checks before RevenueCat. |
+| 5 | Append-only provider-event ledger | Source complete, migration pending | `supabase/migrations/0017_persona_policy_and_entitlement_events.sql` adds backend-only `entitlement_provider_events` and an idempotent, ordered apply RPC. Exact event replays are no-ops, reuse with a different payload digest raises `ENTITLEMENT_EVENT_INTEGRITY_CONFLICT`, and equal-time events use `provider_event_id` as a deterministic tie-breaker. `pnpm test:billing-entitlement` passes. Apply `0017`, then run hosted duplicate/digest-conflict/equal-time/out-of-order/RLS checks before RevenueCat. |
 | 6 | Keep Chat scaffold/no-charge | Complete for current scaffold | `supabase/functions/chat-message/index.ts` returns `scaffold_no_charge` and `credits_charged: 0`; transactional persistence is in migration `0011`. Real AI routing, atomic charging, refund/idempotency, and RevenueCat entitlement enforcement remain blocked. |
 | 7 | Golden chart references | Not complete | `packages/astrology/src/golden-charts.ts` has four structurally validated cases, all `pending_reference`. `pnpm test:golden` verifies shape and unknown-time restrictions, not astronomical accuracy. Trusted independent expected positions are still required. |
 | 8 | Birthplace resolver beta policy | Closed test scope implemented; beta decision open | `0016` intentionally resolves Hong Kong, London, and New York only. `/profile` ignores spoofed client coordinates/timezone and uses canonical rows. This is suitable for controlled technical testing, not a broad beta. Recommendation: implement a production geocoding plus historical-timezone resolver before external beta. PM must confirm scope. |
@@ -47,3 +47,27 @@ change mobile runtime source.
 Real AI chat, real charging, RevenueCat webhooks, Care Circle backend, internal
 account deletion, golden-chart accuracy, production place/timezone resolution,
 live Salesforce/Google Sheets QA, and production go-live remain open.
+
+## Active Documentation Reconciliation — 19 July 2026
+
+The code/documentation gap audit was checked against the current repository.
+The following active source-of-truth documents were corrected without marking
+unbuilt systems complete:
+
+- `AC-BILL-01_Subscription_Architecture.docx`: route costs now use casual 1,
+  knowledge 3, dice 5, timing 5, deep chart 5, out-of-scope 1 and safety 1.
+- `AC-BILL-02_CHAT_BILL_Technical_Requirement_v1_1.docx`: adds the authoritative
+  route-cost table and labels real charging as target design, not built.
+- `AC-TECH-02_API_Specification_v1_1 (Read).docx`: corrects `route_units`, marks
+  chat as `scaffold_no_charge`, and records the three-city resolver limit.
+- `AC-AI-02_Router_Design_and_Prompt_v1_1 (Read).docx`: labels the prompt/model
+  architecture as target design; the current router remains deterministic
+  scaffold logic.
+- `AC-TECH-09_Care_Circle_Carer_Function_Technical_Spec.md`: separates the
+  actual migration `0003` fields/statuses from the future Care Circle design and
+  records the `0018` misleading-index correction.
+
+The audit items for Worker timeout, signed replay protection, fail-closed
+environment handling, provider-event ledger, selected Persona avatar, Persona
+allowlists, and the Care Circle index are therefore stale as build requests;
+their remaining hosted/deployment gates are tracked in the table above.

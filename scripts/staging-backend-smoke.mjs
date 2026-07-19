@@ -129,7 +129,7 @@ try {
   const olderEventAt = eventBase.toISOString();
   const newestEvent = {
     p_provider: "revenuecat",
-    p_provider_event_id: `qa-new-${runId}`,
+    p_provider_event_id: `qa-tie-a-${runId}`,
     p_user_id: primary.id,
     p_provider_customer_id: `qa-customer-${runId}`,
     p_event_type: "INITIAL_PURCHASE",
@@ -155,15 +155,43 @@ try {
     duplicateProviderEvent.duplicate === true && duplicateProviderEvent.applied === false,
     "Duplicate provider event was not an idempotent no-op."
   );
+  const conflictingProviderEvent = await serviceRequestResult(
+    "/rest/v1/rpc/apply_entitlement_provider_event",
+    {
+      method: "POST",
+      body: { ...newestEvent, p_payload_digest: `sha256:conflict-${runId}` }
+    }
+  );
+  assert(!conflictingProviderEvent.ok, "Changed payload digest was accepted as a normal duplicate.");
+  assert(
+    String(conflictingProviderEvent.body?.message).includes("ENTITLEMENT_EVENT_INTEGRITY_CONFLICT"),
+    "Changed payload digest returned the wrong integrity error."
+  );
+  const equalTimeHigherIdEvent = await serviceRequest(
+    "/rest/v1/rpc/apply_entitlement_provider_event",
+    {
+      method: "POST",
+      body: {
+        ...newestEvent,
+        p_provider_event_id: `qa-tie-z-${runId}`,
+        p_event_type: "RENEWAL",
+        p_entitlement_label: "essential",
+        p_product_code: "ESSENTIAL_M",
+        p_plan_tier: "essential",
+        p_payload_digest: `sha256:tie-z-${runId}`
+      }
+    }
+  );
+  assert(equalTimeHigherIdEvent.applied === true, "Deterministic equal-time winner was not applied.");
   const olderProviderEvent = await serviceRequest("/rest/v1/rpc/apply_entitlement_provider_event", {
     method: "POST",
     body: {
       ...newestEvent,
       p_provider_event_id: `qa-old-${runId}`,
       p_event_type: "RENEWAL",
-      p_entitlement_label: "essential",
-      p_product_code: "ESSENTIAL_M",
-      p_plan_tier: "essential",
+      p_entitlement_label: "prime",
+      p_product_code: "PRIME_M",
+      p_plan_tier: "prime",
       p_provider_event_at: olderEventAt,
       p_payload_digest: `sha256:old-${runId}`
     }
@@ -174,9 +202,9 @@ try {
     "entitlement_provider_events",
     `user_id=eq.${primary.id}&select=provider_event_id,plan_tier&order=provider_event_at.asc`
   );
-  assert(currentEntitlement.plan_tier === "prime", "Older replay changed the current plan.");
-  assert(providerEvents.length === 2, `Expected two append-only provider events, found ${providerEvents.length}.`);
-  pass("Provider event ledger suppresses duplicates and preserves out-of-order history without plan rollback");
+  assert(currentEntitlement.plan_tier === "essential", "Event ordering produced the wrong current plan.");
+  assert(providerEvents.length === 3, `Expected three append-only provider events, found ${providerEvents.length}.`);
+  pass("Provider ledger rejects digest conflicts and deterministically orders equal/stale events");
 
   const initialUser = await serviceSelectOne("users", primary.id);
   const initialBirth = await serviceSelectOne("birth_data", primary.id, "user_id");
@@ -672,7 +700,8 @@ async function userRequest(accessToken, path, options = {}) {
     headers: {
       apikey: anonKey,
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(options.prefer ? { Prefer: options.prefer } : {})
     },
     body: options.body == null ? undefined : JSON.stringify(options.body)
   });
@@ -696,6 +725,12 @@ async function serviceDelete(table, query) {
 }
 
 async function serviceRequest(path, options = {}) {
+  const result = await serviceRequestResult(path, options);
+  assert(result.ok, `Service request ${path} failed with HTTP ${result.status}: ${safeError(result.body)}.`);
+  return result.body;
+}
+
+async function serviceRequestResult(path, options = {}) {
   const response = await fetch(`${supabaseUrl}${path}`, {
     method: options.method ?? "GET",
     headers: {
@@ -706,8 +741,7 @@ async function serviceRequest(path, options = {}) {
   });
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
-  assert(response.ok, `Service request ${path} failed with HTTP ${response.status}: ${safeError(body)}.`);
-  return body;
+  return { ok: response.ok, status: response.status, body };
 }
 
 async function cleanupUser(userId) {

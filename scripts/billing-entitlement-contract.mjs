@@ -49,9 +49,15 @@ assert.match(providerEventMigration, /create or replace function public\.apply_e
 assert.match(providerEventMigration, /if auth\.role\(\) <> 'service_role'/i);
 assert.match(providerEventMigration, /on conflict \(provider, provider_event_id\) do nothing/i);
 assert.match(providerEventMigration, /'duplicate', true, 'applied', false/i);
+assert.match(providerEventMigration, /ENTITLEMENT_EVENT_INTEGRITY_CONFLICT/i);
+assert.match(providerEventMigration, /existing_payload_digest is distinct from trim\(p_payload_digest\)/i);
 assert.match(
   providerEventMigration,
-  /excluded\.provider_event_at >= public\.account_entitlements\.provider_event_at/i
+  /excluded\.provider_event_at > public\.account_entitlements\.provider_event_at/i
+);
+assert.match(
+  providerEventMigration,
+  /excluded\.provider_event_at = public\.account_entitlements\.provider_event_at[\s\S]+excluded\.provider_event_id > coalesce\(public\.account_entitlements\.provider_event_id, ''\)/i
 );
 assert.match(providerEventMigration, /grant execute on function public\.apply_entitlement_provider_event[\s\S]+to service_role/i);
 assert.doesNotMatch(
@@ -62,19 +68,44 @@ assert.doesNotMatch(
 const eventHistory = [];
 let currentEvent = null;
 function applyFixtureEvent(event) {
-  if (eventHistory.some((saved) => saved.id === event.id)) return { duplicate: true, applied: false };
+  const duplicate = eventHistory.find((saved) => saved.id === event.id);
+  if (duplicate) {
+    if (duplicate.digest !== event.digest) return { conflict: true, applied: false };
+    return { duplicate: true, applied: false };
+  }
   eventHistory.push(event);
-  if (!currentEvent || event.at >= currentEvent.at) {
+  if (
+    !currentEvent ||
+    event.at > currentEvent.at ||
+    (event.at === currentEvent.at && event.id > currentEvent.id)
+  ) {
     currentEvent = event;
     return { duplicate: false, applied: true };
   }
   return { duplicate: false, applied: false };
 }
 
-assert.deepEqual(applyFixtureEvent({ id: "event-new", at: 20, plan: "prime" }), { duplicate: false, applied: true });
-assert.deepEqual(applyFixtureEvent({ id: "event-new", at: 20, plan: "prime" }), { duplicate: true, applied: false });
-assert.deepEqual(applyFixtureEvent({ id: "event-old", at: 10, plan: "essential" }), { duplicate: false, applied: false });
-assert.equal(currentEvent.plan, "prime");
-assert.equal(eventHistory.length, 2);
+assert.deepEqual(
+  applyFixtureEvent({ id: "event-tie-z", at: 20, plan: "prime", digest: "digest-z" }),
+  { duplicate: false, applied: true }
+);
+assert.deepEqual(
+  applyFixtureEvent({ id: "event-tie-z", at: 20, plan: "prime", digest: "digest-z" }),
+  { duplicate: true, applied: false }
+);
+assert.deepEqual(
+  applyFixtureEvent({ id: "event-tie-z", at: 20, plan: "prime", digest: "changed" }),
+  { conflict: true, applied: false }
+);
+assert.deepEqual(
+  applyFixtureEvent({ id: "event-tie-a", at: 20, plan: "essential", digest: "digest-a" }),
+  { duplicate: false, applied: false }
+);
+assert.deepEqual(
+  applyFixtureEvent({ id: "event-newer", at: 30, plan: "essential", digest: "digest-new" }),
+  { duplicate: false, applied: true }
+);
+assert.equal(currentEvent.plan, "essential");
+assert.equal(eventHistory.length, 3);
 
 console.log("billing entitlement contract checks passed");
