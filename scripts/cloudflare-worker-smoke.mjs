@@ -40,6 +40,35 @@ assert(
 );
 pass("Reused request ID with changed signed body is rejected");
 
+const simultaneousBody = buildBody({
+  request_id: `worker-smoke-concurrent-${crypto.randomUUID()}`,
+  birth_time: "16:55",
+  time_unknown: false
+});
+const simultaneousResults = await Promise.all([
+  invokeSigned(simultaneousBody),
+  invokeSigned(simultaneousBody)
+]);
+const simultaneousSuccesses = simultaneousResults.filter((result) => result.status === 200);
+const simultaneousInProgress = simultaneousResults.filter(
+  (result) => result.status === 409 && result.body.error === "CHART_REQUEST_IN_PROGRESS"
+);
+assert(simultaneousSuccesses.length >= 1, "Simultaneous replay produced no successful chart.");
+assert(
+  simultaneousSuccesses.length + simultaneousInProgress.length === 2,
+  "Simultaneous replay returned an unexpected status or error."
+);
+if (simultaneousInProgress.length > 0) {
+  const settledReplay = await invokeSigned(simultaneousBody);
+  assert(settledReplay.status === 200, "Concurrent in-progress replay did not settle to cached success.");
+  assert(
+    JSON.stringify(settledReplay.body.chart_v2) ===
+      JSON.stringify(simultaneousSuccesses[0].body.chart_v2),
+    "Settled concurrent replay did not return the original chart."
+  );
+}
+pass("Simultaneous duplicate requests generate once and settle to the cached chart");
+
 const unknownTimeBody = buildBody({
   request_id: `worker-smoke-unknown-${crypto.randomUUID()}`,
   birth_time: null,

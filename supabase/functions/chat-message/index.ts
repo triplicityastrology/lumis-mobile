@@ -1,6 +1,7 @@
 import { corsHeaders, handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createClient } from "@supabase/supabase-js";
 import { buildSafeChatChartContext } from "../../../packages/astrology/src/chat-chart-context.ts";
+import { ROUTE_CREDITS as SHARED_ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
 
 type ChatRoute =
@@ -71,18 +72,9 @@ const SAFE_PERSISTENCE_ERROR_CODES = new Set([
   "REFLECTION_THREAD_NOT_AVAILABLE"
 ]);
 
-// Staging scaffold copy of the mobile/shared router table. Keep this aligned
-// with packages/shared route fixtures until CHAT-1 moves routing into a
-// transactional backend implementation.
-const ROUTE_CREDITS: Record<ChatRoute, number> = {
-  casual: 1,
-  knowledge: 3,
-  dice: 5,
-  astro_timing: 5,
-  astro_deep: 5,
-  out_of_scope: 1,
-  safety: 1
-};
+const ROUTE_CREDITS = Object.fromEntries(
+  SHARED_ROUTE_CREDITS.map(({ route, credits }) => [route, credits])
+) as Record<ChatRoute, number>;
 
 Deno.serve(async (request) => {
   const corsPreflight = handleCorsPreflight(request);

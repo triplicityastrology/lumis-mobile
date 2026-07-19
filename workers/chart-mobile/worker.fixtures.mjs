@@ -42,6 +42,7 @@ await assertProviderFailureIsRedacted();
 await assertProviderTimeoutIsControlled();
 await assertSignedChartReplayIsIdempotent();
 await assertRequestIdConflictIsRejected();
+await assertChartReplayCacheExpires();
 await assertSignedAdminSyncRequest();
 await assertAdminSyncRejectsProviderPayload();
 assertMobileAuditContract();
@@ -420,6 +421,46 @@ async function assertRequestIdConflictIsRejected() {
   } finally {
     restoreFetch();
   }
+}
+
+async function assertChartReplayCacheExpires() {
+  const storage = buildTransactionalStorage();
+  const env = buildEnv({ CHART_RESULT_TTL_SECONDS: "3600" });
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const coordinator = new AuditDeliveryCoordinator(
+    { storage },
+    env,
+    {
+      chart: {
+        fetchImpl: async () => Response.json(buildProviderResponse())
+      }
+    }
+  );
+  const startedAt = Date.now();
+  const response = await coordinator.fetch(
+    new Request("https://chart-request.internal/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        request_id: body.request_id,
+        user_id: body.user_id,
+        request_digest: "fixture-digest",
+        request: body
+      })
+    })
+  );
+
+  assert(response.status === 200, "Expected chart generation before cache expiry.");
+  assert(storage.size() === 1, "Expected one cached chart result.");
+  assert(
+    storage.alarmAt() >= startedAt + 60 * 60 * 1000,
+    "Expected chart replay cache to schedule the minimum one-hour alarm."
+  );
+
+  await coordinator.alarm();
+
+  assert(storage.size() === 0, "Expected chart replay alarm to clear cached storage.");
+  assert(storage.alarmAt() === null, "Expected chart replay alarm cleanup to clear the alarm.");
 }
 
 async function assertProviderFailureIsRedacted() {
@@ -1188,6 +1229,7 @@ function buildCoordinatorRequest(destination, record) {
 function buildTransactionalStorage(initialEntries = []) {
   const values = new Map(initialEntries);
   let queue = Promise.resolve();
+  let alarmTimestamp = null;
 
   return {
     async transaction(callback) {
@@ -1202,6 +1244,19 @@ function buildTransactionalStorage(initialEntries = []) {
     },
     async put(key, value) {
       values.set(key, value);
+    },
+    async setAlarm(timestamp) {
+      alarmTimestamp = Number(timestamp);
+    },
+    async deleteAll() {
+      values.clear();
+      alarmTimestamp = null;
+    },
+    size() {
+      return values.size;
+    },
+    alarmAt() {
+      return alarmTimestamp;
     }
   };
 }

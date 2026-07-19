@@ -87,6 +87,16 @@ assert.match(
   "Edge Function must sanitize chat context from the active stored profile"
 );
 assert.match(
+  edgeSource,
+  /ROUTE_CREDITS as SHARED_ROUTE_CREDITS[\s\S]*SHARED_ROUTE_CREDITS\.map/,
+  "Edge Function must derive estimated route costs from the shared route table"
+);
+assert.doesNotMatch(
+  edgeSource,
+  /const ROUTE_CREDITS[^=]*=\s*\{[\s\S]*casual:\s*1/,
+  "Edge Function must not maintain a duplicated numeric route-credit table"
+);
+assert.match(
   mobileChatSource,
   /chart_context: buildSafeChatChartContext\(input\.chart\)/,
   "mobile must sanitize the chart context passed to chat"

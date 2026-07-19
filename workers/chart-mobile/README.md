@@ -17,6 +17,7 @@ It is based on the current website Worker at:
 - Verifies the Supabase Edge Function HMAC signature.
 - Rejects missing or unknown `LUMIS_ENV` values before provider work.
 - Uses a Durable Object request lock so signed request replays return the original chart without another provider call.
+- Expires cached chart replay results after seven days by Durable Object alarm; the alarm clears all storage for that request object.
 - Rejects a reused request ID when the signed body digest changes.
 - Aborts astrology-api.io after a bounded provider timeout.
 - Builds the astrology-api.io natal chart payload server-side.

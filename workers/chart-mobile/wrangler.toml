@@ -20,3 +20,4 @@ new_sqlite_classes = ["AuditDeliveryCoordinator"]
 LUMIS_ENV = "staging"
 ALLOWED_ORIGIN = "https://triplicityastrology.com"
 ASTRO_PROVIDER_TIMEOUT_MS = "12000"
+CHART_RESULT_TTL_SECONDS = "604800"

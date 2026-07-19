@@ -45,6 +45,9 @@ const ALLOWED_LUMIS_ENVIRONMENTS = new Set([
   "production"
 ]);
 const DEFAULT_ASTRO_PROVIDER_TIMEOUT_MS = 12_000;
+const DEFAULT_CHART_RESULT_TTL_SECONDS = 7 * 24 * 60 * 60;
+const MIN_CHART_RESULT_TTL_SECONDS = 60 * 60;
+const MAX_CHART_RESULT_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 const SIGN_NAME_MAP = {
   Ari: "Aries",
@@ -689,6 +692,10 @@ export class AuditDeliveryCoordinator {
     }
   }
 
+  async alarm() {
+    await this.state.storage.deleteAll();
+  }
+
   async handleChartGeneration(request) {
     if (request.method !== "POST") {
       return auditCoordinatorResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
@@ -757,6 +764,8 @@ export class AuditDeliveryCoordinator {
       return auditCoordinatorResponse({ error: "CHART_REQUEST_IN_PROGRESS" }, 409);
     }
 
+    await this.scheduleChartCacheExpiry();
+
     try {
       const chartV2 = await generateChartFromProvider(
         this.env,
@@ -769,6 +778,7 @@ export class AuditDeliveryCoordinator {
         chart_v2: chartV2,
         completed_at: new Date().toISOString()
       });
+      await this.scheduleChartCacheExpiry();
       return auditCoordinatorResponse({ status: "generated", chart_v2: chartV2 });
     } catch (error) {
       const workerError = normalizeWorkerError(error);
@@ -778,8 +788,21 @@ export class AuditDeliveryCoordinator {
         error_code: workerError.code,
         failed_at: new Date().toISOString()
       });
+      await this.scheduleChartCacheExpiry();
       return auditCoordinatorResponse({ error: workerError.code }, workerError.status);
     }
+  }
+
+  async scheduleChartCacheExpiry() {
+    const configuredSeconds = Number(this.env.CHART_RESULT_TTL_SECONDS);
+    const ttlSeconds = Number.isFinite(configuredSeconds)
+      ? Math.min(
+          MAX_CHART_RESULT_TTL_SECONDS,
+          Math.max(MIN_CHART_RESULT_TTL_SECONDS, configuredSeconds)
+        )
+      : DEFAULT_CHART_RESULT_TTL_SECONDS;
+
+    await this.state.storage.setAlarm(Date.now() + ttlSeconds * 1000);
   }
 }
 
