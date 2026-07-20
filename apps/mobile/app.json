@@ -12,7 +12,8 @@
         {
           "motionPermission": "Allow Lumis to detect a shake when you roll astrology dice."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "ios": {
       "supportsTablet": false
