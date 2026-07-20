@@ -40,6 +40,9 @@ type Phase = "IDLE" | "READY" | "MIXING" | "THROW" | "TUMBLE" | "SETTLE" | "RESU
 
 type StageSymbols = { planet: DiceFace; sign: DiceFace; house: DiceFace };
 
+/** U+FE0E forces text presentation — without it iOS renders ♋/☉/♒… as emoji badges. */
+const TEXT_STYLE = "\uFE0E";
+
 const LIGHT = normalize(vec(-0.45, 0.85, 0.35));
 const CAMERA_POS = vec(0, 5.1, 7.6);
 const CAMERA_TOP = vec(0, 8.4, 1.9); // near-overhead so landed faces read clearly
@@ -84,6 +87,7 @@ export function DiceRitualScreen({
   const glowRef = useRef(0);
   const lastTickRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const frameCounter = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dimAnim = useRef(new Animated.Value(0)).current;
@@ -227,7 +231,10 @@ export function DiceRitualScreen({
         }
       }
 
-      setFrame((f) => (f + 1) % 1_000_000);
+      frameCounter.current += 1;
+      if (currentPhase !== "IDLE" || frameCounter.current % 2 === 0) {
+        setFrame((f) => (f + 1) % 1_000_000);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -334,7 +341,7 @@ export function DiceRitualScreen({
                     return (
                       <View key={kind} style={styles.symbolCell}>
                         <Text style={styles.symbolKind}>{kindLabel}</Text>
-                        <Text style={styles.symbolGlyph}>{face.glyph}</Text>
+                        <Text style={styles.symbolGlyph}>{face.glyph + TEXT_STYLE}</Text>
                         <Text style={styles.symbolZh}>{face.zh}</Text>
                         <Text style={styles.symbolEn}>{face.en}</Text>
                       </View>
@@ -430,13 +437,13 @@ function renderWorldDice(
 
   type FaceDraw = { depth: number; el: React.JSX.Element[] };
   const faces: FaceDraw[] = [];
+  const camPos = cameraPose(zoom).pos;
   world.dice.forEach((die, dieIndex) => {
     const faceSet = FACE_SETS[DIE_ORDER[dieIndex]];
     const worldVerts = DODECA_VERTICES.map((v) => add(quatRotate(die.orientation, v), die.position));
     DODECA_FACES.forEach((face, faceIndex) => {
       const n = quatRotate(die.orientation, face.normal);
       const center = add(quatRotate(die.orientation, face.center), die.position);
-      const camPos = cameraPose(zoom).pos;
       if (dot(n, sub(camPos, center)) <= 0) return;
       const projected = face.vertexIndices.map((vi) => projectPoint(worldVerts[vi], W, H, zoom, 0));
       const pts = projected.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
@@ -450,7 +457,7 @@ function renderWorldDice(
           strokeWidth={0.7}
         />
       ];
-      if (dot(normalize(n), normalize(sub(camPos, center))) > 0.25) {
+      if (dot(normalize(n), normalize(sub(camPos, center))) > 0.35) {
         const u0 = normalize(sub(DODECA_VERTICES[face.vertexIndices[0]], face.center));
         const v0 = crossV(face.normal, u0);
         const wu = quatRotate(die.orientation, u0);
@@ -476,7 +483,7 @@ function renderWorldDice(
             fill={glyphColor}
             textAnchor="middle"
           >
-            {faceSet[faceIndex].glyph}
+            {faceSet[faceIndex].glyph + TEXT_STYLE}
           </SvgText>
         );
         if (isTop) {
@@ -535,7 +542,7 @@ function renderPalmDice(orientations: ReturnType<typeof randomOrientation>[], W:
       })
       .filter((f) => f.nz < -0.05)
       .sort((a, b) => b.nz - a.nz);
-    for (const { face, fi, n } of faces) {
+    for (const { face, fi, n, nz } of faces) {
       const pts = face.vertexIndices
         .map((vi) => projectLocal(DODECA_VERTICES[vi]))
         .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
@@ -549,6 +556,24 @@ function renderPalmDice(orientations: ReturnType<typeof randomOrientation>[], W:
           strokeWidth={0.6}
         />
       );
+      if (nz < -0.5) {
+        const faceSet = FACE_SETS[DIE_ORDER[i]];
+        const c = projectLocal(face.center);
+        const lambert = Math.max(0, dot(n, LIGHT));
+        elements.push(
+          <SvgText
+            key={`pt${i}-${fi}`}
+            x={c.x}
+            y={c.y + dieScale * 0.16}
+            fontSize={dieScale * 0.45}
+            fontFamily="Georgia"
+            fill={`rgba(216,176,110,${(0.55 + 0.45 * lambert).toFixed(2)})`}
+            textAnchor="middle"
+          >
+            {faceSet[fi].glyph + TEXT_STYLE}
+          </SvgText>
+        );
+      }
     }
   }
   return elements;
