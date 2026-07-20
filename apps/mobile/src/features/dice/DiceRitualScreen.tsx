@@ -9,6 +9,9 @@ import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
 } from "react-native-svg";
 
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+
 import { CelestialBackground } from "../../components/CelestialBackground";
 import { MainTabBar, type MainTab } from "../../components/MainTabBar";
 import { colors, radii, spacing } from "../../theme/tokens";
@@ -57,6 +60,31 @@ const FOCAL = 1.35;
 function cameraPose(zoom: number) {
   const mix = (a: Vec3, b: Vec3) => vec(a.x + (b.x - a.x) * zoom, a.y + (b.y - a.y) * zoom, a.z + (b.z - a.z) * zoom);
   return { pos: mix(CAMERA_POS, CAMERA_TOP), target: mix(CAMERA_TARGET, CAMERA_TARGET_TOP) };
+}
+
+const SUNRISE = ["#E5C06B", "#E9B083", "#E89B92"] as const;
+
+function BrandButton({ label, onPress, style }: { label: string; onPress: () => void; style?: object }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.brandButtonWrap, style]}>
+      <LinearGradient
+        colors={[...SUNRISE]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0.35 }}
+        style={styles.brandButtonGrad}
+      >
+        <Text style={styles.brandButtonText}>{label}</Text>
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
+function SoftButton({ label, onPress, style }: { label: string; onPress: () => void; style?: object }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.softButton, style]}>
+      <Text style={styles.softButtonText}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export function DiceRitualScreen({
@@ -347,7 +375,7 @@ export function DiceRitualScreen({
           ) : null}
 
           <View pointerEvents="box-none" style={styles.overlay}>
-            <View style={styles.questionCard}>
+            <BlurView intensity={24} tint="dark" style={styles.questionCard}>
               <Text style={styles.questionLabel}>你嘅問題 · YOUR QUESTION</Text>
               <TextInput
                 editable={phase === "IDLE"}
@@ -360,7 +388,7 @@ export function DiceRitualScreen({
                 style={styles.questionInput}
                 value={question}
               />
-            </View>
+            </BlurView>
 
             <View style={styles.flexSpacer} pointerEvents="none" />
 
@@ -368,14 +396,10 @@ export function DiceRitualScreen({
               <Text style={styles.hint}>搖一搖 mix 一 mix，向上一拋就擲出去</Text>
             ) : null}
             {phase === "IDLE" ? (
-              <Pressable onPress={beginReady} style={styles.primaryButton}>
-                <Text style={styles.primaryText}>準備好 · Ready</Text>
-              </Pressable>
+              <BrandButton label="準備好 · Ready" onPress={beginReady} style={styles.fullWidthButton} />
             ) : null}
             {showTapThrow && (phase === "READY" || phase === "MIXING") ? (
-              <Pressable onPress={() => performThrow(1)} style={styles.ghostButton}>
-                <Text style={styles.ghostText}>輕按擲骰 · Tap to throw</Text>
-              </Pressable>
+              <SoftButton label="輕按擲骰 · Tap to throw" onPress={() => performThrow(1)} />
             ) : null}
           </View>
 
@@ -385,7 +409,7 @@ export function DiceRitualScreen({
         {phase === "RESULT" || phase === "INTERPRET" ? (
           <Animated.View
             style={[
-              styles.sheet,
+              styles.sheetWrap,
               {
                 transform: [{
                   translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [420, 0] })
@@ -393,6 +417,7 @@ export function DiceRitualScreen({
               }
             ]}
           >
+            <BlurView intensity={28} tint="dark" style={styles.sheet}>
             <Text style={styles.sheetQuestion}>
               「{trimmedQuestion || "What should I notice right now?"}」
             </Text>
@@ -415,14 +440,11 @@ export function DiceRitualScreen({
             <Text style={styles.sheetNote}>呢個係一個角度，唔係一個判詞。</Text>
             {phase === "INTERPRET" ? (
               <View style={styles.sheetActions}>
-                <Pressable onPress={rethrow} style={styles.sheetGhost}>
-                  <Text style={styles.ghostText}>再擲一次</Text>
-                </Pressable>
-                <Pressable onPress={() => onReflect(reflectionPrompt)} style={styles.sheetPrimary}>
-                  <Text style={styles.primaryText}>返回傾偈</Text>
-                </Pressable>
+                <SoftButton label="再擲一次" onPress={rethrow} style={styles.sheetAction} />
+                <BrandButton label="返回傾偈" onPress={() => onReflect(reflectionPrompt)} style={styles.sheetAction} />
               </View>
             ) : null}
+            </BlurView>
           </Animated.View>
         ) : null}
 
@@ -801,26 +823,28 @@ const styles = StyleSheet.create({
   iconButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 20, borderWidth: 1, height: 40, justifyContent: "center", width: 40 },
   stage: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", padding: spacing.lg },
-  questionCard: { backgroundColor: "rgba(22,39,61,0.72)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, maxWidth: 420, paddingHorizontal: 16, paddingVertical: 10, width: "88%" },
+  questionCard: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(206,216,255,0.16)", borderRadius: 22, borderWidth: 1, maxWidth: 420, overflow: "hidden", paddingHorizontal: 16, paddingVertical: 12, width: "88%" },
   questionLabel: { color: "#E9B083", fontSize: 10, fontWeight: "700", letterSpacing: 1.4, marginBottom: 3, textAlign: "center" },
   questionInput: { color: colors.ice, fontFamily: "Georgia", fontSize: 16, minHeight: 32, padding: 0, textAlign: "center" },
   flexSpacer: { flex: 1 },
   hint: { color: colors.ice, fontSize: 15, marginBottom: 12, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 8 },
-  primaryButton: { alignItems: "center", backgroundColor: colors.gold, borderRadius: radii.pill, justifyContent: "center", minHeight: 54, paddingHorizontal: 44, width: "88%" },
-  primaryText: { color: colors.navy950, fontSize: 16, fontWeight: "700" },
-  ghostButton: { alignItems: "center", backgroundColor: "rgba(46,66,102,0.52)", borderColor: "rgba(243,203,169,0.4)", borderRadius: radii.pill, borderWidth: 1, justifyContent: "center", minHeight: 46, paddingHorizontal: 30 },
-  ghostText: { color: "#F3CBA9", fontSize: 14.5, fontWeight: "600" },
+  brandButtonWrap: { borderRadius: 15, elevation: 6, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.45, shadowRadius: 18 },
+  brandButtonGrad: { alignItems: "center", borderRadius: 15, justifyContent: "center", minHeight: 54, paddingHorizontal: 32 },
+  brandButtonText: { color: "#3A2218", fontSize: 16, fontWeight: "700" },
+  fullWidthButton: { width: "88%" },
+  softButton: { alignItems: "center", backgroundColor: "rgba(122,134,200,0.24)", borderColor: "rgba(139,147,212,0.34)", borderRadius: 15, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 26 },
+  softButtonText: { color: "#EAEDFB", fontSize: 14.5, fontWeight: "600" },
   dim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4,10,20,0.6)" },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
-  sheetQuestion: { color: "#948A7C", fontSize: 12.5, marginBottom: 14, textAlign: "center" },
+  sheetWrap: { borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: "hidden" },
+  sheet: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(206,216,255,0.16)", borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  sheetQuestion: { color: "#A2B0C6", fontSize: 12.5, fontStyle: "italic", marginBottom: 14, textAlign: "center" },
   symbolsRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
-  symbolCell: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.09)", borderColor: "rgba(180,134,63,0.32)", borderRadius: radii.md, borderWidth: 1, flex: 1, maxWidth: 112, paddingVertical: 10 },
-  symbolKind: { color: "#a0895c", fontSize: 9, fontWeight: "700", letterSpacing: 1 },
-  symbolGlyph: { color: "#B4863F", fontFamily: "Georgia", fontSize: 36, marginTop: 2 },
-  symbolZh: { color: "#2B2620", fontSize: 14, marginTop: 2 },
-  symbolEn: { color: "#948A7C", fontSize: 11 },
-  sheetNote: { color: "#948A7C", fontSize: 12, marginTop: 12, textAlign: "center" },
+  symbolCell: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.045)", borderColor: "rgba(206,216,255,0.16)", borderRadius: radii.md, borderWidth: 1, flex: 1, maxWidth: 112, paddingVertical: 10 },
+  symbolKind: { color: "#A2B0C6", fontSize: 9, fontWeight: "700", letterSpacing: 1 },
+  symbolGlyph: { color: colors.gold, fontFamily: "Georgia", fontSize: 36, marginTop: 2 },
+  symbolZh: { color: colors.ice, fontSize: 14, marginTop: 2 },
+  symbolEn: { color: "#A2B0C6", fontSize: 11 },
+  sheetNote: { color: "#A2B0C6", fontSize: 12, marginTop: 12, textAlign: "center" },
   sheetActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 14 },
-  sheetGhost: { alignItems: "center", backgroundColor: "rgba(46,66,102,0.15)", borderColor: "rgba(180,134,63,0.4)", borderRadius: radii.pill, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 48 },
-  sheetPrimary: { alignItems: "center", backgroundColor: colors.gold, borderRadius: radii.pill, flex: 1, justifyContent: "center", minHeight: 48 }
+  sheetAction: { flex: 1 }
 });
