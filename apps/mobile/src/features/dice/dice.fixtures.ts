@@ -20,6 +20,9 @@ import {
   dot, normalize, quatBetween, quatFromAxisAngle, quatMultiply, quatRotate, sub, vec
 } from "./math";
 import { seededRandom } from "./rng";
+import {
+  combinedPace, dignityOf, readTension, HOUSE_ATTRIBUTES, PLANET_ATTRIBUTES
+} from "./classicalAttributes";
 
 let failures = 0;
 function check(name: string, ok: boolean, detail = ""): void {
@@ -158,6 +161,37 @@ console.log("dice fixtures: 1,000-throw distribution (seeded CSPRNG-shaped)");
       `min ${min.toFixed(2)}% max ${max.toFixed(2)}%`
     );
   });
+}
+
+console.log("dice fixtures: classical layer (Level 2 course examples)");
+{
+  // Dignity table spot checks straight from the Level 2 deck (slide 4)
+  check("Saturn in Libra = exaltation (course ex.)", dignityOf("saturn", "libra").dignity === "exaltation");
+  check("Mars in Cancer = fall (course ex.)", dignityOf("mars", "cancer").dignity === "fall");
+  check("Venus in Scorpio = detriment", dignityOf("venus", "scorpio").dignity === "detriment");
+  check("Jupiter in Pisces = ruler", dignityOf("jupiter", "pisces").dignity === "ruler");
+  const mercuryVirgo = dignityOf("mercury", "virgo");
+  check("Mercury in Virgo = doubled ruler+exaltation", mercuryVirgo.dignity === "ruler" && mercuryVirgo.doubled);
+  const mercuryPisces = dignityOf("mercury", "pisces");
+  check("Mercury in Pisces = doubled fall+detriment", mercuryPisces.dignity === "detriment" && mercuryPisces.doubled);
+  check("Moon in Gemini = peregrine", dignityOf("moon", "gemini").dignity === "peregrine");
+  // House table (deck slide 8)
+  check("1st house 大吉 rank 1 fast near",
+    HOUSE_ATTRIBUTES.house_1.rank === 1 && HOUSE_ATTRIBUTES.house_1.speed === "fast" && HOUSE_ATTRIBUTES.house_1.distance === "near");
+  check("12th house 大凶 rank 12 slow far",
+    HOUSE_ATTRIBUTES.house_12.rank === 12 && HOUSE_ATTRIBUTES.house_12.classification === "great_misfortune" && HOUSE_ATTRIBUTES.house_12.distance === "far");
+  // Rubie's canonical example: Jupiter in Pisces (ruler, 大吉星) in the 12th (大凶)
+  // → capable core, challenging-but-temporary environment.
+  check("Jupiter/Pisces/12th = strong planet in bad house",
+    readTension("jupiter", "pisces", "house_12") === "strong_planet_bad_house");
+  check("Saturn/Aries/6th = aligned challenging",
+    readTension("saturn", "aries", "house_6") === "aligned_challenging");
+  check("Venus/Pisces/10th = aligned favorable",
+    readTension("venus", "pisces", "house_10") === "aligned_favorable");
+  // Timing: Moon (極快) in 1st (快) = fast; Saturn (慢) in 9th (慢) = slow (deck ex.1/ex.2)
+  check("Moon + 1st house pace fast", combinedPace("moon", "house_1") === "fast");
+  check("Saturn + 9th house pace slow", combinedPace("saturn", "house_9") === "slow");
+  check("outer planets carry no classical 吉凶", PLANET_ATTRIBUTES.uranus.classification === "outer");
 }
 
 if (failures > 0) {

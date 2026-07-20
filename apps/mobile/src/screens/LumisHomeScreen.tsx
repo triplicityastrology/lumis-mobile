@@ -1,14 +1,12 @@
-import {
-  Bell,
-  ChevronRight,
-  Compass,
-  History,
-  LogIn,
-  MessageCircle,
-  RefreshCw,
-  Sparkles,
-  UserRound
-} from "lucide-react-native";
+import Bell from "lucide-react-native/icons/bell";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Compass from "lucide-react-native/icons/compass";
+import History from "lucide-react-native/icons/history";
+import LogIn from "lucide-react-native/icons/log-in";
+import MessageCircle from "lucide-react-native/icons/message-circle";
+import RefreshCw from "lucide-react-native/icons/refresh-cw";
+import Sparkles from "lucide-react-native/icons/sparkles";
+import UserRound from "lucide-react-native/icons/user-round";
 import type { ReactNode } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 

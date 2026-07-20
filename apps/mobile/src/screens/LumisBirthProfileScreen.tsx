@@ -1,4 +1,9 @@
-import { Check, ChevronRight, Clock3, LockKeyhole, MapPin, Search } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Clock3 from "lucide-react-native/icons/clock-3";
+import LockKeyhole from "lucide-react-native/icons/lock-keyhole";
+import MapPin from "lucide-react-native/icons/map-pin";
+import Search from "lucide-react-native/icons/search";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { isValidBirthDate, runtimeTimeZone } from "@lumis/shared";

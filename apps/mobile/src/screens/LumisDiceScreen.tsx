@@ -1,5 +1,9 @@
 import { Accelerometer } from "expo-sensors";
-import { Bell, ChevronLeft, Dices, MessageCircle, Sparkles } from "lucide-react-native";
+import Bell from "lucide-react-native/icons/bell";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import Dices from "lucide-react-native/icons/dices";
+import MessageCircle from "lucide-react-native/icons/message-circle";
+import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Polygon } from "react-native-svg";

@@ -1,4 +1,7 @@
-import { Compass, Dices, MessageCircle, UserRound } from "lucide-react-native";
+import Compass from "lucide-react-native/icons/compass";
+import Dices from "lucide-react-native/icons/dices";
+import MessageCircle from "lucide-react-native/icons/message-circle";
+import UserRound from "lucide-react-native/icons/user-round";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "../theme/tokens";

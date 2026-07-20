@@ -1,4 +1,6 @@
-import { Bell, ChevronLeft } from "lucide-react-native";
+import Bell from "lucide-react-native/icons/bell";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import List from "lucide-react-native/icons/list";
 import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,6 +27,7 @@ import {
 import { configureSecureRandom, secureRandom, seededRandom } from "./rng";
 import { cradleTick, landingThump, mixTick, releaseImpact, resultTap } from "./haptics";
 import { saveDiceThrow } from "../../services/diceThrows";
+import { DiceHistorySheet, type SessionRoll } from "./DiceHistorySheet";
 import { useMotionGestures } from "./useMotionGestures";
 
 configureSecureRandom(getRandomValues);
@@ -103,6 +106,8 @@ export function DiceRitualScreen({
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [, setFrame] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const sessionRollsRef = useRef<SessionRoll[]>([]);
 
   const phaseRef = useRef<Phase>("IDLE");
   const questionRef = useRef("");
@@ -161,6 +166,16 @@ export function DiceRitualScreen({
     );
     // Persist the throw (no-op in local demo mode); interpretation stays unlinked
     // until the user asks Lumis to read it.
+    sessionRollsRef.current = [
+      {
+        question: questionRef.current.trim() || null,
+        planetKey: nextSymbols.planet.key,
+        signKey: nextSymbols.sign.key,
+        houseKey: nextSymbols.house.key,
+        at: Date.now()
+      },
+      ...sessionRollsRef.current
+    ];
     void saveDiceThrow({
       question: questionRef.current.trim() || null,
       planetKey: nextSymbols.planet.key,
@@ -345,9 +360,14 @@ export function DiceRitualScreen({
         <View style={styles.header}>
           <View style={styles.headerSpace} />
           <Text style={styles.headerTitle}>Astrology Dice</Text>
-          <Pressable style={styles.iconButton} onPress={onNotifications} accessibilityLabel="Notifications">
-            <Bell color={colors.ice} size={19} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable style={styles.iconButton} onPress={() => setHistoryOpen(true)} accessibilityLabel="Past rolls">
+              <List color={colors.ice} size={19} />
+            </Pressable>
+            <Pressable style={styles.iconButton} onPress={onNotifications} accessibilityLabel="Notifications">
+              <Bell color={colors.ice} size={19} />
+            </Pressable>
+          </View>
         </View>
 
         <View
@@ -366,7 +386,12 @@ export function DiceRitualScreen({
                 </RadialGradient>
               </Defs>
               {showTable ? renderTable(W, H, cameraZoomRef.current) : null}
-              {showTable ? renderWorldDice(worldRef.current, W, H, cameraZoomRef.current, glowRef.current, symbols) : null}
+              {showTable
+                ? renderWorldDice(
+                    worldRef.current, W, H, cameraZoomRef.current, glowRef.current, symbols,
+                    phase === "SETTLE" || phase === "RESULT" || phase === "INTERPRET"
+                  )
+                : null}
               {showPalm || handShownRef.current > 0.01
                 ? renderHand(W, H, handPoseRef.current, mixEnergyRef.current, showPalm ? 1 : handShownRef.current)
                 : null}
@@ -376,14 +401,14 @@ export function DiceRitualScreen({
 
           <View pointerEvents="box-none" style={styles.overlay}>
             <BlurView intensity={24} tint="dark" style={styles.questionCard}>
-              <Text style={styles.questionLabel}>你嘅問題 · YOUR QUESTION</Text>
+              <Text style={styles.questionLabel}>YOUR QUESTION</Text>
               <TextInput
                 editable={phase === "IDLE"}
                 onChangeText={(text) => {
                   questionRef.current = text;
                   setQuestion(text);
                 }}
-                placeholder="輕按輸入你嘅問題…"
+                placeholder="What is your question?"
                 placeholderTextColor={colors.muted}
                 style={styles.questionInput}
                 value={question}
@@ -393,13 +418,13 @@ export function DiceRitualScreen({
             <View style={styles.flexSpacer} pointerEvents="none" />
 
             {phase === "READY" || phase === "MIXING" ? (
-              <Text style={styles.hint}>搖一搖 mix 一 mix，向上一拋就擲出去</Text>
+              <Text style={styles.hint}>Shake to mix, then flick up to throw</Text>
             ) : null}
             {phase === "IDLE" ? (
-              <BrandButton label="準備好 · Ready" onPress={beginReady} style={styles.fullWidthButton} />
+              <BrandButton label="Ready" onPress={beginReady} style={styles.fullWidthButton} />
             ) : null}
             {showTapThrow && (phase === "READY" || phase === "MIXING") ? (
-              <SoftButton label="輕按擲骰 · Tap to throw" onPress={() => performThrow(1)} />
+              <SoftButton label="Tap to throw" onPress={() => performThrow(1)} />
             ) : null}
           </View>
 
@@ -419,33 +444,36 @@ export function DiceRitualScreen({
           >
             <BlurView intensity={28} tint="dark" style={styles.sheet}>
             <Text style={styles.sheetQuestion}>
-              「{trimmedQuestion || "What should I notice right now?"}」
+              “{trimmedQuestion || "What should I notice right now?"}”
             </Text>
             <View style={styles.symbolsRow}>
               {symbols
                 ? DIE_ORDER.map((kind) => {
                     const face = symbols[kind];
-                    const kindLabel = kind === "planet" ? "行星 PLANET" : kind === "sign" ? "星座 SIGN" : "宮位 HOUSE";
+                    const kindLabel = kind === "planet" ? "PLANET" : kind === "sign" ? "SIGN" : "HOUSE";
                     return (
                       <View key={kind} style={styles.symbolCell}>
                         <Text style={styles.symbolKind}>{kindLabel}</Text>
                         <Text style={styles.symbolGlyph}>{face.glyph + TEXT_STYLE}</Text>
-                        <Text style={styles.symbolZh}>{face.zh}</Text>
-                        <Text style={styles.symbolEn}>{face.en}</Text>
+                        <Text style={styles.symbolZh}>{face.en}</Text>
                       </View>
                     );
                   })
                 : null}
             </View>
-            <Text style={styles.sheetNote}>呢個係一個角度，唔係一個判詞。</Text>
+            <Text style={styles.sheetNote}>Dice are a mirror for reflection, not a verdict.</Text>
             {phase === "INTERPRET" ? (
               <View style={styles.sheetActions}>
-                <SoftButton label="再擲一次" onPress={rethrow} style={styles.sheetAction} />
-                <BrandButton label="返回傾偈" onPress={() => onReflect(reflectionPrompt)} style={styles.sheetAction} />
+                <SoftButton label="Roll again" onPress={rethrow} style={styles.sheetAction} />
+                <BrandButton label="Save this reflection" onPress={() => onReflect(reflectionPrompt)} style={styles.sheetAction} />
               </View>
             ) : null}
             </BlurView>
           </Animated.View>
+        ) : null}
+
+        {historyOpen ? (
+          <DiceHistorySheet onClose={() => setHistoryOpen(false)} sessionRolls={sessionRollsRef.current} />
         ) : null}
 
         <MainTabBar active="dice" onSelect={onSelectTab} />
@@ -521,7 +549,8 @@ function renderWorldDice(
   H: number,
   zoom: number,
   glow: number,
-  symbols: StageSymbols | null
+  symbols: StageSymbols | null,
+  settled: boolean
 ) {
   void symbols;
   const elements: React.JSX.Element[] = [];
@@ -604,13 +633,30 @@ function renderWorldDice(
           );
         });
       }
-      // Billboard glyphs — upright, sized by face visibility, clamped inside the face.
-      if (facing > 0.45) {
-        const isTop = glow > 0 && n.y > 0.9;
-        const glyphColor = isTop
+      // Billboard glyphs — upright, sized by face visibility, clamped inside the
+      // face. A real die shows exactly one face up: once settled, every non-top
+      // glyph shrinks and dims hard so the landed face is unmistakable.
+      const isTop = n.y > 0.9;
+      if (facing > 0.5) {
+        const glyphColor = settled && isTop
           ? `rgba(232,${205 + Math.round(glow * 20)},154,1)`
-          : "rgba(216,176,110,0.9)";
-        const glyphSize = camScale * DIE_INRADIUS * 0.92 * Math.pow(facing, 1.2);
+          : settled
+            ? "rgba(216,176,110,0.4)"
+            : "rgba(216,176,110,0.9)";
+        const sideShrink = settled && !isTop ? 0.55 : 1;
+        const glyphSize = camScale * DIE_INRADIUS * 0.92 * Math.pow(facing, 1.6) * sideShrink;
+        if (settled && isTop) {
+          elements.push(
+            <Polygon
+              key={`tr${dieIndex}-${faceIndex}`}
+              points={pts}
+              fill="none"
+              stroke={`rgba(232,205,154,${(0.35 + glow * 0.45).toFixed(2)})`}
+              strokeWidth={Math.max(1, camScale * DIE_RADIUS * 0.045)}
+              strokeLinejoin="round"
+            />
+          );
+        }
         elements.push(
           <SvgText
             key={`g${dieIndex}-${faceIndex}`}
@@ -637,7 +683,7 @@ function renderWorldDice(
             />
           );
         }
-        if (isTop) {
+        if (settled && isTop && glow > 0) {
           elements.push(
             <Ellipse
               key={`gl${dieIndex}-${faceIndex}`}
@@ -819,7 +865,8 @@ const styles = StyleSheet.create({
   frame: { alignSelf: "center", flex: 1, maxWidth: 480, width: "100%" },
   header: { alignItems: "center", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 64, paddingHorizontal: spacing.lg },
   headerTitle: { color: colors.ice, fontSize: 15, fontWeight: "700" },
-  headerSpace: { width: 40 },
+  headerSpace: { width: 88 },
+  headerActions: { flexDirection: "row", gap: 8 },
   iconButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 20, borderWidth: 1, height: 40, justifyContent: "center", width: 40 },
   stage: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", padding: spacing.lg },

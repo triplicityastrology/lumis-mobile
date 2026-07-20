@@ -15,6 +15,9 @@
     "src/features/dice/rng.ts",
     "src/features/dice/faceReading.ts",
     "src/features/dice/physics.ts",
-    "src/features/dice/dice.fixtures.ts"
+    "src/features/dice/dice.fixtures.ts",
+    "src/features/dice/constants.ts",
+    "src/features/dice/classicalAttributes.ts",
+    "src/features/dice/interpretationBank.ts"
   ]
 }

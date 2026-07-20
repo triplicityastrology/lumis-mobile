@@ -1,22 +1,20 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import {
-  Bell,
-  CalendarDays,
-  ChevronRight,
-  Clock3,
-  Compass,
-  Download,
-  Headphones,
-  LogOut,
-  MapPin,
-  QrCode,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-  UserRound,
-  Users
-} from "lucide-react-native";
+import Bell from "lucide-react-native/icons/bell";
+import CalendarDays from "lucide-react-native/icons/calendar-days";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Clock3 from "lucide-react-native/icons/clock-3";
+import Compass from "lucide-react-native/icons/compass";
+import Download from "lucide-react-native/icons/download";
+import Headphones from "lucide-react-native/icons/headphones";
+import LogOut from "lucide-react-native/icons/log-out";
+import MapPin from "lucide-react-native/icons/map-pin";
+import QrCode from "lucide-react-native/icons/qr-code";
+import ShieldCheck from "lucide-react-native/icons/shield-check";
+import Sparkles from "lucide-react-native/icons/sparkles";
+import Trash2 from "lucide-react-native/icons/trash-2";
+import UserRound from "lucide-react-native/icons/user-round";
+import Users from "lucide-react-native/icons/users";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 
 import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";

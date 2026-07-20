@@ -1,4 +1,6 @@
-import { Bell, ChevronLeft, MessageCircle } from "lucide-react-native";
+import Bell from "lucide-react-native/icons/bell";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import MessageCircle from "lucide-react-native/icons/message-circle";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import type { ChartV2 } from "@lumis/shared";

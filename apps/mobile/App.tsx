@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import {
-  ArrowLeft,
-  Bell,
-  Check,
-  ChevronRight,
-  History,
-  MessageCircle,
-  Plus,
-  Search,
-  Send,
-  Sparkles,
-  UsersRound,
-  Compass
-} from "lucide-react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
+import Bell from "lucide-react-native/icons/bell";
+import Check from "lucide-react-native/icons/check";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Compass from "lucide-react-native/icons/compass";
+import History from "lucide-react-native/icons/history";
+import MessageCircle from "lucide-react-native/icons/message-circle";
+import Plus from "lucide-react-native/icons/plus";
+import Search from "lucide-react-native/icons/search";
+import Send from "lucide-react-native/icons/send";
+import Sparkles from "lucide-react-native/icons/sparkles";
+import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 

@@ -1,4 +1,7 @@
-import { Check, ChevronRight, LockKeyhole, Mail } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import LockKeyhole from "lucide-react-native/icons/lock-keyhole";
+import Mail from "lucide-react-native/icons/mail";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
