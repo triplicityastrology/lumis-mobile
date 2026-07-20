@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-tests",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": [
+    "src/features/dice/math.ts",
+    "src/features/dice/geometry.ts",
+    "src/features/dice/rng.ts",
+    "src/features/dice/faceReading.ts",
+    "src/features/dice/physics.ts",
+    "src/features/dice/dice.fixtures.ts"
+  ]
+}

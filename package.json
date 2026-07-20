@@ -10,6 +10,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test:router": "tsc -p packages/shared/tsconfig.router-test.json && node .tmp/router-tests/config/chat-router.fixtures.js",
+    "test:dice": "tsc -p apps/mobile/tsconfig.dice-test.json && node .tmp/dice-tests/features/dice/dice.fixtures.js",
     "test:birth-date": "tsc -p packages/shared/tsconfig.birth-date-test.json && node .tmp/birth-date-tests/config/birth-date.fixtures.js",
     "test:birth-location": "node scripts/birth-location-contract.mjs",
     "test:entitlement": "tsc -p packages/shared/tsconfig.entitlement-test.json && node .tmp/entitlement-tests/config/account-entitlement.fixtures.js",

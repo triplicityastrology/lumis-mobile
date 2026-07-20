@@ -65,6 +65,8 @@ import { MainTabBar, type MainTab } from "./src/components/MainTabBar";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
+import { DiceRitualScreen } from "./src/features/dice/DiceRitualScreen";
+import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
 
@@ -532,8 +534,11 @@ export default function App() {
   }
 
   if (screen === "dice" && profileData && chartProfile) {
+    // Feature-flagged physics ritual (AC-DICE-01/04); LumisDiceScreen stays as
+    // the identical-flow fallback path until the device spike passes.
+    const DiceScreenComponent = DICE_RITUAL_ENABLED ? DiceRitualScreen : LumisDiceScreen;
     return (
-      <LumisDiceScreen
+      <DiceScreenComponent
         onNotifications={() => setScreen("notifications")}
         onReflect={(chatDraft) => {
           setPendingChatDraft(chatDraft);
