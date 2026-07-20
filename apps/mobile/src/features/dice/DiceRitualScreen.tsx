@@ -1,24 +1,27 @@
 import { Bell, ChevronLeft } from "lucide-react-native";
 import { getRandomValues } from "expo-crypto";
+import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo, Animated, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, {
-  Defs, Ellipse, Path, Polygon, RadialGradient, Stop, Text as SvgText
+  Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
 } from "react-native-svg";
 
 import { CelestialBackground } from "../../components/CelestialBackground";
 import { MainTabBar, type MainTab } from "../../components/MainTabBar";
 import { colors, radii, spacing } from "../../theme/tokens";
-import { DICE_TIMINGS, DIE_ORDER, FACE_SETS, type DiceFace } from "./constants";
+import { DICE_TIMINGS, DIE_ORDER, FACE_SETS, type DiceFace, type DieKind } from "./constants";
 import { DIE_INRADIUS, DIE_RADIUS, DODECA_FACES, DODECA_VERTICES } from "./geometry";
 import { add, dot, length, normalize, quatRotate, scale, sub, vec, type Vec3 } from "./math";
 import {
   createWorld, groundDie, launch, randomOrientation, resolveSettledFaces, stepWorld,
   type DiceWorld
 } from "./physics";
-import { configureSecureRandom, secureRandom } from "./rng";
+import { configureSecureRandom, secureRandom, seededRandom } from "./rng";
+import { cradleTick, landingThump, mixTick, releaseImpact, resultTap } from "./haptics";
+import { saveDiceThrow } from "../../services/diceThrows";
 import { useMotionGestures } from "./useMotionGestures";
 
 configureSecureRandom(getRandomValues);
@@ -74,6 +77,7 @@ export function DiceRitualScreen({
   const [reduceMotion, setReduceMotion] = useState(false);
 
   const phaseRef = useRef<Phase>("IDLE");
+  const questionRef = useRef("");
   const worldRef = useRef<DiceWorld>(createWorld());
   const palmOrientations = useRef([randomOrientation(), randomOrientation(), randomOrientation()]);
   const palmSpin = useRef<Vec3[]>([vec(0, 0, 0), vec(0, 0, 0), vec(0, 0, 0)]);
@@ -88,6 +92,7 @@ export function DiceRitualScreen({
   const lastTickRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const frameCounter = useRef(0);
+  const landedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dimAnim = useRef(new Animated.Value(0)).current;
@@ -110,14 +115,59 @@ export function DiceRitualScreen({
     setPhase(next);
   }, []);
 
+  const completeSettle = useCallback(() => {
+    const world = worldRef.current;
+    const { readings } = resolveSettledFaces(world);
+    for (const die of world.dice) groundDie(die);
+    const [planetReading, signReading, houseReading] = readings;
+    const nextSymbols = {
+      planet: FACE_SETS.planet[planetReading.faceIndex],
+      sign: FACE_SETS.sign[signReading.faceIndex],
+      house: FACE_SETS.house[houseReading.faceIndex]
+    };
+    setSymbols(nextSymbols);
+    settleAtRef.current = Date.now();
+    transition("SETTLE");
+    AccessibilityInfo.announceForAccessibility(
+      `Dice settled: ${nextSymbols.planet.en}, ${nextSymbols.sign.en}, ${nextSymbols.house.en}`
+    );
+    // Persist the throw (no-op in local demo mode); interpretation stays unlinked
+    // until the user asks Lumis to read it.
+    void saveDiceThrow({
+      question: questionRef.current.trim() || null,
+      planetKey: nextSymbols.planet.key,
+      signKey: nextSymbols.sign.key,
+      houseKey: nextSymbols.house.key
+    });
+  }, [transition]);
+
   const beginReady = useCallback(() => {
     if (phaseRef.current !== "IDLE") return;
     transition("READY");
     handPoseRef.current = 1;
+    cradleTick();
+    AccessibilityInfo.announceForAccessibility("Shake to mix, flick up to throw, or use the throw button.");
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
     tapTimerRef.current = setTimeout(() => {
       if (phaseRef.current === "READY" || phaseRef.current === "MIXING") setShowTapThrow(true);
     }, DICE_TIMINGS.tapFallbackAfter);
+    // iOS motion-permission denial (or missing sensor) → offer tap-to-throw
+    // immediately instead of stranding the user for 6 s (AC-DICE-04 §8).
+    void (async () => {
+      try {
+        const available = await Accelerometer.isAvailableAsync();
+        if (!available) {
+          setShowTapThrow(true);
+          return;
+        }
+        const current = await Accelerometer.getPermissionsAsync();
+        if (current.granted) return;
+        const asked = await Accelerometer.requestPermissionsAsync();
+        if (!asked.granted) setShowTapThrow(true);
+      } catch {
+        setShowTapThrow(true);
+      }
+    })();
   }, [transition]);
 
   const performThrow = useCallback(
@@ -129,12 +179,23 @@ export function DiceRitualScreen({
       transition("THROW");
       handPoseRef.current = 2;
       throwAtRef.current = Date.now();
+      landedRef.current = [false, false, false];
+      releaseImpact();
       launch(worldRef.current, strength);
+      if (reduceMotion) {
+        // Reduced motion: resolve the same fair physics instantly, then present
+        // the settle sequence as fades (AC-DICE-04 §8 parallel cut).
+        let guard = 0;
+        while (!stepWorld(worldRef.current, 1 / 30) && guard++ < 5000) { /* fast-forward */ }
+        handShownRef.current = 0;
+        completeSettle();
+        return;
+      }
       setTimeout(() => {
         if (phaseRef.current === "THROW") transition("TUMBLE");
       }, DICE_TIMINGS.releaseSwap + 40);
     },
-    [transition]
+    [completeSettle, reduceMotion, transition]
   );
 
   const rethrow = useCallback(() => {
@@ -156,6 +217,7 @@ export function DiceRitualScreen({
       if (phaseRef.current === "READY") transition("MIXING");
       if (phaseRef.current !== "MIXING") return;
       lastMixAt.current = Date.now();
+      mixTick();
       mixEnergyRef.current = Math.min(1, mixEnergyRef.current + energy * 0.4);
       palmSpin.current = palmSpin.current.map((spin) =>
         add(spin, vec(jitter(7 * energy), jitter(7 * energy), jitter(7 * energy)))
@@ -195,18 +257,13 @@ export function DiceRitualScreen({
           handShownRef.current = Math.max(0, handShownRef.current - dt * 8);
         }
         const settled = stepWorld(worldRef.current, dt);
-        if (settled && currentPhase === "TUMBLE") {
-          const { readings } = resolveSettledFaces(worldRef.current);
-          for (const die of worldRef.current.dice) groundDie(die);
-          const [planetReading, signReading, houseReading] = readings;
-          setSymbols({
-            planet: FACE_SETS.planet[planetReading.faceIndex],
-            sign: FACE_SETS.sign[signReading.faceIndex],
-            house: FACE_SETS.house[houseReading.faceIndex]
-          });
-          settleAtRef.current = Date.now();
-          transition("SETTLE");
-        }
+        worldRef.current.dice.forEach((die, i) => {
+          if (!landedRef.current[i] && die.position.y < DIE_INRADIUS * 1.6 && die.velocity.y >= -0.5) {
+            landedRef.current[i] = true;
+            landingThump();
+          }
+        });
+        if (settled && currentPhase === "TUMBLE") completeSettle();
       }
 
       if (currentPhase === "SETTLE" || currentPhase === "RESULT" || currentPhase === "INTERPRET") {
@@ -220,6 +277,7 @@ export function DiceRitualScreen({
           elapsed > glowStart + DICE_TIMINGS.glowRise + DICE_TIMINGS.heldBeat
         ) {
           transition("RESULT");
+          resultTap();
           Animated.timing(dimAnim, {
             toValue: 1, duration: DICE_TIMINGS.sceneDim, useNativeDriver: true
           }).start();
@@ -242,7 +300,7 @@ export function DiceRitualScreen({
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
     };
-  }, [cardAnim, dimAnim, reduceMotion, transition]);
+  }, [cardAnim, completeSettle, dimAnim, reduceMotion, transition]);
 
   const { width: W, height: H } = stageSize;
   const showPalm = phase === "IDLE" || phase === "READY" || phase === "MIXING";
@@ -281,7 +339,9 @@ export function DiceRitualScreen({
               </Defs>
               {showTable ? renderTable(W, H, cameraZoomRef.current) : null}
               {showTable ? renderWorldDice(worldRef.current, W, H, cameraZoomRef.current, glowRef.current, symbols) : null}
-              {showPalm && handShownRef.current > 0 ? renderHand(W, H, handPoseRef.current, mixEnergyRef.current) : null}
+              {showPalm || handShownRef.current > 0.01
+                ? renderHand(W, H, handPoseRef.current, mixEnergyRef.current, showPalm ? 1 : handShownRef.current)
+                : null}
               {showPalm ? renderPalmDice(palmOrientations.current, W, H) : null}
             </Svg>
           ) : null}
@@ -291,7 +351,10 @@ export function DiceRitualScreen({
               <Text style={styles.questionLabel}>你嘅問題 · YOUR QUESTION</Text>
               <TextInput
                 editable={phase === "IDLE"}
-                onChangeText={setQuestion}
+                onChangeText={(text) => {
+                  questionRef.current = text;
+                  setQuestion(text);
+                }}
                 placeholder="輕按輸入你嘅問題…"
                 placeholderTextColor={colors.muted}
                 style={styles.questionInput}
@@ -390,13 +453,36 @@ function crossV(a: Vec3, b: Vec3): Vec3 {
   return vec(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 
-function shadeFace(normal: Vec3, t: number): string {
+/** Per-die body colors so the three dice read apart at a glance (founder, 2026-07-20). */
+const DIE_BODY: Record<DieKind, { h: number; hueVar: number; s: number; sLam: number; l: number; lLam: number }> = {
+  planet: { h: 252, hueVar: 20, s: 46, sLam: 10, l: 30, lLam: 24 }, // violet (matches the physical set)
+  sign: { h: 344, hueVar: 12, s: 18, sLam: 8, l: 44, lLam: 20 },    // greyish pink
+  house: { h: 174, hueVar: 10, s: 40, sLam: 10, l: 34, lLam: 22 }   // tiffany blue
+};
+
+function shadeFace(normal: Vec3, t: number, kind: DieKind): string {
   const lambert = Math.max(0, dot(normal, LIGHT));
-  const h = 252 - t * 20;
-  const s = 46 + lambert * 10;
-  const l = 30 + lambert * 24;
+  const p = DIE_BODY[kind];
+  const h = p.h - t * p.hueVar;
+  const s = p.s + lambert * p.sLam;
+  const l = p.l + lambert * p.lLam;
   return `hsl(${h.toFixed(0)}, ${s.toFixed(0)}%, ${l.toFixed(0)}%)`;
 }
+
+/** Static glitter suspended in the resin — catches light as the die turns, never twinkles at rest. */
+const GLITTER = (() => {
+  const rnd = seededRandom(42);
+  const palette = ["#FFF6E0", "#FFE9B8", "#BFE8FF", "#F4C9FF"];
+  return DODECA_FACES.map(() =>
+    Array.from({ length: 5 }, () => ({
+      u: (rnd() * 2 - 1) * 0.6,
+      v: (rnd() * 2 - 1) * 0.6,
+      r: 0.35 + rnd() * 0.5,
+      a: 0.25 + rnd() * 0.5,
+      c: palette[Math.floor(rnd() * palette.length)]
+    }))
+  );
+})();
 
 function renderTable(W: number, H: number, zoom: number) {
   const corners: Array<[number, number]> = [[-1.63, -1.2], [1.63, -1.2], [1.78, 1.5], [-1.78, 1.5]];
@@ -415,6 +501,7 @@ function renderWorldDice(
   glow: number,
   symbols: StageSymbols | null
 ) {
+  void symbols;
   const elements: React.JSX.Element[] = [];
   const camScale = (FOCAL * (1 + zoom * 0.22) * H) / 7.5;
 
@@ -435,50 +522,79 @@ function renderWorldDice(
     }
   });
 
-  type FaceDraw = { depth: number; el: React.JSX.Element[] };
-  const faces: FaceDraw[] = [];
+  // Rounded faces (fill + fat round-join stroke) painted grazing → front-facing:
+  // the most camera-facing face always paints last, so edge bands take its colour
+  // and the order never flips between frames (no depth-tie flicker). Dice far → near.
   const camPos = cameraPose(zoom).pos;
-  world.dice.forEach((die, dieIndex) => {
+  const dieOrder = [0, 1, 2].sort(
+    (a, b) =>
+      projectPoint(world.dice[b].position, W, H, zoom, 0).z -
+      projectPoint(world.dice[a].position, W, H, zoom, 0).z
+  );
+  for (const dieIndex of dieOrder) {
+    const die = world.dice[dieIndex];
     const faceSet = FACE_SETS[DIE_ORDER[dieIndex]];
     const worldVerts = DODECA_VERTICES.map((v) => add(quatRotate(die.orientation, v), die.position));
+    const visible: Array<{ faceIndex: number; facing: number; n: Vec3; pts: string; cx: number; cy: number }> = [];
     DODECA_FACES.forEach((face, faceIndex) => {
       const n = quatRotate(die.orientation, face.normal);
       const center = add(quatRotate(die.orientation, face.center), die.position);
-      if (dot(n, sub(camPos, center)) <= 0) return;
-      const projected = face.vertexIndices.map((vi) => projectPoint(worldVerts[vi], W, H, zoom, 0));
-      const pts = projected.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+      const facing = dot(normalize(n), normalize(sub(camPos, center)));
+      if (facing <= 0) return;
+      const pts = face.vertexIndices
+        .map((vi) => projectPoint(worldVerts[vi], W, H, zoom, 0))
+        .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+        .join(" ");
       const c = projectPoint(center, W, H, zoom, 0);
-      const els: React.JSX.Element[] = [
+      visible.push({ faceIndex, facing, n, pts, cx: c.x, cy: c.y });
+    });
+    visible.sort((a, b) => a.facing - b.facing);
+
+    for (const { faceIndex, facing, n, pts, cx, cy } of visible) {
+      const face = DODECA_FACES[faceIndex];
+      const faceFill = shadeFace(n, (faceIndex * 0.618) % 1, DIE_ORDER[dieIndex]);
+      elements.push(
         <Polygon
           key={`f${dieIndex}-${faceIndex}`}
           points={pts}
-          fill={shadeFace(n, (faceIndex * 0.618) % 1)}
-          stroke="rgba(216,208,250,0.28)"
-          strokeWidth={0.7}
+          fill={faceFill}
+          stroke={faceFill}
+          strokeWidth={camScale * DIE_RADIUS * 0.14}
+          strokeLinejoin="round"
         />
-      ];
-      if (dot(normalize(n), normalize(sub(camPos, center))) > 0.35) {
-        const u0 = normalize(sub(DODECA_VERTICES[face.vertexIndices[0]], face.center));
-        const v0 = crossV(face.normal, u0);
-        const wu = quatRotate(die.orientation, u0);
-        const wv = quatRotate(die.orientation, v0);
-        const pu = projectPoint(add(center, scale(wu, DIE_INRADIUS)), W, H, zoom, 0);
-        const pv = projectPoint(add(center, scale(wv, DIE_INRADIUS)), W, H, zoom, 0);
-        const ax = pu.x - c.x;
-        const ay = pu.y - c.y;
-        let bx = pv.x - c.x;
-        let by = pv.y - c.y;
-        if (ax * by - ay * bx < 0) { bx = -bx; by = -by; } // never mirror glyphs
+      );
+      // In-resin glitter: static points that catch the light as the die turns.
+      const lambert = Math.max(0, dot(n, LIGHT));
+      if (lambert > 0.25) {
+        const gu = normalize(sub(DODECA_VERTICES[face.vertexIndices[0]], face.center));
+        const gv = crossV(face.normal, gu);
+        GLITTER[faceIndex].forEach((fleck, fleckIndex) => {
+          const local = add(face.center, add(scale(gu, fleck.u * DIE_INRADIUS), scale(gv, fleck.v * DIE_INRADIUS)));
+          const p = projectPoint(add(quatRotate(die.orientation, local), die.position), W, H, zoom, 0);
+          elements.push(
+            <Circle
+              key={`k${dieIndex}-${faceIndex}-${fleckIndex}`}
+              cx={p.x} cy={p.y}
+              r={Math.max(0.6, fleck.r * DIE_INRADIUS * camScale * 0.09)}
+              fill={fleck.c}
+              opacity={fleck.a * lambert * 0.7}
+            />
+          );
+        });
+      }
+      // Billboard glyphs — upright, sized by face visibility, clamped inside the face.
+      if (facing > 0.45) {
         const isTop = glow > 0 && n.y > 0.9;
         const glyphColor = isTop
-          ? `rgba(${232},${205 + Math.round(glow * 20)},${154},1)`
+          ? `rgba(232,${205 + Math.round(glow * 20)},154,1)`
           : "rgba(216,176,110,0.9)";
-        const k = 0.11;
-        els.push(
+        const glyphSize = camScale * DIE_INRADIUS * 0.92 * Math.pow(facing, 1.2);
+        elements.push(
           <SvgText
             key={`g${dieIndex}-${faceIndex}`}
-            transform={`matrix(${(ax * k).toFixed(3)}, ${(ay * k).toFixed(3)}, ${(bx * k).toFixed(3)}, ${(by * k).toFixed(3)}, ${c.x.toFixed(1)}, ${c.y.toFixed(1)})`}
-            fontSize={10}
+            x={cx}
+            y={cy + glyphSize * 0.34}
+            fontSize={glyphSize}
             fontFamily="Georgia"
             fill={glyphColor}
             textAnchor="middle"
@@ -486,25 +602,34 @@ function renderWorldDice(
             {faceSet[faceIndex].glyph + TEXT_STYLE}
           </SvgText>
         );
+        const glyphText = faceSet[faceIndex].glyph;
+        if (glyphText === "6" || glyphText === "9") {
+          elements.push(
+            <Rect
+              key={`u${dieIndex}-${faceIndex}`}
+              x={cx - glyphSize * 0.3}
+              y={cy + glyphSize * 0.46}
+              width={glyphSize * 0.6}
+              height={Math.max(1, glyphSize * 0.06)}
+              fill={glyphColor}
+            />
+          );
+        }
         if (isTop) {
-          els.push(
+          elements.push(
             <Ellipse
               key={`gl${dieIndex}-${faceIndex}`}
-              cx={c.x} cy={c.y}
-              rx={DIE_INRADIUS * 2.6 * (FOCAL * (1 + zoom * 0.22) * H) / 7.5}
-              ry={DIE_INRADIUS * 2.6 * (FOCAL * (1 + zoom * 0.22) * H) / 7.5}
+              cx={cx} cy={cy}
+              rx={DIE_INRADIUS * 2.6 * camScale}
+              ry={DIE_INRADIUS * 2.6 * camScale}
               fill="url(#glowGrad)"
               opacity={glow}
             />
           );
         }
       }
-      faces.push({ depth: c.z, el: els });
-    });
-  });
-
-  faces.sort((a, b) => b.depth - a.depth);
-  for (const f of faces) elements.push(...f.el);
+    }
+  }
   return elements;
 }
 
@@ -547,19 +672,37 @@ function renderPalmDice(orientations: ReturnType<typeof randomOrientation>[], W:
         .map((vi) => projectLocal(DODECA_VERTICES[vi]))
         .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
         .join(" ");
+      const palmFill = shadeFace(n, (fi * 0.618) % 1, DIE_ORDER[i]);
       elements.push(
         <Polygon
           key={`pf${i}-${fi}`}
           points={pts}
-          fill={shadeFace(n, (fi * 0.618) % 1)}
-          stroke="rgba(216,208,250,0.2)"
-          strokeWidth={0.6}
+          fill={palmFill}
+          stroke={palmFill}
+          strokeWidth={dieScale * 0.16}
+          strokeLinejoin="round"
         />
       );
       if (nz < -0.5) {
         const faceSet = FACE_SETS[DIE_ORDER[i]];
         const c = projectLocal(face.center);
         const lambert = Math.max(0, dot(n, LIGHT));
+        const gu = normalize(sub(DODECA_VERTICES[face.vertexIndices[0]], face.center));
+        const gv = crossV(face.normal, gu);
+        GLITTER[fi].slice(0, 3).forEach((fleck, fleckIndex) => {
+          const p = projectLocal(
+            add(face.center, add(scale(gu, fleck.u * DIE_INRADIUS), scale(gv, fleck.v * DIE_INRADIUS)))
+          );
+          elements.push(
+            <Circle
+              key={`pk${i}-${fi}-${fleckIndex}`}
+              cx={p.x} cy={p.y}
+              r={Math.max(0.6, fleck.r * dieScale * 0.06)}
+              fill={fleck.c}
+              opacity={fleck.a * (0.3 + 0.6 * lambert)}
+            />
+          );
+        });
         elements.push(
           <SvgText
             key={`pt${i}-${fi}`}
@@ -579,10 +722,10 @@ function renderPalmDice(orientations: ReturnType<typeof randomOrientation>[], W:
   return elements;
 }
 
-function renderHand(W: number, H: number, pose: number, mixEnergy: number) {
+function renderHand(W: number, H: number, pose: number, mixEnergy: number, shown: number) {
   const s = Math.min(W, 520);
   const cx = W / 2 + (mixEnergy > 0 ? Math.sin(Date.now() / 55) * Math.min(3, mixEnergy * 4) : 0);
-  const base = H - s * 0.1 + s * 0.06;
+  const base = H - s * 0.1 + s * 0.06 + (1 - shown) * H * 0.28; // slides off as it fades
   const cup = pose === 2 ? 0 : Math.min(pose, 1);
   const spreadF = pose === 2 ? 1.22 : 1 - 0.12 * cup;
   const yk = base - s * 0.435;
@@ -624,6 +767,7 @@ function renderHand(W: number, H: number, pose: number, mixEnergy: number) {
       strokeLinecap="round"
       strokeLinejoin="round"
       fill="none"
+      opacity={shown}
     />
   );
 }
