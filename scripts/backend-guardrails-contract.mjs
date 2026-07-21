@@ -7,6 +7,7 @@ const operations = readFileSync("supabase/migrations/0021_runtime_observability_
 const chatIdempotency = readFileSync("supabase/migrations/0022_chat_idempotency_context.sql", "utf8");
 const strictRetention = readFileSync("supabase/migrations/0023_strict_sync_retention_and_provider_attempts.sql", "utf8");
 const providerConcurrency = readFileSync("supabase/migrations/0024_provider_attempt_concurrency_and_payload_allowlist.sql", "utf8");
+const schedulerStatus = readFileSync("supabase/migrations/0025_runtime_scheduler_status.sql", "utf8");
 const chatEdge = readFileSync("supabase/functions/chat-message/index.ts", "utf8");
 const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const chartWorker = readFileSync("workers/chart-mobile/worker.js", "utf8");
@@ -113,6 +114,12 @@ assert.match(operations, /create or replace function public\.purge_runtime_opera
 assert.match(operations, /lumis-runtime-retention/);
 assert.match(operations, /lumis-external-sync-daily-report/);
 assert.doesNotMatch(operations, /external-sync-retry[\s\S]*net\.http_post/i);
+assert.match(schedulerStatus, /runtime_scheduler_status/i);
+assert.match(schedulerStatus, /cron\.job_run_details/i);
+assert.match(schedulerStatus, /all_configured/i);
+assert.match(schedulerStatus, /all_have_successful_run/i);
+assert.doesNotMatch(schedulerStatus, /job\.command|detail\.command/i);
+assert.match(schedulerStatus, /revoke all on function public\.runtime_scheduler_status\(\)[\s\S]*anon, authenticated/i);
 
 for (const edgeSource of [
   chatEdge,

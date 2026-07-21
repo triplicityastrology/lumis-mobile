@@ -14,6 +14,7 @@ console.log(`If this process is interrupted, run: pnpm test:staging-backend:clea
 try {
   await auditExistingChartVersionInvariants();
   await verifyTrustedBirthLocationResolver();
+  await verifyRuntimeMonitoringAndSchedules();
 
   const primary = await createConfirmedUser(`lumis.qa.primary.${runId}@example.com`, password);
   const secondary = await createConfirmedUser(`lumis.qa.secondary.${runId}@example.com`, password);
@@ -796,6 +797,56 @@ async function verifyTrustedBirthLocationResolver() {
   });
   assert(!anonymous.ok, "Anonymous caller reached the trusted birthplace resolver.");
   pass("Backend-owned birthplace resolver rejects client timezone and mismatched location data");
+}
+
+async function verifyRuntimeMonitoringAndSchedules() {
+  const scheduler = await serviceRequest("/rest/v1/rpc/runtime_scheduler_status", {
+    method: "POST",
+    body: {}
+  });
+  assert(scheduler.all_configured === true, "One or more required runtime cron jobs are missing, inactive, or mis-scheduled.");
+  assert(Array.isArray(scheduler.jobs) && scheduler.jobs.length === 3, "Runtime scheduler status did not return three jobs.");
+  assert(
+    scheduler.jobs.every((job) => job.active === true && job.schedule === job.expected_schedule),
+    "Runtime scheduler configuration differs from the expected schedule."
+  );
+  assert(scheduler.all_have_successful_run === true, "One or more runtime cron jobs have no successful execution evidence.");
+
+  const health = await serviceRequest("/rest/v1/rpc/runtime_health_snapshot", {
+    method: "POST",
+    body: {}
+  });
+  for (const metric of [
+    "request_failures_24h",
+    "rate_limit_rejections_24h",
+    "provider_calls_pending_review",
+    "provider_calls_24h",
+    "external_sync_failed_final",
+    "open_alerts"
+  ]) {
+    assert(Number.isFinite(Number(health[metric])), `Runtime health metric ${metric} is missing or invalid.`);
+  }
+
+  const alertCount = await serviceRequest("/rest/v1/rpc/evaluate_runtime_alerts", {
+    method: "POST",
+    body: {}
+  });
+  assert(Number.isInteger(alertCount) && alertCount >= 0, "Runtime alert evaluation returned an invalid count.");
+
+  const retention = await serviceRequest("/rest/v1/rpc/purge_runtime_operational_data", {
+    method: "POST",
+    body: {}
+  });
+  for (const field of ["rate_windows_deleted", "request_events_deleted", "provider_events_deleted"]) {
+    assert(Number.isInteger(retention[field]) && retention[field] >= 0, `Runtime retention result ${field} is invalid.`);
+  }
+
+  const report = await serviceRequest("/rest/v1/rpc/create_external_sync_daily_report", {
+    method: "POST",
+    body: {}
+  });
+  assert(report && typeof report === "object", "External-sync daily report did not return an operational summary.");
+  pass("Runtime health, alerts, retention, daily report, and all three pg_cron jobs have hosted evidence");
 }
 
 async function auditExistingChartVersionInvariants() {
