@@ -50,6 +50,22 @@ try {
   assert(firstProfile.body.chart?.angles?.mediumCoeli, "Live full-time chart has no MC.");
   pass("Fresh onboarding persists a populated live Worker chart without raw provider output");
 
+  const providerAttempts = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${primary.id}&select=request_id,attempt_number,observed_at&order=attempt_number.asc`
+  );
+  assert(providerAttempts.length >= 1, "Provider call attempt ledger did not record live chart generation.");
+  assert(providerAttempts[0].attempt_number === 1, "Provider call attempt numbering did not begin at one.");
+  const runtimeSnapshot = await serviceRequest("/rest/v1/rpc/runtime_health_snapshot", {
+    method: "POST",
+    body: {}
+  });
+  assert(
+    Number(runtimeSnapshot.provider_calls_24h) >= providerAttempts.length,
+    "Runtime health snapshot did not count observed provider attempts."
+  );
+  pass("Provider attempts are append-only and counted in their observed 24-hour window");
+
   const billingPeriodKey = `qa:${crypto.randomUUID()}`;
   const concurrentBalanceResults = await Promise.all([
     serviceRequestResult("/rest/v1/monthly_balance", {
@@ -607,6 +623,66 @@ try {
   );
   assert(abandonedCleanupEvents.length === 2, "Abandoned claim did not queue deletion cleanup.");
   pass("Abandoned Worker claim expires after 15 minutes and queues deterministic deletion cleanup");
+
+  const expiredClaimEventId = crypto.randomUUID();
+  const expiredReplayEventId = crypto.randomUUID();
+  const expiredAt = new Date(Date.now() - 60_000).toISOString();
+  await serviceRequest("/rest/v1/external_sync_events", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: [
+      {
+        event_id: expiredClaimEventId,
+        user_id: secondary.id,
+        destination: "google_sheet",
+        idempotency_key: `lumis:expired-claim:${runId}`,
+        status: "pending",
+        next_retry_at: new Date(Date.now() - 120_000).toISOString(),
+        payload_expires_at: expiredAt,
+        payload_json: { operation: "account_deletion", email: "must-redact@example.com", name: "Must redact" }
+      },
+      {
+        event_id: expiredReplayEventId,
+        user_id: secondary.id,
+        destination: "salesforce_case",
+        idempotency_key: `lumis:expired-replay:${runId}`,
+        status: "failed_final",
+        next_retry_at: null,
+        payload_expires_at: expiredAt,
+        payload_json: { operation: "account_deletion", email: "must-redact@example.com", name: "Must redact" }
+      }
+    ]
+  });
+  const claimedAfterExpiry = await serviceRequest("/rest/v1/rpc/claim_external_sync_events", {
+    method: "POST",
+    body: { p_limit: 20 }
+  });
+  assert(
+    !claimedAfterExpiry.some((event) => event.event_id === expiredClaimEventId),
+    "Expired payload was returned for delivery."
+  );
+  const replayAfterExpiry = await serviceRequest("/rest/v1/rpc/replay_external_sync_event", {
+    method: "POST",
+    body: { p_event_id: expiredReplayEventId }
+  });
+  assert(replayAfterExpiry.ok === false, "Expired payload was accepted for manual replay.");
+  assert(replayAfterExpiry.error_code === "SYNC_PAYLOAD_EXPIRED", "Expired replay returned the wrong safe code.");
+  const expiredRows = await serviceSelect(
+    "external_sync_events",
+    `event_id=in.(${expiredClaimEventId},${expiredReplayEventId})&select=status,last_error,payload_json,payload_redacted_at`
+  );
+  assert(expiredRows.length === 2, "Expired retention fixtures were not retained as operational metadata.");
+  assert(
+    expiredRows.every((event) =>
+      event.status === "failed_final" &&
+      event.last_error === "SYNC_PAYLOAD_EXPIRED" &&
+      event.payload_redacted_at &&
+      !event.payload_json.email &&
+      !event.payload_json.name
+    ),
+    "Expired external-sync PII survived claim or replay."
+  );
+  pass("Expired external-sync payloads redact immediately and cannot be claimed or replayed");
 
   console.log(JSON.stringify({ ok: true, checks: results }, null, 2));
 } finally {

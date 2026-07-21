@@ -5,6 +5,7 @@ import ts from "typescript";
 const guardrails = readFileSync("supabase/migrations/0020_backend_runtime_guardrails.sql", "utf8");
 const operations = readFileSync("supabase/migrations/0021_runtime_observability_and_schedules.sql", "utf8");
 const chatIdempotency = readFileSync("supabase/migrations/0022_chat_idempotency_context.sql", "utf8");
+const strictRetention = readFileSync("supabase/migrations/0023_strict_sync_retention_and_provider_attempts.sql", "utf8");
 const chatEdge = readFileSync("supabase/functions/chat-message/index.ts", "utf8");
 const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const chartWorker = readFileSync("workers/chart-mobile/worker.js", "utf8");
@@ -69,10 +70,25 @@ assert.match(mobileApp, /setRetryClientMessageId\(turn\.clientMessageId \?\? ran
 
 assert.match(profileEdge, /p_endpoint: "\/profile"[\s\S]*p_max_requests: 5[\s\S]*p_window_seconds: 600/);
 assert.match(profileEdge, /recordProviderCallOutcome[\s\S]*persistence_failed/);
+assert.match(profileEdge, /rpc\("record_chart_provider_call_event"/);
 assert.match(profileEdge, /recordWorkerPersistenceOutcome[\s\S]*\/mobile\/chart-persistence-outcome/);
 assert.match(chartWorker, /CHART_PERSISTENCE_FAILED_AFTER_PROVIDER_CALL/);
 assert.match(chartWorker, /persistence_outcome:[\s\S]*persistence_error_code:[\s\S]*persistence_recorded_at:/);
 assert.doesNotMatch(profileEdge, /PROFILE_ONBOARDING_FAILED", message: onboardingError\.message/);
+
+assert.match(strictRetention, /chart_provider_call_attempt_events[\s\S]*unique \(request_id, attempt_number\)/i);
+assert.match(strictRetention, /generate_series\(v_previous_count \+ 1, v_effective_count\)/i);
+assert.match(
+  strictRetention,
+  /'provider_calls_24h'[\s\S]*count\(\*\)[\s\S]*chart_provider_call_attempt_events[\s\S]*observed_at >= now\(\) - interval '24 hours'/i
+);
+assert.doesNotMatch(
+  strictRetention,
+  /'provider_calls_24h'[\s\S]{0,300}sum\(provider_call_count\)/i
+);
+assert.match(strictRetention, /payload_expires_at <= now\(\)[\s\S]*SYNC_PAYLOAD_EXPIRED/i);
+assert.match(strictRetention, /payload_expires_at > now\(\)[\s\S]*for update skip locked/i);
+assert.match(strictRetention, /replay_external_sync_event[\s\S]*payload_redacted_at is not null[\s\S]*SYNC_PAYLOAD_EXPIRED/i);
 
 assert.match(operations, /create table if not exists public\.runtime_request_events/i);
 assert.match(operations, /create or replace function public\.runtime_health_snapshot/i);

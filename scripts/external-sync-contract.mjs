@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const migration = readFileSync("supabase/migrations/0012_external_sync_delivery_ledger.sql", "utf8");
 const deletionMigration = readFileSync("supabase/migrations/0013_account_deletion_external_sync.sql", "utf8");
+const strictRetentionMigration = readFileSync("supabase/migrations/0023_strict_sync_retention_and_provider_attempts.sql", "utf8");
 const deletionFunction = readFileSync("supabase/functions/account-deletion-request/index.ts", "utf8");
 const hostedQaLauncher = readFileSync("scripts/run-staging-backend-test.sh", "utf8");
 const hostedQaSmoke = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
@@ -50,6 +51,15 @@ assert.match(deletionMigration, /'operation', 'account_deleted_audit'/i);
 assert.match(deletionMigration, /status in \('delivered', 'manually_resolved'\)/i);
 assert.doesNotMatch(deletionMigration, /'email'/i, "Deletion payload must not store raw email.");
 assert.doesNotMatch(deletionMigration, /email_hash/i, "Deletion workflow must not retain an email hash.");
+
+assert.match(strictRetentionMigration, /SYNC_PAYLOAD_EXPIRED/i);
+assert.match(strictRetentionMigration, /payload_expires_at > now\(\)/i);
+assert.match(strictRetentionMigration, /payload_redacted_at is null/i);
+assert.match(
+  strictRetentionMigration,
+  /replay_external_sync_event[\s\S]*payload_expires_at <= now\(\)[\s\S]*SYNC_PAYLOAD_EXPIRED/i
+);
+assert.match(strictRetentionMigration, /revoke all on function public\.claim_external_sync_events/i);
 
 assert.match(deletionFunction, /DELETE MY LUMIS ACCOUNT/);
 assert.match(deletionFunction, /auth\.getUser\(\)/);

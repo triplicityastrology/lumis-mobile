@@ -535,30 +535,21 @@ async function recordProviderCallOutcome(
     providerCallCount?: number;
   }
 ): Promise<void> {
-  const record: Record<string, unknown> = {
-    request_id: input.requestId,
-    user_id: input.userId,
-    status: input.status,
-    compensation_status: input.status === "persistence_failed" ? "review_pending" : "not_required",
-    persistence_completed_at: input.status === "committed" ? new Date().toISOString() : null,
-    last_error_code: input.errorCode ?? null,
-    updated_at: new Date().toISOString()
-  };
+  const { data, error } = await serviceClient.rpc("record_chart_provider_call_event", {
+    p_request_id: input.requestId,
+    p_user_id: input.userId,
+    p_status: input.status,
+    p_error_code: input.errorCode ?? null,
+    p_worker_disposition: input.workerDisposition ?? null,
+    p_provider_call_count: input.providerCallCount ?? null
+  });
 
-  if (input.workerDisposition) record.worker_disposition = input.workerDisposition;
-  if (input.providerCallCount) record.provider_call_count = input.providerCallCount;
-
-  const { error } = await serviceClient.from("chart_provider_call_events").upsert(
-    record,
-    { onConflict: "request_id" }
-  );
-
-  if (error) {
+  if (error || !(data as { ok?: boolean } | null)?.ok) {
     console.error("PROFILE_PROVIDER_OUTCOME_WRITE_FAILED", {
       request_id: input.requestId,
       user_id: input.userId,
       status: input.status,
-      code: error.code
+      code: error?.code ?? (data as { error_code?: string } | null)?.error_code ?? "PROVIDER_EVENT_WRITE_REJECTED"
     });
   }
 }
