@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 const migration = readFileSync("supabase/migrations/0012_external_sync_delivery_ledger.sql", "utf8");
 const deletionMigration = readFileSync("supabase/migrations/0013_account_deletion_external_sync.sql", "utf8");
 const strictRetentionMigration = readFileSync("supabase/migrations/0023_strict_sync_retention_and_provider_attempts.sql", "utf8");
+const payloadAllowlistMigration = readFileSync("supabase/migrations/0024_provider_attempt_concurrency_and_payload_allowlist.sql", "utf8");
 const deletionFunction = readFileSync("supabase/functions/account-deletion-request/index.ts", "utf8");
 const hostedQaLauncher = readFileSync("scripts/run-staging-backend-test.sh", "utf8");
 const hostedQaSmoke = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
@@ -60,6 +61,9 @@ assert.match(
   /replay_external_sync_event[\s\S]*payload_expires_at <= now\(\)[\s\S]*SYNC_PAYLOAD_EXPIRED/i
 );
 assert.match(strictRetentionMigration, /revoke all on function public\.claim_external_sync_events/i);
+assert.match(payloadAllowlistMigration, /external_sync_operational_payload/i);
+assert.match(payloadAllowlistMigration, /payload_json = public\.external_sync_operational_payload\(payload_json\)/i);
+assert.match(payloadAllowlistMigration, /status in \('pending', 'retry_pending', 'processing', 'failed_final'\)/i);
 
 assert.match(deletionFunction, /DELETE MY LUMIS ACCOUNT/);
 assert.match(deletionFunction, /auth\.getUser\(\)/);

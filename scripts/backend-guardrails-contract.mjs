@@ -6,6 +6,7 @@ const guardrails = readFileSync("supabase/migrations/0020_backend_runtime_guardr
 const operations = readFileSync("supabase/migrations/0021_runtime_observability_and_schedules.sql", "utf8");
 const chatIdempotency = readFileSync("supabase/migrations/0022_chat_idempotency_context.sql", "utf8");
 const strictRetention = readFileSync("supabase/migrations/0023_strict_sync_retention_and_provider_attempts.sql", "utf8");
+const providerConcurrency = readFileSync("supabase/migrations/0024_provider_attempt_concurrency_and_payload_allowlist.sql", "utf8");
 const chatEdge = readFileSync("supabase/functions/chat-message/index.ts", "utf8");
 const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const chartWorker = readFileSync("workers/chart-mobile/worker.js", "utf8");
@@ -89,6 +90,19 @@ assert.doesNotMatch(
 assert.match(strictRetention, /payload_expires_at <= now\(\)[\s\S]*SYNC_PAYLOAD_EXPIRED/i);
 assert.match(strictRetention, /payload_expires_at > now\(\)[\s\S]*for update skip locked/i);
 assert.match(strictRetention, /replay_external_sync_event[\s\S]*payload_redacted_at is not null[\s\S]*SYNC_PAYLOAD_EXPIRED/i);
+assert.match(providerConcurrency, /pg_advisory_xact_lock[\s\S]*chart-provider-call:/i);
+assert.match(
+  providerConcurrency,
+  /provider_call_count = greatest\([\s\S]*chart_provider_call_events\.provider_call_count[\s\S]*excluded\.provider_call_count/i
+);
+assert.match(providerConcurrency, /external_sync_operational_payload[\s\S]*jsonb_strip_nulls\(jsonb_build_object/i);
+for (const privateField of ["email", "name", "birth_date", "birth_time", "paid_amount", "marketing_consent", "chart_url", "plan"]) {
+  const allowlistFunction = providerConcurrency.slice(
+    providerConcurrency.indexOf("create or replace function public.external_sync_operational_payload"),
+    providerConcurrency.indexOf("revoke all on function public.external_sync_operational_payload")
+  );
+  assert.doesNotMatch(allowlistFunction, new RegExp(`'${privateField}'`, "i"));
+}
 
 assert.match(operations, /create table if not exists public\.runtime_request_events/i);
 assert.match(operations, /create or replace function public\.runtime_health_snapshot/i);

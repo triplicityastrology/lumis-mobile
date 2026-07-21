@@ -66,6 +66,38 @@ try {
   );
   pass("Provider attempts are append-only and counted in their observed 24-hour window");
 
+  const concurrentProviderRequestId = `qa-provider-concurrency-${runId}`;
+  const providerRpc = (count) => serviceRequest("/rest/v1/rpc/record_chart_provider_call_event", {
+    method: "POST",
+    body: {
+      p_request_id: concurrentProviderRequestId,
+      p_user_id: primary.id,
+      p_status: "generated",
+      p_error_code: null,
+      p_worker_disposition: "generated",
+      p_provider_call_count: count
+    }
+  });
+  const concurrentProviderResults = await Promise.all([providerRpc(3), providerRpc(2)]);
+  assert(concurrentProviderResults.every((result) => result.ok === true), "Concurrent provider telemetry was rejected.");
+  const concurrentProviderLedger = await serviceSelect(
+    "chart_provider_call_events",
+    `request_id=eq.${encodeURIComponent(concurrentProviderRequestId)}&select=provider_call_count`
+  );
+  const concurrentProviderAttempts = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `request_id=eq.${encodeURIComponent(concurrentProviderRequestId)}&select=attempt_number&order=attempt_number.asc`
+  );
+  assert(
+    concurrentProviderLedger.length === 1 && concurrentProviderLedger[0].provider_call_count === 3,
+    "A lower concurrent provider count overwrote the higher count."
+  );
+  assert(
+    concurrentProviderAttempts.map((attempt) => attempt.attempt_number).join(",") === "1,2,3",
+    "Concurrent provider telemetry did not append exactly three unique attempts."
+  );
+  pass("Concurrent cumulative provider telemetry preserves the maximum count and unique attempts");
+
   const billingPeriodKey = `qa:${crypto.randomUUID()}`;
   const concurrentBalanceResults = await Promise.all([
     serviceRequestResult("/rest/v1/monthly_balance", {
@@ -639,7 +671,16 @@ try {
         status: "pending",
         next_retry_at: new Date(Date.now() - 120_000).toISOString(),
         payload_expires_at: expiredAt,
-        payload_json: { operation: "account_deletion", email: "must-redact@example.com", name: "Must redact" }
+        payload_json: {
+          operation: "account_deletion",
+          request_id: `expired-claim-${runId}`,
+          email: "must-redact@example.com",
+          name: "Must redact",
+          paid_amount: 98,
+          marketing_consent: true,
+          chart_url: "https://private.example/chart",
+          plan: "prime"
+        }
       },
       {
         event_id: expiredReplayEventId,
@@ -649,7 +690,16 @@ try {
         status: "failed_final",
         next_retry_at: null,
         payload_expires_at: expiredAt,
-        payload_json: { operation: "account_deletion", email: "must-redact@example.com", name: "Must redact" }
+        payload_json: {
+          operation: "account_deletion",
+          request_id: `expired-replay-${runId}`,
+          email: "must-redact@example.com",
+          name: "Must redact",
+          paid_amount: 98,
+          marketing_consent: true,
+          chart_url: "https://private.example/chart",
+          plan: "prime"
+        }
       }
     ]
   });
@@ -678,7 +728,13 @@ try {
       event.last_error === "SYNC_PAYLOAD_EXPIRED" &&
       event.payload_redacted_at &&
       !event.payload_json.email &&
-      !event.payload_json.name
+      !event.payload_json.name &&
+      !event.payload_json.paid_amount &&
+      !event.payload_json.marketing_consent &&
+      !event.payload_json.chart_url &&
+      !event.payload_json.plan &&
+      event.payload_json.operation === "account_deletion" &&
+      event.payload_json.request_id
     ),
     "Expired external-sync PII survived claim or replay."
   );
