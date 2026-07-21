@@ -7,6 +7,10 @@ const providerEventMigration = readFileSync(
   "supabase/migrations/0017_persona_policy_and_entitlement_events.sql",
   "utf8"
 );
+const providerEventRepairMigration = readFileSync(
+  "supabase/migrations/0027_entitlement_event_integrity_repair.sql",
+  "utf8"
+);
 const accountState = readFileSync("apps/mobile/src/services/accountState.ts", "utf8");
 
 assert.match(migration, /create table if not exists public\.account_entitlements/i);
@@ -63,6 +67,20 @@ assert.match(providerEventMigration, /grant execute on function public\.apply_en
 assert.doesNotMatch(
   providerEventMigration,
   /grant execute on function public\.apply_entitlement_provider_event[\s\S]{0,240}to authenticated/i
+);
+assert.match(providerEventRepairMigration, /create or replace function public\.apply_entitlement_provider_event/i);
+assert.match(providerEventRepairMigration, /ENTITLEMENT_EVENT_INTEGRITY_CONFLICT/i);
+assert.match(
+  providerEventRepairMigration,
+  /existing_payload_digest is distinct from trim\(p_payload_digest\)/i
+);
+assert.match(
+  providerEventRepairMigration,
+  /excluded\.provider_event_at = public\.account_entitlements\.provider_event_at[\s\S]+excluded\.provider_event_id > coalesce\(public\.account_entitlements\.provider_event_id, ''\)/i
+);
+assert.match(
+  providerEventRepairMigration,
+  /revoke all on function public\.apply_entitlement_provider_event[\s\S]+from public, anon, authenticated/i
 );
 
 const eventHistory = [];

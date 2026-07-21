@@ -1,18 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { randomUUID } from "expo-crypto";
+import { LinearGradient } from "expo-linear-gradient";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Bell from "lucide-react-native/icons/bell";
+import CalendarClock from "lucide-react-native/icons/calendar-clock";
 import Check from "lucide-react-native/icons/check";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Compass from "lucide-react-native/icons/compass";
 import History from "lucide-react-native/icons/history";
+import Info from "lucide-react-native/icons/info";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import Plus from "lucide-react-native/icons/plus";
 import Search from "lucide-react-native/icons/search";
 import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
+import X from "lucide-react-native/icons/x";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { BackHandler, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx } from "react-native-safe-area-context";
@@ -33,6 +38,8 @@ import {
 
 import {
   savePersonaStylePreference,
+  regenerateBirthDetails,
+  BirthDetailsChangeError,
   submitChartProfile,
   validateBirthProfileForm,
   type BirthProfileForm,
@@ -60,6 +67,7 @@ import {
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
 import { CelestialBackground } from "./src/components/CelestialBackground";
+import { GeneratingView } from "./src/components/GeneratingView";
 import { LumisPersonaAvatar, PERSONA_AVATARS } from "./src/components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "./src/components/MainTabBar";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
@@ -142,7 +150,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails" | "insights" | "dice" | "profileTab">("splash");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "paywall" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab">("splash");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -189,6 +197,7 @@ export default function App() {
     setMainFocus(null);
     setPlanTier("starter");
     setRemainingCredits(STARTER_CREDITS);
+    setBirthDetailChanges(0);
     setHasLocalDemoSession(false);
     setAccountSource("none");
     setAccountLoadStatus(message ? "empty" : "idle");
@@ -215,6 +224,7 @@ export default function App() {
       setMainFocus(accountState.mainFocus);
       setPlanTier(accountState.planTier);
       setRemainingCredits(accountState.remainingCredits ?? STARTER_CREDITS);
+      setBirthDetailChanges(accountState.successfulBirthDetailChanges);
       setHasLocalDemoSession(false);
       setAccountSource("supabase");
       setAccountLoadStatus("loaded");
@@ -367,7 +377,8 @@ export default function App() {
     const onHardwareBack = () => {
       const s = screenRef.current;
       if (s === "notifications") { setScreen(notificationsReturn); return true; }
-      if (s === "care" || s === "plans" || s === "birthDetails") { setScreen("profileTab"); return true; }
+      if (s === "paywall") { setScreen("plans"); return true; }
+      if (s === "care" || s === "plans" || s === "birthDetails" || s === "chartUpdated") { setScreen("profileTab"); return true; }
       if (s === "auth" || s === "persona" || s === "preview" || s === "reflections") { setScreen("home"); return true; }
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
         setScreen("home"); return true;
@@ -585,6 +596,18 @@ export default function App() {
       <PlansAccessScreen
         currentPlan={planTier}
         onBack={() => setScreen("profileTab")}
+        onUpgrade={() => setScreen("paywall")}
+      />
+    );
+  }
+
+  if (screen === "paywall") {
+    return (
+      <PaywallScreen
+        onClose={() => setScreen("plans")}
+        // Billing is not wired yet (RevenueCat / App Store pending). Until then the
+        // CTA returns to the Plans reference page rather than starting a purchase.
+        onStartCheckout={() => setScreen("plans")}
       />
     );
   }
@@ -647,8 +670,10 @@ export default function App() {
         }
         successfulChanges={birthDetailChanges}
         onBack={() => setScreen("profileTab")}
-        onRegenerate={async (next) => {
-          if (!profileData) return false;
+        onRegenerate={async (next, clientRequestId) => {
+          if (!profileData) {
+            return { ok: false, code: "49003", message: "Your saved chart could not be loaded." };
+          }
           const updated = {
             ...profileData,
             birthDate: next.birthDate,
@@ -657,17 +682,53 @@ export default function App() {
             timeUnknown: next.timeUnknown
           };
           try {
-            // Real chart + Lumis-profile regeneration (same pipeline as onboarding).
-            const result = await submitChartProfile(updated);
-            setProfileData(updated);
-            setChartProfile(result.chart);
-            // Change count is consumed only on a confirmed successful regeneration.
-            setBirthDetailChanges((n) => n + 1);
-            return true;
-          } catch {
-            return false;
+            const result = await regenerateBirthDetails(updated, clientRequestId);
+            const accountState = await loadSupabaseAccountState();
+
+            if (!applySupabaseAccountState(accountState)) {
+              throw new BirthDetailsChangeError(
+                "The updated chart was saved, but Lumis could not reload it. Please retry safely.",
+                "49003"
+              );
+            }
+
+            setBirthDetailChanges(result.successful_change_count);
+            setChatTurns([]);
+            setActiveSupabaseThreadId(null);
+            setForceNewSupabaseThread(true);
+            setPendingChatDraft(null);
+            setScreen("chartUpdated");
+            return { ok: true };
+          } catch (error) {
+            if (error instanceof BirthDetailsChangeError) {
+              if (typeof error.successfulChangeCount === "number") {
+                setBirthDetailChanges(error.successfulChangeCount);
+              } else if (error.code === "49001") {
+                const accountState = await loadSupabaseAccountState();
+                applySupabaseAccountState(accountState);
+              }
+              return { ok: false, code: error.code, message: error.message };
+            }
+            return {
+              ok: false,
+              code: "49003",
+              message: "Your previous chart is still active. Please retry this same request."
+            };
           }
         }}
+      />
+    );
+  }
+
+  if (screen === "chartUpdated" && profileData && chartProfile) {
+    return (
+      <ChartRevealScreen
+        chart={chartProfile}
+        name={profileData.name}
+        eyebrow="YOUR UPDATED CHART"
+        ctaLabel="Back to my Sky"
+        onBack={() => setScreen("profileTab")}
+        onContinue={() => setScreen(chartProfile ? "insights" : "profileTab")}
       />
     );
   }
@@ -1168,38 +1229,12 @@ function ChartPreviewScreen({
 }
 
 function ChartGeneratingScreen({ activeStep, name }: { activeStep: number; name: string }) {
-  const steps = [
-    "Validating your birth details",
-    "Positioning your sky",
-    "Building your natal chart",
-    "Shaping your Lumis profile"
-  ];
-
   return (
     <SafeAreaView style={styles.generatingSafe}>
       <StatusBar style="light" />
       <CelestialBackground />
-      <View style={styles.generatingFrame}>
-        <View style={styles.generatingWheel}><ChartWheel /></View>
-        <Text style={styles.generatingEyebrow}>READING YOUR SKY</Text>
-        <Text style={styles.generatingTitle}>Building your sanctuary, {name}.</Text>
-        <Text style={styles.generatingBody}>Lumis is calculating your chart and shaping your private profile.</Text>
-        <View style={styles.generatingSteps}>
-          {steps.map((step, index) => {
-            const isComplete = index < activeStep;
-            const isActive = index === activeStep;
-            return (
-              <View key={step} style={styles.generatingStep}>
-                <View style={[styles.generatingStepIcon, isActive && styles.generatingStepIconActive, isComplete && styles.generatingStepIconComplete]}>
-                  {isComplete ? <Check color="#071321" size={15} strokeWidth={3} /> : <Text style={[styles.generatingStepNumber, isActive && styles.generatingStepNumberActive]}>{index + 1}</Text>}
-                </View>
-                <Text style={[styles.generatingStepText, (isActive || isComplete) && styles.generatingStepTextActive]}>{step}</Text>
-              </View>
-            );
-          })}
-        </View>
-        <Text style={styles.generatingPrivacy}>Your birth details stay linked to your private Lumis account.</Text>
-      </View>
+      <GeneratingView activeStep={activeStep} name={name} />
+      <Text style={styles.generatingPrivacy}>Your birth details stay linked to your private Lumis account.</Text>
     </SafeAreaView>
   );
 }
@@ -1208,12 +1243,16 @@ function ChartRevealScreen({
   chart,
   name,
   onBack,
-  onContinue
+  onContinue,
+  eyebrow = "YOUR CHART",
+  ctaLabel = "Meet Lumis"
 }: {
   chart: ChartV2;
   name: string;
   onBack: () => void;
   onContinue: () => void;
+  eyebrow?: string;
+  ctaLabel?: string;
 }) {
   const sun = chart.planets.find((planet) => planet.key === "sun");
   const moon = chart.planets.find((planet) => planet.key === "moon");
@@ -1233,7 +1272,7 @@ function ChartRevealScreen({
           </View>
         </View>
 
-        <Text style={styles.chartRevealEyebrow}>YOUR CHART</Text>
+        <Text style={styles.chartRevealEyebrow}>{eyebrow}</Text>
         <Text style={styles.chartRevealTitle}>{name}, this is your inner universe.</Text>
         <Text style={styles.chartRevealIntro}>
           Your chart is a map of the sky at the moment you were born. Lumis uses it to make every reflection more personal to you.
@@ -1262,7 +1301,7 @@ function ChartRevealScreen({
         </Text>
 
         <Pressable accessibilityRole="button" onPress={onContinue} style={styles.chartRevealCta}>
-          <Text style={styles.chartRevealCtaText}>Meet Lumis</Text>
+          <Text style={styles.chartRevealCtaText}>{ctaLabel}</Text>
           <ChevronRight color="#132238" size={19} strokeWidth={2.5} />
         </Pressable>
       </ScrollView>
@@ -1598,6 +1637,34 @@ function personaExample(style: PersonaStyleKey) {
   return "Let us notice the pattern beneath what keeps repeating.";
 }
 
+// Shared sunrise gradient (gold → coral) used on every primary CTA / send button.
+const SUNRISE_GRADIENT = ["#E5C06B", "#E9B083", "#E89B92"] as const;
+
+// Quiet expandable "Chart context used" row that reads as metadata, not a control.
+function ChatContextRow({ detail }: { detail: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.chatCtxWrap}>
+      <Pressable
+        style={styles.chatCtxLine}
+        onPress={() => setOpen((prev) => !prev)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel="Chart context used"
+      >
+        <Sparkles color="#8B93D4" size={12} />
+        <Text style={styles.chatCtxLineText}>Chart context used</Text>
+        <ChevronDown
+          color="#71839A"
+          size={13}
+          style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
+        />
+      </Pressable>
+      {open ? <Text style={styles.chatCtxBody}>{detail}</Text> : null}
+    </View>
+  );
+}
+
 function ChatShellScreen({
   name,
   lumisName,
@@ -1647,6 +1714,11 @@ function ChatShellScreen({
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
   const canSend = !readOnlyReason && draftMessage.trim().length > 0 && !isSending;
+  const chartContextDetail = chart
+    ? `Drawing on your ${sun ? `${sun.sign} Sun` : "Sun"}${moon ? `, ${moon.sign} Moon` : ""}${
+        ascendant ? `, and ${ascendant.sign} Ascendant` : ""
+      }.`
+    : "Add your birth details to let Lumis read from your chart.";
 
   useEffect(() => {
     if (initialDraft) onInitialDraftConsumed();
@@ -1758,26 +1830,15 @@ function ChatShellScreen({
           <Text style={styles.chatDayLabel}>TODAY</Text>
           <View style={styles.messageRowLumis}>
             <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
-            <View style={styles.messageBubbleLumis}>
-              <Text style={styles.messageTextLumis}>
-                Hi {name}. What feels most worth understanding today?
-              </Text>
+            <View style={styles.messageColLumis}>
+              <View style={styles.messageBubbleLumis}>
+                <Text style={styles.messageTextLumis}>
+                  Hi {name}. What feels most worth understanding today?
+                </Text>
+              </View>
+              <ChatContextRow detail={chartContextDetail} />
             </View>
           </View>
-
-          {chatTurns.length === 0 ? (
-            <View style={styles.quickPromptGrid}>
-              {QUICK_CHAT_PROMPTS.map((prompt) => (
-                <Pressable
-                  key={prompt}
-                  style={styles.quickPromptButton}
-                  onPress={() => setDraftMessage(prompt)}
-                >
-                  <Text style={styles.quickPromptText}>{prompt}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
 
           {chatTurns.map((turn) => (
             <View key={turn.id}>
@@ -1787,8 +1848,17 @@ function ChatShellScreen({
               {turn.result ? (
                 <View style={styles.messageRowLumis}>
                   <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
-                  <View style={styles.messageBubbleLumis}>
-                    <Text style={styles.messageTextLumis}>{turn.result.reply}</Text>
+                  <View style={styles.messageColLumis}>
+                    <View style={styles.messageBubbleLumis}>
+                      <Text style={styles.messageTextLumis}>{turn.result.reply}</Text>
+                    </View>
+                    {turn.result.route === "astro_timing" ? (
+                      <View style={styles.chatTransitTag}>
+                        <CalendarClock color="#E9B083" size={14} />
+                        <Text style={styles.chatTransitTagText}>Timing window · planning aid, not a guarantee</Text>
+                      </View>
+                    ) : null}
+                    {chart ? <ChatContextRow detail={chartContextDetail} /> : null}
                   </View>
                 </View>
               ) : null}
@@ -1833,21 +1903,51 @@ function ChatShellScreen({
             </Pressable>
           </View>
         ) : (
-          <View style={styles.chatComposer}>
-            <TextInput
-              style={styles.chatInput}
-              placeholder="Ask Lumis..."
-              placeholderTextColor="#71839A"
-              value={draftMessage}
-              onChangeText={setDraftMessage}
-            />
-            <Pressable
-              style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-              onPress={handleSend}
-              disabled={!canSend}
+          <View style={styles.chatFooter}>
+            <View style={styles.chatDisclaimer}>
+              <Info color="#71839A" size={12} />
+              <Text style={styles.chatDisclaimerText}>Reflective guidance, not professional advice.</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chatPromptRow}
+              keyboardShouldPersistTaps="handled"
             >
-              {isSending ? <Text style={styles.sendButtonText}>...</Text> : <Send color="#071321" size={19} />}
-            </Pressable>
+              {QUICK_CHAT_PROMPTS.map((prompt) => (
+                <Pressable
+                  key={prompt}
+                  style={styles.chatPromptChip}
+                  onPress={() => setDraftMessage(prompt)}
+                >
+                  <Text style={styles.chatPromptChipText} numberOfLines={1}>{prompt}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <View style={styles.chatComposer}>
+              <TextInput
+                style={styles.chatInput}
+                placeholder="Unpack your thoughts here..."
+                placeholderTextColor="#71839A"
+                value={draftMessage}
+                onChangeText={setDraftMessage}
+              />
+              <Pressable
+                onPress={handleSend}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+              >
+                <LinearGradient
+                  colors={SUNRISE_GRADIENT}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+                >
+                  {isSending ? <Text style={styles.sendButtonText}>...</Text> : <Send color="#3A2218" size={18} />}
+                </LinearGradient>
+              </Pressable>
+            </View>
           </View>
         )}
       </View>
@@ -2064,93 +2164,207 @@ function getChatPersistenceMessage(errorCode?: string | null) {
   return "This reply was not saved. Please try sending your message again.";
 }
 
+const PAYWALL_STARTER_LINES = ["50 one-time credits", "Your chart summary", "First reflections with Lumis"];
+const PAYWALL_ESSENTIAL_LINES = [
+  "150 credits / month",
+  "Natal chart chat",
+  "All 3 Lumis Personas",
+  "Astrology dice",
+  "Knowledge library"
+];
+
+// Interrupt-and-upsell modal (distinct from the calm Plans & Access reference page).
+function PaywallScreen({ onClose, onStartCheckout }: { onClose: () => void; onStartCheckout: () => void }) {
+  const starter = PRODUCTS.find((product) => product.tier === "starter");
+  const essential = PRODUCTS.find((product) => product.tier === "essential");
+
+  return (
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.lumisDarkSafe}>
+      <StatusBar style="light" />
+      <CelestialBackground />
+      <ScrollView contentContainerStyle={styles.paywallContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.paywallTopBar}>
+          <Pressable style={styles.paywallClose} onPress={onClose} accessibilityLabel="Close">
+            <X color="#F0F4F8" size={19} />
+          </Pressable>
+        </View>
+
+        <View style={styles.paywallEyebrow}>
+          <Sparkles color="#E9B083" size={12} />
+          <Text style={styles.paywallEyebrowText}>CHOOSE YOUR PLAN</Text>
+        </View>
+        <Text style={styles.paywallTitle}>Go deeper with Lumis.</Text>
+        <Text style={styles.paywallSubtitle}>
+          Start free. Upgrade when the conversations start earning their keep.
+        </Text>
+
+        {/* Starter — free tier, no CTA */}
+        <View style={styles.paywallCard}>
+          <View style={styles.paywallCardHead}>
+            <Text style={styles.paywallPlanName}>{starter?.name ?? "Starter"}</Text>
+            <Text style={styles.paywallPlanPrice}>HK${starter?.priceHkd ?? 0}</Text>
+          </View>
+          <View style={styles.paywallChecklist}>
+            {PAYWALL_STARTER_LINES.map((line) => (
+              <View key={line} style={styles.paywallCheckRow}>
+                <Check color="#86C8A6" size={15} />
+                <Text style={styles.paywallCheckText}>{line}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Lumis Essential — recommended, gold border + badge + in-card CTA */}
+        <View style={styles.paywallCardFeatured}>
+          <View style={styles.paywallBadge}>
+            <Text style={styles.paywallBadgeText}>MOST POPULAR</Text>
+          </View>
+          <View style={styles.paywallCardHead}>
+            <Text style={styles.paywallPlanName}>{essential?.name ?? "Lumis Essential"}</Text>
+            <Text style={styles.paywallPlanPrice}>
+              HK${essential?.priceHkd ?? 58}
+              <Text style={styles.paywallPlanPer}>/mo</Text>
+            </Text>
+          </View>
+          <View style={styles.paywallChecklist}>
+            {PAYWALL_ESSENTIAL_LINES.map((line) => (
+              <View key={line} style={styles.paywallCheckRow}>
+                <Check color="#86C8A6" size={15} />
+                <Text style={styles.paywallCheckText}>{line}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable onPress={onStartCheckout} accessibilityRole="button" accessibilityLabel="Choose Essential">
+            <LinearGradient colors={SUNRISE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.paywallInCardCta}>
+              <Text style={styles.paywallInCardCtaText}>Choose Essential</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+
+        <Pressable onPress={onStartCheckout} accessibilityRole="button" accessibilityLabel="Start with Lumis Essential">
+          <LinearGradient colors={SUNRISE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.paywallPrimaryCta}>
+            <Text style={styles.paywallPrimaryCtaText}>Start with Lumis Essential  →</Text>
+          </LinearGradient>
+        </Pressable>
+
+        <Text style={styles.paywallFootnote}>
+          Subscriptions and purchases are managed through your App Store or Google Play settings.
+        </Text>
+      </ScrollView>
+    </SafeAreaViewCtx>
+  );
+}
+
 function PlansAccessScreen({
   currentPlan,
-  onBack
+  onBack,
+  onUpgrade
 }: {
   currentPlan: PlanTier;
   onBack: () => void;
+  onUpgrade: () => void;
 }) {
+  const planRank = { starter: 0, essential: 1, prime: 2 } as const;
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+    <SafeAreaViewCtx edges={["top", "left", "right"]} style={styles.lumisDarkSafe}>
+      <StatusBar style="light" />
+      <CelestialBackground />
+      <View style={styles.plansFrame}>
+        <View style={styles.plansHeader}>
+          <Pressable style={styles.plansBackBtn} onPress={onBack} accessibilityLabel="Back">
+            <ArrowLeft color="#F0F4F8" size={20} />
           </Pressable>
-          <View style={styles.formStepPill}>
-            <Text style={styles.formStepText}>Plans & Access</Text>
-          </View>
+          <Text style={styles.plansHeaderTitle}>Plans & Access</Text>
+          <View style={styles.plansBackBtn} />
         </View>
 
-        <View style={styles.formHero}>
-          <View style={styles.formLogo}>
-            <Text style={styles.planHeroIcon}>HK$</Text>
+        <ScrollView contentContainerStyle={styles.plansContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.plansIntroCard}>
+            <View style={styles.plansIntroIcon}>
+              <Sparkles color="#3A2218" size={20} />
+            </View>
+            <View style={styles.paywallEyebrow}>
+              <Sparkles color="#E9B083" size={11} />
+              <Text style={styles.paywallEyebrowText}>PLANS & ACCESS</Text>
+            </View>
+            <Text style={styles.plansIntroTitle}>Credits, routes, and premium gates.</Text>
+            <Text style={styles.plansIntroBody}>
+              This scaffold shows the current entitlement rules. Live purchases will be connected
+              after RevenueCat and App Store setup.
+            </Text>
           </View>
-          <Text style={styles.kicker}>Plans & Access</Text>
-          <Text style={styles.formTitle}>Credits, routes, and premium gates.</Text>
-          <Text style={styles.formIntro}>
-            This scaffold shows the current entitlement rules. Live purchases will be connected
-            after RevenueCat and App Store setup.
-          </Text>
-        </View>
 
-        <View style={styles.planCardGrid}>
           {PRODUCTS.map((product) => {
             const tier = product.tier as PlanTier;
             const isCurrent = tier === currentPlan;
+            const isUpgrade = planRank[tier] > planRank[currentPlan];
             const features = PLAN_ENTITLEMENTS[tier] ?? [];
 
             return (
-              <View key={product.code} style={[styles.planAccessCard, isCurrent && styles.planAccessCardCurrent]}>
-                <View style={styles.planAccessHeader}>
-                  <View>
-                    <Text style={styles.planAccessName}>{product.name}</Text>
-                    <Text style={styles.planAccessPrice}>
+              <View key={product.code} style={[styles.plansCard, isUpgrade && styles.plansCardUpgrade]}>
+                <View style={styles.plansCardHead}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.plansCardName}>{product.name}</Text>
+                    <Text style={styles.plansCardPrice}>
                       HK${product.priceHkd} · {product.credits} credits
                     </Text>
                   </View>
-                  {isCurrent ? <Text style={styles.currentPlanPill}>Current</Text> : null}
+                  {isCurrent ? (
+                    <Text style={styles.plansPillCurrent}>Current</Text>
+                  ) : isUpgrade ? (
+                    <Text style={styles.plansPillUpgrade}>Upgrade</Text>
+                  ) : null}
                 </View>
-                <View style={styles.featureList}>
+                <View style={styles.plansFeatureList}>
                   {features.map((feature) => (
-                    <Text key={feature} style={styles.featureText}>
-                      {FEATURE_LABELS[feature]}
-                    </Text>
+                    <View key={feature} style={styles.plansFeatureRow}>
+                      <Text style={styles.plansFeatureText}>{FEATURE_LABELS[feature]}</Text>
+                    </View>
                   ))}
                 </View>
               </View>
             );
           })}
-        </View>
 
-        <View style={styles.routeAccessPanel}>
-          <Text style={styles.noticeTitle}>Route access</Text>
-          {ROUTE_CREDITS.map((route) => (
-            <View key={route.route} style={styles.routeAccessRow}>
-              <View style={styles.routeAccessCopy}>
-                <Text style={styles.routeAccessTitle}>{route.label}</Text>
-                <Text style={styles.routeAccessMeta}>
-                  {route.credits} credits · {ROUTE_PLAN_REQUIREMENTS[route.route]}
-                </Text>
-              </View>
-              <Text style={[styles.routeAccessStatus, canUseRoute(currentPlan, route.route) && styles.routeAccessStatusOpen]}>
-                {canUseRoute(currentPlan, route.route) ? "Available" : "Upgrade"}
-              </Text>
-            </View>
-          ))}
-        </View>
+          {currentPlan !== "prime" ? (
+            <Pressable onPress={onUpgrade} accessibilityRole="button" accessibilityLabel="See upgrade options">
+              <LinearGradient colors={SUNRISE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.plansUpgradeCta}>
+                <Text style={styles.plansUpgradeCtaText}>See upgrade options</Text>
+              </LinearGradient>
+            </Pressable>
+          ) : null}
 
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Implementation note</Text>
-          <Text style={styles.noticeBody}>
-            Backend functions must enforce credits and plan gates. Mobile copy is only a guide and
-            must never be trusted for billing or access control.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          <Text style={styles.sectionLabelDark}>ROUTE ACCESS</Text>
+          <View style={styles.plansRouteCard}>
+            {ROUTE_CREDITS.map((route, index) => {
+              const available = canUseRoute(currentPlan, route.route);
+              return (
+                <View key={route.route} style={[styles.plansRouteRow, index === 0 && styles.plansRouteRowFirst]}>
+                  <View style={styles.plansRouteCopy}>
+                    <Text style={styles.plansRouteTitle}>{route.label}</Text>
+                    <Text style={styles.plansRouteMeta}>
+                      {route.credits} credits · min {ROUTE_PLAN_REQUIREMENTS[route.route]}
+                    </Text>
+                  </View>
+                  <Text style={[styles.plansRouteStatus, available ? styles.plansRouteStatusOpen : styles.plansRouteStatusLocked]}>
+                    {available ? "Available" : "Upgrade"}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          <View style={styles.plansNoteCard}>
+            <Info color="#8A9BB0" size={15} />
+            <Text style={styles.plansNoteText}>
+              Backend functions enforce credits and plan gates. This page is a reference only and is
+              never trusted for billing or access control.
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    </SafeAreaViewCtx>
   );
 }
 
@@ -2984,11 +3198,14 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 3
   },
+  messageColLumis: {
+    flexShrink: 1
+  },
   messageBubbleLumis: {
-    backgroundColor: "#152943",
-    borderColor: "rgba(255,255,255,0.09)",
-    borderBottomLeftRadius: 6,
-    borderRadius: 18,
+    backgroundColor: "rgba(122,142,192,0.16)",
+    borderColor: "rgba(206,216,255,0.14)",
+    borderTopLeftRadius: 6,
+    borderRadius: 19,
     borderWidth: 1,
     flexShrink: 1,
     paddingHorizontal: 14,
@@ -2996,12 +3213,53 @@ const styles = StyleSheet.create({
   },
   messageBubbleUser: {
     alignSelf: "flex-end",
-    backgroundColor: "#C9A96E",
-    borderBottomRightRadius: 6,
-    borderRadius: 18,
+    backgroundColor: "rgba(139,147,212,0.26)",
+    borderColor: "rgba(206,216,255,0.14)",
+    borderTopRightRadius: 6,
+    borderRadius: 19,
+    borderWidth: 1,
     maxWidth: "88%",
     paddingHorizontal: 14,
     paddingVertical: 12
+  },
+  chatTransitTag: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(233,176,131,0.12)",
+    borderColor: "rgba(233,176,131,0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 7,
+    marginTop: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 6
+  },
+  chatTransitTagText: {
+    color: "#E9B083",
+    fontSize: 11.5,
+    fontWeight: "600"
+  },
+  chatCtxWrap: {
+    marginTop: 6,
+    paddingLeft: 2
+  },
+  chatCtxLine: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6
+  },
+  chatCtxLineText: {
+    color: "#8A9BB0",
+    fontSize: 11.5,
+    fontWeight: "600"
+  },
+  chatCtxBody: {
+    color: "#8A9BB0",
+    fontSize: 11.5,
+    lineHeight: 17,
+    marginTop: 5,
+    maxWidth: "94%"
   },
   messageAuthor: {
     color: "#B4863F",
@@ -3039,15 +3297,47 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18
   },
+  chatFooter: {
+    gap: 10
+  },
+  chatDisclaimer: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 6
+  },
+  chatDisclaimerText: {
+    color: "#71839A",
+    fontSize: 11.5
+  },
+  chatPromptRow: {
+    gap: 8,
+    paddingRight: 4
+  },
+  chatPromptChip: {
+    backgroundColor: "rgba(22,39,61,0.5)",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9
+  },
+  chatPromptChipText: {
+    color: "#C4CEDB",
+    fontSize: 12.5,
+    fontWeight: "600"
+  },
   chatComposer: {
     alignItems: "center",
-    backgroundColor: "#152943",
+    backgroundColor: "rgba(22,39,61,0.55)",
     borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 24,
+    borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 10,
-    padding: 10
+    gap: 8,
+    paddingLeft: 6,
+    paddingRight: 6,
+    paddingVertical: 6
   },
   chatReadOnlyNotice: {
     backgroundColor: "#152943",
@@ -3109,20 +3399,77 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     alignItems: "center",
-    backgroundColor: "#C9A96E",
     borderRadius: 999,
-    height: 42,
+    height: 40,
     justifyContent: "center",
-    width: 42
+    width: 40
   },
   sendButtonDisabled: {
     opacity: 0.5
   },
   sendButtonText: {
-    color: "#FBF7EE",
+    color: "#3A2218",
     fontSize: 13,
     fontWeight: "800"
   },
+  // ---- Paywall ----
+  paywallContent: { paddingHorizontal: 22, paddingBottom: 36, paddingTop: 6 },
+  paywallTopBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
+  paywallClose: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(22,39,61,0.5)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+  paywallEyebrow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  paywallEyebrowText: { color: "#E9B083", fontSize: 10, fontWeight: "700", letterSpacing: 2 },
+  paywallTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 30, fontWeight: "600", marginTop: 10 },
+  paywallSubtitle: { color: "#C4CEDB", fontSize: 13.5, lineHeight: 20, marginTop: 8, marginBottom: 20 },
+  paywallCard: { backgroundColor: "rgba(58,80,118,0.24)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 20, borderWidth: 1, padding: 18, marginBottom: 16 },
+  paywallCardFeatured: { backgroundColor: "rgba(58,80,118,0.28)", borderColor: "rgba(201,169,110,0.6)", borderRadius: 20, borderWidth: 1.5, padding: 18, marginBottom: 22, marginTop: 6 },
+  paywallBadge: { position: "absolute", top: -11, left: 18, backgroundColor: "#C9A96E", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 },
+  paywallBadgeText: { color: "#2A1C08", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
+  paywallCardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  paywallPlanName: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 19, fontWeight: "600" },
+  paywallPlanPrice: { color: "#F0F4F8", fontSize: 20, fontWeight: "700" },
+  paywallPlanPer: { color: "#8A9BB0", fontSize: 12, fontWeight: "600" },
+  paywallChecklist: { gap: 10 },
+  paywallCheckRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  paywallCheckText: { color: "#C4CEDB", fontSize: 13.5, flex: 1 },
+  paywallInCardCta: { minHeight: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", marginTop: 16 },
+  paywallInCardCtaText: { color: "#3A2218", fontSize: 14, fontWeight: "700" },
+  paywallPrimaryCta: { minHeight: 54, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  paywallPrimaryCtaText: { color: "#3A2218", fontSize: 15, fontWeight: "700" },
+  paywallFootnote: { color: "#71839A", fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 16, paddingHorizontal: 12 },
+  // ---- Plans & Access ----
+  plansFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
+  plansHeader: { minHeight: 60, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18 },
+  plansHeaderTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 20, fontWeight: "600" },
+  plansBackBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(22,39,61,0.5)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
+  plansContent: { paddingHorizontal: 18, paddingBottom: 40, paddingTop: 6 },
+  plansIntroCard: { backgroundColor: "rgba(58,80,118,0.24)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 20, borderWidth: 1, padding: 22, alignItems: "center", marginBottom: 18 },
+  plansIntroIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "#C9A96E", marginBottom: 14 },
+  plansIntroTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 24, fontWeight: "600", textAlign: "center", marginTop: 10, lineHeight: 30 },
+  plansIntroBody: { color: "#C4CEDB", fontSize: 12.5, lineHeight: 19, textAlign: "center", marginTop: 8 },
+  plansCard: { backgroundColor: "rgba(58,80,118,0.2)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 18, borderWidth: 1, padding: 16, marginBottom: 12 },
+  plansCardUpgrade: { borderColor: "rgba(201,169,110,0.4)" },
+  plansCardHead: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+  plansCardName: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 17, fontWeight: "600" },
+  plansCardPrice: { color: "#8A9BB0", fontSize: 12, marginTop: 3 },
+  plansPillCurrent: { color: "#86C8A6", backgroundColor: "rgba(134,200,166,0.14)", borderColor: "rgba(134,200,166,0.4)", borderWidth: 1, borderRadius: 999, fontSize: 11, fontWeight: "700", overflow: "hidden", paddingHorizontal: 11, paddingVertical: 5 },
+  plansPillUpgrade: { color: "#E9B083", backgroundColor: "rgba(233,176,131,0.12)", borderColor: "rgba(233,176,131,0.4)", borderWidth: 1, borderRadius: 999, fontSize: 11, fontWeight: "700", overflow: "hidden", paddingHorizontal: 11, paddingVertical: 5 },
+  plansFeatureList: { gap: 0 },
+  plansFeatureRow: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", paddingVertical: 9 },
+  plansFeatureText: { color: "#C4CEDB", fontSize: 13 },
+  plansUpgradeCta: { minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4, marginBottom: 8 },
+  plansUpgradeCtaText: { color: "#3A2218", fontSize: 14.5, fontWeight: "700" },
+  sectionLabelDark: { color: "#8A9BB0", fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7, marginTop: 18, marginBottom: 10 },
+  plansRouteCard: { backgroundColor: "rgba(58,80,118,0.2)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  plansRouteRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 15, paddingVertical: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)" },
+  plansRouteRowFirst: { borderTopWidth: 0 },
+  plansRouteCopy: { flex: 1 },
+  plansRouteTitle: { color: "#F0F4F8", fontSize: 13.5, fontWeight: "700" },
+  plansRouteMeta: { color: "#8A9BB0", fontSize: 11, marginTop: 3 },
+  plansRouteStatus: { fontSize: 11.5, fontWeight: "700" },
+  plansRouteStatusOpen: { color: "#86C8A6" },
+  plansRouteStatusLocked: { color: "#E9B083" },
+  plansNoteCard: { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: "rgba(22,39,61,0.4)", borderColor: "rgba(255,255,255,0.06)", borderRadius: 14, borderWidth: 1, padding: 14, marginTop: 16 },
+  plansNoteText: { color: "#8A9BB0", fontSize: 11.5, lineHeight: 17, flex: 1 },
   chatStartOverButton: {
     alignItems: "center",
     paddingVertical: 4
@@ -3984,13 +4331,13 @@ const styles = StyleSheet.create({
   },
   chatIconButton: {
     alignItems: "center",
-    backgroundColor: "#152943",
+    backgroundColor: "rgba(22,39,61,0.5)",
     borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 999,
     borderWidth: 1,
-    height: 40,
+    height: 38,
     justifyContent: "center",
-    width: 40
+    width: 38
   },
   chatAvatar: {
     alignItems: "center",
@@ -4067,7 +4414,7 @@ const styles = StyleSheet.create({
     lineHeight: 22
   },
   messageTextUser: {
-    color: "#071321",
+    color: "#EEF0FB",
     fontSize: 14.5,
     lineHeight: 22
   },

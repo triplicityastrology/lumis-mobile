@@ -18,6 +18,7 @@ type BirthDataRow = {
   time_unknown: boolean;
   place_name: string;
   active_chart_version: number;
+  successful_change_count: number;
 };
 
 type AiProfileRow = {
@@ -80,6 +81,7 @@ export type SupabaseAccountState = {
   mainFocus: string | null;
   planTier: PlanTier;
   remainingCredits: number | null;
+  successfulBirthDetailChanges: number;
   message: string;
 };
 
@@ -112,7 +114,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
       .maybeSingle(),
     supabase
       .from("birth_data")
-      .select("birth_date, birth_time, time_unknown, place_name, active_chart_version")
+      .select("birth_date, birth_time, time_unknown, place_name, active_chart_version, successful_change_count")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
@@ -202,6 +204,7 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
     mainFocus: user?.focus?.trim() || null,
     planTier: normalizePlanTier(planResult.data),
     remainingCredits: balance?.remaining ?? null,
+    successfulBirthDetailChanges: birthData.successful_change_count,
     message:
       reflectionThreads.length > 0
         ? "Your chart and Past Reflections are ready."
@@ -273,6 +276,7 @@ function emptyAccountState(message: string): SupabaseAccountState {
     mainFocus: null,
     planTier: "starter",
     remainingCredits: null,
+    successfulBirthDetailChanges: 0,
     message
   };
 }

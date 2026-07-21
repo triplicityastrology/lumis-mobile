@@ -15,13 +15,16 @@ try {
   await auditExistingChartVersionInvariants();
   await verifyTrustedBirthLocationResolver();
   await verifyRuntimeMonitoringAndSchedules();
+  await verifyBirthDetailsChangeDeployment();
 
   const primary = await createConfirmedUser(`lumis.qa.primary.${runId}@example.com`, password);
   const secondary = await createConfirmedUser(`lumis.qa.secondary.${runId}@example.com`, password);
-  createdUserIds.push(primary.id, secondary.id);
+  const birthChangeUser = await createConfirmedUser(`lumis.qa.birth-change.${runId}@example.com`, password);
+  createdUserIds.push(primary.id, secondary.id, birthChangeUser.id);
 
   const primarySession = await signIn(primary.email, password);
   const secondarySession = await signIn(secondary.email, password);
+  const birthChangeSession = await signIn(birthChangeUser.email, password);
   const originalRequest = {
     display_name: "Staging QA",
     birth_date: "1986-02-20",
@@ -160,6 +163,197 @@ try {
     "Repeat onboarding created duplicate profile data."
   );
   pass("Repeat onboarding is rejected before chart generation");
+
+  const birthChangeInitial = await invokeFunction("profile", birthChangeSession.access_token, {
+    ...originalRequest,
+    display_name: "Birth Change QA"
+  });
+  assert(birthChangeInitial.status === 200, "Birth-change QA onboarding failed.");
+  const oldReflection = await invokeFunction("chat-message", birthChangeSession.access_token, {
+    message: "Keep this reflection on chart version one.",
+    client_msg_id: crypto.randomUUID(),
+    persona_style: "acceptance",
+    force_new_thread: true
+  });
+  assertSuccessfulNoChargeChat(oldReflection);
+
+  const birthChangeRequestId = crypto.randomUUID();
+  const changedBirthRequest = {
+    client_request_id: birthChangeRequestId,
+    display_name: "Incoming name is ignored",
+    birth_date: "1986-02-21",
+    birth_time: "09:30",
+    time_unknown: false,
+    place_name: "London, UK",
+    country_code: "GB",
+    lat: 51.5072,
+    lng: -0.1276,
+    tz_str: "Spoofed/Timezone"
+  };
+  const providerAttemptsBeforeInvalidBirthDetails = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
+  );
+  const [invalidBirthTime, invalidUnknownTimeType] = await Promise.all([
+    invokeFunction("profile/birth-details/change", birthChangeSession.access_token, {
+      ...changedBirthRequest,
+      client_request_id: crypto.randomUUID(),
+      birth_time: "25:61"
+    }),
+    invokeFunction("profile/birth-details/change", birthChangeSession.access_token, {
+      ...changedBirthRequest,
+      client_request_id: crypto.randomUUID(),
+      time_unknown: "false"
+    })
+  ]);
+  assert(
+    invalidBirthTime.status === 400 && invalidBirthTime.body?.error?.code === "49002",
+    "Malformed birth time was not rejected before regeneration."
+  );
+  assert(
+    invalidUnknownTimeType.status === 400 && invalidUnknownTimeType.body?.error?.code === "49002",
+    "Non-boolean unknown-time value was not rejected before regeneration."
+  );
+  const providerAttemptsAfterInvalidBirthDetails = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
+  );
+  assert(
+    providerAttemptsAfterInvalidBirthDetails.length === providerAttemptsBeforeInvalidBirthDetails.length,
+    "Invalid birth details reached the chart provider."
+  );
+  pass("Malformed birth details are rejected server-side before chart generation");
+  const changedBirth = await invokeFunction(
+    "profile/birth-details/change",
+    birthChangeSession.access_token,
+    changedBirthRequest
+  );
+  assert(
+    changedBirth.status === 200,
+    `Birth-detail regeneration returned HTTP ${changedBirth.status}: ${safeError(changedBirth.body)}.`
+  );
+  assert(changedBirth.body.status === "birth_details_regenerated", "Birth details were not regenerated.");
+  assert(changedBirth.body.chart_version === 2, "Birth-detail regeneration did not create chart version two.");
+  assert(changedBirth.body.successful_change_count === 1, "Successful birth-detail change count is not one.");
+  assert(changedBirth.body.remaining_changes === 2, "Remaining birth-detail changes is not two.");
+
+  const [changedBirthRow, changedHistories, changedProfiles, oldThreadRows] = await Promise.all([
+    serviceSelectOne("birth_data", birthChangeUser.id, "user_id"),
+    serviceSelect(
+      "birth_data_history",
+      `user_id=eq.${birthChangeUser.id}&select=id,chart_version,status,ai_profile_id&order=chart_version.asc`
+    ),
+    serviceSelect(
+      "ai_profiles",
+      `user_id=eq.${birthChangeUser.id}&select=id,chart_version,is_active,chart_json&order=chart_version.asc`
+    ),
+    serviceSelect("chat_threads", `id=eq.${oldReflection.body.thread_id}&select=id,chart_version,status`)
+  ]);
+  assert(changedBirthRow.active_chart_version === 2, "birth_data did not activate chart version two.");
+  assert(changedBirthRow.successful_change_count === 1, "birth_data consumed the wrong number of changes.");
+  assert(changedBirthRow.place_name === "London, UK", "Canonical birthplace was not stored.");
+  assert(changedBirthRow.tz_str === "Europe/London", "Client timezone spoof was not replaced server-side.");
+  assert(changedHistories.length === 2, "Regeneration did not retain both chart histories.");
+  assert(changedHistories[0].status === "superseded" && changedHistories[1].status === "active", "Chart history activation is incorrect.");
+  assert(changedProfiles.length === 2, "Regeneration did not create a second AI profile version.");
+  assert(changedProfiles[0].is_active === false && changedProfiles[1].is_active === true, "AI profile activation is incorrect.");
+  assert(!containsKey(changedProfiles[1].chart_json, "rawProviderResponse"), "Regenerated profile retained raw provider output.");
+  assert(oldThreadRows.length === 1 && oldThreadRows[0].chart_version === 1, "Past Reflection lost its original chart version.");
+  pass("Birth-detail regeneration atomically activates version two and preserves version-one reflections");
+
+  const providerAttemptsBeforeReplay = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
+  );
+  const replayedBirthChange = await invokeFunction(
+    "profile/birth-details/change",
+    birthChangeSession.access_token,
+    changedBirthRequest
+  );
+  assert(replayedBirthChange.status === 200, "Exact birth-change replay did not return safely.");
+  assert(replayedBirthChange.body.status === "birth_details_already_regenerated", "Exact birth-change replay was not idempotent.");
+  const providerAttemptsAfterReplay = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
+  );
+  assert(providerAttemptsAfterReplay.length === providerAttemptsBeforeReplay.length, "Exact replay called the chart provider again.");
+  pass("Exact birth-detail replay returns the committed result without another provider call");
+
+  const reservationA = crypto.randomUUID();
+  const reservationB = crypto.randomUUID();
+  const reservationResults = await Promise.all([
+    serviceRequest("/rest/v1/rpc/reserve_birth_details_change", {
+      method: "POST",
+      body: { p_user_id: birthChangeUser.id, p_request_id: reservationA, p_request_digest: "a".repeat(64) }
+    }),
+    serviceRequest("/rest/v1/rpc/reserve_birth_details_change", {
+      method: "POST",
+      body: { p_user_id: birthChangeUser.id, p_request_id: reservationB, p_request_digest: "b".repeat(64) }
+    })
+  ]);
+  const acceptedReservation = reservationResults.find((result) => result.ok === true);
+  const rejectedReservation = reservationResults.find((result) => result.ok === false);
+  assert(acceptedReservation && rejectedReservation?.error_code === "49003", "Concurrent regeneration reservations were not serialized.");
+  const acceptedRequestId = reservationResults[0].ok ? reservationA : reservationB;
+  await serviceRequest("/rest/v1/rpc/fail_birth_details_change", {
+    method: "POST",
+    body: { p_user_id: birthChangeUser.id, p_request_id: acceptedRequestId, p_error_code: "QA_RELEASE" }
+  });
+  const countAfterFailedReservation = await serviceSelectOne("birth_data", birthChangeUser.id, "user_id");
+  assert(countAfterFailedReservation.successful_change_count === 1, "Failed reservation consumed a lifetime change.");
+  pass("Concurrent regeneration is serialized and failed work does not consume a change");
+
+  const expiredRequestId = crypto.randomUUID();
+  const expiredDigest = "c".repeat(64);
+  const originalExpiredReservation = await serviceRequest("/rest/v1/rpc/reserve_birth_details_change", {
+    method: "POST",
+    body: {
+      p_user_id: birthChangeUser.id,
+      p_request_id: expiredRequestId,
+      p_request_digest: expiredDigest
+    }
+  });
+  assert(originalExpiredReservation.ok === true, "Expiry-recovery reservation was not created.");
+  await servicePatch("birth_detail_change_requests", `request_id=eq.${expiredRequestId}`, {
+    lease_expires_at: "2000-01-01T00:00:00.000Z"
+  });
+  const resumedExpiredReservation = await serviceRequest("/rest/v1/rpc/reserve_birth_details_change", {
+    method: "POST",
+    body: {
+      p_user_id: birthChangeUser.id,
+      p_request_id: expiredRequestId,
+      p_request_digest: expiredDigest
+    }
+  });
+  assert(resumedExpiredReservation.ok === true && resumedExpiredReservation.resumed === true, "Expired request did not resume safely.");
+  assert(
+    resumedExpiredReservation.worker_request_id === originalExpiredReservation.worker_request_id &&
+      resumedExpiredReservation.worker_requested_at === originalExpiredReservation.worker_requested_at,
+    "Expired request did not preserve its original Worker identity."
+  );
+  await serviceRequest("/rest/v1/rpc/fail_birth_details_change", {
+    method: "POST",
+    body: { p_user_id: birthChangeUser.id, p_request_id: expiredRequestId, p_error_code: "QA_RELEASE" }
+  });
+  pass("Expired same-request recovery preserves the original Worker request identity");
+
+  await servicePatch("birth_data", `user_id=eq.${birthChangeUser.id}`, { successful_change_count: 3 });
+  const providerAttemptsBeforeLimit = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
+  );
+  const limitedBirthChange = await invokeFunction(
+    "profile/birth-details/change",
+    birthChangeSession.access_token,
+    { ...changedBirthRequest, client_request_id: crypto.randomUUID(), birth_date: "1986-02-22" }
+  );
+  assert(limitedBirthChange.status === 409 && limitedBirthChange.body?.error?.code === "49001", "Three-change limit was not enforced.");
+  const providerAttemptsAfterLimit = await serviceSelect(
+    "chart_provider_call_attempt_events",
+    `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
+  );
+  assert(providerAttemptsAfterLimit.length === providerAttemptsBeforeLimit.length, "Limit rejection called the chart provider.");
+  pass("Lifetime limit rejects before chart generation");
 
   const starterEntitlement = await serviceSelectOne("account_entitlements", primary.id, "user_id");
   assert(starterEntitlement.plan_tier === "starter", "Onboarding entitlement is not Starter.");
@@ -797,6 +991,23 @@ async function verifyTrustedBirthLocationResolver() {
   });
   assert(!anonymous.ok, "Anonymous caller reached the trusted birthplace resolver.");
   pass("Backend-owned birthplace resolver rejects client timezone and mismatched location data");
+}
+
+async function verifyBirthDetailsChangeDeployment() {
+  const result = await serviceRequestResult("/rest/v1/rpc/reserve_birth_details_change", {
+    method: "POST",
+    body: {
+      p_user_id: crypto.randomUUID(),
+      p_request_id: crypto.randomUUID(),
+      p_request_digest: "0".repeat(64)
+    }
+  });
+
+  assert(
+    result.ok && result.body?.ok === false && result.body?.error_code === "49002",
+    `Migration 0026 is not ready in staging: ${safeError(result.body)}.`
+  );
+  pass("Birth-detail regeneration RPCs are deployed before hosted profile testing");
 }
 
 async function verifyRuntimeMonitoringAndSchedules() {

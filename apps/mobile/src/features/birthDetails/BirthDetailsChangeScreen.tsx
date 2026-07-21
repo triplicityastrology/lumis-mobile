@@ -1,4 +1,5 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import {
   Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View
@@ -6,6 +7,7 @@ import {
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import { CelestialBackground } from "../../components/CelestialBackground";
+import { GeneratingView } from "../../components/GeneratingView";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
@@ -55,12 +57,15 @@ function formatTime(d: Date): string {
  * Birth Details change flow (AC-UX-13). Display → edit → confirm (with diff) →
  * regenerating → success | failure. Copy is verbatim from AC-UX-06. The change
  * count is server-authoritative: UI decrements only on confirmed success.
- * Backend later performs the real chart regeneration.
+ * The hosted backend performs the chart regeneration and version switch.
  */
 
 const LIMIT = 3;
 
 export type BirthDetails = { birthDate: string; birthTime: string; birthPlace: string; timeUnknown: boolean };
+export type BirthRegenerationOutcome =
+  | { ok: true }
+  | { ok: false; code: string; message: string };
 
 type Step = "display" | "edit" | "confirm" | "regenerating" | "success" | "failure";
 
@@ -70,8 +75,7 @@ export function BirthDetailsChangeScreen({
   details: BirthDetails | null;
   successfulChanges: number;
   onBack: () => void;
-  /** Performs the REAL chart/profile regeneration; resolves true on success. */
-  onRegenerate: (next: BirthDetails) => Promise<boolean>;
+  onRegenerate: (next: BirthDetails, clientRequestId: string) => Promise<BirthRegenerationOutcome>;
 }) {
   const remaining = Math.max(0, LIMIT - successfulChanges);
   const [step, setStep] = useState<Step>("display");
@@ -80,6 +84,8 @@ export function BirthDetailsChangeScreen({
   );
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
   const [regenStep, setRegenStep] = useState(0);
+  const [formError, setFormError] = useState<string | null>(null);
+  const requestIdRef = useRef<string | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const clearTimers = () => {
     timersRef.current.forEach(clearTimeout);
@@ -87,6 +93,19 @@ export function BirthDetailsChangeScreen({
   };
   // Cancel any pending status-advance timers on unmount (spec: no dangling timers).
   useEffect(() => clearTimers, []);
+
+  function updateDraft(updater: (current: BirthDetails) => BirthDetails) {
+    requestIdRef.current = null;
+    setFormError(null);
+    setDraft(updater);
+  }
+
+  function beginEditing() {
+    requestIdRef.current = null;
+    setFormError(null);
+    setDraft(details ?? draft);
+    setStep("edit");
+  }
 
   const dirty = details
     ? draft.birthDate !== details.birthDate ||
@@ -97,21 +116,45 @@ export function BirthDetailsChangeScreen({
   const valid = draft.birthDate.trim() !== "" && draft.birthPlace.trim() !== "" && (draft.timeUnknown || draft.birthTime.trim() !== "");
 
   const REGEN_STEPS = [
-    "Updating your chart",
+    "Reading your updated birth details",
+    "Recalculating your sky",
     "Regenerating your Lumis profile",
     "Preparing your new chart context"
   ];
   async function runRegeneration() {
+    const clientRequestId = requestIdRef.current ?? randomUUID();
+    requestIdRef.current = clientRequestId;
     setStep("regenerating");
     setRegenStep(0);
     // Status steps advance for feedback; the real backend result decides the outcome.
     timersRef.current = [
       setTimeout(() => setRegenStep(1), 900),
-      setTimeout(() => setRegenStep(2), 1800)
+      setTimeout(() => setRegenStep(2), 2100),
+      setTimeout(() => setRegenStep(3), 3300)
     ];
-    const ok = await onRegenerate(draft);
+    const outcome = await onRegenerate(draft, clientRequestId);
     clearTimers();
-    setStep(ok ? "success" : "failure");
+    // On success the parent routes to the full chart-reveal page; the success card
+    // below is a fallback only for the case where no updated chart was returned.
+    if (outcome.ok) {
+      setStep("success");
+      return;
+    }
+
+    if (outcome.code === "49001") {
+      requestIdRef.current = null;
+      setStep("display");
+      return;
+    }
+
+    if (outcome.code === "49002") {
+      requestIdRef.current = null;
+      setFormError(outcome.message);
+      setStep("edit");
+      return;
+    }
+
+    setStep("failure");
   }
 
   const diffs: Array<{ label: string; from: string; to: string }> = [];
@@ -126,16 +169,12 @@ export function BirthDetailsChangeScreen({
   return (
     <SafeAreaView style={s.safe}>
       <CelestialBackground />
-      <ScreenHeader
-        title="Birth Details"
-        onBack={
-          step === "regenerating"
-            ? () => {} // no back-out mid-regeneration
-            : step === "display"
-              ? onBack
-              : () => { clearTimers(); setStep("display"); }
-        }
-      />
+      {step !== "regenerating" ? (
+        <ScreenHeader
+          title="Birth Details"
+          onBack={step === "display" ? onBack : () => { clearTimers(); requestIdRef.current = null; setStep("display"); }}
+        />
+      ) : null}
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {step === "display" ? (
@@ -158,7 +197,7 @@ export function BirthDetailsChangeScreen({
                 <GhostButton label="Contact support" onPress={() => {}} style={{ marginTop: 6 }} />
               </View>
             ) : (
-              <SoftButton label="Edit birth details" onPress={() => { setDraft(details ?? draft); setStep("edit"); }} style={{ marginTop: 18 }} />
+              <SoftButton label="Edit birth details" onPress={beginEditing} style={{ marginTop: 18 }} />
             )}
           </>
         ) : null}
@@ -167,7 +206,7 @@ export function BirthDetailsChangeScreen({
           <>
             <Text style={s.eyebrow}>✦ EDIT</Text>
             <Text style={s.editTitle}>Your birth details</Text>
-            <Text style={s.editSub}>{remaining} of {LIMIT} changes remaining this year.</Text>
+            <Text style={s.editSub}>{remaining} of {LIMIT} lifetime changes remaining.</Text>
 
             <PickerRow label="Birth date" value={draft.birthDate ? displayDate(draft.birthDate) : "Choose date"} onPress={() => setPicker("date")} />
             {!draft.timeUnknown ? (
@@ -177,13 +216,16 @@ export function BirthDetailsChangeScreen({
               <Text style={s.fieldLabel}>I don't know my birth time</Text>
               <Switch
                 value={draft.timeUnknown}
-                onValueChange={(v) => setDraft({ ...draft, timeUnknown: v })}
+                onValueChange={(v) => updateDraft((current) => ({ ...current, timeUnknown: v }))}
                 trackColor={{ false: "rgba(255,255,255,0.12)", true: "rgba(215,185,120,0.6)" }}
                 thumbColor={colors.ice}
               />
             </View>
-            {draft.timeUnknown ? <Text style={s.toggleNote}>Some house-based insights will be hidden.</Text> : null}
-            <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => setDraft({ ...draft, birthPlace: v })} placeholder="Search city, e.g. Hong Kong" />
+            {draft.timeUnknown ? (
+              <Text style={s.toggleNote}>Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements.</Text>
+            ) : null}
+            <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => updateDraft((current) => ({ ...current, birthPlace: v }))} placeholder="Search city, e.g. Hong Kong" />
+            {formError ? <Text style={s.formError}>{formError}</Text> : null}
 
             <BrandButton label="Review change" onPress={() => setStep("confirm")} disabled={!dirty || !valid} style={{ marginTop: 22 }} />
             {!dirty ? <Text style={s.hintNote}>Change a value to continue.</Text> : null}
@@ -206,8 +248,8 @@ export function BirthDetailsChangeScreen({
                       themeVariant="dark"
                       onChange={(_e: DateTimePickerEvent, d?: Date) => {
                         if (!d) return;
-                        if (picker === "date") setDraft((p) => ({ ...p, birthDate: formatDate(d) }));
-                        else setDraft((p) => ({ ...p, birthTime: formatTime(d) }));
+                        if (picker === "date") updateDraft((current) => ({ ...current, birthDate: formatDate(d) }));
+                        else updateDraft((current) => ({ ...current, birthTime: formatTime(d) }));
                       }}
                     />
                   </View>
@@ -221,8 +263,8 @@ export function BirthDetailsChangeScreen({
                   onChange={(e: DateTimePickerEvent, d?: Date) => {
                     setPicker(null);
                     if (e.type !== "set" || !d) return;
-                    if (picker === "date") setDraft((p) => ({ ...p, birthDate: formatDate(d) }));
-                    else setDraft((p) => ({ ...p, birthTime: formatTime(d) }));
+                    if (picker === "date") updateDraft((current) => ({ ...current, birthDate: formatDate(d) }));
+                    else updateDraft((current) => ({ ...current, birthTime: formatTime(d) }));
                   }}
                 />
               )
@@ -249,7 +291,7 @@ export function BirthDetailsChangeScreen({
               sub="Your previous chart is still active, and this change has not been counted."
               onRetry={runRegeneration}
               secondaryLabel="Back"
-              onSecondary={() => setStep("edit")}
+              onSecondary={() => { requestIdRef.current = null; setStep("edit"); }}
             />
           </View>
         ) : null}
@@ -284,23 +326,16 @@ export function BirthDetailsChangeScreen({
         </View>
       </Modal>
 
-      {/* Regenerating — full Generating-page experience (matches onboarding chart
-          generation), over the same sky, with the approved edit-specific copy. */}
+      {/* Regenerating — the same full Generating page used by onboarding chart
+          generation, over the same sky, with the approved edit-specific copy. */}
       {step === "regenerating" ? (
         <View style={s.regenOverlay}>
-          <View style={s.regenWheel}><LineMotif name="wheel" size={130} /></View>
-          <Text style={s.regenEyebrow}>✦ UPDATING YOUR SKY…</Text>
-          <Text style={s.regenTitle}>Regenerating your chart.</Text>
-          <View style={s.regenSteps}>
-            {REGEN_STEPS.map((label, i) => (
-              <View key={label} style={s.regenStepRow}>
-                <View style={[s.regenDot, i < regenStep && s.regenDotDone, i === regenStep && s.regenDotActive]}>
-                  {i < regenStep ? <Text style={s.regenCheck}>✓</Text> : <Text style={s.regenNum}>{i + 1}</Text>}
-                </View>
-                <Text style={[s.regenStepText, i <= regenStep && s.regenStepTextActive]}>{label}</Text>
-              </View>
-            ))}
-          </View>
+          <GeneratingView
+            activeStep={regenStep}
+            eyebrow="UPDATING YOUR SKY…"
+            title="Regenerating your chart."
+            steps={REGEN_STEPS}
+          />
         </View>
       ) : null}
     </SafeAreaView>
@@ -375,6 +410,7 @@ const s = StyleSheet.create({
   input: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, color: colors.ice, fontSize: 15, minHeight: 50, paddingHorizontal: 14 },
   toggleRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 18 },
   toggleNote: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 8 },
+  formError: { color: "#FFB4A8", fontSize: 12.5, lineHeight: 18, marginTop: 12 },
   hintNote: { color: colors.muted, fontSize: 12, marginTop: 10, textAlign: "center" },
   centered: { alignItems: "center", paddingTop: 24 },
   successTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 21, marginTop: 14, textAlign: "center" },
@@ -390,7 +426,7 @@ const s = StyleSheet.create({
   diffArrow: { color: colors.muted },
   diffTo: { color: colors.ice, fontWeight: "600" },
   modalCount: { color: colors.muted, fontSize: 12, marginTop: 14 },
-  regenOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
+  regenOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.navy950 },
   regenWheel: { alignItems: "center", height: 150, justifyContent: "center", marginBottom: 24, width: 150 },
   regenEyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
   regenTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, marginTop: 8, textAlign: "center" },

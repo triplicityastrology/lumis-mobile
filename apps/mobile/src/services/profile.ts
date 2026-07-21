@@ -2,7 +2,7 @@ import { buildProfileChartDraft, CHART_WORKER_CONTRACT } from "@lumis/astrology"
 import { isValidBirthDate, PERSONA_STYLES, type ChartV2, type PersonaStyleKey } from "@lumis/shared";
 
 import { resolveBirthPlace, type BirthPlaceResolution } from "./location";
-import { getSupabaseClient } from "./supabase";
+import { getSupabaseClient, getSupabaseConfig } from "./supabase";
 
 export type BirthProfileForm = {
   name: string;
@@ -58,6 +58,31 @@ export type ProfileFunctionResponse = {
   chart?: ChartV2;
   next_step?: string;
 };
+
+export type BirthDetailsChangeResult = {
+  status: "birth_details_regenerated" | "birth_details_already_regenerated";
+  chart_version: number;
+  profile_version?: number;
+  ai_profile_id: number;
+  birth_data_history_id: number;
+  successful_change_count: number;
+  remaining_changes: number;
+  precision?: "full" | "no_birth_time";
+  chart?: ChartV2;
+  request_id?: string;
+};
+
+export class BirthDetailsChangeError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly successfulChangeCount?: number,
+    readonly remainingChanges?: number
+  ) {
+    super(message);
+    this.name = "BirthDetailsChangeError";
+  }
+}
 
 export type PersonaPreferenceResult = {
   mode: "local" | "supabase";
@@ -221,6 +246,96 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     chart: response.chart ?? buildFixtureChart(form),
     data: response
   };
+}
+
+export async function regenerateBirthDetails(
+  form: BirthProfileForm,
+  clientRequestId: string
+): Promise<BirthDetailsChangeResult> {
+  const normalizedForm = {
+    ...form,
+    birthTime: normalizeBirthTimeForApi(form.birthTime)
+  };
+  const validation = validateBirthProfileForm(normalizedForm);
+
+  if (!validation.isValid) {
+    throw new BirthDetailsChangeError(
+      validation.message ?? "Please check the birth details and try again.",
+      "49002"
+    );
+  }
+
+  const prepared = prepareChartProfileRequest(normalizedForm);
+  const supabase = getSupabaseClient();
+  const config = getSupabaseConfig();
+
+  if (!supabase || !config.url || !config.anonKey) {
+    throw new Error("Sign in to change saved birth details.");
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  if (!accessToken) {
+    throw new Error("Sign in to change saved birth details.");
+  }
+
+  const response = await fetch(`${config.url}/functions/v1/profile/birth-details/change`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      ...prepared.payload,
+      client_request_id: clientRequestId
+    })
+  });
+  const data = (await response.json()) as BirthDetailsChangeResult & {
+    error?: { code?: string; message?: string };
+    successful_change_count?: number;
+    remaining_changes?: number;
+  };
+
+  if (!response.ok) {
+    throw new BirthDetailsChangeError(
+      data.error?.message ?? "Your previous chart is still active. Please try again.",
+      data.error?.code ?? "49003",
+      data.successful_change_count,
+      data.remaining_changes
+    );
+  }
+
+  if (
+    !data.chart_version ||
+    !data.ai_profile_id ||
+    !data.birth_data_history_id ||
+    typeof data.successful_change_count !== "number" ||
+    typeof data.remaining_changes !== "number"
+  ) {
+    throw new BirthDetailsChangeError(
+      "The regenerated chart response was incomplete. Your previous chart remains active.",
+      "49003"
+    );
+  }
+
+  return data;
+}
+
+function normalizeBirthTimeForApi(value: string): string {
+  const twentyFourHour = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+
+  if (twentyFourHour) {
+    return `${twentyFourHour[1].padStart(2, "0")}:${twentyFourHour[2]}`;
+  }
+
+  const twelveHour = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(value.trim());
+
+  if (!twelveHour) return value.trim();
+  let hour = Number(twelveHour[1]) % 12;
+  if (twelveHour[3].toUpperCase() === "PM") hour += 12;
+  return `${String(hour).padStart(2, "0")}:${twelveHour[2]}`;
 }
 
 function isEdgeFunctionTransportError(message: string): boolean {

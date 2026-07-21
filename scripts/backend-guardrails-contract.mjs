@@ -70,7 +70,10 @@ assert.match(mobileChat, /client_msg_id: input\.clientMessageId/);
 assert.match(mobileApp, /retryClientMessageId/);
 assert.match(mobileApp, /setRetryClientMessageId\(turn\.clientMessageId \?\? randomUUID\(\)\)/);
 
-assert.match(profileEdge, /p_endpoint: "\/profile"[\s\S]*p_max_requests: 5[\s\S]*p_window_seconds: 600/);
+assert.match(profileEdge, /profileRateLimit = await consumeProfileRateLimit\(serviceClient, userId\)/);
+assert.match(profileEdge, /endpoint = "\/profile"[\s\S]*maxRequests = 5[\s\S]*windowSeconds = 600/);
+assert.match(profileEdge, /p_endpoint: endpoint[\s\S]*p_max_requests: maxRequests[\s\S]*p_window_seconds: windowSeconds/);
+assert.match(profileEdge, /consumeProfileRateLimit\(serviceClient, userId, endpoint, 3, 600\)/);
 assert.match(profileEdge, /recordProviderCallOutcome[\s\S]*persistence_failed/);
 assert.match(profileEdge, /rpc\("record_chart_provider_call_event"/);
 assert.match(profileEdge, /recordWorkerPersistenceOutcome[\s\S]*\/mobile\/chart-persistence-outcome/);

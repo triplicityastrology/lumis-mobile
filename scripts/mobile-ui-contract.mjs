@@ -14,7 +14,8 @@ const accountStateSource = await readFile(path.join(root, "apps/mobile/src/servi
 const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
 const chatSource = await readFile(path.join(root, "apps/mobile/src/services/chat.ts"), "utf8");
-const paywallSource = extractFunction(appSource, "PlansAccessScreen", "NotificationBellIcon");
+const generatingSource = await readFile(path.join(root, "apps/mobile/src/components/GeneratingView.tsx"), "utf8");
+const paywallSource = extractRange(appSource, "const PAYWALL_STARTER_LINES", "function NotificationBellIcon");
 const nonPaywallAppSource = appSource.replace(paywallSource, "");
 const screenFiles = (await readdir(screensPath))
   .filter((name) => name.endsWith(".tsx") && !/profile|paywall/i.test(name))
@@ -127,7 +128,10 @@ assert.match(appSource, /function ChartGeneratingScreen/);
 assert.match(appSource, /function ChartRevealScreen/);
 assert.match(appSource, /function NatalChartWheel/);
 assert.match(appSource, /this is your inner universe/);
-assert.match(appSource, />Meet Lumis</);
+// The reveal CTA label is parameterized (ctaLabel) so existing-user chart edits
+// can relabel it ("Back to my Sky"); onboarding keeps the "Meet Lumis" default.
+assert.match(appSource, /ctaLabel = "Meet Lumis"/);
+assert.match(appSource, /\{ctaLabel\}/);
 assert.match(appSource, /const ascendant = chart\.precision === "full" \? chart\.angles\.ascendant : undefined/);
 assert.match(appSource, /Birth time unknown - planets shown without Ascendant, MC, houses, or planet house placements/);
 assert.doesNotMatch(appSource, /function ChartRevealPanel/);
@@ -150,10 +154,11 @@ assert.match(profileSource, /p_buddy_name: identity\.buddyName/);
 assert.match(profileSource, /p_focus: identity\.mainFocus/);
 assert.doesNotMatch(profileSource, /\.from\("users"\)[\s\S]{0,120}\.update\(/);
 assert.match(accountStateSource, /buddyName: user\?\.buddy_name\?\.trim\(\) \|\| "Lumis"/);
-assert.match(appSource, /Validating your birth details/);
-assert.match(appSource, /Positioning your sky/);
-assert.match(appSource, /Building your natal chart/);
-assert.match(appSource, /Shaping your Lumis profile/);
+assert.match(appSource, /<GeneratingView activeStep=\{activeStep\} name=\{name\}/);
+assert.match(generatingSource, /Aligning your ephemeris data/);
+assert.match(generatingSource, /Positioning your Ascendant and angles/);
+assert.match(generatingSource, /Turning your chart into personal algorithms/);
+assert.match(generatingSource, /Preparing your first psychological insight/);
 assert.doesNotMatch(appSource, /Preparing chart request/);
 assertNoVisibleImplementationCopy(appSource, "App surfaces");
 assertNoVisibleImplementationCopy(accountStateSource, "account restore messages");
@@ -171,6 +176,14 @@ function extractFunction(source, startName, endName) {
   const end = source.indexOf(`function ${endName}`, start + 1);
   assert.notEqual(start, -1, `${startName} must exist`);
   assert.notEqual(end, -1, `${endName} must exist after ${startName}`);
+  return source.slice(start, end);
+}
+
+function extractRange(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + 1);
+  assert.notEqual(start, -1, `${startMarker} must exist`);
+  assert.notEqual(end, -1, `${endMarker} must exist after ${startMarker}`);
   return source.slice(start, end);
 }
 

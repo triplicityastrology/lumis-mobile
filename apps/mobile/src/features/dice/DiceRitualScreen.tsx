@@ -68,9 +68,16 @@ function cameraPose(zoom: number) {
 
 const SUNRISE = ["#E5C06B", "#E9B083", "#E89B92"] as const;
 
-function BrandButton({ label, onPress, style }: { label: string; onPress: () => void; style?: object }) {
+function BrandButton({
+  label, onPress, style, disabled
+}: { label: string; onPress: () => void; style?: object; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={[styles.brandButtonWrap, style]}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityState={{ disabled: !!disabled }}
+      style={[styles.brandButtonWrap, disabled && styles.brandButtonDisabled, style]}
+    >
       <LinearGradient
         colors={[...SUNRISE]}
         start={{ x: 0, y: 0 }}
@@ -219,6 +226,7 @@ export function DiceRitualScreen({
 
   const beginReady = useCallback(() => {
     if (phaseRef.current !== "IDLE") return;
+    if (questionRef.current.trim().length === 0) return;
     transition("READY");
     handPoseRef.current = 1;
     cradleTick();
@@ -466,7 +474,17 @@ export function DiceRitualScreen({
               <Text style={styles.hint}>Shake to mix, then flick up to throw</Text>
             ) : null}
             {phase === "IDLE" ? (
-              <BrandButton label="Ready" onPress={beginReady} style={styles.fullWidthButton} />
+              <>
+                <BrandButton
+                  label="Ready"
+                  onPress={beginReady}
+                  disabled={trimmedQuestion.length === 0}
+                  style={styles.fullWidthButton}
+                />
+                {trimmedQuestion.length === 0 ? (
+                  <Text style={styles.readyHint}>Enter a question to begin your throw</Text>
+                ) : null}
+              </>
             ) : null}
             {showTapThrow && (phase === "READY" || phase === "MIXING") ? (
               <SoftButton label="Tap to throw" onPress={() => performThrow(1)} />
@@ -920,7 +938,9 @@ const styles = StyleSheet.create({
   questionInput: { color: colors.ice, fontFamily: "Georgia", fontSize: 16, minHeight: 32, padding: 0, textAlign: "center" },
   flexSpacer: { flex: 1 },
   hint: { color: colors.ice, fontSize: 15, marginBottom: 12, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 8 },
+  readyHint: { color: "#A2B0C6", fontSize: 12.5, marginTop: 10, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6 },
   brandButtonWrap: { borderRadius: 15, elevation: 6, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.45, shadowRadius: 18 },
+  brandButtonDisabled: { opacity: 0.42, shadowOpacity: 0 },
   brandButtonGrad: { alignItems: "center", borderRadius: 15, justifyContent: "center", minHeight: 54, paddingHorizontal: 32 },
   brandButtonText: { color: "#3A2218", fontSize: 16, fontWeight: "700" },
   fullWidthButton: { width: "88%" },
