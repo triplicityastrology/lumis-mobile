@@ -104,6 +104,11 @@ as $$
       select count(*) from public.chart_provider_call_events
       where status = 'persistence_failed' and compensation_status = 'review_pending'
     ),
+    'provider_calls_24h', (
+      select coalesce(sum(provider_call_count), 0)
+      from public.chart_provider_call_events
+      where created_at >= now() - interval '24 hours'
+    ),
     'external_sync_failed_final', (
       select count(*) from public.external_sync_events where status = 'failed_final'
     ),

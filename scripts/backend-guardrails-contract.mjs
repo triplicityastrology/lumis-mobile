@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import ts from "typescript";
 
 const guardrails = readFileSync("supabase/migrations/0020_backend_runtime_guardrails.sql", "utf8");
 const operations = readFileSync("supabase/migrations/0021_runtime_observability_and_schedules.sql", "utf8");
@@ -8,7 +9,22 @@ const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const mobileChat = readFileSync("apps/mobile/src/services/chat.ts", "utf8");
 const mobileApp = readFileSync("apps/mobile/App.tsx", "utf8");
 
-assert.match(guardrails, /billing_period_key date generated always as[\s\S]*date_trunc\('month', period_start at time zone 'UTC'\)/i);
+for (const [name, source] of [["chat-message", chatEdge], ["profile", profileEdge]]) {
+  const diagnostics = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    fileName: `${name}.ts`,
+    reportDiagnostics: true
+  }).diagnostics ?? [];
+  assert.deepEqual(
+    diagnostics.filter((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error),
+    [],
+    `${name} Edge Function contains a TypeScript syntax error`
+  );
+}
+
+assert.match(guardrails, /billing_period_key text[\s\S]*'calendar:' \|\| to_char\(period_start at time zone 'UTC', 'YYYY-MM'\)/i);
+assert.match(guardrails, /monthly_balance_billing_period_key_format/i);
+assert.match(guardrails, /default_monthly_balance_period_key_trigger/i);
 assert.match(guardrails, /monthly_balance_user_billing_period_idx[\s\S]*\(user_id, billing_period_key\)[\s\S]*grant_type not in/i);
 assert.match(guardrails, /max\(allocated\)[\s\S]*min\(remaining\)/i);
 assert.doesNotMatch(guardrails, /sum\(allocated\)|sum\(remaining\)/i);
@@ -18,6 +34,9 @@ assert.match(guardrails, /pg_advisory_xact_lock[\s\S]*CHAT_IDEMPOTENCY_CONFLICT/
 assert.match(guardrails, /assistant_message[\s\S]*duplicate/i);
 assert.match(guardrails, /create or replace function public\.check_api_rate_limit/i);
 assert.match(guardrails, /chart_provider_call_events[\s\S]*review_pending/i);
+assert.match(guardrails, /worker_disposition[\s\S]*provider_call_count/i);
+assert.match(profileEdge, /workerSummary[\s\S]*providerCallCount/i);
+assert.match(operations, /'provider_calls_24h'/i);
 assert.match(guardrails, /redact_completed_external_sync_payload[\s\S]*payload_redacted_at/i);
 assert.match(guardrails, /payload_expires_at[\s\S]*interval '30 days'/i);
 assert.match(guardrails, /redact_expired_external_sync_payloads/i);

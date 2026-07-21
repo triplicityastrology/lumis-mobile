@@ -389,6 +389,13 @@ async function assertSignedChartReplayIsIdempotent() {
 
     assert(first.status === 200 && second.status === 200, "Expected replay to return cached success.");
     assert(fetchCalls.length === 1, "Signed replay caused a second astrology provider call.");
+    assert(firstPayload.provider_telemetry?.disposition === "generated", "Initial response lacks provider telemetry.");
+    assert(secondPayload.provider_telemetry?.disposition === "already_generated", "Replay response lacks cached telemetry.");
+    assert(
+      firstPayload.provider_telemetry?.provider_call_count === 1 &&
+        secondPayload.provider_telemetry?.provider_call_count === 1,
+      "Provider telemetry does not prove a single provider call."
+    );
     assert(
       JSON.stringify(firstPayload.chart_v2) === JSON.stringify(secondPayload.chart_v2),
       "Signed replay did not return the original chart."

@@ -351,10 +351,22 @@ Deno.serve(async (request) => {
       : null;
 
   if (providerRequestId) {
+    const workerSummary = chartResult.rawChartJson.worker_response_summary as
+      | Record<string, unknown>
+      | undefined;
     await recordProviderCallOutcome(serviceClient, {
       requestId: providerRequestId,
       userId,
-      status: "generated"
+      status: "generated",
+      workerDisposition:
+        workerSummary?.provider_disposition === "generated" ||
+        workerSummary?.provider_disposition === "already_generated"
+          ? workerSummary.provider_disposition
+          : undefined,
+      providerCallCount:
+        typeof workerSummary?.provider_call_count === "number"
+          ? workerSummary.provider_call_count
+          : undefined
     });
   }
   const role = personaStyleToInternalRole.acceptance;
@@ -496,18 +508,25 @@ async function recordProviderCallOutcome(
     userId: string;
     status: "generated" | "committed" | "persistence_failed";
     errorCode?: string;
+    workerDisposition?: "generated" | "already_generated";
+    providerCallCount?: number;
   }
 ): Promise<void> {
+  const record: Record<string, unknown> = {
+    request_id: input.requestId,
+    user_id: input.userId,
+    status: input.status,
+    compensation_status: input.status === "persistence_failed" ? "review_pending" : "not_required",
+    persistence_completed_at: input.status === "committed" ? new Date().toISOString() : null,
+    last_error_code: input.errorCode ?? null,
+    updated_at: new Date().toISOString()
+  };
+
+  if (input.workerDisposition) record.worker_disposition = input.workerDisposition;
+  if (input.providerCallCount) record.provider_call_count = input.providerCallCount;
+
   const { error } = await serviceClient.from("chart_provider_call_events").upsert(
-    {
-      request_id: input.requestId,
-      user_id: input.userId,
-      status: input.status,
-      compensation_status: input.status === "persistence_failed" ? "review_pending" : "not_required",
-      persistence_completed_at: input.status === "committed" ? new Date().toISOString() : null,
-      last_error_code: input.errorCode ?? null,
-      updated_at: new Date().toISOString()
-    },
+    record,
     { onConflict: "request_id" }
   );
 

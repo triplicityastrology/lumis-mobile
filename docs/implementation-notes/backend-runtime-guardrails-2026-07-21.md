@@ -3,11 +3,12 @@
 ## Implemented In Source
 
 - Chat `client_msg_id` idempotency with atomic duplicate replay and content-conflict rejection.
-- One normal `monthly_balance` row per `(user_id, billing_period_key)` UTC calendar month, with conservative legacy duplicate consolidation/reporting that never sums accidental double grants.
+- One normal `monthly_balance` row per canonical `(user_id, billing_period_key)`. Legacy rows use `calendar:YYYY-MM`; RevenueCat must later use a stable provider-period key. Duplicate cleanup never sums accidental double grants.
 - `/profile` fixed-window limit: 5 new-profile attempts per 10 minutes per user.
 - `/chat-message` fixed-window limit: 30 attempts per minute per user.
 - `chat_messages(user_id, created_at desc)` usage-accounting index.
 - Provider-call outcome ledger for generated charts that fail onboarding persistence.
+- Safe Worker telemetry (`generated`/`already_generated` plus provider-call count) so signed simultaneous-request QA can prove provider-call suppression without exposing provider payloads.
 - Completed external-sync payload PII redaction. Failed-final PII remains backend-only for manual replay for 30 days, then is redacted while operational metadata remains visible.
 - Request IDs, payload-free runtime events, health snapshot, threshold alerts, and retention cleanup.
 - Database-local daily external-sync failure report and operational cleanup schedules.

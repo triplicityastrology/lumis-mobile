@@ -1,12 +1,46 @@
 -- Runtime guardrails required before paid chat and broader staging traffic.
 
--- Calendar-month is the current canonical balance period. RevenueCat must later
--- map provider periods to this key through its protected event handler. Starter
--- and quarantined legacy grants keep their separate one-time uniqueness rule.
+-- Legacy rows use a UTC calendar key. Future RevenueCat writers must supply a
+-- stable provider-period key (for example revenuecat:<subscription-period-id>)
+-- because subscription anniversaries need not align with calendar months.
+-- Starter and quarantined grants keep their separate one-time uniqueness rule.
 alter table public.monthly_balance
-  add column if not exists billing_period_key date generated always as (
-    date_trunc('month', period_start at time zone 'UTC')::date
-  ) stored;
+  add column if not exists billing_period_key text;
+
+update public.monthly_balance
+set billing_period_key = 'calendar:' || to_char(period_start at time zone 'UTC', 'YYYY-MM')
+where billing_period_key is null or trim(billing_period_key) = '';
+
+alter table public.monthly_balance
+  alter column billing_period_key set not null;
+
+alter table public.monthly_balance
+  drop constraint if exists monthly_balance_billing_period_key_format;
+alter table public.monthly_balance
+  add constraint monthly_balance_billing_period_key_format check (
+    char_length(billing_period_key) between 9 and 160
+    and billing_period_key ~ '^[a-z0-9][a-z0-9:._-]+$'
+  );
+
+create or replace function public.default_monthly_balance_period_key()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if nullif(trim(new.billing_period_key), '') is null then
+    new.billing_period_key :=
+      'calendar:' || to_char(new.period_start at time zone 'UTC', 'YYYY-MM');
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists default_monthly_balance_period_key_trigger
+  on public.monthly_balance;
+create trigger default_monthly_balance_period_key_trigger
+before insert or update of period_start, billing_period_key on public.monthly_balance
+for each row execute function public.default_monthly_balance_period_key();
 
 -- Consolidate legacy normal rows in the same logical month without summing
 -- allocations. Summing could preserve an accidental double grant. The oldest
@@ -74,7 +108,7 @@ create unique index if not exists monthly_balance_user_billing_period_idx
   where grant_type not in ('starter_onboarding', 'duplicate_starter_quarantined');
 
 comment on column public.monthly_balance.billing_period_key is
-  'Canonical UTC calendar month for normal balance rows. Provider webhook code must upsert this logical period, never an arbitrary timestamp.';
+  'Canonical logical period. Legacy/backend defaults use calendar:YYYY-MM; RevenueCat must use a stable provider period key and upsert it.';
 
 create index if not exists chat_messages_user_created_idx
   on public.chat_messages (user_id, created_at desc);
@@ -349,6 +383,8 @@ create table if not exists public.chart_provider_call_events (
   request_id text not null unique,
   user_id uuid not null references auth.users(id) on delete cascade,
   provider text not null default 'astrology_api_io',
+  worker_disposition text check (worker_disposition in ('generated', 'already_generated')),
+  provider_call_count integer check (provider_call_count is null or provider_call_count > 0),
   status text not null check (status in ('generated', 'committed', 'persistence_failed')),
   compensation_status text not null default 'not_required'
     check (compensation_status in ('not_required', 'review_pending', 'credited', 'waived')),

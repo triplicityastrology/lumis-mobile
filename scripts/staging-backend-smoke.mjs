@@ -50,6 +50,50 @@ try {
   assert(firstProfile.body.chart?.angles?.mediumCoeli, "Live full-time chart has no MC.");
   pass("Fresh onboarding persists a populated live Worker chart without raw provider output");
 
+  const billingPeriodKey = `qa:${crypto.randomUUID()}`;
+  const concurrentBalanceResults = await Promise.all([
+    serviceRequestResult("/rest/v1/monthly_balance", {
+      method: "POST",
+      prefer: "return=representation",
+      body: {
+        user_id: primary.id,
+        period_start: "2026-07-01T00:00:01.000Z",
+        period_end: "2026-08-01T00:00:00.000Z",
+        billing_period_key: billingPeriodKey,
+        grant_type: "subscription_period",
+        allocated: 150,
+        remaining: 150
+      }
+    }),
+    serviceRequestResult("/rest/v1/monthly_balance", {
+      method: "POST",
+      prefer: "return=representation",
+      body: {
+        user_id: primary.id,
+        period_start: "2026-07-01T00:00:02.000Z",
+        period_end: "2026-08-01T00:00:00.000Z",
+        billing_period_key: billingPeriodKey,
+        grant_type: "subscription_period",
+        allocated: 150,
+        remaining: 150
+      }
+    })
+  ]);
+  assert(
+    concurrentBalanceResults.filter((result) => result.ok).length === 1,
+    "Concurrent logical-period creation did not accept exactly one balance row."
+  );
+  const logicalPeriodRows = await serviceSelect(
+    "monthly_balance",
+    `user_id=eq.${primary.id}&billing_period_key=eq.${billingPeriodKey}&select=id,allocated,remaining`
+  );
+  assert(logicalPeriodRows.length === 1, "Logical billing period contains duplicate rows.");
+  assert(
+    logicalPeriodRows[0].allocated === 150 && logicalPeriodRows[0].remaining === 150,
+    "Logical-period duplicate handling preserved an accidental double grant."
+  );
+  pass("Concurrent balance creation permits one row and one allocation per logical provider period");
+
   const duplicateProfile = await invokeFunction("profile", primarySession.access_token, originalRequest);
   assert(duplicateProfile.status === 409, `Repeat onboarding returned HTTP ${duplicateProfile.status}.`);
   assert(
@@ -684,8 +728,7 @@ async function invokeFunction(name, accessToken, body) {
     headers: {
       apikey: anonKey,
       Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...(options.prefer ? { Prefer: options.prefer } : {})
+      "Content-Type": "application/json"
     },
     body: JSON.stringify(body)
   });

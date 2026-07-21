@@ -53,7 +53,15 @@ assert.doesNotMatch(appSource, /Use Save insight on a Lumis reply/);
 assert.match(appSource, /Saved Insights will appear here after this feature becomes available/);
 assert.match(appSource, /const filteredThreads = normalizedQuery/);
 assert.match(appSource, /No matching reflections/);
-assert.match(appSource, /onNotifications=\{\(\) => setScreen\("notifications"\)\}/);
+assert.match(
+  appSource,
+  /function openNotifications\(\)[\s\S]{0,420}setNotificationsReturn\([\s\S]{0,220}setScreen\("notifications"\)/,
+  "notification helper must remember the originating main tab and open Notifications"
+);
+assert.ok(
+  (appSource.match(/onNotifications=\{openNotifications\}/g) ?? []).length >= 5,
+  "Home, Chat, Insights, Dice, and Profile must share the Notifications entry point"
+);
 assert.match(appSource, /<Bell[^>]+size=\{18\}/);
 await assertScreenUsesTab("ChartInsightsScreen.tsx", "insights");
 await assertScreenUsesTab("LumisDiceScreen.tsx", "dice");
