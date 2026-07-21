@@ -76,6 +76,10 @@ export default {
       return handleMobileNatalChart(request, env, ctx);
     }
 
+    if (url.pathname === "/mobile/chart-persistence-outcome" && request.method === "POST") {
+      return handleChartPersistenceOutcome(request, env);
+    }
+
     if (url.pathname === "/mobile/admin-sync" && request.method === "POST") {
       return handleMobileAdminSync(request, env);
     }
@@ -128,6 +132,68 @@ async function handleMobileNatalChart(request, env, ctx) {
       env
     );
   }
+}
+
+async function handleChartPersistenceOutcome(request, env) {
+  const rawBody = await request.text();
+  const headerRequestId = request.headers.get("X-Lumis-Request-Id");
+
+  try {
+    await verifyMobileSignature(request, env, rawBody);
+    requireWorkerEnvironment(env);
+
+    const body = JSON.parse(rawBody);
+    const headerUserId = request.headers.get("X-Lumis-User-Id");
+
+    if (
+      !body?.request_id ||
+      !body?.user_id ||
+      !["committed", "persistence_failed"].includes(body.outcome) ||
+      body.request_id !== headerRequestId ||
+      body.user_id !== headerUserId ||
+      !env.CHART_REQUEST_COORDINATOR
+    ) {
+      throw new WorkerRequestError("INVALID_REQUEST", 400);
+    }
+
+    const coordinatorId = env.CHART_REQUEST_COORDINATOR.idFromName(
+      `${body.user_id}:${body.request_id}`
+    );
+    const coordinator = env.CHART_REQUEST_COORDINATOR.get(coordinatorId);
+    const response = await coordinator.fetch("https://chart-request.internal/persistence-outcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        request_id: body.request_id,
+        user_id: body.user_id,
+        outcome: body.outcome,
+        error_code: safePersistenceErrorCode(body.error_code)
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new WorkerRequestError(
+        payload.error === "CHART_RESULT_NOT_FOUND" ? payload.error : "PERSISTENCE_OUTCOME_FAILED",
+        response.status >= 400 ? response.status : 500
+      );
+    }
+
+    return json(payload, 200, env);
+  } catch (error) {
+    const workerError = normalizeWorkerError(error);
+    console.error("MOBILE_CHART_PERSISTENCE_OUTCOME_FAILED", {
+      request_id: headerRequestId,
+      code: workerError.code
+    });
+    return json({ error: workerError.code, request_id: headerRequestId }, workerError.status, env);
+  }
+}
+
+function safePersistenceErrorCode(value) {
+  return typeof value === "string" && /^[A-Z0-9_]{1,64}$/.test(value)
+    ? value
+    : null;
 }
 
 async function handleMobileAdminSync(request, env) {
@@ -597,6 +663,10 @@ export class AuditDeliveryCoordinator {
       return this.handleChartGeneration(request);
     }
 
+    if (url.pathname === "/persistence-outcome") {
+      return this.handlePersistenceOutcome(request);
+    }
+
     if (request.method !== "POST") {
       return auditCoordinatorResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
     }
@@ -811,6 +881,66 @@ export class AuditDeliveryCoordinator {
       await this.scheduleChartCacheExpiry();
       return auditCoordinatorResponse({ error: workerError.code }, workerError.status);
     }
+  }
+
+  async handlePersistenceOutcome(request) {
+    if (request.method !== "POST") {
+      return auditCoordinatorResponse({ error: "METHOD_NOT_ALLOWED" }, 405);
+    }
+
+    let payload;
+
+    try {
+      payload = await request.json();
+    } catch {
+      return auditCoordinatorResponse({ error: "INVALID_REQUEST" }, 400);
+    }
+
+    if (
+      !payload?.request_id ||
+      !payload?.user_id ||
+      !["committed", "persistence_failed"].includes(payload.outcome)
+    ) {
+      return auditCoordinatorResponse({ error: "INVALID_REQUEST" }, 400);
+    }
+
+    const storageKey = "chart:result";
+    const outcome = await this.state.storage.transaction(async (transaction) => {
+      const existing = await transaction.get(storageKey);
+
+      if (existing?.status !== "completed" || !existing.chart_v2) {
+        return null;
+      }
+
+      const updated = {
+        ...existing,
+        persistence_outcome: payload.outcome,
+        persistence_error_code: safePersistenceErrorCode(payload.error_code),
+        persistence_recorded_at: new Date().toISOString()
+      };
+      await transaction.put(storageKey, updated);
+      return updated;
+    });
+
+    if (!outcome) {
+      return auditCoordinatorResponse({ error: "CHART_RESULT_NOT_FOUND" }, 404);
+    }
+
+    await this.scheduleChartCacheExpiry();
+
+    if (payload.outcome === "persistence_failed") {
+      console.error("CHART_PERSISTENCE_FAILED_AFTER_PROVIDER_CALL", {
+        request_id: payload.request_id,
+        error_code: outcome.persistence_error_code,
+        provider_call_count: Number(outcome.provider_call_count || 1)
+      });
+    }
+
+    return auditCoordinatorResponse({
+      status: "recorded",
+      persistence_outcome: payload.outcome,
+      provider_call_count: Number(outcome.provider_call_count || 1)
+    });
   }
 
   async scheduleChartCacheExpiry() {

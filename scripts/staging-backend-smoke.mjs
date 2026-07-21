@@ -335,6 +335,32 @@ try {
   assert(replayedChatOne.body.duplicate === true, "Exact chat replay was not identified as a duplicate.");
   assert(replayedChatOne.body.thread_id === chatOne.body.thread_id, "Exact chat replay changed threads.");
 
+  const changedContextReplay = await serviceRequest(
+    "/rest/v1/rpc/persist_scaffold_chat_turn",
+    {
+      method: "POST",
+      body: {
+        p_user_id: primary.id,
+        p_ai_profile_id: repairedAiProfile.id,
+        p_chart_version: repairedAiProfile.chart_version,
+        p_persona_style: "spark",
+        p_route: "knowledge",
+        p_title: "Changed replay context",
+        p_user_message: chatOneRequest.message,
+        p_assistant_message: "This must not replace the saved response.",
+        p_force_new_thread: false,
+        p_thread_id: chatOne.body.thread_id,
+        p_client_msg_id: chatOneClientId
+      }
+    }
+  );
+  assert(changedContextReplay.ok === false, "Changed-context replay unexpectedly succeeded.");
+  assert(
+    changedContextReplay.error_code === "CHAT_IDEMPOTENCY_CONFLICT",
+    "Changed-context replay did not return CHAT_IDEMPOTENCY_CONFLICT."
+  );
+  pass("Chat idempotency rejects reused IDs with changed route or thread intent");
+
   const chatTwo = await invokeFunction("chat-message", primarySession.access_token, {
     message: "Continue that reflection.",
     client_msg_id: crypto.randomUUID(),

@@ -4,8 +4,10 @@ import ts from "typescript";
 
 const guardrails = readFileSync("supabase/migrations/0020_backend_runtime_guardrails.sql", "utf8");
 const operations = readFileSync("supabase/migrations/0021_runtime_observability_and_schedules.sql", "utf8");
+const chatIdempotency = readFileSync("supabase/migrations/0022_chat_idempotency_context.sql", "utf8");
 const chatEdge = readFileSync("supabase/functions/chat-message/index.ts", "utf8");
 const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
+const chartWorker = readFileSync("workers/chart-mobile/worker.js", "utf8");
 const mobileChat = readFileSync("apps/mobile/src/services/chat.ts", "utf8");
 const mobileApp = readFileSync("apps/mobile/App.tsx", "utf8");
 
@@ -32,6 +34,20 @@ assert.match(guardrails, /chat_messages_user_created_idx[\s\S]*\(user_id, create
 assert.match(guardrails, /chat_messages_user_client_msg_idx[\s\S]*role = 'user'/i);
 assert.match(guardrails, /pg_advisory_xact_lock[\s\S]*CHAT_IDEMPOTENCY_CONFLICT/i);
 assert.match(guardrails, /assistant_message[\s\S]*duplicate/i);
+assert.match(chatIdempotency, /p_client_msg_id is null[\s\S]*CHAT_PERSISTENCE_INVALID_INPUT/i);
+for (const contextField of [
+  "request_force_new_thread",
+  "request_thread_id",
+  "request_ai_profile_id",
+  "request_chart_version",
+  "request_persona_style"
+]) {
+  assert.match(chatIdempotency, new RegExp(contextField), `chat idempotency must retain ${contextField}`);
+}
+assert.match(
+  chatIdempotency,
+  /v_existing_route is distinct from[\s\S]*v_existing_force_new_thread is distinct from[\s\S]*v_existing_requested_thread_id is distinct from[\s\S]*v_existing_ai_profile_id is distinct from[\s\S]*v_existing_chart_version is distinct from/i
+);
 assert.match(guardrails, /create or replace function public\.check_api_rate_limit/i);
 assert.match(guardrails, /chart_provider_call_events[\s\S]*review_pending/i);
 assert.match(guardrails, /worker_disposition[\s\S]*provider_call_count/i);
@@ -53,6 +69,9 @@ assert.match(mobileApp, /setRetryClientMessageId\(turn\.clientMessageId \?\? ran
 
 assert.match(profileEdge, /p_endpoint: "\/profile"[\s\S]*p_max_requests: 5[\s\S]*p_window_seconds: 600/);
 assert.match(profileEdge, /recordProviderCallOutcome[\s\S]*persistence_failed/);
+assert.match(profileEdge, /recordWorkerPersistenceOutcome[\s\S]*\/mobile\/chart-persistence-outcome/);
+assert.match(chartWorker, /CHART_PERSISTENCE_FAILED_AFTER_PROVIDER_CALL/);
+assert.match(chartWorker, /persistence_outcome:[\s\S]*persistence_error_code:[\s\S]*persistence_recorded_at:/);
 assert.doesNotMatch(profileEdge, /PROFILE_ONBOARDING_FAILED", message: onboardingError\.message/);
 
 assert.match(operations, /create table if not exists public\.runtime_request_events/i);
@@ -64,5 +83,15 @@ assert.match(operations, /create or replace function public\.purge_runtime_opera
 assert.match(operations, /lumis-runtime-retention/);
 assert.match(operations, /lumis-external-sync-daily-report/);
 assert.doesNotMatch(operations, /external-sync-retry[\s\S]*net\.http_post/i);
+
+for (const edgeSource of [
+  chatEdge,
+  profileEdge,
+  readFileSync("supabase/functions/account-deletion-request/index.ts", "utf8"),
+  readFileSync("supabase/functions/external-sync-retry/index.ts", "utf8")
+]) {
+  assert.match(edgeSource, /from "npm:@supabase\/supabase-js@2\.52\.0"/);
+  assert.doesNotMatch(edgeSource, /from "@supabase\/supabase-js"/);
+}
 
 console.log("backend guardrail contract checks passed");

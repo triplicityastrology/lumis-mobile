@@ -43,6 +43,7 @@ await assertProviderTimeoutIsControlled();
 await assertSignedChartReplayIsIdempotent();
 await assertRequestIdConflictIsRejected();
 await assertChartReplayCacheExpires();
+await assertPersistenceOutcomeSurvivesDatabaseFailure();
 await assertSignedAdminSyncRequest();
 await assertAdminSyncRejectsProviderPayload();
 assertMobileAuditContract();
@@ -470,6 +471,41 @@ async function assertChartReplayCacheExpires() {
   assert(storage.alarmAt() === null, "Expected chart replay alarm cleanup to clear the alarm.");
 }
 
+async function assertPersistenceOutcomeSurvivesDatabaseFailure() {
+  const storage = buildTransactionalStorage();
+  const env = buildEnv({
+    CHART_REQUEST_COORDINATOR: buildCoordinatorBindingWithStorage(storage)
+  });
+  const body = buildRequestBody({ birth_time: "16:55", time_unknown: false });
+  const fetchCalls = [];
+  const restoreFetch = mockFetch(fetchCalls);
+
+  try {
+    const chartResponse = await worker.fetch(await signedRequest(body), env, buildCtx());
+    const outcomeResponse = await worker.fetch(
+      await signedPersistenceOutcomeRequest({
+        request_id: body.request_id,
+        user_id: body.user_id,
+        outcome: "persistence_failed",
+        error_code: "PROFILE_ONBOARDING_FAILED"
+      }),
+      env,
+      buildCtx()
+    );
+    const outcomePayload = await outcomeResponse.json();
+    const stored = await storage.get("chart:result");
+
+    assert(chartResponse.status === 200, "Expected chart generation before persistence outcome.");
+    assert(outcomeResponse.status === 200, "Expected signed persistence outcome to be recorded.");
+    assert(outcomePayload.persistence_outcome === "persistence_failed", "Expected safe persistence failure outcome.");
+    assert(stored?.persistence_outcome === "persistence_failed", "Cloudflare cache did not retain persistence failure.");
+    assert(stored?.persistence_error_code === "PROFILE_ONBOARDING_FAILED", "Cloudflare cache lost safe error code.");
+    assert(fetchCalls.length === 1, "Recording persistence outcome caused another provider call.");
+  } finally {
+    restoreFetch();
+  }
+}
+
 async function assertProviderFailureIsRedacted() {
   const fetchCalls = [];
   const providerDebug = "sensitive provider diagnostic must not escape";
@@ -600,6 +636,25 @@ async function signedAdminRequest(body) {
   });
 }
 
+async function signedPersistenceOutcomeRequest(body) {
+  const rawBody = JSON.stringify(body);
+  const timestamp = String(Date.now());
+  const signature = await sign(`${timestamp}.${rawBody}`, signingSecret);
+
+  return new Request("https://chart-worker.test/mobile/chart-persistence-outcome", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Lumis-Signature-Version": "v1",
+      "X-Lumis-Timestamp": timestamp,
+      "X-Lumis-Signature": signature,
+      "X-Lumis-Request-Id": body.request_id,
+      "X-Lumis-User-Id": body.user_id
+    },
+    body: rawBody
+  });
+}
+
 async function sign(value, secret) {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -721,6 +776,21 @@ function buildChartCoordinatorBinding(env) {
         );
       }
       const coordinator = coordinators.get(id);
+      return { fetch: (url, options) => coordinator.fetch(new Request(url, options)) };
+    }
+  };
+}
+
+function buildCoordinatorBindingWithStorage(storage) {
+  return {
+    idFromName(value) {
+      return value;
+    },
+    get() {
+      const coordinator = new AuditDeliveryCoordinator(
+        { storage },
+        { ...buildEnv(), CHART_REQUEST_COORDINATOR: undefined }
+      );
       return { fetch: (url, options) => coordinator.fetch(new Request(url, options)) };
     }
   };
@@ -1251,6 +1321,9 @@ function buildTransactionalStorage(initialEntries = []) {
     },
     async put(key, value) {
       values.set(key, value);
+    },
+    async get(key) {
+      return values.get(key);
     },
     async setAlarm(timestamp) {
       alarmTimestamp = Number(timestamp);

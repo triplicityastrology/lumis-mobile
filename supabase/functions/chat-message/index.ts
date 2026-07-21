@@ -1,5 +1,5 @@
 import { corsHeaders, handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 import { buildSafeChatChartContext } from "../../../packages/astrology/src/chat-chart-context.ts";
 import { ROUTE_CREDITS as SHARED_ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";

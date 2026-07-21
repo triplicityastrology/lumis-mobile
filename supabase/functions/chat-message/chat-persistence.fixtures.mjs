@@ -9,11 +9,25 @@ const migrationSource = readFileSync(
   "supabase/migrations/0011_explicit_reflection_thread.sql",
   "utf8"
 );
+const idempotencyMigrationSource = readFileSync(
+  "supabase/migrations/0022_chat_idempotency_context.sql",
+  "utf8"
+);
 
 assert.match(
   migrationSource,
   /create or replace function public\.persist_scaffold_chat_turn/i,
   "chat persistence RPC must exist"
+);
+assert.match(
+  idempotencyMigrationSource,
+  /p_client_msg_id is null[\s\S]*CHAT_PERSISTENCE_INVALID_INPUT/i,
+  "persisted chat turns must require a client idempotency ID"
+);
+assert.match(
+  idempotencyMigrationSource,
+  /v_existing_route is distinct from[\s\S]*v_existing_force_new_thread is distinct from[\s\S]*v_existing_requested_thread_id is distinct from[\s\S]*v_existing_ai_profile_id is distinct from[\s\S]*v_existing_chart_version is distinct from/i,
+  "idempotency replay must reject changed route, thread intent, profile, or chart context"
 );
 assert.match(
   migrationSource,

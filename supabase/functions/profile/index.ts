@@ -5,7 +5,7 @@ import {
 import { allowsFixtureFallbackForEnvironment } from "../../../packages/astrology/src/chart-worker-config.ts";
 import { sanitizeChartForClient } from "../../../packages/astrology/src/chart-sanitizer.ts";
 import { decideProfilePreflight } from "../../../packages/astrology/src/profile-preflight.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
 import { isValidBirthDate } from "../../../packages/shared/src/config/birth-date.ts";
 
@@ -401,12 +401,20 @@ Deno.serve(async (request) => {
 
   if (onboardingError) {
     if (providerRequestId) {
-      await recordProviderCallOutcome(serviceClient, {
-        requestId: providerRequestId,
-        userId,
-        status: "persistence_failed",
-        errorCode: "PROFILE_ONBOARDING_FAILED"
-      });
+      await Promise.all([
+        recordProviderCallOutcome(serviceClient, {
+          requestId: providerRequestId,
+          userId,
+          status: "persistence_failed",
+          errorCode: "PROFILE_ONBOARDING_FAILED"
+        }),
+        recordWorkerPersistenceOutcome({
+          requestId: providerRequestId,
+          userId,
+          outcome: "persistence_failed",
+          errorCode: "PROFILE_ONBOARDING_FAILED"
+        })
+      ]);
     }
     await recordProfileRuntimeEvent(serviceClient, {
       requestId,
@@ -426,12 +434,20 @@ Deno.serve(async (request) => {
 
   if (!onboarding.ok) {
     if (providerRequestId) {
-      await recordProviderCallOutcome(serviceClient, {
-        requestId: providerRequestId,
-        userId,
-        status: "persistence_failed",
-        errorCode: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED"
-      });
+      await Promise.all([
+        recordProviderCallOutcome(serviceClient, {
+          requestId: providerRequestId,
+          userId,
+          status: "persistence_failed",
+          errorCode: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED"
+        }),
+        recordWorkerPersistenceOutcome({
+          requestId: providerRequestId,
+          userId,
+          outcome: "persistence_failed",
+          errorCode: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED"
+        })
+      ]);
     }
     await recordProfileRuntimeEvent(serviceClient, {
       requestId,
@@ -453,11 +469,18 @@ Deno.serve(async (request) => {
   }
 
   if (providerRequestId) {
-    await recordProviderCallOutcome(serviceClient, {
-      requestId: providerRequestId,
-      userId,
-      status: "committed"
-    });
+    await Promise.all([
+      recordProviderCallOutcome(serviceClient, {
+        requestId: providerRequestId,
+        userId,
+        status: "committed"
+      }),
+      recordWorkerPersistenceOutcome({
+        requestId: providerRequestId,
+        userId,
+        outcome: "committed"
+      })
+    ]);
   }
   await recordProfileRuntimeEvent(serviceClient, {
     requestId,
@@ -537,6 +560,68 @@ async function recordProviderCallOutcome(
       status: input.status,
       code: error.code
     });
+  }
+}
+
+async function recordWorkerPersistenceOutcome(input: {
+  requestId: string;
+  userId: string;
+  outcome: "committed" | "persistence_failed";
+  errorCode?: string;
+}): Promise<void> {
+  const workerUrl = chartWorkerUrl();
+  const signingSecret = Deno.env.get("CHART_WORKER_SIGNING_SECRET");
+
+  if (!workerUrl || !signingSecret) {
+    return;
+  }
+
+  const outcomeUrl = workerUrl.replace(/\/mobile\/natal-chart\/?$/, "/mobile/chart-persistence-outcome");
+  const bodyText = JSON.stringify({
+    request_id: input.requestId,
+    user_id: input.userId,
+    outcome: input.outcome,
+    error_code: input.errorCode ?? null
+  });
+  const timestamp = String(Date.now());
+  const signature = await signChartWorkerRequest({ bodyText, signingSecret, timestamp });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+
+  try {
+    const response = await fetch(outcomeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Lumis-Signature-Version": "v1",
+        "X-Lumis-Timestamp": timestamp,
+        "X-Lumis-Signature": signature,
+        "X-Lumis-Request-Id": input.requestId,
+        "X-Lumis-User-Id": input.userId
+      },
+      body: bodyText,
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      console.error("PROFILE_WORKER_OUTCOME_WRITE_FAILED", {
+        request_id: input.requestId,
+        user_id: input.userId,
+        outcome: input.outcome,
+        status: response.status
+      });
+    }
+  } catch (error) {
+    console.error("PROFILE_WORKER_OUTCOME_WRITE_FAILED", {
+      request_id: input.requestId,
+      user_id: input.userId,
+      outcome: input.outcome,
+      code: error instanceof DOMException && error.name === "AbortError"
+        ? "WORKER_OUTCOME_TIMEOUT"
+        : "WORKER_OUTCOME_REQUEST_FAILED"
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
