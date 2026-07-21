@@ -13,7 +13,8 @@
           "motionPermission": "Allow Lumis to detect a shake when you roll astrology dice."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
     ],
     "ios": {
       "supportsTablet": false

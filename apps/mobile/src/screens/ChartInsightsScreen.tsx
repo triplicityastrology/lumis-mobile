@@ -1,7 +1,8 @@
 import Bell from "lucide-react-native/icons/bell";
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import MessageCircle from "lucide-react-native/icons/message-circle";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
 
@@ -26,7 +27,7 @@ export function ChartInsightsScreen({
   onSelectTab: (tab: MainTab) => void;
 }) {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>

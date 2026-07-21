@@ -5,8 +5,9 @@ import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Animated, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View
+  AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput, View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
 } from "react-native-svg";
@@ -93,11 +94,13 @@ function SoftButton({ label, onPress, style }: { label: string; onPress: () => v
 export function DiceRitualScreen({
   onNotifications,
   onReflect,
-  onSelectTab
+  onSelectTab,
+  onBack
 }: {
   onNotifications: () => void;
   onReflect: (chatDraft: string) => void;
   onSelectTab: (tab: MainTab) => void;
+  onBack: () => void;
 }) {
   const [question, setQuestion] = useState("");
   const [phase, setPhase] = useState<Phase>("IDLE");
@@ -126,6 +129,7 @@ export function DiceRitualScreen({
   const rafRef = useRef<number | null>(null);
   const frameCounter = useRef(0);
   const landedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
+  const completeSettleRef = useRef<() => void>(() => undefined);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dimAnim = useRef(new Animated.Value(0)).current;
@@ -143,9 +147,37 @@ export function DiceRitualScreen({
     };
   }, []);
 
+  // Backgrounded mid-tumble: fast-forward the physics to rest and present the
+  // drawn result on resume, so the throw is never lost (AC-DICE-01 §7).
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active" && (phaseRef.current === "THROW" || phaseRef.current === "TUMBLE")) {
+        let guard = 0;
+        while (!stepWorld(worldRef.current, 1 / 30) && guard++ < 5000) { /* settle */ }
+        handShownRef.current = 0;
+        completeSettleRef.current();
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   const transition = useCallback((next: Phase) => {
+    const prev = phaseRef.current;
     phaseRef.current = next;
     setPhase(next);
+    // Announce every ritual state for screen readers (READY and SETTLE carry
+    // their own richer announcements from beginReady/completeSettle).
+    if (next !== prev) {
+      const announce: Partial<Record<Phase, string>> = {
+        MIXING: "Mixing the dice",
+        THROW: "Releasing the dice",
+        TUMBLE: "Dice rolling",
+        RESULT: "Result ready",
+        INTERPRET: "Lumis is reading your throw"
+      };
+      const line = announce[next];
+      if (line) AccessibilityInfo.announceForAccessibility(line);
+    }
   }, []);
 
   const completeSettle = useCallback(() => {
@@ -183,6 +215,7 @@ export function DiceRitualScreen({
       houseKey: nextSymbols.house.key
     });
   }, [transition]);
+  completeSettleRef.current = completeSettle;
 
   const beginReady = useCallback(() => {
     if (phaseRef.current !== "IDLE") return;
@@ -354,11 +387,23 @@ export function DiceRitualScreen({
     : "";
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>
-          <View style={styles.headerSpace} />
+          <Pressable
+            style={styles.iconButton}
+            accessibilityLabel={phase === "IDLE" ? "Back" : "Cancel and reset the dice"}
+            onPress={() => {
+              if (phase === "IDLE") {
+                onBack();
+              } else {
+                rethrow();
+              }
+            }}
+          >
+            <ChevronLeft color={colors.ice} size={20} />
+          </Pressable>
           <Text style={styles.headerTitle}>Astrology Dice</Text>
           <View style={styles.headerActions}>
             <Pressable style={styles.iconButton} onPress={() => setHistoryOpen(true)} accessibilityLabel="Past rolls">

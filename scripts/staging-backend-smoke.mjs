@@ -272,15 +272,28 @@ try {
   });
   pass("Database guard strips injected raw provider output from chart history");
 
-  const chatOne = await invokeFunction("chat-message", primarySession.access_token, {
+  const chatOneClientId = crypto.randomUUID();
+  const chatOneRequest = {
     message: "Tell me something supportive about my chart.",
+    client_msg_id: chatOneClientId,
     persona_style: "spark",
     force_new_thread: true
-  });
+  };
+  const chatOne = await invokeFunction("chat-message", primarySession.access_token, chatOneRequest);
   assertSuccessfulNoChargeChat(chatOne);
+
+  const replayedChatOne = await invokeFunction(
+    "chat-message",
+    primarySession.access_token,
+    chatOneRequest
+  );
+  assertSuccessfulNoChargeChat(replayedChatOne);
+  assert(replayedChatOne.body.duplicate === true, "Exact chat replay was not identified as a duplicate.");
+  assert(replayedChatOne.body.thread_id === chatOne.body.thread_id, "Exact chat replay changed threads.");
 
   const chatTwo = await invokeFunction("chat-message", primarySession.access_token, {
     message: "Continue that reflection.",
+    client_msg_id: crypto.randomUUID(),
     persona_style: "spark",
     force_new_thread: false
   });
@@ -289,6 +302,7 @@ try {
 
   const chatThree = await invokeFunction("chat-message", primarySession.access_token, {
     message: "Start a separate topic.",
+    client_msg_id: crypto.randomUUID(),
     persona_style: "spark",
     force_new_thread: true
   });
@@ -304,7 +318,7 @@ try {
   assert(messages.length === 6, `Expected six chat messages, found ${messages.length}.`);
   assert(messages.every((message) => message.credits_cost === 0), "A scaffold message charged credits.");
   assert(messages.every((message) => message.status === "committed"), "A chat message was not committed.");
-  pass("Chat appends, starts a new topic, persists atomically, and charges zero credits");
+  pass("Chat appends, starts a new topic, suppresses exact replays, persists atomically, and charges zero credits");
 
   const threadCountBeforeInvalidRpc = threads.length;
   const invalidRpc = await serviceRequest("/rest/v1/rpc/persist_scaffold_chat_turn", {

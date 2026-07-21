@@ -24,6 +24,7 @@ type ChartContext = {
 
 type ChatMessageRequest = {
   message?: string;
+  client_msg_id?: string;
   persona_style?: PersonaStyle;
   force_new_thread?: boolean;
   thread_id?: string | null;
@@ -36,6 +37,8 @@ type PersistedChatContext = {
   assistantMessageId: string | null;
   aiProfileId: number;
   chartVersion: number;
+  duplicate: boolean;
+  assistantMessage: string | null;
 };
 
 type AiProfileRow = {
@@ -64,10 +67,19 @@ type PersistScaffoldChatTurnResponse = {
   assistant_message_id?: string | null;
   ai_profile_id?: number;
   chart_version?: number;
+  duplicate?: boolean;
+  assistant_message?: string | null;
+};
+
+type RateLimitResult = {
+  allowed?: boolean;
+  retry_after_seconds?: number;
 };
 
 const SAFE_PERSISTENCE_ERROR_CODES = new Set([
   "ACTIVE_PROFILE_REQUIRED",
+  "CHAT_IDEMPOTENCY_CONFLICT",
+  "CHAT_PERSISTENCE_INCOMPLETE",
   "CHAT_PERSISTENCE_INVALID_INPUT",
   "REFLECTION_THREAD_NOT_AVAILABLE"
 ]);
@@ -77,6 +89,8 @@ const ROUTE_CREDITS = Object.fromEntries(
 ) as Record<ChatRoute, number>;
 
 Deno.serve(async (request) => {
+  const startedAt = Date.now();
+  const requestId = getRequestId(request);
   const corsPreflight = handleCorsPreflight(request);
 
   if (corsPreflight) {
@@ -91,6 +105,38 @@ Deno.serve(async (request) => {
   const body = (await request.json().catch(() => ({}))) as ChatMessageRequest;
   const serverContextResult = await safeLoadAuthenticatedChatContext(request);
   const serverContext = serverContextResult.context;
+  let rateLimit: RateLimitResult | null = null;
+
+  try {
+    rateLimit = serverContext ? await consumeRateLimit(serverContext) : null;
+  } catch {
+    return jsonResponse(
+      { error: { code: "CHAT_RATE_LIMIT_UNAVAILABLE", message: "Chat is briefly unavailable. Please try again." }, request_id: requestId },
+      { status: 503, headers: { "X-Lumis-Request-Id": requestId } }
+    );
+  }
+
+  if (rateLimit && !rateLimit.allowed) {
+    const retryAfter = Math.max(1, rateLimit.retry_after_seconds ?? 60);
+    console.warn(JSON.stringify({
+      event: "chat_rate_limited",
+      request_id: requestId,
+      user_id: serverContext?.userId,
+      retry_after_seconds: retryAfter
+    }));
+    await recordRuntimeEvent(serverContext, {
+      requestId,
+      outcome: "rejected",
+      statusCode: 429,
+      errorCode: "CHAT_RATE_LIMITED",
+      durationMs: Date.now() - startedAt
+    });
+    return jsonResponse(
+      { error: { code: "CHAT_RATE_LIMITED", message: "Please wait a moment before sending another message." }, request_id: requestId },
+      { status: 429, headers: { "Retry-After": String(retryAfter), "X-Lumis-Request-Id": requestId } }
+    );
+  }
+
   const chartContext =
     serverContext?.profile ? serverContext.chartContext : serverContext ? {} : body.chart_context;
   const response = buildChatResponse({ ...body, chart_context: chartContext });
@@ -98,17 +144,35 @@ Deno.serve(async (request) => {
     ? { persisted: null, error: serverContextResult.error }
     : await safePersistScaffoldChatTurn(serverContext, body, response);
   const persisted = persistence.persisted;
+  const effectiveResponse =
+    persisted?.duplicate && persisted.assistantMessage
+      ? { ...response, reply: persisted.assistantMessage }
+      : response;
   const responseWithPersistence = {
-    ...response,
+    ...effectiveResponse,
     thread_id: persisted?.threadId ?? null,
     ai_profile_id: persisted?.aiProfileId ?? null,
     chart_version: persisted?.chartVersion ?? null,
     persistence_mode: persisted ? "supabase_scaffold" : "not_persisted",
-    persistence_error: persistence.error
+    persistence_error: persistence.error,
+    duplicate: persisted?.duplicate ?? false,
+    request_id: requestId
   };
 
+  if (serverContext) {
+    await recordRuntimeEvent(serverContext, {
+      requestId,
+      outcome: persisted ? "success" : "failed",
+      statusCode: persisted ? 200 : 500,
+      errorCode: persistence.error,
+      durationMs: Date.now() - startedAt
+    });
+  }
+
   if (!acceptsStream) {
-    return jsonResponse(responseWithPersistence);
+    return jsonResponse(responseWithPersistence, {
+      headers: { "X-Lumis-Request-Id": requestId }
+    });
   }
 
   const stream = new ReadableStream({
@@ -117,28 +181,32 @@ Deno.serve(async (request) => {
       controller.enqueue(
         encoder.encode(
           `event: meta\ndata: ${JSON.stringify({
-            route: response.route,
-            credits_cost: response.credits_cost,
-            billing_mode: response.billing_mode,
+            route: effectiveResponse.route,
+            credits_cost: effectiveResponse.credits_cost,
+            billing_mode: effectiveResponse.billing_mode,
             thread_id: persisted?.threadId ?? null,
             persistence_mode: persisted ? "supabase_scaffold" : "not_persisted",
-            persistence_error: persistence.error
+            persistence_error: persistence.error,
+            duplicate: persisted?.duplicate ?? false,
+            request_id: requestId
           })}\n\n`
         )
       );
       controller.enqueue(
-        encoder.encode(`event: token\ndata: ${JSON.stringify({ t: response.reply })}\n\n`)
+        encoder.encode(`event: token\ndata: ${JSON.stringify({ t: effectiveResponse.reply })}\n\n`)
       );
       controller.enqueue(
         encoder.encode(
           `event: done\ndata: ${JSON.stringify({
             credits_charged: 0,
-            estimated_credits_cost: response.credits_cost,
-            remaining_credits: response.remaining_credits,
-            billing_mode: response.billing_mode,
+            estimated_credits_cost: effectiveResponse.credits_cost,
+            remaining_credits: effectiveResponse.remaining_credits,
+            billing_mode: effectiveResponse.billing_mode,
             thread_id: persisted?.threadId ?? null,
             persistence_mode: persisted ? "supabase_scaffold" : "not_persisted",
-            persistence_error: persistence.error
+            persistence_error: persistence.error,
+            duplicate: persisted?.duplicate ?? false,
+            request_id: requestId
           })}\n\n`
         )
       );
@@ -150,7 +218,8 @@ Deno.serve(async (request) => {
     headers: {
       ...corsHeaders,
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache"
+      "Cache-Control": "no-cache",
+      "X-Lumis-Request-Id": requestId
     }
   });
 });
@@ -214,7 +283,8 @@ async function persistScaffoldChatTurn(
     p_user_message: message,
     p_assistant_message: response.reply,
     p_force_new_thread: body.force_new_thread ?? false,
-    p_thread_id: body.thread_id ?? null
+    p_thread_id: body.thread_id ?? null,
+    p_client_msg_id: normalizeClientMessageId(body.client_msg_id)
   });
 
   if (error) {
@@ -232,8 +302,79 @@ async function persistScaffoldChatTurn(
     userMessageId: persisted.user_message_id ?? null,
     assistantMessageId: persisted.assistant_message_id ?? null,
     aiProfileId: persisted.ai_profile_id,
-    chartVersion: persisted.chart_version
+    chartVersion: persisted.chart_version,
+    duplicate: persisted.duplicate ?? false,
+    assistantMessage: persisted.assistant_message ?? null
   };
+}
+
+async function consumeRateLimit(
+  serverContext: AuthenticatedChatContext
+): Promise<RateLimitResult> {
+  const { data, error } = await serverContext.serviceClient.rpc("check_api_rate_limit", {
+    p_user_id: serverContext.userId,
+    p_endpoint: "/chat-message",
+    p_max_requests: 30,
+    p_window_seconds: 60
+  });
+
+  if (error) {
+    console.error("CHAT_RATE_LIMIT_CHECK_FAILED", {
+      user_id: serverContext.userId,
+      code: error.code
+    });
+    throw new Error("CHAT_RATE_LIMIT_CHECK_FAILED");
+  }
+
+  return (data ?? {}) as RateLimitResult;
+}
+
+async function recordRuntimeEvent(
+  serverContext: AuthenticatedChatContext,
+  input: {
+    requestId: string;
+    outcome: "success" | "rejected" | "failed";
+    statusCode: number;
+    errorCode: string | null;
+    durationMs: number;
+  }
+): Promise<void> {
+  const { error } = await serverContext.serviceClient.rpc("record_runtime_request_event", {
+    p_request_id: input.requestId,
+    p_endpoint: "/chat-message",
+    p_user_id: serverContext.userId,
+    p_outcome: input.outcome,
+    p_status_code: input.statusCode,
+    p_error_code: input.errorCode,
+    p_duration_ms: input.durationMs
+  });
+
+  if (error) {
+    console.error("CHAT_RUNTIME_EVENT_WRITE_FAILED", {
+      request_id: input.requestId,
+      code: error.code
+    });
+  }
+}
+
+function getRequestId(request: Request): string {
+  const supplied = request.headers.get("X-Lumis-Request-Id")?.trim();
+
+  return supplied && /^[a-zA-Z0-9_-]{8,80}$/.test(supplied)
+    ? supplied
+    : crypto.randomUUID();
+}
+
+function normalizeClientMessageId(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new Error("CHAT_PERSISTENCE_INVALID_INPUT");
+  }
+
+  return value;
 }
 
 async function loadAuthenticatedChatContext(

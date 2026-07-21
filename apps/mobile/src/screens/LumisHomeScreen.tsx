@@ -8,9 +8,12 @@ import RefreshCw from "lucide-react-native/icons/refresh-cw";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UserRound from "lucide-react-native/icons/user-round";
 import type { ReactNode } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
+
+import { LinearGradient } from "expo-linear-gradient";
 
 import { CelestialBackground } from "../components/CelestialBackground";
 import { MainTabBar } from "../components/MainTabBar";
@@ -46,7 +49,7 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
   const rising = findPoint(props.chart, "ascendant");
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <CelestialBackground />
       <View style={styles.appFrame}>
         <View style={styles.header}>
@@ -150,7 +153,8 @@ function WelcomeState(props: LumisHomeScreenProps) {
   const isLoading = props.accountLoadStatus === "loading";
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+      <CelestialBackground />
       <View style={styles.appFrame}>
         <View style={styles.welcomeHeader}>
           <View style={styles.markRow}>
@@ -187,14 +191,21 @@ function WelcomeState(props: LumisHomeScreenProps) {
           ) : null}
 
           <Pressable
-            style={[styles.welcomePrimary, isLoading && styles.disabled]}
+            style={[styles.welcomePrimaryWrap, isLoading && styles.disabled]}
             disabled={isLoading}
             onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}
           >
-            <Text style={styles.welcomePrimaryText}>
-              {isLoading ? "Loading your account..." : props.isAuthenticated ? "Create my chart" : "Get started"}
-            </Text>
-            <ChevronRight color={colors.navy950} size={20} />
+            <LinearGradient
+              colors={["#E5C06B", "#E9B083", "#E89B92"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.4 }}
+              style={styles.welcomePrimary}
+            >
+              <Text style={styles.welcomePrimaryText}>
+                {isLoading ? "Loading your account..." : props.isAuthenticated ? "Create my chart" : "Get started"}
+              </Text>
+              <ChevronRight color="#3A2218" size={20} />
+            </LinearGradient>
           </Pressable>
           <Pressable style={styles.welcomeSecondary} onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}>
             <Text style={styles.welcomeSecondaryText}>
@@ -286,8 +297,9 @@ const styles = StyleSheet.create({
   promiseBody: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 2 },
   welcomeStatus: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20, padding: 12, borderRadius: radii.md, backgroundColor: colors.surface },
   welcomeStatusText: { flex: 1, color: colors.textSoft, fontSize: 11.5, lineHeight: 17 },
-  welcomePrimary: { minHeight: 54, marginTop: 22, borderRadius: radii.md, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, backgroundColor: colors.gold },
-  welcomePrimaryText: { color: colors.navy950, fontSize: 15, fontWeight: "700" },
+  welcomePrimaryWrap: { marginTop: 22, borderRadius: radii.md, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.4, shadowRadius: 16 },
+  welcomePrimary: { minHeight: 54, borderRadius: radii.md, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  welcomePrimaryText: { color: "#3A2218", fontSize: 15, fontWeight: "700" },
   welcomeSecondary: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 5 },
   welcomeSecondaryText: { color: colors.textSoft, fontSize: 12.5, fontWeight: "600" },
   disabled: { opacity: 0.55 }

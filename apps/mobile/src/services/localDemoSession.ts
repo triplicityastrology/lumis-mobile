@@ -22,6 +22,7 @@ export type LocalDemoSession = {
 
 export type LocalDemoChatTurn = {
   id: string;
+  clientMessageId?: string;
   userMessage: string;
   result: SendChatMessageResult | null;
   error: string;

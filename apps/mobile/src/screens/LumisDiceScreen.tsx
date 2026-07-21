@@ -5,7 +5,8 @@ import Dices from "lucide-react-native/icons/dices";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Polygon } from "react-native-svg";
 
 import { CelestialBackground } from "../components/CelestialBackground";
@@ -36,12 +37,15 @@ const EXAMPLE_QUESTION = "Should I say yes to the new project?";
 export function LumisDiceScreen({
   onNotifications,
   onReflect,
-  onSelectTab
+  onSelectTab,
+  onBack
 }: {
   onNotifications: () => void;
   onReflect: (chatDraft: string) => void;
   onSelectTab: (tab: MainTab) => void;
+  onBack?: () => void;
 }) {
+  void onBack;
   const [step, setStep] = useState<DiceStep>("ask");
   const [question, setQuestion] = useState("");
   const [rolling, setRolling] = useState(false);
@@ -128,7 +132,7 @@ export function LumisDiceScreen({
     : "";
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>

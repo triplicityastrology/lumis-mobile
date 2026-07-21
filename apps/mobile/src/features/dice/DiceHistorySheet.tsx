@@ -1,5 +1,6 @@
 import { BlurView } from "expo-blur";
 import Search from "lucide-react-native/icons/search";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import X from "lucide-react-native/icons/x";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -7,7 +8,7 @@ import Svg, { Polygon, Text as SvgText } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import { DIE_ORDER, FACE_SETS, type DiceFace, type DieKind } from "./constants";
-import { listDiceThrows } from "../../services/diceThrows";
+import { deleteDiceThrow, listDiceThrows } from "../../services/diceThrows";
 
 /**
  * 過往擲骰 · Past Rolls — bottom sheet per the design handoff
@@ -77,6 +78,13 @@ export function DiceHistorySheet({
   const [remote, setRemote] = useState<HistoryEntry[] | null>(null);
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<HistoryEntry | null>(null);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+
+  async function removeEntry(entry: HistoryEntry) {
+    setRemovedIds((prev) => [...prev, entry.id]);
+    // Session rolls have synthetic ids; only persisted rows hit the delete service.
+    if (!entry.id.startsWith("session-")) await deleteDiceThrow(entry.id);
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -104,9 +112,10 @@ export function DiceHistorySheet({
         ? remote
         : sessionRolls.map((roll, i) => ({ ...roll, id: `session-${i}-${roll.at}` }));
     const q = query.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((e) => (e.question ?? FALLBACK_QUESTION).toLowerCase().includes(q));
-  }, [remote, sessionRolls, query]);
+    const visible = base.filter((e) => !removedIds.includes(e.id));
+    if (!q) return visible;
+    return visible.filter((e) => (e.question ?? FALLBACK_QUESTION).toLowerCase().includes(q));
+  }, [remote, sessionRolls, query, removedIds]);
 
   return (
     <View style={styles.overlay}>
@@ -170,25 +179,36 @@ export function DiceHistorySheet({
                 ) : (
                   <View style={styles.listCard}>
                     {entries.map((entry, index) => (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={entry.id}
-                        onPress={() => setDetail(entry)}
-                        style={[styles.row, index > 0 && styles.rowDivider]}
-                      >
-                        <View style={styles.rowDice}>
-                          <MiniOctaDie glyph={faceFor("planet", entry.planetKey).glyph} />
-                          <MiniOctaDie glyph={faceFor("sign", entry.signKey).glyph} />
-                          <MiniOctaDie glyph={faceFor("house", entry.houseKey).glyph} />
-                        </View>
-                        <View style={styles.rowText}>
-                          <Text numberOfLines={1} style={styles.rowQuestion}>
-                            {entry.question?.trim() || FALLBACK_QUESTION}
-                          </Text>
-                          <Text style={styles.rowDate}>{timeAgo(entry.at)}</Text>
-                        </View>
-                        <Text style={styles.rowCta}>View</Text>
-                      </Pressable>
+                      <View key={entry.id} style={[styles.row, index > 0 && styles.rowDivider]}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${entry.question?.trim() || FALLBACK_QUESTION}, ${timeAgo(entry.at)}. View reading.`}
+                          onPress={() => setDetail(entry)}
+                          style={styles.rowMain}
+                        >
+                          <View style={styles.rowDice}>
+                            <MiniOctaDie glyph={faceFor("planet", entry.planetKey).glyph} />
+                            <MiniOctaDie glyph={faceFor("sign", entry.signKey).glyph} />
+                            <MiniOctaDie glyph={faceFor("house", entry.houseKey).glyph} />
+                          </View>
+                          <View style={styles.rowText}>
+                            <Text numberOfLines={1} style={styles.rowQuestion}>
+                              {entry.question?.trim() || FALLBACK_QUESTION}
+                            </Text>
+                            <Text style={styles.rowDate}>{timeAgo(entry.at)}</Text>
+                          </View>
+                          <Text style={styles.rowCta}>View</Text>
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Delete this roll"
+                          hitSlop={8}
+                          onPress={() => void removeEntry(entry)}
+                          style={styles.rowDelete}
+                        >
+                          <Trash2 color={colors.muted} size={16} />
+                        </Pressable>
+                      </View>
                     ))}
                   </View>
                 )}
@@ -216,7 +236,9 @@ const styles = StyleSheet.create({
   searchInput: { color: colors.ice, flex: 1, fontSize: 14, padding: 0 },
   listScroll: { flexGrow: 0 },
   listCard: { borderColor: "rgba(206,216,255,0.16)", borderRadius: radii.lg, borderWidth: 1, overflow: "hidden" },
-  row: { alignItems: "center", flexDirection: "row", gap: 12, minHeight: 64, paddingHorizontal: 12, paddingVertical: 10 },
+  row: { alignItems: "center", flexDirection: "row", minHeight: 64, paddingLeft: 12, paddingRight: 6 },
+  rowMain: { alignItems: "center", flex: 1, flexDirection: "row", gap: 12, paddingVertical: 10 },
+  rowDelete: { alignItems: "center", height: 40, justifyContent: "center", width: 36 },
   rowDivider: { borderTopColor: "rgba(206,216,255,0.12)", borderTopWidth: StyleSheet.hairlineWidth },
   rowDice: { flexDirection: "row", gap: 4 },
   rowText: { flex: 1, minWidth: 0 },

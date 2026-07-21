@@ -1,6 +1,6 @@
 # Lumis QA Release Gate Checklist
 
-Last reviewed: 2026-07-19
+Last reviewed: 2026-07-21
 
 This is the canonical living checklist for staging deployment, founder UI QA, and production go-live. A reported result is not marked complete until QA independently verifies it or records the staging evidence.
 
@@ -16,7 +16,7 @@ Status rules:
 - [x] Workspace TypeScript typecheck passes.
 - [x] Chat router fixture tests pass.
 - [x] Source route-credit values are consistent across the shared configuration, router fixtures, and current `chat-message` scaffold: casual 1, knowledge 3, dice 5, astro timing 5, astro deep 5, out-of-scope 1, and safety 1. This does not verify real charging.
-- [ ] Add an automated drift guard or shared import for the duplicated `chat-message` route-credit table before real charging is enabled; today's manual source comparison can become stale.
+- [x] Commit `75ea540` removes the duplicated `chat-message` route-credit table, imports the shared route table, and adds a source contract preventing the numeric copy from returning; QA reran router and chat-persistence tests successfully.
 - [x] Golden-chart fixture guard tests pass.
 - [x] Profile onboarding guard fixture tests pass.
 - [x] Unknown-time golden guards reject Ascendant, MC, houses, and planet house placements.
@@ -37,17 +37,18 @@ Status rules:
 - [x] Authentication API refresh, sign-out, and sign-back-in succeeded for the temporary QA account.
 - [x] Source scan found no visible legacy wording matches for `Astro`, `token`, `unit`, or `chat history` in the tested mobile/shared paths.
 - [x] Production web export succeeds through commit `9c7fa65`.
-- [ ] Independently rerun the production export after `8cdc6e5` and the active entitlement-ledger edits settle. Technical reports export passed, but QA's previous rerun was interrupted by overlapping Metro/resource pressure.
-- [ ] Restore the local Expo preview before visual QA; `http://localhost:8081/` returned connection refused during independent QA of `7003974`.
+- [ ] Independently rerun the production export after the active post-`36878a7` UI work settles. Technical records a passing web export and iOS Hermes bundle for the SDK 54 upgrade, but QA has not reproduced those bundles on the current changing worktree.
+- [ ] Restore the local Expo preview before browser/device QA; `http://localhost:8081/` was not responding on 2026-07-21, so the previously reported LAN URL is no longer live.
 
 ## Gate A — Before Pushing or Deploying to Staging
 
 - [x] Commits through `7003974` are present on `origin/main`; the branch was no longer ahead during QA verification.
 - [x] Worker timeout/replay/environment and Care Circle index-correction source changes are committed as `8cdc6e5` and present on `origin/main`.
-- [ ] Separately commit and QA the active entitlement-ledger/staging-smoke edits. They are not part of `8cdc6e5`, are not deployed, and must not be merged into that commit's staging result.
-- [ ] Confirm the worktree contains no unrelated or uncommitted changes before deployment. Current non-checklist edits belong to Technical in `0017`, its contract test, the hosted staging smoke script, and the architect-review status note.
+- [x] Entitlement digest-conflict and deterministic equal-time ordering fixes are committed in `33a7144`; local billing-entitlement fixtures pass. Migration `0017` hosted deployment/database proof remains open.
+- [ ] Repair Git metadata before the next push: local `main` reports `[origin/main: gone]`, Git warns about an invalid duplicate ref named `refs/heads/main 2`, and the remote-tracking `origin/main` ref is absent. Do not treat GitHub Desktop's push count as reliable until this is reconciled safely.
+- [ ] Confirm the worktree contains no unrelated or uncommitted changes before deployment. Current post-upgrade UI/package changes, new feature directories, draft migrations `0020`/`0021`, scheduler/CI files, and backend guardrail changes are still in progress and were not altered by QA.
 - [ ] Run and record:
-  - [x] `pnpm -r typecheck` (Technical reports the `8cdc6e5` run passed; QA independently saw shared, billing, and astrology pass, while the mobile phase did not finish under local resource pressure and was stopped rather than counted as a new full rerun.)
+  - [x] `pnpm -r typecheck` (QA reran all four workspace projects successfully on 2026-07-21.)
   - [x] `pnpm run test:birth-date`
   - [x] `pnpm run test:birth-location`
   - [x] `pnpm run test:entitlement`
@@ -58,7 +59,8 @@ Status rules:
   - [x] `pnpm run test:profile`
   - [x] `pnpm run test:chat-persistence`
   - [x] `pnpm run test:external-sync`
-  - [x] `pnpm run test:mobile-ui`
+  - [x] `pnpm run test:mobile-ui` passes across 10 non-billing surfaces after Technical updated the contract for the active screen refactor on 2026-07-21; the surrounding changes remain uncommitted/in progress.
+  - [x] `pnpm run test:dice` passes geometry, face reading, settle behavior, and the seeded 1,000-roll distribution suite on 2026-07-21.
 - [x] Confirm no real secrets, API keys, access tokens, service-role keys, or QA passwords are tracked by Git; only documented placeholders are present.
 - [ ] Review migration `0008_onboarding_chart_history.sql` against a disposable/staging database backup plan.
 - [x] Confirm migration order `0001` through `0013` has local/remote parity in the linked staging database (`supabase migration list --linked`, independently checked 2026-07-17). The new `resolve_active_plan_tier` RPC responds on staging, providing evidence that migration `0014` is present, but full migration-list parity should be recorded again.
@@ -105,7 +107,7 @@ These checks require deployed staging services but do not require finished UI.
 ### Signed Worker contract
 
 - [x] Deploy the dedicated `lumis-chart-staging` mobile Worker endpoint.
-- [x] Live unsigned request to the updated staging Worker returns `401 UNAUTHORIZED` with restricted CORS (QA repeated this on 2026-07-19). Technical reports deployed version `4b60a581-0dc4-4259-9060-2b174f2afd58`; QA could not independently query the exact version because Wrangler has no non-interactive API token.
+- [x] Live unsigned request to the staging Worker returns `401 UNAUTHORIZED` with restricted CORS (QA repeated this on 2026-07-21). Technical reports version `2f08e914-fb79-48be-b8a4-73306a8a9c3f` deployed with replay TTL; QA still cannot independently query the exact version without deployment access.
 - [x] Configure matching `CHART_WORKER_SIGNING_SECRET` values in Supabase and Cloudflare.
 - [x] Configure `CHART_WORKER_URL`, `CHART_WORKER_ENDPOINT`, timeout, and `LUMIS_ENV=staging`.
 - [x] Confirm a valid signed request succeeds through Supabase, Cloudflare, and astrology-api.io.
@@ -115,8 +117,10 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Source/fixture QA confirms the provider request is aborted after bounded `ASTRO_PROVIDER_TIMEOUT_MS`, returns safe `504 ASTROLOGY_API_TIMEOUT`, clears the timer, and does not expose provider diagnostics.
 - [ ] Run the signed staging timeout/provider-failure case and confirm the deployed Worker returns the same controlled errors without provider debug details.
 - [x] Source/fixture QA confirms exact signed replays use one provider call and return the saved chart, while changed-body reuse of the same user/request ID returns `409 CHART_REQUEST_CONFLICT`.
-- [ ] Run signed staging replay, changed-body conflict, and simultaneous duplicate-request tests; verify only one provider call/result is created and inspect Durable Object storage behavior.
-- [ ] Define and implement a retention/deletion policy for completed chart responses stored by `CHART_REQUEST_COORDINATOR`; source currently persists the cached chart without an alarm, TTL, or cleanup path.
+- [x] Source/live-smoke script now exercises simultaneous duplicate requests, accepts one success plus an optional `CHART_REQUEST_IN_PROGRESS`, and verifies the settled retry returns the original cached chart.
+- [ ] Run the signed simultaneous test with provider/request telemetry proving only one paid provider call occurred; response equality alone does not independently prove provider-call count.
+- [x] Source implements a bounded seven-day chart replay TTL using a Durable Object alarm and `deleteAll()`; local expiry fixtures pass and Technical reports it deployed in Worker version `2f08e914-fb79-48be-b8a4-73306a8a9c3f`.
+- [ ] Obtain live alarm/expiry telemetry or a controlled short-TTL staging proof that cached chart data is actually deleted after expiry.
 - [x] Confirm the live Worker response and stored `chart_v2` contain no `rawProviderResponse`.
 - [x] Confirm the live full-time chart contains populated planets, 12 houses, Ascendant, and MC.
 - [x] Confirm stored backend metadata contains only the approved response summary.
@@ -176,8 +180,8 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Technical's hosted deployment record says migrations `0015` and `0016` are applied and `/profile` was redeployed. The staging resolver's anonymous denial is independently evidenced; privileged authenticated owner/cross-user/direct-table cases remain open below.
 - [x] Source migration `0017_persona_policy_and_entitlement_events.sql` adds a backend-only append ledger keyed by provider/event ID, stores a digest rather than raw webhook payload, suppresses duplicate IDs, and prevents older event timestamps from rolling back the current entitlement.
 - [x] Source grants the provider-event ledger only `SELECT`/`INSERT` to service role and exposes a service-only transactional apply RPC; local contract fixtures cover duplicate and older-event ordering behavior.
-- [ ] Commit the current Technical fix that treats a repeated provider/event ID with a different `payload_digest` as `ENTITLEMENT_EVENT_INTEGRITY_CONFLICT`; its local source contract passes, but it is uncommitted and not deployed. Add the hosted database proof that the mismatch cannot mutate current entitlement.
-- [ ] Commit the current deterministic equal-timestamp ordering fix (higher provider event ID wins). Its local fixture passes, but it is uncommitted and must be exercised against PostgreSQL.
+- [x] Commit `33a7144` treats a repeated provider/event ID with a different `payload_digest` as `ENTITLEMENT_EVENT_INTEGRITY_CONFLICT`; local source contracts pass.
+- [x] Commit `33a7144` deterministically resolves equal timestamps using the provider event ID; local ordering fixtures pass.
 - [ ] Apply migration `0017` and run the new hosted provider-event scenarios against PostgreSQL before enabling RevenueCat webhooks.
 
 ### Salesforce and Google Sheets operational logging
@@ -223,7 +227,63 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Implement and staging-test the final DEL-1 internal deletion sequence only after external cleanup is safely queued; ensure direct/admin deletion cannot bypass ledger redaction and external cleanup.
 - [x] Source uses `external_cleanup_requested` for the Google marker and Salesforce cleanup language, and reserves `internally_deleted` for the later DEL-1 completion stage; staging verification remains open.
 
+### Reliability, abuse prevention, observability, and CI
+
+- [ ] Before real chat charging, send simultaneous duplicate mobile requests and retry the same request ID; confirm exactly one persisted user/assistant turn, one usage record, and one credit deduction. Draft migration `0020` adds a nullable client-message key and scaffold RPC replay behavior, but mobile/Edge propagation, charging/usage idempotency, deployment, and concurrency proof are not complete.
+- [ ] Enforce one normal monthly/subscription balance row per user and logical billing period, then run concurrent creation/renewal tests. Draft `0020` uses exact `(user_id, period_start timestamptz)`, which does not prevent two rows in the same calendar/provider period when timestamps differ; use a canonical period/provider identifier and verify duplicate cleanup does not preserve an accidental double grant.
+- [ ] Implement and staging-test rate limits for authentication, profile/chart creation, chat, Dice, and external/admin endpoints. Draft `0020` adds a backend fixed-window helper, but endpoint wiring, safe `429` responses, trusted caller keys, window cleanup, and normal-use/burst tests remain open.
+- [ ] Establish a single trace/request ID contract across mobile, Supabase functions/RPCs, Cloudflare Worker, provider calls, and external-sync ledger/logs; inject a test failure and prove an operator can trace it end to end without exposing birth data or secrets. Chart/profile and external sync have partial IDs, but mobile/chat do not yet provide a complete trace.
+- [ ] Record a durable waste/compensation event when onboarding fails after the astrology provider has returned but before the database transaction commits; test retry/reconciliation and ensure the event contains no raw chart/provider payload or unnecessary PII. Draft `0020` creates the ledger table only; the profile/Worker flow does not yet write the lifecycle events.
+- [ ] Add CI configuration that automatically installs with the pinned package manager and runs typecheck plus the required regression suites on pull requests/main. No `.github` or other CI workflow is currently present in the repository.
+- [ ] Re-verify external-sync payload retention, field minimization, redaction, deletion-marker behavior, and final cleanup against PM/legal retention decisions using staging Salesforce and Sheets records. Draft `0020` redacts selected fields after completed statuses, but pending/retry/failed-final retention and cleanup scheduling remain undefined.
+- [ ] Recheck website/mobile Worker payload parity whenever `chart_v2`, provider mapping, unknown-time sanitization, or calculation-version fields change; require an explicit compatibility test or versioned contract.
+
 ## Gate C — When the Founder/User UI Is Ready
+
+### Expo SDK 54 and physical-device regression
+
+- [x] Commit `36878a7` upgrades the mobile package to Expo `54.0.36`, React Native `0.81.5`, React `19.1.0`, and Expo Crypto `15.0.9`; QA independently confirmed the installed versions and an Expo public manifest with `sdkVersion: 54.0.0`.
+- [x] QA independently reran workspace typecheck and the Dice physics/distribution suite successfully on 2026-07-21. Technical records Expo Doctor 18/18, web export, and iOS Hermes bundle passes for the upgrade commit.
+- [ ] Start a clean SDK 54 LAN server and confirm the current Expo Go opens without incompatibility, red screen, startup crash, or missing native-module error. The previously reported `exp://192.168.0.106:8081` endpoint was no longer reachable on 2026-07-21.
+- [ ] On a real iPhone, test magic-link return and session restoration, all four tabs, safe areas/status bar/icons/SVGs/scrolling, and foreground/background restoration.
+- [ ] On a real iPhone with Dice ritual enabled, test motion permission allowed/denied, unavailable sensor/error handling, shake threshold/debounce, tap fallback, Back/unmount during rolling, repeated rolls, reduced motion, foreground/background behavior, landed-face agreement, performance, and Reflect handoff.
+- [ ] Temporarily disable `EXPO_PUBLIC_DICE_RITUAL` and confirm the fallback Dice flow remains available.
+
+### Claude Fable Dice ritual handoff (`AC-QA-03`)
+
+- [x] QA reran `pnpm test:dice`: geometry, all face readings, cocked thresholds, settle behavior, seeded 1,000-throw distribution, and the encoded Level 2 examples pass. This verifies the deterministic fixtures, not physical-device fairness or animation performance.
+- [x] Source feature flag selects `DiceRitualScreen` only when `EXPO_PUBLIC_DICE_RITUAL=1`; the prior `LumisDiceScreen` remains selected otherwise.
+- [x] Source uses app physics plus Expo Crypto randomness and passes the landed symbols unchanged into the reflection/chat draft; no AI symbol generation occurs in the ritual.
+- [ ] Correct `AC-DICE-01`: the Word source still contains `3 credits`, `Astro`, and a Cantonese repeated-result example despite the PM handoff saying it was corrected to 5 credits/current terminology. Its rendered diagram also shows stale `3 units`/`Star Buddy`, missing glyphs/text, and a broken result-section heading.
+- [ ] Reconcile `AC-DICE-04` with the English-primary/standard-written-Chinese policy. It still specifies mixed/Cantonese UI strings such as `搖一搖 mix 一 mix` and `返回傾偈`, while current UAT code is English and the stated Chinese policy prohibits Cantonese colloquial copy.
+- [ ] Correct the Cantonese `唔`/`係` example embedded in `AC-DICE-05`'s payload sample. The code `zhRef` data scan found no equivalent visible reference-string violation; two Cantonese comments should still be normalized if the source policy applies to repository text.
+- [ ] Add the required Back control to `DiceRitualScreen`; `ChevronLeft` is imported but unused, and the ritual currently provides no screen-level Back action during IDLE/READY/MIXING/rolling.
+- [ ] Reconcile motion implementation with the approved contract: current gesture detection uses only `Accelerometer`, not the specified accelerometer plus gyroscope; validate whether accelerometer-only is an approved design change or add gyro-based oscillation discrimination.
+- [ ] Implement/test app background and foreground handling during THROW/TUMBLE. Current source has no `AppState` handling and does not implement the documented resume-to-SETTLE behavior.
+- [ ] Complete accessibility acceptance: current source announces Ready instructions and the settled result, but not every state; verify semantic roles/labels, VoiceOver focus order, non-noisy announcements, haptics-off behavior, and a fully usable reduced-motion path on iPhone.
+- [ ] Implement Past Rolls deletion in the sheet. A service delete function and RLS policy exist, but the current history UI has no delete/swipe action despite the handoff claiming it is complete.
+- [ ] Harden and deploy migration `0019`: validate planet/sign/house keys and question length server-side, decide/add save idempotency, link `interpretation_message_id` appropriately, then verify owner insert/list/delete and cross-user RLS with two staging users.
+- [ ] Handle persistence failures visibly or with safe retry/telemetry. `saveDiceThrow()` is currently fire-and-forget at SETTLE and its error result is ignored.
+- [ ] Run the full web interaction smoke after Metro is healthy. The current port 8081 server returns HTML over IPv6, but its web bundle stalled and rendered a blank root during QA; this is not a Dice visual pass.
+- [ ] Run real-iPhone UAT for shake-vs-flick separation, immediate permission-denied tap path, 6-second fallback, debounce, back/unmount, settled-face visual agreement, 60fps/performance/temperature, reduced motion, haptics, and repeat/background behavior before enabling the flag by default.
+- [ ] Keep `route.dice`, 5-credit charging, entitlement, atomic idempotency, interpretation streaming, and `interpretation_message_id` linkage blocked until the backend/AI route exists and is separately QA-tested. Merely throwing dice must remain free.
+- [ ] Founder must approve the astrology interpretation content and the open output-length/Persona-style decisions before route-quality signoff.
+
+### Claude Fable navigation, layout, and rebrand handoff (`AC-QA-04`)
+
+- [x] Source includes `react-native-safe-area-context ~5.6.0`, wraps the app in `SafeAreaProvider` with `initialWindowMetrics`, and the installed dependency matches Expo SDK 54's local dependency map. Workspace typecheck passed independently on 2026-07-21.
+- [ ] Fix Chat's root safe-area ownership before accepting the tab-bar gap fix. `ChatShellScreen` still uses `SafeAreaView` imported from `react-native`, while `MainTabBar` separately adds the device bottom inset. Unlike Home, Insights, Dice, and Profile, Chat does not use the context `SafeAreaView edges={["top", "left", "right"]}`, so an iPhone can receive a parent bottom inset plus tab-bar bottom padding.
+- [ ] Run the tab-bar/safe-area matrix on an iPhone with a home indicator: Chat, Insights, Dice, and Profile; reload, rotation, background/resume, keyboard/composer, scrolling, tap targets, clipping, and no sky gap below the bar. Source inspection cannot close this visual/device gate.
+- [x] Source visible Back buttons return Care Circle, Plans, and Birth Details to Profile. Notification entry tracks Home/Chat/Insights/Dice/Profile as its return source, and the four main-tab bells use the shared helper.
+- [ ] Implement or explicitly defer production navigation semantics. The app still uses one conditional `screen` state and has no `BackHandler`, React Navigation/native stack, or gesture integration, so Android hardware Back and iOS swipe-back are not equivalent to the visible Back controls. Test system Back/gesture after the navigation decision.
+- [ ] Do not treat `React.memo(CelestialBackground)` as proof that stars persist across screen transitions. Conditional screen returns unmount one background and mount another, so the animation can still restart or pop. Record an iPhone screen video across repeated tab/Back navigation and either keep one shared mounted sky layer or accept the transition behavior explicitly.
+- [x] At a 390x844 web viewport, QA independently confirmed Splash renders first, remains visible at about 1.8 seconds, auto-advances by about 4.8 seconds, and tap-to-skip works. Welcome renders the celestial sky and sunrise-to-sunset gradient CTA with readable copy.
+- [ ] Device-test Splash full-bleed safe areas, reduced motion, cold launch, reload/relaunch policy, and restored-account timing. Auth restoration runs concurrently and can route away from Splash before its four-second timer; confirm this duration variability is intended and never flashes Welcome or overrides the restored Chat route.
+- [x] Source Chat removes the chart-context banner, makes the Persona chip open Insights, and adds a visible new-topic plus button.
+- [ ] Device/staging-test the new-topic button with an unsent draft, saved active thread, retry, double tap, local/offline state, and signed-in persistence. Confirm the prior conversation remains in Past Reflections and only one new thread is created on the first successful send.
+- [ ] Re-run the mobile UI contract after updating its stale notification assertion. `pnpm test:mobile-ui` currently fails at `scripts/mobile-ui-contract.mjs:56` because it still expects the removed inline `setScreen("notifications")` callback instead of the new shared `openNotifications` helper. Therefore Claude's typecheck claim passes, but the current broader UI regression suite is not green.
+- [x] No app source imports or renders a WebView/iframe for this handoff; the UI is implemented in Expo React Native/TypeScript. The lockfile's `react-native-webview` reference is package metadata, not an app dependency or usage.
+- [ ] Recheck Generating and Birth Details on-device: sky layering, calendar/time picker, birthplace suggestions, future-date rejection, unknown-time restrictions, keyboard/safe areas, correct return context, and successful regeneration state. Source presence is not an interactive pass.
 
 - [ ] Rebuild the Claude handoff natively in Expo React Native/TypeScript; do not embed or ship the HTML/React prototype through a WebView.
 - [ ] Compare the native implementation against all 14 Navy/English reference screenshots at 390×844 for layout, hierarchy, spacing, typography, copy, and navigation.
@@ -246,8 +306,8 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Remove all credit pills, per-message credit estimates, and `test mode`/no-charge labels from Chat and other non-Profile/Paywall surfaces; Notifications and Care Circle billing wording was removed in `e24c037`.
 - [x] Expand `test:mobile-ui` across all current screen modules and the non-Paywall portion of `App.tsx`; the broader literal-string billing scan passes across five current non-billing source surfaces.
 - [x] Source provides one shared persistent four-tab bar for Talk, Insights, Dice, and You across the four primary tab screens; interactive navigation, back behavior, and restored-session entry still require device/browser QA.
-- [x] Source implements the designed three-step Ask → Shake/Tap → Result Dice flow with octagonal planet/sign/house dice, animated glyph rolling, accelerometer detection, tap fallback, reflective result, and a prefilled Chat handoff.
-- [x] Dice Back/reset and unmount cleanup share timer cancellation, reset rolling state, and prevent a delayed Result screen from reopening.
+- [x] The older fallback `LumisDiceScreen` implements the earlier three-step Ask → Shake/Tap → Result flow with octagonal planet/sign/house dice, animated glyph rolling, accelerometer detection, tap fallback, reflective result, and a prefilled Chat handoff.
+- [x] The older fallback screen's Back/reset and unmount cleanup share timer cancellation, reset rolling state, and prevent a delayed Result screen from reopening. This does not verify the new feature-flagged `DiceRitualScreen`, whose Back gap is tracked above.
 - [ ] Build and test on a physical iPhone: motion permission copy, permission denial, accelerometer availability/error handling, shake threshold/debounce, cleanup, reduced-motion expectations, and tap fallback.
 - [ ] Connect Dice to the approved backend interpretation, persistence, entitlement, charging, idempotency, and failure states before treating it as production-functional; the current result and roll are local UI behavior.
 - [x] Source expands Profile with current birth data, Persona, credit balance, Care Circle preview, notifications, privacy/support, export, and deletion entries; unfinished/destructive actions show non-operational security-review notices rather than calling a backend.
@@ -262,7 +322,7 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Local-calendar birth-date validation now uses the phone timezone at the early mobile step and the resolved birthplace timezone for final mobile, Supabase, and Worker validation. Deterministic tests cover UTC+14, UTC+8, UTC-4, UTC-10, and invalid-zone fail-closed behavior, fixing the reproduced Hong Kong-midnight defect.
 - [x] Source migration `0016_trusted_birth_location_resolver.sql` adds a service-only backend reference/resolver for the current Hong Kong, London, and New York locations. `/profile` ignores client `tz_str`, canonicalizes place/country/coordinates/timezone before date validation, Worker signing, and persistence, and keeps duplicate/repair preflight ahead of resolution.
 - [x] Source contracts require resolver/table service-only privileges and trusted fields throughout the onboarding path; hosted smoke scenarios cover spoofed country, spoofed coordinates, canonical Hong Kong resolution, and anonymous denial.
-- [ ] Run the privileged hosted resolver/entitlement/Persona scenarios against deployed migrations `0015`/`0016`; then apply `0017` only after its active integrity/order fixes are committed and run the provider-event scenarios against PostgreSQL. The hosted script contains the checks but QA has not executed it with the dedicated staging secret key.
+- [ ] Run the privileged hosted resolver/entitlement/Persona scenarios against deployed migrations `0015`/`0016`; then apply committed migration `0017` and run the provider-event scenarios against PostgreSQL. The hosted script contains the checks but QA has not executed it with the dedicated staging secret key.
 - [ ] Expand the backend-owned resolver beyond its three staging cities using an authoritative geocoding/timezone source, with ambiguity handling and historical timezone QA; do not fall back to client-provided coordinates/timezone.
 - [x] Source adds the Claude-style chart-generation progress state with four user-facing steps and removes implementation-oriented preparation wording; visual timing, reduced motion, error transition, and screen-reader announcement remain device/browser QA.
 - [x] Staging `/profile` and the chart Worker independently return HTTP 401 for unauthenticated/unsigned POSTs (QA repeated both on 2026-07-19). Technical reports Worker version `4b60a581-0dc4-4259-9060-2b174f2afd58`; QA could not prove the exact version or signed timeout/replay/timezone response without deployment credentials/signing material.

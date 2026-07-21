@@ -1,22 +1,24 @@
-import { Accelerometer } from "expo-sensors";
+import { Accelerometer, Gyroscope } from "expo-sensors";
 import { useEffect, useRef } from "react";
 
 import { DICE_TIMINGS } from "./constants";
 
 /**
- * Shake / flick detection per AC-DICE-01 §3.
+ * Shake / flick detection per AC-DICE-01 §3 (accelerometer + gyroscope).
  *
  * - Sensors run only while `enabled` (READY/MIXING) — battery + iOS permission timing.
  * - "Up" is computed from a low-passed gravity vector, not raw z, so gestures work
  *   whether the phone is held flat or tilted.
- * - Flat shake: sustained acceleration variance perpendicular to gravity, with no
- *   dominant single upward spike → onMix(energy 0..1) pulses.
- * - Upward flick: sharp spike along gravity-up beyond FLICK_THRESHOLD_G within the
- *   debounce window → onThrow(strength), where strength maps spike magnitude into
- *   the launch clamp range.
+ * - Flat shake: sustained horizontal acceleration variance AND gyroscope oscillation
+ *   (rotation rate above a low threshold), with no dominant single upward spike
+ *   → onMix(energy 0..1) pulses. The gyro requirement rejects a pure vertical
+ *   bob or a phone slid flat on a table, matching the spec's "gyro shows oscillation".
+ * - Upward flick: sharp spike along gravity-up beyond flickThresholdG within the
+ *   debounce window → onThrow(strength), mapping spike magnitude into the launch clamp.
  *
  * Thresholds are exported so the dev calibration overlay (spec §3) can tune them;
- * ship the medians found in beta.
+ * ship the medians found in beta. If the gyroscope is unavailable, shake detection
+ * degrades gracefully to accelerometer-only (gyroRate treated as satisfied).
  */
 export const MOTION_TUNING = {
   updateIntervalMs: 16,
@@ -24,7 +26,9 @@ export const MOTION_TUNING = {
   shakeThresholdG: 0.22,
   shakeEnterCount: 3,
   flickThresholdG: 1.05,
-  flickStrengthDivisorG: 1.4
+  flickStrengthDivisorG: 1.4,
+  /** Minimum gyroscope rotation-rate magnitude (rad/s) to confirm a shake. */
+  shakeGyroThreshold: 0.8
 };
 
 export type MotionGestureHandlers = {
@@ -41,9 +45,22 @@ export function useMotionGestures(enabled: boolean, handlers: MotionGestureHandl
 
     let active = true;
     let subscription: { remove: () => void } | null = null;
+    let gyroSub: { remove: () => void } | null = null;
     const enabledAt = Date.now();
     const gravity = { x: 0, y: 0, z: -1 };
     let shakeStreak = 0;
+    // Smoothed gyroscope rotation-rate magnitude; starts satisfied so accel-only
+    // devices (no gyro) still detect shakes.
+    let gyroRate = MOTION_TUNING.shakeGyroThreshold;
+
+    void Gyroscope.isAvailableAsync().then((available) => {
+      if (!active || !available) return;
+      Gyroscope.setUpdateInterval(MOTION_TUNING.updateIntervalMs);
+      gyroSub = Gyroscope.addListener(({ x, y, z }) => {
+        const mag = Math.hypot(x, y, z);
+        gyroRate = gyroRate * 0.7 + mag * 0.3;
+      });
+    });
 
     void Accelerometer.isAvailableAsync().then((available) => {
       if (!active || !available) return;
@@ -75,8 +92,13 @@ export function useMotionGestures(enabled: boolean, handlers: MotionGestureHandl
           return;
         }
 
-        // Flat shake: horizontal jitter without a dominant upward spike.
-        if (horizontal > MOTION_TUNING.shakeThresholdG && up < MOTION_TUNING.flickThresholdG * 0.6) {
+        // Flat shake: horizontal jitter WITH gyroscope oscillation, and no
+        // dominant upward spike (spec §3).
+        if (
+          horizontal > MOTION_TUNING.shakeThresholdG &&
+          gyroRate > MOTION_TUNING.shakeGyroThreshold &&
+          up < MOTION_TUNING.flickThresholdG * 0.6
+        ) {
           shakeStreak += 1;
           if (shakeStreak >= MOTION_TUNING.shakeEnterCount) {
             handlersRef.current.onMix(Math.min(1, horizontal / 1.2));
@@ -90,6 +112,7 @@ export function useMotionGestures(enabled: boolean, handlers: MotionGestureHandl
     return () => {
       active = false;
       subscription?.remove();
+      gyroSub?.remove();
     };
   }, [enabled]);
 }

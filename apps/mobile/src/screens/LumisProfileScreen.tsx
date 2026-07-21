@@ -15,7 +15,8 @@ import Sparkles from "lucide-react-native/icons/sparkles";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import UserRound from "lucide-react-native/icons/user-round";
 import Users from "lucide-react-native/icons/users";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
 
@@ -71,7 +72,7 @@ export function LumisProfileScreen({
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>

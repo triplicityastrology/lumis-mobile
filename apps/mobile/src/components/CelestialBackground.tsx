@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from "react-native";
 import Svg, {
   Circle,
@@ -21,7 +21,23 @@ type Star = {
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-export function CelestialBackground() {
+/** Care Circle uses a cooler blue/teal-green sky to set the whole area apart
+ *  (design handoff 2026-07-21, `.ac-sky.care`). Default is the warm sunrise sky. */
+const SKY_VARIANTS = {
+  default: {
+    grad: ["#0A1524", "#0E1D31", "#1C2C46", "#3E3A58", "#795A64", "#B27B68"],
+    top: "#5B63B7", left: "#E5C06B", right: "#E89B92", bottom: "#F3CBA9", horizon: "#F3CBA9"
+  },
+  care: {
+    grad: ["#081C22", "#0A222B", "#123544", "#1C4A50", "#2C6B62", "#4C8F72"],
+    top: "#5B96B7", left: "#3AA88C", right: "#66B2CC", bottom: "#78BEA6", horizon: "#96DBC4"
+  }
+} as const;
+
+export type SkyVariant = keyof typeof SKY_VARIANTS;
+
+export const CelestialBackground = memo(function CelestialBackground({ variant = "default" }: { variant?: SkyVariant }) {
+  const sky = SKY_VARIANTS[variant];
   const [reduceMotion, setReduceMotion] = useState(false);
   const shootingStars = useRef([new Animated.Value(0), new Animated.Value(0)]).current;
   const stars = useMemo(() => buildStars(), []);
@@ -71,28 +87,28 @@ export function CelestialBackground() {
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 390 844" width="100%">
         <Defs>
           <LinearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0" stopColor="#0A1524" />
-            <Stop offset="0.32" stopColor="#0E1D31" />
-            <Stop offset="0.54" stopColor="#1C2C46" />
-            <Stop offset="0.72" stopColor="#3E3A58" />
-            <Stop offset="0.87" stopColor="#795A64" />
-            <Stop offset="1" stopColor="#B27B68" />
+            <Stop offset="0" stopColor={sky.grad[0]} />
+            <Stop offset="0.32" stopColor={sky.grad[1]} />
+            <Stop offset="0.54" stopColor={sky.grad[2]} />
+            <Stop offset="0.72" stopColor={sky.grad[3]} />
+            <Stop offset="0.87" stopColor={sky.grad[4]} />
+            <Stop offset="1" stopColor={sky.grad[5]} />
           </LinearGradient>
           <RadialGradient cx="50%" cy="-6%" id="topGlow" rx="75%" ry="58%">
-            <Stop offset="0" stopColor="#5B63B7" stopOpacity="0.46" />
-            <Stop offset="0.62" stopColor="#5B63B7" stopOpacity="0" />
+            <Stop offset="0" stopColor={sky.top} stopOpacity="0.46" />
+            <Stop offset="0.62" stopColor={sky.top} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient cx="2%" cy="100%" id="leftGlow" rx="58%" ry="62%">
-            <Stop offset="0" stopColor="#E5C06B" stopOpacity="0.62" />
-            <Stop offset="0.7" stopColor="#E5C06B" stopOpacity="0" />
+            <Stop offset="0" stopColor={sky.left} stopOpacity="0.6" />
+            <Stop offset="0.7" stopColor={sky.left} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient cx="98%" cy="100%" id="rightGlow" rx="58%" ry="62%">
-            <Stop offset="0" stopColor="#E89B92" stopOpacity="0.6" />
-            <Stop offset="0.7" stopColor="#E89B92" stopOpacity="0" />
+            <Stop offset="0" stopColor={sky.right} stopOpacity="0.55" />
+            <Stop offset="0.7" stopColor={sky.right} stopOpacity="0" />
           </RadialGradient>
           <RadialGradient cx="50%" cy="100%" id="bottomGlow" rx="82%" ry="54%">
-            <Stop offset="0" stopColor="#F3CBA9" stopOpacity="0.56" />
-            <Stop offset="0.74" stopColor="#F3CBA9" stopOpacity="0" />
+            <Stop offset="0" stopColor={sky.bottom} stopOpacity="0.5" />
+            <Stop offset="0.74" stopColor={sky.bottom} stopOpacity="0" />
           </RadialGradient>
           <LinearGradient id="milkyWay" x1="0" x2="0" y1="0" y2="1">
             <Stop offset="0" stopColor="#E0E4FC" stopOpacity="0" />
@@ -102,9 +118,9 @@ export function CelestialBackground() {
             <Stop offset="1" stopColor="#E0E4FC" stopOpacity="0" />
           </LinearGradient>
           <LinearGradient id="horizon" x1="0" x2="1" y1="0" y2="0">
-            <Stop offset="0" stopColor="#F3CBA9" stopOpacity="0" />
-            <Stop offset="0.5" stopColor="#F3CBA9" stopOpacity="0.9" />
-            <Stop offset="1" stopColor="#F3CBA9" stopOpacity="0" />
+            <Stop offset="0" stopColor={sky.horizon} stopOpacity="0" />
+            <Stop offset="0.5" stopColor={sky.horizon} stopOpacity="0.9" />
+            <Stop offset="1" stopColor={sky.horizon} stopOpacity="0" />
           </LinearGradient>
         </Defs>
         <Rect fill="url(#sky)" height="844" width="390" />
@@ -137,7 +153,7 @@ export function CelestialBackground() {
 
     </View>
   );
-}
+});
 
 function TwinklingStar({ reduceMotion, star }: { reduceMotion: boolean; star: Star }) {
   const opacity = useRef(new Animated.Value(star.opacity)).current;

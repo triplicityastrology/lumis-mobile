@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const appPath = path.join(root, "apps/mobile/App.tsx");
 const screensPath = path.join(root, "apps/mobile/src/screens");
+const featuresPath = path.join(root, "apps/mobile/src/features");
 const mainTabBarPath = path.join(root, "apps/mobile/src/components/MainTabBar.tsx");
 const appSource = await readFile(appPath, "utf8");
 const mainTabBarSource = await readFile(mainTabBarPath, "utf8");
@@ -13,15 +14,16 @@ const accountStateSource = await readFile(path.join(root, "apps/mobile/src/servi
 const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
 const chatSource = await readFile(path.join(root, "apps/mobile/src/services/chat.ts"), "utf8");
-const paywallSource = extractFunction(appSource, "PlansAccessScreen", "BirthDetailsScreen");
+const paywallSource = extractFunction(appSource, "PlansAccessScreen", "NotificationBellIcon");
 const nonPaywallAppSource = appSource.replace(paywallSource, "");
 const screenFiles = (await readdir(screensPath))
   .filter((name) => name.endsWith(".tsx") && !/profile|paywall/i.test(name))
   .map((name) => path.join(screensPath, name));
+const featureFiles = await listTsxFiles(featuresPath);
 
 const scannedSurfaces = [
   { name: "App surfaces outside Paywall", source: nonPaywallAppSource },
-  ...await Promise.all(screenFiles.map(async (file) => ({
+  ...await Promise.all([...screenFiles, ...featureFiles].map(async (file) => ({
     name: path.relative(root, file),
     source: await readFile(file, "utf8")
   })))
@@ -159,6 +161,16 @@ function extractFunction(source, startName, endName) {
   assert.notEqual(start, -1, `${startName} must exist`);
   assert.notEqual(end, -1, `${endName} must exist after ${startName}`);
   return source.slice(start, end);
+}
+
+async function listTsxFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return listTsxFiles(entryPath);
+    return entry.name.endsWith(".tsx") && !/profile|paywall/i.test(entry.name) ? [entryPath] : [];
+  }));
+  return files.flat();
 }
 
 function assertNoVisibleBilling(source, surface) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
+import { randomUUID } from "expo-crypto";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Bell from "lucide-react-native/icons/bell";
 import Check from "lucide-react-native/icons/check";
@@ -64,6 +65,10 @@ import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
 import { DiceRitualScreen } from "./src/features/dice/DiceRitualScreen";
+import { NotificationCenterScreen } from "./src/features/notifications/NotificationCenterScreen";
+import { CareCircleScreen as CareCircleFlowScreen } from "./src/features/careCircle/CareCircleScreen";
+import { BirthDetailsChangeScreen } from "./src/features/birthDetails/BirthDetailsChangeScreen";
+import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
@@ -136,7 +141,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails" | "insights" | "dice" | "profileTab">("home");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "birthDetails" | "insights" | "dice" | "profileTab">("splash");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -151,6 +156,10 @@ export default function App() {
   const [mainFocus, setMainFocus] = useState<string | null>(null);
   const [planTier, setPlanTier] = useState<PlanTier>("starter");
   const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
+  const [birthDetailChanges, setBirthDetailChanges] = useState(0);
+  const [notificationsReturn, setNotificationsReturn] = useState<
+    "home" | "chat" | "insights" | "dice" | "profileTab"
+  >("home");
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
   const [accountLoadMessage, setAccountLoadMessage] = useState("");
@@ -310,6 +319,17 @@ export default function App() {
     setScreen("chat");
   }
 
+  // Notifications is reachable from every tab's bell; Back should return to the
+  // screen it was opened from (Profile subpages always return to Profile).
+  function openNotifications() {
+    if (screen === "chat" || screen === "insights" || screen === "dice" || screen === "profileTab") {
+      setNotificationsReturn(screen);
+    } else {
+      setNotificationsReturn("home");
+    }
+    setScreen("notifications");
+  }
+
   function openMainTab(tab: MainTab) {
     if (tab === "profile") {
       setScreen("profileTab");
@@ -342,6 +362,10 @@ export default function App() {
 
     void initializeAuth();
   }, []);
+
+  if (screen === "splash") {
+    return <LumisSplashScreen onDone={() => setScreen("home")} />;
+  }
 
   if (screen === "auth") {
     return (
@@ -471,7 +495,7 @@ export default function App() {
           setActiveSupabaseThreadId(threadId);
         }}
         onPastReflections={() => setScreen("reflections")}
-        onNotifications={() => setScreen("notifications")}
+        onNotifications={openNotifications}
         onStartNewTopic={() => void startNewTopic()}
         onSelectTab={openMainTab}
         onBack={() => setScreen("home")}
@@ -506,18 +530,18 @@ export default function App() {
   if (screen === "notifications") {
     return (
       <NotificationCenterScreen
-        notifications={LOCAL_NOTIFICATIONS}
-        onBack={() => setScreen("home")}
+        onBack={() => setScreen(notificationsReturn)}
       />
     );
   }
 
   if (screen === "care") {
     return (
-      <CareCircleScreen
-        careCircle={LOCAL_CARE_CIRCLE}
-        onBack={() => setScreen("home")}
-        onOpenNotifications={() => setScreen("notifications")}
+      <CareCircleFlowScreen
+        onBack={() => setScreen("profileTab")}
+        // Care Circle is a paid feature; during UAT it's left reviewable. Wire the
+        // real gate with `eligible={planTier !== "starter"}` once entitlements land.
+        eligible
       />
     );
   }
@@ -526,7 +550,7 @@ export default function App() {
     return (
       <PlansAccessScreen
         currentPlan={planTier}
-        onBack={() => setScreen("home")}
+        onBack={() => setScreen("profileTab")}
       />
     );
   }
@@ -537,12 +561,13 @@ export default function App() {
     const DiceScreenComponent = DICE_RITUAL_ENABLED ? DiceRitualScreen : LumisDiceScreen;
     return (
       <DiceScreenComponent
-        onNotifications={() => setScreen("notifications")}
+        onNotifications={openNotifications}
         onReflect={(chatDraft) => {
           setPendingChatDraft(chatDraft);
           setScreen("chat");
         }}
         onSelectTab={openMainTab}
+        onBack={() => setScreen("home")}
       />
     );
   }
@@ -565,7 +590,7 @@ export default function App() {
         onAccount={() => setScreen("auth")}
         onBirthDetails={() => setScreen("birthDetails")}
         onCareCircle={() => setScreen("care")}
-        onNotifications={() => setScreen("notifications")}
+        onNotifications={openNotifications}
         onPersona={() => setScreen("persona")}
         onPlans={() => setScreen("plans")}
         onSelectTab={openMainTab}
@@ -575,11 +600,20 @@ export default function App() {
 
   if (screen === "birthDetails") {
     return (
-      <BirthDetailsScreen
-        profileData={profileData}
-        successfulChanges={0}
-        onBack={() => setScreen("home")}
-        onEditBirthDetails={() => setScreen("profile")}
+      <BirthDetailsChangeScreen
+        details={
+          profileData
+            ? {
+                birthDate: profileData.birthDate,
+                birthTime: profileData.birthTime,
+                birthPlace: profileData.birthPlace,
+                timeUnknown: profileData.timeUnknown
+              }
+            : null
+        }
+        successfulChanges={birthDetailChanges}
+        onBack={() => setScreen("profileTab")}
+        onCommitted={() => setBirthDetailChanges((n) => n + 1)}
       />
     );
   }
@@ -591,7 +625,7 @@ export default function App() {
         name={profileData.name}
         onBack={() => setScreen("home")}
         onAskLumis={() => setScreen("chat")}
-        onNotifications={() => setScreen("notifications")}
+        onNotifications={openNotifications}
         onSelectTab={openMainTab}
       />
     );
@@ -619,7 +653,7 @@ export default function App() {
         onCreateChart={() => setScreen("profile")}
         onDice={() => openMainTab("dice")}
         onInsights={() => setScreen(chartProfile ? "insights" : "profile")}
-        onNotifications={() => setScreen("notifications")}
+        onNotifications={openNotifications}
         onOpenChat={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
         onOpenProfile={() => openMainTab("profile")}
         onPastReflections={async () => {
@@ -1553,6 +1587,7 @@ function ChatShellScreen({
 }) {
   const [draftMessage, setDraftMessage] = useState(initialDraft ?? "");
   const [isSending, setIsSending] = useState(false);
+  const [retryClientMessageId, setRetryClientMessageId] = useState<string | null>(null);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
@@ -1569,11 +1604,13 @@ function ChatShellScreen({
     }
 
     const nextMessage = draftMessage.trim();
-    const turnId = `${Date.now()}`;
+    const clientMessageId = retryClientMessageId ?? randomUUID();
+    const turnId = clientMessageId;
     const nextPendingTurns = [
       ...chatTurns,
       {
         id: turnId,
+        clientMessageId,
         userMessage: nextMessage,
         result: null,
         error: ""
@@ -1581,12 +1618,14 @@ function ChatShellScreen({
     ];
 
     setDraftMessage("");
+    setRetryClientMessageId(null);
     setIsSending(true);
     await onChatStateChange(nextPendingTurns, remainingCredits);
 
     try {
       const result = await sendChatMessage({
         message: nextMessage,
+        clientMessageId,
         personaStyle: selectedStyle,
         chart,
         forceNewThread: forceNewSupabaseThread,
@@ -1639,40 +1678,29 @@ function ChatShellScreen({
           </View>
           <View style={styles.chatTitleWrap}>
             <Text style={styles.chatTitle}>{lumisName}</Text>
-            <View style={styles.chatPresenceRow}>
+            <Pressable
+              style={styles.chatPersonaChip}
+              onPress={() => onSelectTab("insights")}
+              accessibilityRole="button"
+              accessibilityLabel={`${selectedPersona.labelEn} — open your Sky`}
+            >
               <View style={styles.chatPresenceDot} />
-              <Text style={styles.chatSubtitle}>{selectedPersona.labelEn} · Chart connected</Text>
-            </View>
+              <Text style={styles.chatChipText}>{selectedPersona.labelEn}</Text>
+              <Compass color="#C4CEDB" size={12} />
+            </Pressable>
           </View>
-          <Pressable
-            style={styles.chatIconButton}
-            onPress={onPastReflections}
-            accessibilityLabel="Past Reflections"
-          >
-            <History color="#F0F4F8" size={19} />
+          <Pressable style={styles.chatIconButton} onPress={onPastReflections} accessibilityLabel="Past Reflections">
+            <History color="#F0F4F8" size={18} />
           </Pressable>
-          <Pressable
-            style={styles.chatIconButton}
-            onPress={onNotifications}
-            accessibilityLabel="Notifications"
-          >
+          <Pressable style={styles.chatIconButton} onPress={onStartNewTopic} accessibilityLabel="Start a new topic">
+            <Plus color="#F0F4F8" size={18} />
+          </Pressable>
+          <Pressable style={styles.chatIconButton} onPress={onNotifications} accessibilityLabel="Notifications">
             <Bell color="#F0F4F8" size={18} />
           </Pressable>
         </View>
 
         <ScrollView contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.chatContextCard}>
-            <View style={styles.chatContextWheel}>
-              <Sparkles color="#C9A96E" size={18} />
-            </View>
-            <View style={styles.chatChartRow}>
-              <MiniChartStat label="Sun" value={sun ? sun.sign : "Pending"} />
-              <MiniChartStat label="Moon" value={moon ? moon.sign : "Pending"} />
-              <MiniChartStat label="Rising" value={ascendant ? ascendant.sign : "Unknown"} />
-            </View>
-            <ChevronRight color="#8A9BB0" size={18} />
-          </View>
-
           <Text style={styles.chatDayLabel}>TODAY</Text>
           <View style={styles.messageRowLumis}>
             <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
@@ -1722,7 +1750,13 @@ function ChatShellScreen({
                 <View style={styles.errorCard}>
                   <Text style={styles.errorText}>{turn.error}</Text>
                   <View style={styles.chatErrorActions}>
-                    <Pressable style={styles.chatErrorButton} onPress={() => setDraftMessage(turn.userMessage)}>
+                    <Pressable
+                      style={styles.chatErrorButton}
+                      onPress={() => {
+                        setDraftMessage(turn.userMessage);
+                        setRetryClientMessageId(turn.clientMessageId ?? randomUUID());
+                      }}
+                    >
                       <Text style={styles.chatErrorButtonText}>Retry</Text>
                     </Pressable>
                     <Pressable style={styles.chatErrorButton} onPress={onStartNewTopic}>
@@ -1976,161 +2010,6 @@ function getChatPersistenceMessage(errorCode?: string | null) {
   return "This reply was not saved. Please try sending your message again.";
 }
 
-function NotificationCenterScreen({
-  notifications,
-  onBack
-}: {
-  notifications: NotificationItem[];
-  onBack: () => void;
-}) {
-  const unreadCount = notifications.filter((item) => item.isUnread).length;
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
-          <View style={styles.formStepPill}>
-            <Text style={styles.formStepText}>
-              {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.formHero}>
-          <View style={styles.formLogo}>
-            <NotificationBellIcon size={56} />
-          </View>
-          <Text style={styles.kicker}>Notification Center</Text>
-          <Text style={styles.formTitle}>Care alerts and system notices in one place.</Text>
-          <Text style={styles.formIntro}>
-            This shell prepares the UI for Care Circle confirmations, missed check-ins, Need help
-            alerts, account notices, and push permission issues.
-          </Text>
-        </View>
-
-        <View style={styles.notificationList}>
-          {notifications.map((notification) => (
-            <View
-              key={notification.id}
-              style={[
-                styles.notificationCard,
-                notification.isUnread && styles.notificationCardUnread
-              ]}
-            >
-              <View style={styles.notificationCardHeader}>
-                <Text style={styles.notificationCategory}>{notification.category}</Text>
-                {notification.isUnread ? <View style={styles.unreadDot} /> : null}
-              </View>
-              <Text style={styles.notificationTitle}>{notification.title}</Text>
-              <Text style={styles.notificationBody}>{notification.body}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Notifications in one place</Text>
-          <Text style={styles.noticeBody}>
-            Account updates, Care Circle activity, and important reminders will appear here.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function CareCircleScreen({
-  careCircle,
-  onBack,
-  onOpenNotifications
-}: {
-  careCircle: CareCircleItem[];
-  onBack: () => void;
-  onOpenNotifications: () => void;
-}) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
-          <View style={styles.formStepPill}>
-            <Text style={styles.formStepText}>Care Circle</Text>
-          </View>
-        </View>
-
-        <View style={styles.formHero}>
-          <View style={styles.formLogo}>
-            <Text style={styles.careHeroIcon}>5</Text>
-          </View>
-          <Text style={styles.kicker}>Care Circle</Text>
-          <Text style={styles.formTitle}>Link trusted carers without exposing private Lumis data.</Text>
-          <Text style={styles.formIntro}>
-            A paid caree can link up to five carers for check-ins and alerts. Carers do not see
-            chats, birth data, or Lumis memory.
-          </Text>
-        </View>
-
-        <View style={styles.careFlowPanel}>
-          {["Carer shows QR", "Caree scans and confirms", "Carer accepts", "Alerts become active"].map(
-            (step, index) => (
-              <View key={step} style={styles.careFlowStep}>
-                <View style={styles.careStepNumber}>
-                  <Text style={styles.careStepNumberText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.careFlowText}>{step}</Text>
-              </View>
-            )
-          )}
-        </View>
-
-        <View style={styles.careActionGrid}>
-          <Pressable style={styles.fullPrimaryButton}>
-            <Text style={styles.fullPrimaryButtonText}>Show carer QR</Text>
-          </Pressable>
-          <Pressable style={styles.secondaryFullButton}>
-            <Text style={styles.secondaryFullButtonText}>Scan carer QR</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.careList}>
-          {careCircle.map((item) => (
-            <View key={item.id} style={styles.careCard}>
-              <View style={styles.careCardHeader}>
-                <View>
-                  <Text style={styles.careName}>{item.name}</Text>
-                  <Text style={styles.careRelationship}>{item.relationship}</Text>
-                </View>
-                <View style={[styles.careStatusPill, item.status === "Active" && styles.careStatusPillActive]}>
-                  <Text style={styles.careStatusText}>{item.status}</Text>
-                </View>
-              </View>
-              <Text style={styles.careEvent}>{item.lastEvent}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Privacy boundary</Text>
-          <Text style={styles.noticeBody}>
-            Care Circle can send check-in and Need help alerts, but it should not expose general
-            Past Reflections, birth data, or AI memory to carers.
-          </Text>
-        </View>
-
-        <Pressable style={styles.ghostButton} onPress={onOpenNotifications}>
-          <Text style={styles.ghostButtonText}>View Care alerts</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
 function PlansAccessScreen({
   currentPlan,
   onBack
@@ -2216,101 +2095,6 @@ function PlansAccessScreen({
             must never be trusted for billing or access control.
           </Text>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function BirthDetailsScreen({
-  profileData,
-  successfulChanges,
-  onBack,
-  onEditBirthDetails
-}: {
-  profileData: ProfileData | null;
-  successfulChanges: number;
-  onBack: () => void;
-  onEditBirthDetails: () => void;
-}) {
-  const remainingChanges = Math.max(0, BIRTH_DETAIL_CHANGE_LIMIT - successfulChanges);
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileTopBar}>
-          <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
-          <View style={styles.formStepPill}>
-            <Text style={styles.formStepText}>{remainingChanges} changes remaining</Text>
-          </View>
-        </View>
-
-        <View style={styles.formHero}>
-          <View style={styles.formLogo}>
-            <ChartWheel />
-          </View>
-          <Text style={styles.kicker}>Birth Details</Text>
-          <Text style={styles.formTitle}>Changing birth details regenerates your chart.</Text>
-          <Text style={styles.formIntro}>
-            This is not a normal profile edit. The backend must validate the new details, generate a
-            new chart version, and activate a new Lumis profile before a change is counted.
-          </Text>
-        </View>
-
-        {profileData ? (
-          <View style={styles.summaryPanel}>
-            <SummaryRow label="Birth date" value={profileData.birthDate} />
-            <SummaryRow
-              label="Birth time"
-              value={profileData.timeUnknown ? "Time unknown" : profileData.birthTime}
-            />
-            <SummaryRow label="Birth place" value={profileData.birthPlace} />
-          </View>
-        ) : (
-          <View style={styles.emptyReflectionCard}>
-            <Text style={styles.noticeTitle}>No chart profile yet</Text>
-            <Text style={styles.noticeBody}>
-              Create your first chart before birth-detail changes become available.
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.birthPolicyCard}>
-          <Text style={styles.noticeTitle}>Before you change birth details</Text>
-          <Text style={styles.birthPolicyText}>
-            Changing your birth details will regenerate your chart and Lumis profile. Your past
-            reflections will stay saved, but future guidance will use your new chart. You can change
-            birth details up to 3 times.
-          </Text>
-          <Text style={styles.birthPolicyTextZh}>
-            更改出生資料會重新生成你的星盤及 Lumis 個人檔案。過往反思會保留，但之後的回覆將會使用新的星盤。每個帳戶最多可更改出生資料 3 次。
-          </Text>
-          <Text style={styles.birthPolicyCount}>
-            {remainingChanges} changes remaining · 尚餘 {remainingChanges} 次更改機會
-          </Text>
-        </View>
-
-        <View style={styles.noticeCard}>
-          <Text style={styles.noticeTitle}>Backend rules</Text>
-          <Text style={styles.noticeBody}>
-            Failed regeneration must keep the previous chart active and must not consume a change.
-            Past Reflections keep their original chart version; future chats use the latest active
-            chart version.
-          </Text>
-        </View>
-
-        <Pressable
-          style={[styles.fullPrimaryButton, !profileData && styles.disabledButton]}
-          onPress={onEditBirthDetails}
-          disabled={!profileData}
-        >
-          <Text style={styles.fullPrimaryButtonText}>Regenerate my chart</Text>
-        </Pressable>
-        <Pressable style={styles.ghostButton} onPress={onBack}>
-          <Text style={styles.ghostButtonText}>Cancel</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -4166,6 +3950,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 5,
     marginTop: 2
+  },
+  chatPersonaChip: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(78,100,142,0.4)",
+    borderColor: "rgba(206,216,255,0.16)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    marginTop: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3
+  },
+  chatChipText: {
+    color: "#C4CEDB",
+    fontSize: 11,
+    fontWeight: "600"
   },
   chatPresenceDot: {
     backgroundColor: "#86C8A6",

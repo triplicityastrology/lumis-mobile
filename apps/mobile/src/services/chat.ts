@@ -11,6 +11,7 @@ import { getSupabaseClient } from "./supabase";
 
 export type SendChatMessageInput = {
   message: string;
+  clientMessageId?: string;
   personaStyle: PersonaStyleKey;
   chart: ChartV2 | null;
   forceNewThread?: boolean;
@@ -59,6 +60,7 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
   const { data, error } = await supabase.functions.invoke("chat-message", {
     body: {
       message: cleanedMessage,
+      client_msg_id: input.clientMessageId,
       persona_style: input.personaStyle,
       force_new_thread: input.forceNewThread ?? false,
       thread_id: input.threadId ?? null,

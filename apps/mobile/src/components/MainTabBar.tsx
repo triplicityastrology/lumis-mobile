@@ -3,6 +3,7 @@ import Dices from "lucide-react-native/icons/dices";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import UserRound from "lucide-react-native/icons/user-round";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "../theme/tokens";
 
@@ -15,6 +16,7 @@ export function MainTabBar({
   active: MainTab;
   onSelect: (tab: MainTab) => void;
 }) {
+  const insets = useSafeAreaInsets();
   const tabs = [
     { id: "chat" as const, label: "Talk", Icon: MessageCircle },
     { id: "insights" as const, label: "Insights", Icon: Compass },
@@ -22,8 +24,10 @@ export function MainTabBar({
     { id: "profile" as const, label: "You", Icon: UserRound }
   ];
 
+  // Extend the bar into the home-indicator area so no sky shows below it, and
+  // pad the labels up by the inset. Screens using this bar exclude the bottom edge.
   return (
-    <View style={styles.tabs} accessibilityRole="tablist">
+    <View style={[styles.tabs, { paddingBottom: Math.max(insets.bottom, 8) }]} accessibilityRole="tablist">
       {tabs.map(({ id, label, Icon }) => {
         const selected = id === active;
         return (
@@ -49,8 +53,6 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     borderTopWidth: 1,
     flexDirection: "row",
-    minHeight: 72,
-    paddingBottom: 7,
     paddingTop: 8
   },
   tab: {

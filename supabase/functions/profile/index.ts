@@ -40,6 +40,11 @@ type ChartGenerationResult = {
   nextStep: string;
 };
 
+type RateLimitResult = {
+  allowed?: boolean;
+  retry_after_seconds?: number;
+};
+
 type TrustedBirthLocation = {
   location_key: string;
   place_name: string;
@@ -95,6 +100,8 @@ const personaStyleToInternalRole = {
 } as const;
 
 Deno.serve(async (request) => {
+  const startedAt = Date.now();
+  const requestId = crypto.randomUUID();
   const corsPreflight = handleCorsPreflight(request);
 
   if (corsPreflight) {
@@ -233,6 +240,38 @@ Deno.serve(async (request) => {
     });
   }
 
+  let profileRateLimit: RateLimitResult;
+
+  try {
+    profileRateLimit = await consumeProfileRateLimit(serviceClient, userId);
+  } catch (error) {
+    console.error("PROFILE_RATE_LIMIT_CHECK_FAILED", {
+      request_id: requestId,
+      user_id: userId,
+      error: error instanceof Error ? error.message : "unknown"
+    });
+    return jsonResponse(
+      { error: { code: "PROFILE_RATE_LIMIT_UNAVAILABLE", message: "Chart creation is briefly unavailable. Please try again." }, request_id: requestId },
+      { status: 503, headers: { "X-Lumis-Request-Id": requestId } }
+    );
+  }
+
+  if (!profileRateLimit.allowed) {
+    const retryAfter = Math.max(1, profileRateLimit.retry_after_seconds ?? 600);
+    await recordProfileRuntimeEvent(serviceClient, {
+      requestId,
+      userId,
+      outcome: "rejected",
+      statusCode: 429,
+      errorCode: "PROFILE_RATE_LIMITED",
+      durationMs: Date.now() - startedAt
+    });
+    return jsonResponse(
+      { error: { code: "PROFILE_RATE_LIMITED", message: "Please wait before trying to create another chart." }, request_id: requestId },
+      { status: 429, headers: { "Retry-After": String(retryAfter), "X-Lumis-Request-Id": requestId } }
+    );
+  }
+
   const trustedLocationResult = await serviceClient.rpc("resolve_trusted_birth_location", {
     p_place_name: body.place_name,
     p_country_code: body.country_code,
@@ -281,11 +320,24 @@ Deno.serve(async (request) => {
       body
     });
   } catch (error) {
+    console.error("PROFILE_CHART_WORKER_FAILED", {
+      request_id: requestId,
+      user_id: userId,
+      error: error instanceof Error ? error.message : "unknown"
+    });
+    await recordProfileRuntimeEvent(serviceClient, {
+      requestId,
+      userId,
+      outcome: "failed",
+      statusCode: 502,
+      errorCode: "CHART_WORKER_FAILED",
+      durationMs: Date.now() - startedAt
+    });
     return jsonResponse(
       {
         error: {
           code: "CHART_WORKER_FAILED",
-          message: error instanceof Error ? error.message : "Unable to generate this Lumis chart."
+          message: "Unable to generate this Lumis chart right now. Please try again."
         }
       },
       { status: 502 }
@@ -293,6 +345,18 @@ Deno.serve(async (request) => {
   }
 
   const chart = chartResult.chart;
+  const providerRequestId =
+    chartResult.status === "worker_chart_generated" && typeof chartResult.rawChartJson.request_id === "string"
+      ? chartResult.rawChartJson.request_id
+      : null;
+
+  if (providerRequestId) {
+    await recordProviderCallOutcome(serviceClient, {
+      requestId: providerRequestId,
+      userId,
+      status: "generated"
+    });
+  }
   const role = personaStyleToInternalRole.acceptance;
 
   const { data: onboardingData, error: onboardingError } = await serviceClient.rpc(
@@ -324,8 +388,24 @@ Deno.serve(async (request) => {
   );
 
   if (onboardingError) {
+    if (providerRequestId) {
+      await recordProviderCallOutcome(serviceClient, {
+        requestId: providerRequestId,
+        userId,
+        status: "persistence_failed",
+        errorCode: "PROFILE_ONBOARDING_FAILED"
+      });
+    }
+    await recordProfileRuntimeEvent(serviceClient, {
+      requestId,
+      userId,
+      outcome: "failed",
+      statusCode: 500,
+      errorCode: "PROFILE_ONBOARDING_FAILED",
+      durationMs: Date.now() - startedAt
+    });
     return jsonResponse(
-      { error: { code: "PROFILE_ONBOARDING_FAILED", message: onboardingError.message } },
+      { error: { code: "PROFILE_ONBOARDING_FAILED", message: "The chart was generated but could not be saved. Please contact support before retrying." }, request_id: requestId },
       { status: 500 }
     );
   }
@@ -333,6 +413,22 @@ Deno.serve(async (request) => {
   const onboarding = onboardingData as OnboardingRpcResponse;
 
   if (!onboarding.ok) {
+    if (providerRequestId) {
+      await recordProviderCallOutcome(serviceClient, {
+        requestId: providerRequestId,
+        userId,
+        status: "persistence_failed",
+        errorCode: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED"
+      });
+    }
+    await recordProfileRuntimeEvent(serviceClient, {
+      requestId,
+      userId,
+      outcome: "rejected",
+      statusCode: onboarding.error_code === "PROFILE_ALREADY_EXISTS" ? 409 : 400,
+      errorCode: onboarding.error_code ?? "PROFILE_ONBOARDING_REJECTED",
+      durationMs: Date.now() - startedAt
+    });
     return jsonResponse(
       {
         error: {
@@ -344,6 +440,22 @@ Deno.serve(async (request) => {
     );
   }
 
+  if (providerRequestId) {
+    await recordProviderCallOutcome(serviceClient, {
+      requestId: providerRequestId,
+      userId,
+      status: "committed"
+    });
+  }
+  await recordProfileRuntimeEvent(serviceClient, {
+    requestId,
+    userId,
+    outcome: "success",
+    statusCode: 200,
+    errorCode: null,
+    durationMs: Date.now() - startedAt
+  });
+
   return jsonResponse({
     profile_version: onboarding.profile_version,
     status: "profile_persisted",
@@ -354,9 +466,89 @@ Deno.serve(async (request) => {
     birth_data_history_id: onboarding.birth_data_history_id,
     chart_worker_contract: { ...chartRequest, user_id: userId },
     chart,
-    next_step: chartResult.nextStep
-  });
+    next_step: chartResult.nextStep,
+    request_id: requestId
+  }, { headers: { "X-Lumis-Request-Id": requestId } });
 });
+
+async function consumeProfileRateLimit(
+  serviceClient: ReturnType<typeof createClient>,
+  userId: string
+): Promise<RateLimitResult> {
+  const { data, error } = await serviceClient.rpc("check_api_rate_limit", {
+    p_user_id: userId,
+    p_endpoint: "/profile",
+    p_max_requests: 5,
+    p_window_seconds: 600
+  });
+
+  if (error) {
+    throw new Error(error.code ?? "PROFILE_RATE_LIMIT_CHECK_FAILED");
+  }
+
+  return (data ?? {}) as RateLimitResult;
+}
+
+async function recordProviderCallOutcome(
+  serviceClient: ReturnType<typeof createClient>,
+  input: {
+    requestId: string;
+    userId: string;
+    status: "generated" | "committed" | "persistence_failed";
+    errorCode?: string;
+  }
+): Promise<void> {
+  const { error } = await serviceClient.from("chart_provider_call_events").upsert(
+    {
+      request_id: input.requestId,
+      user_id: input.userId,
+      status: input.status,
+      compensation_status: input.status === "persistence_failed" ? "review_pending" : "not_required",
+      persistence_completed_at: input.status === "committed" ? new Date().toISOString() : null,
+      last_error_code: input.errorCode ?? null,
+      updated_at: new Date().toISOString()
+    },
+    { onConflict: "request_id" }
+  );
+
+  if (error) {
+    console.error("PROFILE_PROVIDER_OUTCOME_WRITE_FAILED", {
+      request_id: input.requestId,
+      user_id: input.userId,
+      status: input.status,
+      code: error.code
+    });
+  }
+}
+
+async function recordProfileRuntimeEvent(
+  serviceClient: ReturnType<typeof createClient>,
+  input: {
+    requestId: string;
+    userId: string;
+    outcome: "success" | "rejected" | "failed";
+    statusCode: number;
+    errorCode: string | null;
+    durationMs: number;
+  }
+): Promise<void> {
+  const { error } = await serviceClient.rpc("record_runtime_request_event", {
+    p_request_id: input.requestId,
+    p_endpoint: "/profile",
+    p_user_id: input.userId,
+    p_outcome: input.outcome,
+    p_status_code: input.statusCode,
+    p_error_code: input.errorCode,
+    p_duration_ms: input.durationMs
+  });
+
+  if (error) {
+    console.error("PROFILE_RUNTIME_EVENT_WRITE_FAILED", {
+      request_id: input.requestId,
+      code: error.code
+    });
+  }
+}
 
 function invalidBirthDateResponse(): Response {
   return jsonResponse(
@@ -459,8 +651,12 @@ async function repairExistingProfile(input: {
   );
 
   if (onboardingError) {
+    console.error("PROFILE_RECOVERY_FAILED", {
+      user_id: input.userId,
+      code: onboardingError.code
+    });
     return jsonResponse(
-      { error: { code: "PROFILE_ONBOARDING_FAILED", message: onboardingError.message } },
+      { error: { code: "PROFILE_ONBOARDING_FAILED", message: "Unable to repair this Lumis profile right now." } },
       { status: 500 }
     );
   }
