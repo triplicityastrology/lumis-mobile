@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { randomUUID } from "expo-crypto";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
@@ -14,7 +14,7 @@ import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { BackHandler, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx } from "react-native-safe-area-context";
 
 import {
@@ -161,6 +161,9 @@ export default function App() {
   const [notificationsReturn, setNotificationsReturn] = useState<
     "home" | "chat" | "insights" | "dice" | "profileTab"
   >("home");
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+  const pendingAfterSplashRef = useRef<"home" | "chat" | null>(null);
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
   const [accountLoadMessage, setAccountLoadMessage] = useState("");
@@ -238,15 +241,15 @@ export default function App() {
         const accountState = await loadSupabaseAccountState();
         const restored = applySupabaseAccountState(accountState);
         if (restored && routeLoadedAccount) {
-          setScreen("chat");
+          routeAfterSplash("chat");
         } else if (!restored && routeLoadedAccount) {
-          setScreen("home");
+          routeAfterSplash("home");
         }
       } catch (error) {
         clearVisibleAccountState("We could not load your Lumis profile. Please try again.");
         setAccountLoadStatus("error");
         if (routeLoadedAccount) {
-          setScreen("home");
+          routeAfterSplash("home");
         }
       }
 
@@ -320,6 +323,17 @@ export default function App() {
     setScreen("chat");
   }
 
+  // Splash decision: the branded splash holds for its full ~4s moment. Account
+  // restoration runs in parallel but its navigation is deferred until splash ends
+  // (a returning user is routed after, not mid-splash), so the intro isn't cut short.
+  function routeAfterSplash(target: "home" | "chat") {
+    if (screenRef.current === "splash") {
+      pendingAfterSplashRef.current = target;
+    } else {
+      setScreen(target);
+    }
+  }
+
   // Notifications is reachable from every tab's bell; Back should return to the
   // screen it was opened from (Profile subpages always return to Profile).
   function openNotifications() {
@@ -345,6 +359,25 @@ export default function App() {
     setScreen(tab);
   }
 
+  // Android hardware back / gesture: mirror the on-screen Back target so it's
+  // consistent (Profile subpages → Profile, tabs → home, root → let OS exit).
+  // iOS interactive swipe-back needs a real navigator — tracked as a Technical
+  // architecture item; not available with this manual screen-state model.
+  useEffect(() => {
+    const onHardwareBack = () => {
+      const s = screenRef.current;
+      if (s === "notifications") { setScreen(notificationsReturn); return true; }
+      if (s === "care" || s === "plans" || s === "birthDetails") { setScreen("profileTab"); return true; }
+      if (s === "auth" || s === "persona" || s === "preview" || s === "reflections") { setScreen("home"); return true; }
+      if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
+        setScreen("home"); return true;
+      }
+      return false; // home/splash → let the OS handle (exit)
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onHardwareBack);
+    return () => sub.remove();
+  }, [notificationsReturn]);
+
   useEffect(() => {
     async function initializeAuth() {
       try {
@@ -365,7 +398,7 @@ export default function App() {
   }, []);
 
   if (screen === "splash") {
-    return <LumisSplashScreen onDone={() => setScreen("home")} />;
+    return <LumisSplashScreen onDone={() => setScreen(pendingAfterSplashRef.current ?? "home")} />;
   }
 
   if (screen === "auth") {
@@ -614,7 +647,27 @@ export default function App() {
         }
         successfulChanges={birthDetailChanges}
         onBack={() => setScreen("profileTab")}
-        onCommitted={() => setBirthDetailChanges((n) => n + 1)}
+        onRegenerate={async (next) => {
+          if (!profileData) return false;
+          const updated = {
+            ...profileData,
+            birthDate: next.birthDate,
+            birthTime: next.birthTime,
+            birthPlace: next.birthPlace,
+            timeUnknown: next.timeUnknown
+          };
+          try {
+            // Real chart + Lumis-profile regeneration (same pipeline as onboarding).
+            const result = await submitChartProfile(updated);
+            setProfileData(updated);
+            setChartProfile(result.chart);
+            // Change count is consumed only on a confirmed successful regeneration.
+            setBirthDetailChanges((n) => n + 1);
+            return true;
+          } catch {
+            return false;
+          }
+        }}
       />
     );
   }

@@ -24,6 +24,10 @@ the intended design and behavior.
 - Lumis navy/gold celestial presentation, including the star field, glows,
   horizon treatment, shooting-star treatment, and reduced-motion behavior.
 - Shared `CelestialBackground` component and its memoization/performance intent.
+- The 2026-07-21 performance revision groups the 66 seeded stars into two
+  native-driven pulse layers. Preserve both the performance intent and the
+  seeded/static sky treatment; do not silently restore 66 JS loops or replace
+  the grouped visual without Claude/PM review.
 - `SafeAreaProvider` with `initialWindowMetrics` at the app root.
 - Four persistent main destinations and labels:
   - Talk
@@ -72,6 +76,9 @@ the intended design and behavior.
 
 - Chart Generating retains the celestial sky and chart-generation progress
   presentation.
+- Birth-detail regeneration uses the same full-screen chart-wheel and stepped
+  progress presentation. This protects the design only; the current timed demo
+  must not be treated as a completed or saved PROF-2 operation.
 - Birth Details uses native date/calendar and time controls under the sky design.
 - Future-date rejection and unknown-time flow must remain intact.
 - Unknown time must not expose ASC, MC, houses, planet-house placements, or AI
@@ -176,4 +183,3 @@ Before Technical commits a refactor touching `App.tsx`, app navigation,
 - Record any intentionally replaced Claude behavior in the commit/PM tracker.
 - Do not resolve merge conflicts by taking an entire Technical or Claude version
   of `App.tsx`; reconcile behavior item by item.
-

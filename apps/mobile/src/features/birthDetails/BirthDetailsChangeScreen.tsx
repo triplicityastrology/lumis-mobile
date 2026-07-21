@@ -1,5 +1,5 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View
 } from "react-native";
@@ -65,21 +65,28 @@ export type BirthDetails = { birthDate: string; birthTime: string; birthPlace: s
 type Step = "display" | "edit" | "confirm" | "regenerating" | "success" | "failure";
 
 export function BirthDetailsChangeScreen({
-  details, successfulChanges, onBack, onCommitted
+  details, successfulChanges, onBack, onRegenerate
 }: {
   details: BirthDetails | null;
   successfulChanges: number;
   onBack: () => void;
-  onCommitted: () => void;
+  /** Performs the REAL chart/profile regeneration; resolves true on success. */
+  onRegenerate: (next: BirthDetails) => Promise<boolean>;
 }) {
   const remaining = Math.max(0, LIMIT - successfulChanges);
   const [step, setStep] = useState<Step>("display");
   const [draft, setDraft] = useState<BirthDetails>(
     details ?? { birthDate: "", birthTime: "", birthPlace: "", timeUnknown: false }
   );
-  const [forceFail, setForceFail] = useState(false);
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
   const [regenStep, setRegenStep] = useState(0);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearTimers = () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+  };
+  // Cancel any pending status-advance timers on unmount (spec: no dangling timers).
+  useEffect(() => clearTimers, []);
 
   const dirty = details
     ? draft.birthDate !== details.birthDate ||
@@ -94,16 +101,17 @@ export function BirthDetailsChangeScreen({
     "Regenerating your Lumis profile",
     "Preparing your new chart context"
   ];
-  function runRegeneration() {
+  async function runRegeneration() {
     setStep("regenerating");
     setRegenStep(0);
-    const t1 = setTimeout(() => setRegenStep(1), 900);
-    const t2 = setTimeout(() => setRegenStep(2), 1800);
-    setTimeout(() => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      setStep(forceFail ? "failure" : "success");
-    }, 2600);
+    // Status steps advance for feedback; the real backend result decides the outcome.
+    timersRef.current = [
+      setTimeout(() => setRegenStep(1), 900),
+      setTimeout(() => setRegenStep(2), 1800)
+    ];
+    const ok = await onRegenerate(draft);
+    clearTimers();
+    setStep(ok ? "success" : "failure");
   }
 
   const diffs: Array<{ label: string; from: string; to: string }> = [];
@@ -118,7 +126,16 @@ export function BirthDetailsChangeScreen({
   return (
     <SafeAreaView style={s.safe}>
       <CelestialBackground />
-      <ScreenHeader title="Birth Details" onBack={step === "display" ? onBack : () => setStep("display")} />
+      <ScreenHeader
+        title="Birth Details"
+        onBack={
+          step === "regenerating"
+            ? () => {} // no back-out mid-regeneration
+            : step === "display"
+              ? onBack
+              : () => { clearTimers(); setStep("display"); }
+        }
+      />
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {step === "display" ? (
@@ -220,8 +237,8 @@ export function BirthDetailsChangeScreen({
             <Text style={s.successBody}>
               Lumis will use this new chart for future guidance. Your past reflections are still saved.
             </Text>
-            <BrandButton label="Continue to Lumis" onPress={() => { onCommitted(); onBack(); }} style={{ alignSelf: "stretch", marginTop: 22 }} />
-            <GhostButton label="View updated chart" onPress={() => { onCommitted(); onBack(); }} style={{ marginTop: 8 }} />
+            <BrandButton label="Continue to Lumis" onPress={onBack} style={{ alignSelf: "stretch", marginTop: 22 }} />
+            <GhostButton label="View updated chart" onPress={onBack} style={{ marginTop: 8 }} />
           </View>
         ) : null}
 
@@ -230,7 +247,7 @@ export function BirthDetailsChangeScreen({
             <RetryCard
               title="We couldn't update your chart just now."
               sub="Your previous chart is still active, and this change has not been counted."
-              onRetry={() => { setForceFail(false); runRegeneration(); }}
+              onRetry={runRegeneration}
               secondaryLabel="Back"
               onSecondary={() => setStep("edit")}
             />
@@ -263,10 +280,6 @@ export function BirthDetailsChangeScreen({
             <Text style={s.modalCount}>{remaining} changes remaining</Text>
             <BrandButton label="Regenerate my chart" onPress={runRegeneration} style={{ alignSelf: "stretch", marginTop: 16 }} />
             <GhostButton label="Cancel" onPress={() => setStep("edit")} style={{ marginTop: 6 }} />
-            {/* dev-only failure preview toggle */}
-            <Pressable onPress={() => setForceFail((f) => !f)} style={{ marginTop: 6 }}>
-              <Text style={s.devToggle}>{forceFail ? "· preview: will fail" : "· preview: will succeed"}</Text>
-            </Pressable>
           </View>
         </View>
       </Modal>
@@ -377,7 +390,6 @@ const s = StyleSheet.create({
   diffArrow: { color: colors.muted },
   diffTo: { color: colors.ice, fontWeight: "600" },
   modalCount: { color: colors.muted, fontSize: 12, marginTop: 14 },
-  devToggle: { color: colors.muted, fontSize: 10.5, opacity: 0.6 },
   regenOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
   regenWheel: { alignItems: "center", height: 150, justifyContent: "center", marginBottom: 24, width: 150 },
   regenEyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },

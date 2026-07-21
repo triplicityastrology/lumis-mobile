@@ -42,7 +42,10 @@ assert.match(mainTabBarSource, /label: "Dice"/);
 assert.match(mainTabBarSource, /label: "You"/);
 assert.match(appSource, /<MainTabBar active="chat"/);
 assert.match(appSource, /restoreAccountForStatus\(status, true\)/);
-assert.match(appSource, /if \(restored && routeLoadedAccount\)[\s\S]{0,120}setScreen\("chat"\)/);
+// A restored account still routes to Chat; navigation is deferred past the splash
+// via routeAfterSplash (which resolves to setScreen("chat")).
+assert.match(appSource, /if \(restored && routeLoadedAccount\)[\s\S]{0,120}routeAfterSplash\("chat"\)/);
+assert.match(appSource, /function routeAfterSplash[\s\S]{0,220}setScreen\(target\)/);
 assert.match(appSource, /accessibilityLabel="Past Reflections"/);
 assert.match(appSource, /placeholder="Search reflections"/);
 assert.match(appSource, /Start a new topic/);
