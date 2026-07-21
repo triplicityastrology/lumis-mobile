@@ -37,16 +37,16 @@ Status rules:
 - [x] Authentication API refresh, sign-out, and sign-back-in succeeded for the temporary QA account.
 - [x] Source scan found no visible legacy wording matches for `Astro`, `token`, `unit`, or `chat history` in the tested mobile/shared paths.
 - [x] Production web export succeeds through commit `9c7fa65`.
-- [ ] Independently rerun the production export after the active post-`36878a7` UI work settles. Technical records a passing web export and iOS Hermes bundle for the SDK 54 upgrade, but QA has not reproduced those bundles on the current changing worktree.
-- [ ] Restore the local Expo preview before browser/device QA; `http://localhost:8081/` was not responding on 2026-07-21, so the previously reported LAN URL is no longer live.
+- [x] QA independently reproduced a production Expo web export on the current 2026-07-21 worktree after the runtime-guardrail/UI-contract fixes.
+- [ ] Restore the local Expo preview before browser/device QA; both IPv4 `localhost:8081` and IPv6 `[::1]:8081` were not responding when QA rechecked after the batch.
 
 ## Gate A — Before Pushing or Deploying to Staging
 
 - [x] Commits through `7003974` are present on `origin/main`; the branch was no longer ahead during QA verification.
 - [x] Worker timeout/replay/environment and Care Circle index-correction source changes are committed as `8cdc6e5` and present on `origin/main`.
 - [x] Entitlement digest-conflict and deterministic equal-time ordering fixes are committed in `33a7144`; local billing-entitlement fixtures pass. Migration `0017` hosted deployment/database proof remains open.
-- [ ] Repair Git metadata before the next push: local `main` reports `[origin/main: gone]`, Git warns about an invalid duplicate ref named `refs/heads/main 2`, and the remote-tracking `origin/main` ref is absent. Do not treat GitHub Desktop's push count as reliable until this is reconciled safely.
-- [ ] Confirm the worktree contains no unrelated or uncommitted changes before deployment. Current post-upgrade UI/package changes, new feature directories, draft migrations `0020`/`0021`, scheduler/CI files, and backend guardrail changes are still in progress and were not altered by QA.
+- [x] Invalid duplicate refs `main 2` / `HEAD 2` were removed; QA confirmed local `main`, `origin/main`, and `origin/HEAD` resolve normally at commit `5a05b1f`.
+- [ ] Confirm the worktree contains no unrelated or uncommitted changes before deployment. Commits through `5a05b1f` are tracked on `origin/main`, but a new forward migration `0022`, Edge/fixture/hosted-test edits, and QA/Claude documentation changes are currently uncommitted/in progress and must be reviewed as a separate batch.
 - [ ] Run and record:
   - [x] `pnpm -r typecheck` (QA reran all four workspace projects successfully on 2026-07-21.)
   - [x] `pnpm run test:birth-date`
@@ -59,8 +59,11 @@ Status rules:
   - [x] `pnpm run test:profile`
   - [x] `pnpm run test:chat-persistence`
   - [x] `pnpm run test:external-sync`
-  - [x] `pnpm run test:mobile-ui` passes across 10 non-billing surfaces after Technical updated the contract for the active screen refactor on 2026-07-21; the surrounding changes remain uncommitted/in progress.
+  - [x] `pnpm run test:mobile-ui` passes across 11 non-billing surfaces after Technical updated the contract for the active screen refactor on 2026-07-21.
   - [x] `pnpm run test:dice` passes geometry, face reading, settle behavior, and the seeded 1,000-roll distribution suite on 2026-07-21.
+  - [x] `pnpm run test:backend-guardrails`
+  - [x] `pnpm run test:route-credits`
+  - [x] `pnpm test:all-local` (QA independently reran the complete aggregate suite successfully on 2026-07-21.)
 - [x] Confirm no real secrets, API keys, access tokens, service-role keys, or QA passwords are tracked by Git; only documented placeholders are present.
 - [ ] Review migration `0008_onboarding_chart_history.sql` against a disposable/staging database backup plan.
 - [x] Confirm migration order `0001` through `0013` has local/remote parity in the linked staging database (`supabase migration list --linked`, independently checked 2026-07-17). The new `resolve_active_plan_tier` RPC responds on staging, providing evidence that migration `0014` is present, but full migration-list parity should be recorded again.
@@ -231,7 +234,8 @@ These checks require deployed staging services but do not require finished UI.
 
 - [x] Source migration `0020` and mobile/Edge propagation now use a UUID `client_msg_id`, an advisory transaction lock, and one user-message uniqueness constraint. Local contracts pass and the hosted-suite source asserts exact replay returns the original thread with no extra turn; this remains scaffold/no-charge behavior.
 - [ ] Deploy `0020` and run simultaneous same-ID requests plus exact retry against staging PostgreSQL. Confirm one user/assistant pair now, and repeat after real charging exists to prove one usage record and one credit deduction. Also test same ID with changed message/thread/route inputs and require a safe conflict rather than silently accepting a different operation.
-- [ ] Enforce one normal monthly/subscription balance row per user and logical billing period, then run concurrent creation/renewal tests. Migration `0020` still keys uniqueness by exact `(user_id, period_start timestamptz)`, so two timestamps within the same logical month/provider period remain valid. Its duplicate cleanup also sums `allocated` and `remaining`, which can preserve an accidental double grant; use a canonical provider-period identifier and quarantine/reconcile duplicates safely.
+- [x] Source migration `0020` now adds canonical `(user_id, billing_period_key)` uniqueness for normal rows, backfills `calendar:YYYY-MM`, documents future `revenuecat:<stable-provider-period-id>` keys, and reconciles duplicate legacy rows without summing accidental allocations/remaining balances. Local guardrail contracts pass.
+- [ ] Deploy `0020` and run the hosted concurrent logical-period case that submits two different timestamps with one provider-period key. Confirm exactly one row/allocation, exercise calendar and RevenueCat-format keys, and audit any migration-reported legacy duplicates before enabling paid renewals.
 - [x] Source adds a backend-only fixed-window rate-limit RPC and wires `/profile` to 5 requests/10 minutes and `/chat-message` to 30 requests/minute with safe `429`/`Retry-After` handling; local source contracts pass.
 - [ ] Deploy and staging-test rate-limit concurrency, window-boundary bursts, normal use, cleanup, safe errors, and fail-closed behavior. Authentication, Dice, external-sync, and admin endpoints are not covered by these two endpoint limits.
 - [x] Source adds payload-free runtime request events, service-only health snapshot, alert evaluation, 90/180-day retention jobs, and request IDs through mobile Chat, `chat-message`, `/profile`, the chart Worker contract, and external-sync records.
@@ -240,7 +244,10 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Source includes GitHub Actions CI for the pinned pnpm/Node versions, frozen install, workspace typecheck, all local suites, and production Expo web export on pull requests and `main` pushes.
 - [ ] Confirm the workflow commit is on GitHub and record a successful GitHub Actions run. A local workflow file is not evidence that CI executed.
 - [x] Source redacts the listed top-level external-sync PII fields when an event becomes delivered, manually resolved, or cancelled due to deletion; local contracts pass.
-- [ ] Re-verify external-sync payload retention, nested/alternate field names, deletion-marker behavior, and final cleanup against PM/legal decisions using staging Salesforce and Sheets records. Pending/retry/`failed_final` PII retention and cleanup remain undefined.
+- [x] Source defines failed-final external-sync PII retention: `payload_expires_at` defaults to 30 days, completed/cancelled payloads redact immediately, and the daily retention function redacts expired `failed_final` payloads while retaining operational metadata.
+- [ ] Decide whether “30 days” is a strict maximum or daily-job target. As implemented, a payload can remain present and manually replayable between its exact expiry and the next daily retention run. If strict, make claim/replay reject expired payloads and redact atomically; in either case, staging-test expiry, redaction, replay blocking, alternate/nested fields, deletion markers, and legal field minimization.
+- [x] Source Worker telemetry exposes only `generated`/`already_generated` and a provider-call counter; fixtures confirm exact and simultaneous replay report one call without provider payload leakage.
+- [ ] Deploy the updated Worker and run the signed live simultaneous-request test, recording Worker version and telemetry evidence. Treat `provider_calls_24h` cautiously: it sums a cumulative per-request counter by the ledger row's original `created_at`, so later retries can be attributed to the wrong 24-hour window unless provider attempts become append-only events.
 - [x] Source migration `0021` schedules database-local runtime alerts every 15 minutes, retention daily, and an external-sync failure report daily; it deliberately does not enable hourly Salesforce/Google delivery.
 - [ ] Deploy `0021` and inspect `cron.job` plus `cron.job_run_details` after the scheduled windows. Verify report/alert/retention effects and failure visibility; source schedule definitions are not hosted scheduler evidence.
 - [ ] Recheck website/mobile Worker payload parity whenever `chart_v2`, provider mapping, unknown-time sanitization, or calculation-version fields change; require an explicit compatibility test or versioned contract.
@@ -279,7 +286,7 @@ These checks require deployed staging services but do not require finished UI.
 ### Claude Fable navigation, layout, and rebrand handoff (`AC-QA-04`)
 
 - [x] Source includes `react-native-safe-area-context ~5.6.0`, wraps the app in `SafeAreaProvider` with `initialWindowMetrics`, and the installed dependency matches Expo SDK 54's local dependency map. Workspace typecheck passed independently on 2026-07-21.
-- [ ] Fix Chat's root safe-area ownership before accepting the tab-bar gap fix. `ChatShellScreen` still uses `SafeAreaView` imported from `react-native`, while `MainTabBar` separately adds the device bottom inset. Unlike Home, Insights, Dice, and Profile, Chat does not use the context `SafeAreaView edges={["top", "left", "right"]}`, so an iPhone can receive a parent bottom inset plus tab-bar bottom padding.
+- [x] Source Chat now uses the safe-area-context view with bottom excluded, matching the tab bar's ownership of the device bottom inset. Real-iPhone visual verification remains in the next item.
 - [ ] Run the tab-bar/safe-area matrix on an iPhone with a home indicator: Chat, Insights, Dice, and Profile; reload, rotation, background/resume, keyboard/composer, scrolling, tap targets, clipping, and no sky gap below the bar. Source inspection cannot close this visual/device gate.
 - [x] Source visible Back buttons return Care Circle, Plans, and Birth Details to Profile. Notification entry tracks Home/Chat/Insights/Dice/Profile as its return source, and the four main-tab bells use the shared helper.
 - [ ] Implement or explicitly defer production navigation semantics. The app still uses one conditional `screen` state and has no `BackHandler`, React Navigation/native stack, or gesture integration, so Android hardware Back and iOS swipe-back are not equivalent to the visible Back controls. Test system Back/gesture after the navigation decision.
@@ -288,7 +295,7 @@ These checks require deployed staging services but do not require finished UI.
 - [ ] Device-test Splash full-bleed safe areas, reduced motion, cold launch, reload/relaunch policy, and restored-account timing. Auth restoration runs concurrently and can route away from Splash before its four-second timer; confirm this duration variability is intended and never flashes Welcome or overrides the restored Chat route.
 - [x] Source Chat removes the chart-context banner, makes the Persona chip open Insights, and adds a visible new-topic plus button.
 - [ ] Device/staging-test the new-topic button with an unsent draft, saved active thread, retry, double tap, local/offline state, and signed-in persistence. Confirm the prior conversation remains in Past Reflections and only one new thread is created on the first successful send.
-- [ ] Re-run the mobile UI contract after updating its stale notification assertion. `pnpm test:mobile-ui` currently fails at `scripts/mobile-ui-contract.mjs:56` because it still expects the removed inline `setScreen("notifications")` callback instead of the new shared `openNotifications` helper. Therefore Claude's typecheck claim passes, but the current broader UI regression suite is not green.
+- [x] The stale notification assertion was updated for the shared `openNotifications` helper; QA independently reran `pnpm test:mobile-ui` successfully across 11 non-billing surfaces on 2026-07-21.
 - [x] No app source imports or renders a WebView/iframe for this handoff; the UI is implemented in Expo React Native/TypeScript. The lockfile's `react-native-webview` reference is package metadata, not an app dependency or usage.
 - [ ] Recheck Generating and Birth Details on-device: sky layering, calendar/time picker, birthplace suggestions, future-date rejection, unknown-time restrictions, keyboard/safe areas, correct return context, and successful regeneration state. Source presence is not an interactive pass.
 

@@ -1,5 +1,8 @@
 # Claude Design Handoff - 2026-07-16
 
+Latest Technical preservation checklist:
+[`claude-fable-preservation-inventory-2026-07-21.md`](./claude-fable-preservation-inventory-2026-07-21.md)
+
 Source package: `Astro Mobile App (1).zip`, supplied by Ruby on 2026-07-16.
 
 The package is a high-fidelity web reference. Production screens must be rebuilt
