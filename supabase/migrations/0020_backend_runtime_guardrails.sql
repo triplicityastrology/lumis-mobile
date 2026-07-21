@@ -1,25 +1,32 @@
 -- Runtime guardrails required before paid chat and broader staging traffic.
 
--- Consolidate any exact duplicate monthly periods before enforcing one ledger
--- row per user and period. Existing value totals are preserved on the oldest row.
+-- Calendar-month is the current canonical balance period. RevenueCat must later
+-- map provider periods to this key through its protected event handler. Starter
+-- and quarantined legacy grants keep their separate one-time uniqueness rule.
+alter table public.monthly_balance
+  add column if not exists billing_period_key date generated always as (
+    date_trunc('month', period_start at time zone 'UTC')::date
+  ) stored;
+
+-- Consolidate legacy normal rows in the same logical month without summing
+-- allocations. Summing could preserve an accidental double grant. The oldest
+-- row remains, conservative maxima/minima preserve usage, and every removed row
+-- is reported for manual audit.
 with duplicate_groups as (
   select
     user_id,
-    period_start,
+    billing_period_key,
     min(id) as keeper_id,
     array_agg(id order by id) as balance_ids,
-    sum(allocated) as allocated,
-    sum(pack_units) as pack_units,
-    sum(used) as used,
-    sum(remaining) as remaining,
+    max(allocated) as allocated,
+    max(pack_units) as pack_units,
+    max(used) as used,
+    min(remaining) as remaining,
     max(period_end) as period_end,
-    bool_or(low_alert_sent) as low_alert_sent,
-    case
-      when bool_or(grant_type = 'starter_onboarding') then 'starter_onboarding'
-      else min(grant_type)
-    end as grant_type
+    bool_or(low_alert_sent) as low_alert_sent
   from public.monthly_balance
-  group by user_id, period_start
+  where grant_type not in ('starter_onboarding', 'duplicate_starter_quarantined')
+  group by user_id, billing_period_key
   having count(*) > 1
 ),
 reported as (
@@ -32,11 +39,11 @@ reported as (
         jsonb_agg(
           jsonb_build_object(
             'user_id', user_id,
-            'period_start', period_start,
+            'billing_period_key', billing_period_key,
             'balance_ids', balance_ids,
             'keeper_id', keeper_id
           )
-          order by user_id, period_start
+          order by user_id, billing_period_key
         ),
         '[]'::jsonb
       )
@@ -52,34 +59,22 @@ updated as (
     used = duplicates.used,
     remaining = duplicates.remaining,
     period_end = duplicates.period_end,
-    low_alert_sent = duplicates.low_alert_sent,
-    grant_type = duplicates.grant_type
+    low_alert_sent = duplicates.low_alert_sent
   from duplicate_groups duplicates
   where balance.id = duplicates.keeper_id
   returning balance.id
 )
 delete from public.monthly_balance balance
 using duplicate_groups duplicates
-where balance.user_id = duplicates.user_id
-  and balance.period_start = duplicates.period_start
+where balance.id = any(duplicates.balance_ids)
   and balance.id <> duplicates.keeper_id;
 
-create unique index if not exists monthly_balance_user_period_start_idx
-  on public.monthly_balance (user_id, period_start);
+create unique index if not exists monthly_balance_user_billing_period_idx
+  on public.monthly_balance (user_id, billing_period_key)
+  where grant_type not in ('starter_onboarding', 'duplicate_starter_quarantined');
 
-do $$
-begin
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.monthly_balance'::regclass
-      and conname = 'monthly_balance_user_period_start_unique'
-  ) then
-    alter table public.monthly_balance
-      add constraint monthly_balance_user_period_start_unique
-      unique using index monthly_balance_user_period_start_idx;
-  end if;
-end;
-$$;
+comment on column public.monthly_balance.billing_period_key is
+  'Canonical UTC calendar month for normal balance rows. Provider webhook code must upsert this logical period, never an arbitrary timestamp.';
 
 create index if not exists chat_messages_user_created_idx
   on public.chat_messages (user_id, created_at desc);
@@ -391,6 +386,17 @@ for each row execute function public.touch_chart_provider_call_event_updated_at(
 
 alter table public.external_sync_events
   add column if not exists payload_redacted_at timestamptz;
+alter table public.external_sync_events
+  add column if not exists payload_expires_at timestamptz;
+
+update public.external_sync_events
+set payload_expires_at = created_at + interval '30 days'
+where payload_expires_at is null;
+
+alter table public.external_sync_events
+  alter column payload_expires_at set default (now() + interval '30 days');
+alter table public.external_sync_events
+  alter column payload_expires_at set not null;
 
 create or replace function public.redact_completed_external_sync_payload()
 returns trigger
@@ -398,6 +404,13 @@ language plpgsql
 set search_path = public
 as $$
 begin
+  if tg_op = 'UPDATE'
+    and old.payload_redacted_at is not null
+    and new.status in ('pending', 'retry_pending', 'processing')
+  then
+    raise exception 'EXTERNAL_SYNC_PAYLOAD_REDACTED' using errcode = '22023';
+  end if;
+
   if new.status in ('delivered', 'manually_resolved', 'cancelled_due_to_deletion')
     and new.payload_redacted_at is null
   then
@@ -418,6 +431,44 @@ begin
   return new;
 end;
 $$;
+
+create or replace function public.redact_expired_external_sync_payloads()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_redacted integer;
+begin
+  update public.external_sync_events
+  set
+    payload_json = payload_json
+      - 'email'
+      - 'name'
+      - 'birth_date'
+      - 'birth_time'
+      - 'place_name'
+      - 'birthplace'
+      - 'timezone'
+      - 'lat'
+      - 'lng'
+      - 'notes',
+    payload_redacted_at = now(),
+    updated_at = now()
+  where status = 'failed_final'
+    and payload_redacted_at is null
+    and payload_expires_at <= now();
+
+  get diagnostics v_redacted = row_count;
+  return v_redacted;
+end;
+$$;
+
+revoke all on function public.redact_expired_external_sync_payloads()
+  from public, anon, authenticated;
+grant execute on function public.redact_expired_external_sync_payloads()
+  to service_role;
 
 drop trigger if exists redact_completed_external_sync_payload_trigger
   on public.external_sync_events;
@@ -446,3 +497,5 @@ comment on table public.api_rate_limit_windows is
   'Backend-only fixed-window rate limits. Old windows are removed by the daily retention job.';
 comment on table public.chart_provider_call_events is
   'Backend-only provider-call outcomes used to identify generated charts that failed to persist and may require compensation review.';
+comment on column public.external_sync_events.payload_expires_at is
+  'Failed-final PII is retained for manual replay for at most 30 days, then redacted while operational metadata remains visible.';

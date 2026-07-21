@@ -15,6 +15,8 @@ assert(fullTime.body.request_id === fullTimeBody.request_id, "Worker returned th
 assert(fullTime.body.chart_v2?.precision === "full", "Full-time chart precision is incorrect.");
 assert(fullTime.body.chart_v2?.planets?.length > 0, "Full-time chart contains no planets.");
 assert(!containsKey(fullTime.body, "rawProviderResponse"), "Worker exposed raw provider output.");
+assert(fullTime.body.provider_telemetry?.disposition === "generated", "First request lacks generated telemetry.");
+assert(fullTime.body.provider_telemetry?.provider_call_count === 1, "First request did not record one provider call.");
 pass("Valid signed full-time request succeeds without raw provider output");
 
 const fullTimeReplay = await invokeSigned(fullTimeBody);
@@ -23,6 +25,8 @@ assert(
   JSON.stringify(fullTimeReplay.body.chart_v2) === JSON.stringify(fullTime.body.chart_v2),
   "Exact replay did not return the original chart."
 );
+assert(fullTimeReplay.body.provider_telemetry?.disposition === "already_generated", "Replay lacks cached disposition.");
+assert(fullTimeReplay.body.provider_telemetry?.provider_call_count === 1, "Replay indicates another provider call.");
 pass("Exact signed request replay returns the cached chart");
 
 const conflictingReplayBody = {
@@ -66,7 +70,15 @@ if (simultaneousInProgress.length > 0) {
       JSON.stringify(simultaneousSuccesses[0].body.chart_v2),
     "Settled concurrent replay did not return the original chart."
   );
+  assert(
+    settledReplay.body.provider_telemetry?.provider_call_count === 1,
+    "Settled simultaneous replay indicates more than one provider call."
+  );
 }
+assert(
+  simultaneousSuccesses.every((result) => result.body.provider_telemetry?.provider_call_count === 1),
+  "Simultaneous successful responses indicate more than one provider call."
+);
 pass("Simultaneous duplicate requests generate once and settle to the cached chart");
 
 const unknownTimeBody = buildBody({

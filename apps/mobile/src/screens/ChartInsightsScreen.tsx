@@ -31,18 +31,18 @@ export function ChartInsightsScreen({
       <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>
-          <Pressable style={styles.back} onPress={onBack} accessibilityLabel="Back">
-            <ChevronLeft color={colors.ice} size={21} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Your chart</Text>
+          <Text style={styles.headerTitle}>Sky</Text>
           <Pressable style={styles.back} onPress={onNotifications} accessibilityLabel="Notifications">
             <Bell color={colors.ice} size={19} />
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={styles.sectionLabel}>YOUR NATAL CHART</Text>
+          <View style={styles.chartPanel}>
+            <MiniChartWheel size={230} />
+            <Text style={styles.chartCaption}>{name.toUpperCase()} · NATAL CHART</Text>
+          </View>
           <View style={styles.hero}>
-            <MiniChartWheel size={220} />
-            <Text style={styles.heroLabel}>{name.toUpperCase()} · NATAL CHART</Text>
             <Text style={styles.heroTitle}>The sky you arrived with.</Text>
             <Text style={styles.heroBody}>
               {chart.precision === "full"
@@ -106,10 +106,12 @@ function glyphFor(key: string) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
   frame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
-  header: { minHeight: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
+  header: { minHeight: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg },
   back: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  headerTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, fontWeight: "600" },
+  headerTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, fontWeight: "600" },
   content: { padding: spacing.lg, paddingBottom: 40 },
+  chartPanel: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.30)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, paddingVertical: 22 },
+  chartCaption: { color: colors.textSoft, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7, marginTop: 14 },
   hero: { alignItems: "center", paddingVertical: 15 },
   heroLabel: { color: colors.gold, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7, marginTop: 16 },
   heroTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 27, lineHeight: 33, textAlign: "center", marginTop: 10 },

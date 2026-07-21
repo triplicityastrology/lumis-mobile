@@ -856,6 +856,10 @@ function summarizeWorkerResponse(workerResponse: Record<string, unknown>): Recor
     chart_version: chart?.version,
     precision: chart?.precision,
     source: chart?.source,
+    provider_disposition:
+      (workerResponse.provider_telemetry as Record<string, unknown> | undefined)?.disposition,
+    provider_call_count:
+      (workerResponse.provider_telemetry as Record<string, unknown> | undefined)?.provider_call_count,
     calculatedAt: chart?.calculatedAt,
     planet_count: Array.isArray(chart?.planets) ? chart.planets.length : null,
     house_count: Array.isArray(chart?.houses) ? chart.houses.length : null

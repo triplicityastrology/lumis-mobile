@@ -183,6 +183,8 @@ declare
   v_request_events integer;
   v_provider_events integer;
 begin
+  perform public.redact_expired_external_sync_payloads();
+
   delete from public.api_rate_limit_windows
   where window_started_at < now() - interval '2 days';
   get diagnostics v_rate_windows = row_count;

@@ -3,12 +3,12 @@
 ## Implemented In Source
 
 - Chat `client_msg_id` idempotency with atomic duplicate replay and content-conflict rejection.
-- One `monthly_balance` row per `(user_id, period_start)`, with legacy duplicate consolidation/reporting.
+- One normal `monthly_balance` row per `(user_id, billing_period_key)` UTC calendar month, with conservative legacy duplicate consolidation/reporting that never sums accidental double grants.
 - `/profile` fixed-window limit: 5 new-profile attempts per 10 minutes per user.
 - `/chat-message` fixed-window limit: 30 attempts per minute per user.
 - `chat_messages(user_id, created_at desc)` usage-accounting index.
 - Provider-call outcome ledger for generated charts that fail onboarding persistence.
-- Completed external-sync payload PII redaction; pending payloads remain backend-only because delivery requires them.
+- Completed external-sync payload PII redaction. Failed-final PII remains backend-only for manual replay for 30 days, then is redacted while operational metadata remains visible.
 - Request IDs, payload-free runtime events, health snapshot, threshold alerts, and retention cleanup.
 - Database-local daily external-sync failure report and operational cleanup schedules.
 - GitHub Actions typecheck, regression-suite, and production web-export evidence.

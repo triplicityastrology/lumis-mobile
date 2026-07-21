@@ -8,8 +8,10 @@ const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const mobileChat = readFileSync("apps/mobile/src/services/chat.ts", "utf8");
 const mobileApp = readFileSync("apps/mobile/App.tsx", "utf8");
 
-assert.match(guardrails, /monthly_balance_user_period_start_idx[\s\S]*\(user_id, period_start\)/i);
-assert.match(guardrails, /monthly_balance_user_period_start_unique[\s\S]*unique using index monthly_balance_user_period_start_idx/i);
+assert.match(guardrails, /billing_period_key date generated always as[\s\S]*date_trunc\('month', period_start at time zone 'UTC'\)/i);
+assert.match(guardrails, /monthly_balance_user_billing_period_idx[\s\S]*\(user_id, billing_period_key\)[\s\S]*grant_type not in/i);
+assert.match(guardrails, /max\(allocated\)[\s\S]*min\(remaining\)/i);
+assert.doesNotMatch(guardrails, /sum\(allocated\)|sum\(remaining\)/i);
 assert.match(guardrails, /chat_messages_user_created_idx[\s\S]*\(user_id, created_at desc\)/i);
 assert.match(guardrails, /chat_messages_user_client_msg_idx[\s\S]*role = 'user'/i);
 assert.match(guardrails, /pg_advisory_xact_lock[\s\S]*CHAT_IDEMPOTENCY_CONFLICT/i);
@@ -17,6 +19,9 @@ assert.match(guardrails, /assistant_message[\s\S]*duplicate/i);
 assert.match(guardrails, /create or replace function public\.check_api_rate_limit/i);
 assert.match(guardrails, /chart_provider_call_events[\s\S]*review_pending/i);
 assert.match(guardrails, /redact_completed_external_sync_payload[\s\S]*payload_redacted_at/i);
+assert.match(guardrails, /payload_expires_at[\s\S]*interval '30 days'/i);
+assert.match(guardrails, /redact_expired_external_sync_payloads/i);
+assert.match(operations, /perform public\.redact_expired_external_sync_payloads\(\)/i);
 assert.match(guardrails, /revoke all on table public\.api_rate_limit_windows from public, anon, authenticated/i);
 assert.match(guardrails, /revoke all on table public\.chart_provider_call_events from public, anon, authenticated/i);
 

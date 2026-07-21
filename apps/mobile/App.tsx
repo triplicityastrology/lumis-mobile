@@ -15,6 +15,7 @@ import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView as SafeAreaViewCtx } from "react-native-safe-area-context";
 
 import {
   PERSONA_STYLES,
@@ -1665,7 +1666,7 @@ function ChatShellScreen({
   }
 
   return (
-    <SafeAreaView style={styles.lumisDarkSafe}>
+    <SafeAreaViewCtx edges={["top", "left", "right"]} style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
       <CelestialBackground />
       <View style={styles.chatShell}>
@@ -1798,7 +1799,7 @@ function ChatShellScreen({
         )}
       </View>
       <MainTabBar active="chat" onSelect={onSelectTab} />
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 

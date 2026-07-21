@@ -19,7 +19,6 @@ type Star = {
   radius: number;
 };
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 /** Care Circle uses a cooler blue/teal-green sky to set the whole area apart
  *  (design handoff 2026-07-21, `.ac-sky.care`). Default is the warm sunrise sky. */
@@ -40,7 +39,33 @@ export const CelestialBackground = memo(function CelestialBackground({ variant =
   const sky = SKY_VARIANTS[variant];
   const [reduceMotion, setReduceMotion] = useState(false);
   const shootingStars = useRef([new Animated.Value(0), new Animated.Value(0)]).current;
+  const layerA = useRef(new Animated.Value(1)).current;
+  const layerB = useRef(new Animated.Value(0.82)).current;
   const stars = useMemo(() => buildStars(), []);
+
+  // One shared pulse per star layer (native-driven opacity) — cheap to mount.
+  useEffect(() => {
+    if (reduceMotion) {
+      layerA.setValue(1);
+      layerB.setValue(1);
+      return;
+    }
+    const pulse = (v: Animated.Value, lo: number, hi: number, dur: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(v, { toValue: lo, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(v, { toValue: hi, duration: dur, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
+        ])
+      );
+    const a = pulse(layerA, 0.6, 1, 2200);
+    const b = pulse(layerB, 1, 0.68, 2800);
+    a.start();
+    b.start();
+    return () => {
+      a.stop();
+      b.stop();
+    };
+  }, [reduceMotion, layerA, layerB]);
 
   useEffect(() => {
     let mounted = true;
@@ -135,11 +160,19 @@ export const CelestialBackground = memo(function CelestialBackground({ variant =
         <Rect fill="url(#horizon)" height="1.5" width="336" x="27" y="693" />
       </Svg>
 
-      <Svg height="100%" preserveAspectRatio="none" style={styles.fill} viewBox="0 0 390 844" width="100%">
-        {stars.map((star, index) => (
-          <TwinklingStar key={index} reduceMotion={reduceMotion} star={star} />
+      {/* Two star layers, each pulsed by ONE shared loop (2 animations total, not
+          66) so mounting the sky on every screen navigation stays cheap and the
+          Back transition doesn't hitch. */}
+      <AnimatedSvg height="100%" preserveAspectRatio="none" style={[styles.fill, { opacity: layerA }]} viewBox="0 0 390 844" width="100%">
+        {stars.filter((_, i) => i % 2 === 0).map((star, index) => (
+          <Circle key={index} cx={star.cx} cy={star.cy} r={star.radius} fill="#EAF0FF" opacity={star.opacity} />
         ))}
-      </Svg>
+      </AnimatedSvg>
+      <AnimatedSvg height="100%" preserveAspectRatio="none" style={[styles.fill, { opacity: layerB }]} viewBox="0 0 390 844" width="100%">
+        {stars.filter((_, i) => i % 2 === 1).map((star, index) => (
+          <Circle key={index} cx={star.cx} cy={star.cy} r={star.radius} fill="#EAF0FF" opacity={star.opacity} />
+        ))}
+      </AnimatedSvg>
 
       {!reduceMotion
         ? shootingStars.map((value, index) => (
@@ -155,46 +188,7 @@ export const CelestialBackground = memo(function CelestialBackground({ variant =
   );
 });
 
-function TwinklingStar({ reduceMotion, star }: { reduceMotion: boolean; star: Star }) {
-  const opacity = useRef(new Animated.Value(star.opacity)).current;
-
-  useEffect(() => {
-    opacity.setValue(star.opacity);
-    if (reduceMotion) return;
-
-    const animation = Animated.sequence([
-      Animated.delay(star.delay),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacity, {
-            duration: star.duration / 2,
-            easing: Easing.inOut(Easing.sin),
-            toValue: star.opacity * 0.25,
-            useNativeDriver: false
-          }),
-          Animated.timing(opacity, {
-            duration: star.duration / 2,
-            easing: Easing.inOut(Easing.sin),
-            toValue: star.opacity,
-            useNativeDriver: false
-          })
-        ])
-      )
-    ]);
-    animation.start();
-    return () => animation.stop();
-  }, [opacity, reduceMotion, star]);
-
-  return (
-    <AnimatedCircle
-      cx={star.cx}
-      cy={star.cy}
-      fill="#EAF0FF"
-      opacity={opacity}
-      r={star.radius}
-    />
-  );
-}
+const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
 function ShootingStar({
   index,

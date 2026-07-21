@@ -79,6 +79,7 @@ export function BirthDetailsChangeScreen({
   );
   const [forceFail, setForceFail] = useState(false);
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
+  const [regenStep, setRegenStep] = useState(0);
 
   const dirty = details
     ? draft.birthDate !== details.birthDate ||
@@ -88,9 +89,21 @@ export function BirthDetailsChangeScreen({
     : false;
   const valid = draft.birthDate.trim() !== "" && draft.birthPlace.trim() !== "" && (draft.timeUnknown || draft.birthTime.trim() !== "");
 
+  const REGEN_STEPS = [
+    "Updating your chart",
+    "Regenerating your Lumis profile",
+    "Preparing your new chart context"
+  ];
   function runRegeneration() {
     setStep("regenerating");
-    setTimeout(() => setStep(forceFail ? "failure" : "success"), 2200);
+    setRegenStep(0);
+    const t1 = setTimeout(() => setRegenStep(1), 900);
+    const t2 = setTimeout(() => setRegenStep(2), 1800);
+    setTimeout(() => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      setStep(forceFail ? "failure" : "success");
+    }, 2600);
   }
 
   const diffs: Array<{ label: string; from: string; to: string }> = [];
@@ -258,16 +271,25 @@ export function BirthDetailsChangeScreen({
         </View>
       </Modal>
 
-      {/* regenerating overlay */}
-      <Modal transparent visible={step === "regenerating"}>
-        <View style={s.scrim}>
-          <View style={s.regenCard}>
-            <LineMotif name="wheel" size={64} />
-            <Text style={s.regenText}>Updating your chart…</Text>
-            <Text style={s.regenSub}>Preparing your new chart context…</Text>
+      {/* Regenerating — full Generating-page experience (matches onboarding chart
+          generation), over the same sky, with the approved edit-specific copy. */}
+      {step === "regenerating" ? (
+        <View style={s.regenOverlay}>
+          <View style={s.regenWheel}><LineMotif name="wheel" size={130} /></View>
+          <Text style={s.regenEyebrow}>✦ UPDATING YOUR SKY…</Text>
+          <Text style={s.regenTitle}>Regenerating your chart.</Text>
+          <View style={s.regenSteps}>
+            {REGEN_STEPS.map((label, i) => (
+              <View key={label} style={s.regenStepRow}>
+                <View style={[s.regenDot, i < regenStep && s.regenDotDone, i === regenStep && s.regenDotActive]}>
+                  {i < regenStep ? <Text style={s.regenCheck}>✓</Text> : <Text style={s.regenNum}>{i + 1}</Text>}
+                </View>
+                <Text style={[s.regenStepText, i <= regenStep && s.regenStepTextActive]}>{label}</Text>
+              </View>
+            ))}
           </View>
         </View>
-      </Modal>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -356,7 +378,17 @@ const s = StyleSheet.create({
   diffTo: { color: colors.ice, fontWeight: "600" },
   modalCount: { color: colors.muted, fontSize: 12, marginTop: 14 },
   devToggle: { color: colors.muted, fontSize: 10.5, opacity: 0.6 },
-  regenCard: { alignItems: "center", backgroundColor: "rgba(30,44,70,0.98)", borderColor: colors.line, borderRadius: 24, borderWidth: 1, gap: 6, padding: 30, width: "100%" },
-  regenText: { color: colors.ice, fontFamily: "Georgia", fontSize: 18, marginTop: 12 },
-  regenSub: { color: colors.muted, fontSize: 13, marginTop: 4 }
+  regenOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", paddingHorizontal: 40 },
+  regenWheel: { alignItems: "center", height: 150, justifyContent: "center", marginBottom: 24, width: 150 },
+  regenEyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
+  regenTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, marginTop: 8, textAlign: "center" },
+  regenSteps: { alignSelf: "stretch", gap: 18, marginTop: 34 },
+  regenStepRow: { alignItems: "center", flexDirection: "row", gap: 14 },
+  regenDot: { alignItems: "center", borderColor: colors.line, borderRadius: 15, borderWidth: 1, height: 30, justifyContent: "center", width: 30 },
+  regenDotActive: { borderColor: "rgba(215,185,120,0.6)" },
+  regenDotDone: { backgroundColor: colors.gold, borderColor: colors.gold },
+  regenCheck: { color: colors.navy950, fontSize: 15, fontWeight: "700" },
+  regenNum: { color: colors.muted, fontSize: 13, fontWeight: "700" },
+  regenStepText: { color: colors.muted, flex: 1, fontSize: 15 },
+  regenStepTextActive: { color: colors.ice }
 });

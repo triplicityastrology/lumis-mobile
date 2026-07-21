@@ -98,12 +98,13 @@ async function handleMobileNatalChart(request, env, ctx) {
     if (!env.ASTRO_API_KEY || !env.CHART_REQUEST_COORDINATOR) {
       throw new WorkerRequestError("WORKER_CONFIGURATION_ERROR", 503);
     }
-    const chartV2 = await generateMobileChartOnce(env, body, rawBody);
+    const chartResult = await generateMobileChartOnce(env, body, rawBody);
 
     return json(
       {
         request_id: body.request_id,
-        chart_v2: chartV2
+        chart_v2: chartResult.chart_v2,
+        provider_telemetry: chartResult.provider_telemetry
       },
       200,
       env
@@ -237,7 +238,13 @@ async function generateMobileChartOnce(env, body, rawBody) {
     );
   }
 
-  return payload.chart_v2;
+  return {
+    chart_v2: payload.chart_v2,
+    provider_telemetry: {
+      disposition: payload.status,
+      provider_call_count: payload.provider_call_count
+    }
+  };
 }
 
 async function sha256Hex(value) {
@@ -729,7 +736,11 @@ export class AuditDeliveryCoordinator {
       }
 
       if (existing?.status === "completed" && existing.chart_v2) {
-        return { action: "cached", chart_v2: existing.chart_v2 };
+        return {
+          action: "cached",
+          chart_v2: existing.chart_v2,
+          provider_call_count: Number(existing.provider_call_count || 1)
+        };
       }
 
       if (existing?.status === "processing") {
@@ -741,12 +752,14 @@ export class AuditDeliveryCoordinator {
         }
       }
 
+      const providerCallCount = Number(existing?.provider_call_count || 0) + 1;
       await transaction.put(storageKey, {
         status: "processing",
         request_digest: payload.request_digest,
-        started_at: new Date().toISOString()
+        started_at: new Date().toISOString(),
+        provider_call_count: providerCallCount
       });
-      return { action: "generate" };
+      return { action: "generate", provider_call_count: providerCallCount };
     });
 
     if (reservation.action === "conflict") {
@@ -756,7 +769,8 @@ export class AuditDeliveryCoordinator {
     if (reservation.action === "cached") {
       return auditCoordinatorResponse({
         status: "already_generated",
-        chart_v2: reservation.chart_v2
+        chart_v2: reservation.chart_v2,
+        provider_call_count: reservation.provider_call_count
       });
     }
 
@@ -776,15 +790,21 @@ export class AuditDeliveryCoordinator {
         status: "completed",
         request_digest: payload.request_digest,
         chart_v2: chartV2,
+        provider_call_count: reservation.provider_call_count,
         completed_at: new Date().toISOString()
       });
       await this.scheduleChartCacheExpiry();
-      return auditCoordinatorResponse({ status: "generated", chart_v2: chartV2 });
+      return auditCoordinatorResponse({
+        status: "generated",
+        chart_v2: chartV2,
+        provider_call_count: reservation.provider_call_count
+      });
     } catch (error) {
       const workerError = normalizeWorkerError(error);
       await this.state.storage.put(storageKey, {
         status: "failed",
         request_digest: payload.request_digest,
+        provider_call_count: reservation.provider_call_count,
         error_code: workerError.code,
         failed_at: new Date().toISOString()
       });
