@@ -1,0 +1,689 @@
+{
+  "schemaVersion": 1,
+  "source": "https://api.triplicityastrology.com/get-chart",
+  "retrievedOn": "2026-07-22",
+  "assumptions": {
+    "zodiac": "Tropical",
+    "houseSystem": "Placidus",
+    "perspective": "Apparent Geocentric"
+  },
+  "tolerances": {
+    "planetAbsoluteLongitude": 0.1,
+    "angleAbsoluteLongitude": 0.2,
+    "houseCuspAbsoluteLongitude": 0.2
+  },
+  "cases": [
+    {
+      "id": "official_hong_kong_full_time",
+      "label": "Official website Hong Kong full-time chart",
+      "status": "ready",
+      "reference": {
+        "kind": "official_website_worker",
+        "sessionId": "TRI-BOOK-TEST-TRI-20260622-9986"
+      },
+      "notes": "Official Triplicity website Worker/KV chart. Tropical, Placidus, apparent geocentric.",
+      "input": {
+        "name": "Golden official_hong_kong_full_time",
+        "birth_date": "1986-09-27",
+        "birth_time": "06:30",
+        "time_unknown": false,
+        "place_name": "Hong Kong",
+        "country_code": "HK",
+        "lat": 22.27832,
+        "lng": 114.17469,
+        "tz_str": "Asia/Hong_Kong"
+      },
+      "expected": {
+        "precision": "full",
+        "points": [
+          {
+            "key": "sun",
+            "sign": "Libra",
+            "degree": 3.53,
+            "absoluteLongitude": 183.53,
+            "house": 12,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "moon",
+            "sign": "Cancer",
+            "degree": 12.29,
+            "absoluteLongitude": 102.29,
+            "house": 10,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "mercury",
+            "sign": "Libra",
+            "degree": 19.43,
+            "absoluteLongitude": 199.43,
+            "house": 1,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "venus",
+            "sign": "Scorpio",
+            "degree": 14.45,
+            "absoluteLongitude": 224.45,
+            "house": 2,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "mars",
+            "sign": "Capricorn",
+            "degree": 23.78,
+            "absoluteLongitude": 293.78,
+            "house": 4,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "jupiter",
+            "sign": "Pisces",
+            "degree": 15.8,
+            "absoluteLongitude": 345.8,
+            "house": 6,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "saturn",
+            "sign": "Sagittarius",
+            "degree": 5.06,
+            "absoluteLongitude": 245.06,
+            "house": 2,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "uranus",
+            "sign": "Sagittarius",
+            "degree": 18.74,
+            "absoluteLongitude": 258.74,
+            "house": 3,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "neptune",
+            "sign": "Capricorn",
+            "degree": 3.08,
+            "absoluteLongitude": 273.08,
+            "house": 3,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "pluto",
+            "sign": "Scorpio",
+            "degree": 5.97,
+            "absoluteLongitude": 215.97,
+            "house": 2,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "chiron",
+            "sign": "Gemini",
+            "degree": 21.38,
+            "absoluteLongitude": 81.38,
+            "house": 9,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "true_node",
+            "sign": "Aries",
+            "degree": 21.04,
+            "absoluteLongitude": 21.04,
+            "house": 7,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "ascendant",
+            "sign": "Libra",
+            "degree": 6.57,
+            "absoluteLongitude": 186.57,
+            "house": 1,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "key": "medium_coeli",
+            "sign": "Cancer",
+            "degree": 6.52,
+            "absoluteLongitude": 96.52,
+            "house": 10,
+            "toleranceDegrees": 0.2
+          }
+        ],
+        "houses": [
+          {
+            "no": 1,
+            "sign": "Libra",
+            "cuspDegree": 6.57,
+            "absoluteLongitude": 186.57,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 2,
+            "sign": "Scorpio",
+            "cuspDegree": 5.67,
+            "absoluteLongitude": 215.67,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 3,
+            "sign": "Sagittarius",
+            "cuspDegree": 5.93,
+            "absoluteLongitude": 245.93,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 4,
+            "sign": "Capricorn",
+            "cuspDegree": 6.52,
+            "absoluteLongitude": 276.52,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 5,
+            "sign": "Aquarius",
+            "cuspDegree": 7.32,
+            "absoluteLongitude": 307.32,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 6,
+            "sign": "Pisces",
+            "cuspDegree": 7.81,
+            "absoluteLongitude": 337.81,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 7,
+            "sign": "Aries",
+            "cuspDegree": 6.57,
+            "absoluteLongitude": 6.57,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 8,
+            "sign": "Taurus",
+            "cuspDegree": 5.67,
+            "absoluteLongitude": 35.67,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 9,
+            "sign": "Gemini",
+            "cuspDegree": 5.93,
+            "absoluteLongitude": 65.93,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 10,
+            "sign": "Cancer",
+            "cuspDegree": 6.52,
+            "absoluteLongitude": 96.52,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 11,
+            "sign": "Leo",
+            "cuspDegree": 7.32,
+            "absoluteLongitude": 127.32,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 12,
+            "sign": "Virgo",
+            "cuspDegree": 7.81,
+            "absoluteLongitude": 157.81,
+            "toleranceDegrees": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "official_malaysia_full_time",
+      "label": "Official website Malaysia full-time chart",
+      "status": "ready",
+      "reference": {
+        "kind": "official_website_worker",
+        "sessionId": "TRI-BOOK-TRI-20260630-4884"
+      },
+      "notes": "Official Triplicity website Worker/KV chart. Tropical, Placidus, apparent geocentric.",
+      "input": {
+        "name": "Golden official_malaysia_full_time",
+        "birth_date": "1978-10-04",
+        "birth_time": "20:00",
+        "time_unknown": false,
+        "place_name": "Rompin, Negeri Sembilan, Malaysia",
+        "country_code": "MY",
+        "lat": 2.7083,
+        "lng": 102.5047,
+        "tz_str": "Asia/Kuala_Lumpur"
+      },
+      "expected": {
+        "precision": "full",
+        "points": [
+          {
+            "key": "sun",
+            "sign": "Libra",
+            "degree": 10.93,
+            "absoluteLongitude": 190.93,
+            "house": 6,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "moon",
+            "sign": "Scorpio",
+            "degree": 8.17,
+            "absoluteLongitude": 218.17,
+            "house": 7,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "mercury",
+            "sign": "Libra",
+            "degree": 13.9,
+            "absoluteLongitude": 193.9,
+            "house": 6,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "venus",
+            "sign": "Scorpio",
+            "degree": 19.49,
+            "absoluteLongitude": 229.49,
+            "house": 7,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "mars",
+            "sign": "Scorpio",
+            "degree": 9.95,
+            "absoluteLongitude": 219.95,
+            "house": 7,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "jupiter",
+            "sign": "Leo",
+            "degree": 4.96,
+            "absoluteLongitude": 124.96,
+            "house": 4,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "saturn",
+            "sign": "Virgo",
+            "degree": 8.62,
+            "absoluteLongitude": 158.62,
+            "house": 5,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "uranus",
+            "sign": "Scorpio",
+            "degree": 14.57,
+            "absoluteLongitude": 224.57,
+            "house": 7,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "neptune",
+            "sign": "Sagittarius",
+            "degree": 15.92,
+            "absoluteLongitude": 255.92,
+            "house": 8,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "pluto",
+            "sign": "Libra",
+            "degree": 16.37,
+            "absoluteLongitude": 196.37,
+            "house": 6,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "chiron",
+            "sign": "Taurus",
+            "degree": 8.61,
+            "absoluteLongitude": 38.61,
+            "house": 1,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "true_node",
+            "sign": "Virgo",
+            "degree": 26.75,
+            "absoluteLongitude": 176.75,
+            "house": 5,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "ascendant",
+            "sign": "Taurus",
+            "degree": 5.8,
+            "absoluteLongitude": 35.8,
+            "house": 1,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "key": "medium_coeli",
+            "sign": "Aquarius",
+            "degree": 0.64,
+            "absoluteLongitude": 300.64,
+            "house": 10,
+            "toleranceDegrees": 0.2
+          }
+        ],
+        "houses": [
+          {
+            "no": 1,
+            "sign": "Taurus",
+            "cuspDegree": 5.8,
+            "absoluteLongitude": 35.8,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 2,
+            "sign": "Gemini",
+            "cuspDegree": 5.47,
+            "absoluteLongitude": 65.47,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 3,
+            "sign": "Cancer",
+            "cuspDegree": 2.97,
+            "absoluteLongitude": 92.97,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 4,
+            "sign": "Leo",
+            "cuspDegree": 0.64,
+            "absoluteLongitude": 120.64,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 5,
+            "sign": "Virgo",
+            "cuspDegree": 0.61,
+            "absoluteLongitude": 150.61,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 6,
+            "sign": "Libra",
+            "cuspDegree": 3.15,
+            "absoluteLongitude": 183.15,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 7,
+            "sign": "Scorpio",
+            "cuspDegree": 5.8,
+            "absoluteLongitude": 215.8,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 8,
+            "sign": "Sagittarius",
+            "cuspDegree": 5.47,
+            "absoluteLongitude": 245.47,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 9,
+            "sign": "Capricorn",
+            "cuspDegree": 2.97,
+            "absoluteLongitude": 272.97,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 10,
+            "sign": "Aquarius",
+            "cuspDegree": 0.64,
+            "absoluteLongitude": 300.64,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 11,
+            "sign": "Pisces",
+            "cuspDegree": 0.61,
+            "absoluteLongitude": 330.61,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 12,
+            "sign": "Aries",
+            "cuspDegree": 3.15,
+            "absoluteLongitude": 3.15,
+            "toleranceDegrees": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "official_shenzhen_full_time",
+      "label": "Official website Shenzhen full-time chart",
+      "status": "ready",
+      "reference": {
+        "kind": "official_website_worker",
+        "sessionId": "TRI-MP8H8JK0-DUT7"
+      },
+      "notes": "Uses chartData.subject_data as authority: Asia/Shanghai and calculated coordinates 22.5733235, 114.0575822. inputData has a blank timezone and slightly different coordinates.",
+      "input": {
+        "name": "Golden official_shenzhen_full_time",
+        "birth_date": "1986-09-28",
+        "birth_time": "00:30",
+        "time_unknown": false,
+        "place_name": "Shenzhen, Guangdong, China",
+        "country_code": "CN",
+        "lat": 22.5733235,
+        "lng": 114.0575822,
+        "tz_str": "Asia/Shanghai"
+      },
+      "expected": {
+        "precision": "full",
+        "points": [
+          {
+            "key": "sun",
+            "sign": "Libra",
+            "degree": 4.27,
+            "absoluteLongitude": 184.27,
+            "house": 3,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "moon",
+            "sign": "Cancer",
+            "degree": 21.31,
+            "absoluteLongitude": 111.31,
+            "house": 1,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "mercury",
+            "sign": "Libra",
+            "degree": 20.59,
+            "absoluteLongitude": 200.59,
+            "house": 4,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "venus",
+            "sign": "Scorpio",
+            "degree": 14.88,
+            "absoluteLongitude": 224.88,
+            "house": 5,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "mars",
+            "sign": "Capricorn",
+            "degree": 24.14,
+            "absoluteLongitude": 294.14,
+            "house": 7,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "jupiter",
+            "sign": "Pisces",
+            "degree": 15.71,
+            "absoluteLongitude": 345.71,
+            "house": 9,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "saturn",
+            "sign": "Sagittarius",
+            "degree": 5.12,
+            "absoluteLongitude": 245.12,
+            "house": 5,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "uranus",
+            "sign": "Sagittarius",
+            "degree": 18.76,
+            "absoluteLongitude": 258.76,
+            "house": 6,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "neptune",
+            "sign": "Capricorn",
+            "degree": 3.08,
+            "absoluteLongitude": 273.08,
+            "house": 6,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "pluto",
+            "sign": "Scorpio",
+            "degree": 6,
+            "absoluteLongitude": 216,
+            "house": 4,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "chiron",
+            "sign": "Gemini",
+            "degree": 21.38,
+            "absoluteLongitude": 81.38,
+            "house": 12,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "true_node",
+            "sign": "Aries",
+            "degree": 21.03,
+            "absoluteLongitude": 21.03,
+            "house": 10,
+            "toleranceDegrees": 0.1
+          },
+          {
+            "key": "ascendant",
+            "sign": "Cancer",
+            "degree": 16.24,
+            "absoluteLongitude": 106.24,
+            "house": 1,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "key": "medium_coeli",
+            "sign": "Aries",
+            "degree": 8.41,
+            "absoluteLongitude": 8.41,
+            "house": 10,
+            "toleranceDegrees": 0.2
+          }
+        ],
+        "houses": [
+          {
+            "no": 1,
+            "sign": "Cancer",
+            "cuspDegree": 16.24,
+            "absoluteLongitude": 106.24,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 2,
+            "sign": "Leo",
+            "cuspDegree": 10.34,
+            "absoluteLongitude": 130.34,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 3,
+            "sign": "Virgo",
+            "cuspDegree": 7.26,
+            "absoluteLongitude": 157.26,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 4,
+            "sign": "Libra",
+            "cuspDegree": 8.41,
+            "absoluteLongitude": 188.41,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 5,
+            "sign": "Scorpio",
+            "cuspDegree": 12.39,
+            "absoluteLongitude": 222.39,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 6,
+            "sign": "Sagittarius",
+            "cuspDegree": 15.62,
+            "absoluteLongitude": 255.62,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 7,
+            "sign": "Capricorn",
+            "cuspDegree": 16.24,
+            "absoluteLongitude": 286.24,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 8,
+            "sign": "Aquarius",
+            "cuspDegree": 10.34,
+            "absoluteLongitude": 310.34,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 9,
+            "sign": "Pisces",
+            "cuspDegree": 7.26,
+            "absoluteLongitude": 337.26,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 10,
+            "sign": "Aries",
+            "cuspDegree": 8.41,
+            "absoluteLongitude": 8.41,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 11,
+            "sign": "Taurus",
+            "cuspDegree": 12.39,
+            "absoluteLongitude": 42.39,
+            "toleranceDegrees": 0.2
+          },
+          {
+            "no": 12,
+            "sign": "Gemini",
+            "cuspDegree": 15.62,
+            "absoluteLongitude": 75.62,
+            "toleranceDegrees": 0.2
+          }
+        ]
+      }
+    }
+  ]
+}

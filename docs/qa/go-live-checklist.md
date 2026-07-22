@@ -134,13 +134,13 @@ These checks require deployed staging services but do not require finished UI.
 
 ### Chart data and version routing
 
-- [ ] Populate the four golden cases with expected values captured from the already-verified website/Worker output.
-- [ ] Mark golden cases `ready` only after expected values are populated.
+- [x] Three PM-approved known-time cases (Hong Kong, Malaysia, and Shenzhen) are populated from the official website Worker/KV-backed records with 14 supported points and 12 house cusps each; sanitized fixtures contain no detected customer names or email addresses.
+- [x] The three official cases are marked `ready` only after fixture generation from the live official records. QA independently re-fetched the records on 2026-07-22 and matched all 42 points and 36 house cusps with no fixture-source mismatches.
+- [ ] Remove real customer names and email addresses from `docs/qa/golden-chart-official-website-fixtures-2026-07-22.md`. The JSON fixtures are sanitized, but the committed documentation still contains PII for all three cases. Make a forward redaction immediately and ask PM/security whether repository history must also be rewritten.
 - [ ] Compare live Worker `chart_v2` output against the golden cases.
-- [ ] Verify Hong Kong full-time output.
+- [ ] Run `test:golden-live:secure` against the signed mobile Worker and verify Hong Kong, Malaysia, and Shenzhen within the PM-approved tolerances. The comparison command exists and passes syntax/source QA, but requires the Worker signing secret through hidden input.
 - [ ] Verify Hong Kong unknown-time output.
-- [ ] Verify London DST conversion and output.
-- [ ] Verify New York DST conversion and output.
+- [ ] Keep London/New York DST cases as separate future coverage; they were not part of the three PM-approved official website records in this source batch.
 - [ ] Confirm unknown-time output has no Ascendant, MC, houses, or planet house placements end to end.
 - [ ] Inspect the actual signed Cloudflare Worker response for every unknown-time integration case: no Ascendant/ASC, no MC/Medium Coeli, empty or absent houses, and no planet house placements.
 - [ ] Confirm prompts, stored context, and AI responses make no claims based on Ascendant, MC, houses, or planet house placements when birth time is unknown.
@@ -305,12 +305,12 @@ These checks require deployed staging services but do not require finished UI.
 - [x] No app source imports or renders a WebView/iframe for this handoff; the UI is implemented in Expo React Native/TypeScript. The lockfile's `react-native-webview` reference is package metadata, not an app dependency or usage.
 - [ ] Recheck Generating and Birth Details on-device: sky layering, calendar/time picker, birthplace suggestions, future-date rejection, unknown-time restrictions, keyboard/safe areas, correct return context, and successful regeneration state. Source presence is not an interactive pass.
 - [x] Source PROF-2 now calls `/profile/birth-details/change`; the fake success/failure toggle is removed, progress timers are presentation-only and cleaned up, and the backend result controls success. Migration `0026` performs the active chart/history/profile switch transactionally and increments the server-owned lifetime counter only on commit.
-- [ ] Preserve one `client_request_id` across a mobile retry. `regenerateBirthDetails()` currently creates a new UUID on every call, so response-loss recovery is not truly idempotent. Carry a stable request ID with the unchanged draft, use it as the Worker replay ID, and allow a same-digest expired reservation to resume from the cached Worker result without another provider call.
-- [ ] Make exact PROF-2 retries recover before rate limiting. The rate-limit check currently runs before reservation/duplicate lookup, so repeated retrieval of an already committed request can return 429 instead of the saved result.
-- [ ] Prevent stale-chart routing after a duplicate/recovered response. The duplicate endpoint response contains no chart, while mobile updates the birth details/count but leaves the old `chartProfile`, selected old thread, and chat turns in memory. Return/reload the authoritative active chart and reset Chat to a new/current-version context; verify the old thread remains visible but read-only.
-- [ ] Add strict server-side birth-time/type validation before reservation and the paid Worker call. Mobile validation is not a trust boundary; malformed times or non-boolean `time_unknown` values must return `49002` without provider access.
-- [ ] Surface `49001`/`49002`/`49003` distinctly in mobile instead of collapsing every failure to the same retry card. A stale restored count or lifetime-limit response should refresh the authoritative count and show the blocked state.
-- [ ] Remove the duplicate celestial background in the regeneration overlay and update unknown-time edit copy to explicitly name ASC, MC, houses, and planet-house placements. Device-test the generating layer, disabled Back behavior, reduced motion, and accessibility.
+- [x] Source preserves one `client_request_id` across unchanged mobile retries, reuses the original Worker ID/timestamp, and allows same-digest failed/expired reservations to resume from Worker replay protection.
+- [x] Source resolves committed PROF-2 duplicates before rate limiting and reloads the authoritative active chart/account state.
+- [x] Mobile clears the selected old thread/chat turns and starts future Chat in the new chart context while retaining old reflections as read-only history.
+- [x] Strict server-side request validation rejects malformed JSON/types, invalid times, non-boolean unknown-time values, and invalid coordinates before Worker access; hosted malformed-input scenarios exist.
+- [x] Mobile preserves and handles `49001`, `49002`, and `49003` separately, including authoritative limit-count refresh.
+- [x] Source removes the duplicate regeneration sky, hides Back while regeneration is active, and explicitly names ASC, MC, houses, and planet-house placements in unknown-time copy. Device accessibility/visual behavior remains in the open device check above.
 
 - [ ] Rebuild the Claude handoff natively in Expo React Native/TypeScript; do not embed or ship the HTML/React prototype through a WebView.
 - [ ] Compare the native implementation against all 14 Navy/English reference screenshots at 390×844 for layout, hierarchy, spacing, typography, copy, and navigation.

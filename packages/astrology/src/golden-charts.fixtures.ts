@@ -19,6 +19,13 @@ export function assertGoldenChartFixtures(): void {
     throw new Error("Expected at least one full birth time golden chart case.");
   }
 
+  const officialReadyCases = GOLDEN_CHART_CASES.filter(
+    (goldenCase) => goldenCase.status === "ready" && goldenCase.reference?.kind === "official_website_worker"
+  );
+  if (officialReadyCases.length !== 3) {
+    throw new Error("Expected exactly three ready official website golden cases.");
+  }
+
   for (const goldenCase of GOLDEN_CHART_CASES) {
     assertRequiredInput(goldenCase.id, goldenCase.input);
 
@@ -47,10 +54,49 @@ export function assertGoldenChartFixtures(): void {
     if (goldenCase.status === "ready" && goldenCase.expected.points.length === 0) {
       throw new Error(`${goldenCase.id}: ready golden chart case must include expected points.`);
     }
+
+    if (goldenCase.status === "ready") {
+      if (goldenCase.expected.points.length !== 14 || goldenCase.expected.houses.length !== 12) {
+        throw new Error(`${goldenCase.id}: ready official case must include 14 points and 12 houses.`);
+      }
+
+      const result = compareGoldenChartCase(goldenCase, chartFromExpectedCase(goldenCase));
+      if (!result.passed) {
+        throw new Error(`${goldenCase.id}: golden comparator rejected its sanitized reference: ${result.issues.map((issue) => issue.message).join("; ")}`);
+      }
+    }
   }
 
   assertUnknownTimeWorkerShapeGuard();
   assertUnknownTimeAiContextGuard();
+}
+
+function chartFromExpectedCase(goldenCase: (typeof GOLDEN_CHART_CASES)[number]): ChartV2 {
+  const points = goldenCase.expected.points.map((point) => ({
+    key: point.key,
+    label: point.key,
+    sign: point.sign,
+    degree: point.degree,
+    absoluteLongitude: point.absoluteLongitude,
+    house: point.house
+  }));
+
+  return {
+    version: "chart_v2",
+    precision: goldenCase.expected.precision,
+    source: "triplicity_cloudflare_worker",
+    calculatedAt: "2026-07-22T00:00:00.000Z",
+    planets: points,
+    houses: goldenCase.expected.houses.map((house) => ({
+      no: house.no,
+      sign: house.sign,
+      cuspDegree: house.cuspDegree
+    })),
+    angles: {
+      ascendant: points.find((point) => point.key === "ascendant"),
+      mediumCoeli: points.find((point) => point.key === "medium_coeli")
+    }
+  };
 }
 
 function assertUnknownTimeAiContextGuard(): void {

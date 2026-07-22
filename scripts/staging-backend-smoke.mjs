@@ -661,14 +661,17 @@ try {
       secondarySession.access_token,
       "birth_data_history",
       `user_id=eq.${primary.id}&select=id`
-    ),
-    userSelect(
-      secondarySession.access_token,
-      "account_entitlements",
-      `user_id=eq.${primary.id}&select=user_id`
     )
   ]);
   assert(crossUserRows.every((rows) => rows.length === 0), "RLS exposed another user's chart data.");
+  const protectedEntitlementResponse = await userRequest(
+    secondarySession.access_token,
+    `/rest/v1/account_entitlements?user_id=eq.${primary.id}&select=user_id`
+  );
+  assert(
+    !protectedEntitlementResponse.ok && [401, 403].includes(protectedEntitlementResponse.status),
+    "Protected entitlement storage was directly readable by an authenticated user."
+  );
 
   const migrationReportsResponse = await userRequest(
     secondarySession.access_token,
@@ -1208,17 +1211,34 @@ async function serviceRequest(path, options = {}) {
 }
 
 async function serviceRequestResult(path, options = {}) {
-  const response = await fetch(`${supabaseUrl}${path}`, {
-    method: options.method ?? "GET",
-    headers: {
-      ...serviceHeaders(),
-      ...(options.prefer ? { Prefer: options.prefer } : {})
-    },
-    body: options.body == null ? undefined : JSON.stringify(options.body)
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
-  return { ok: response.ok, status: response.status, body };
+  const maxClockSkewAttempts = 7;
+
+  for (let attempt = 1; attempt <= maxClockSkewAttempts; attempt += 1) {
+    const response = await fetch(`${supabaseUrl}${path}`, {
+      method: options.method ?? "GET",
+      headers: {
+        ...serviceHeaders(),
+        ...(options.prefer ? { Prefer: options.prefer } : {})
+      },
+      body: options.body == null ? undefined : JSON.stringify(options.body)
+    });
+    const text = await response.text();
+    const body = text ? JSON.parse(text) : null;
+
+    if (isFutureIssuedJwtResponse(response.status, body) && attempt < maxClockSkewAttempts) {
+      console.warn(`Supabase secret-key clock propagation is pending; retrying in 5 seconds (${attempt}/${maxClockSkewAttempts - 1}).`);
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      continue;
+    }
+
+    return { ok: response.ok, status: response.status, body };
+  }
+
+  throw new Error("Supabase secret-key clock propagation retry loop ended unexpectedly.");
+}
+
+function isFutureIssuedJwtResponse(status, body) {
+  return status === 401 && body?.code === "PGRST303" && /JWT issued at future/i.test(String(body?.message));
 }
 
 async function cleanupUser(userId) {

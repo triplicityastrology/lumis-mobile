@@ -1,6 +1,7 @@
 import type { ChartPlanetKey, ChartV2 } from "@lumis/shared";
 
 import type { ChartWorkerBirthData } from "./index";
+import officialWebsiteGoldenArtifact from "./official-website-golden-cases.json";
 
 export type GoldenChartStatus = "pending_reference" | "ready";
 
@@ -8,7 +9,16 @@ export type GoldenChartExpectedPoint = {
   key: ChartPlanetKey;
   sign: string;
   degree: number;
+  absoluteLongitude: number;
   house?: number;
+  toleranceDegrees: number;
+};
+
+export type GoldenChartExpectedHouse = {
+  no: number;
+  sign: string;
+  cuspDegree: number;
+  absoluteLongitude: number;
   toleranceDegrees: number;
 };
 
@@ -17,10 +27,12 @@ export type GoldenChartCase = {
   label: string;
   status: GoldenChartStatus;
   notes: string;
+  reference?: { kind: "official_website_worker"; sessionId: string };
   input: ChartWorkerBirthData;
   expected: {
     precision: ChartV2["precision"];
     points: GoldenChartExpectedPoint[];
+    houses: GoldenChartExpectedHouse[];
   };
 };
 
@@ -35,29 +47,10 @@ export type GoldenChartComparisonResult = {
   issues: GoldenChartComparisonIssue[];
 };
 
+const officialWebsiteCases = officialWebsiteGoldenArtifact.cases as unknown as GoldenChartCase[];
+
 export const GOLDEN_CHART_CASES: GoldenChartCase[] = [
-  {
-    id: "hk_full_time_founder_smoke",
-    label: "Hong Kong full birth time smoke case",
-    status: "pending_reference",
-    notes:
-      "Fill expected points from a trusted chart source before using this case as a QA gate.",
-    input: {
-      name: "Golden HK Full Time",
-      birth_date: "1986-02-20",
-      birth_time: "16:55",
-      time_unknown: false,
-      place_name: "Hong Kong",
-      country_code: "HK",
-      lat: 22.3193,
-      lng: 114.1694,
-      tz_str: "Asia/Hong_Kong"
-    },
-    expected: {
-      precision: "full",
-      points: []
-    }
-  },
+  ...officialWebsiteCases,
   {
     id: "hk_unknown_time_precision",
     label: "Hong Kong unknown birth time precision case",
@@ -77,51 +70,8 @@ export const GOLDEN_CHART_CASES: GoldenChartCase[] = [
     },
     expected: {
       precision: "no_birth_time",
-      points: []
-    }
-  },
-  {
-    id: "london_dst_full_time",
-    label: "London daylight-saving full birth time case",
-    status: "pending_reference",
-    notes:
-      "Use this to catch timezone/DST regressions after trusted expected positions are entered.",
-    input: {
-      name: "Golden London DST",
-      birth_date: "1990-07-15",
-      birth_time: "12:30",
-      time_unknown: false,
-      place_name: "London, UK",
-      country_code: "GB",
-      lat: 51.5074,
-      lng: -0.1278,
-      tz_str: "Europe/London"
-    },
-    expected: {
-      precision: "full",
-      points: []
-    }
-  },
-  {
-    id: "new_york_dst_full_time",
-    label: "New York daylight-saving full birth time case",
-    status: "pending_reference",
-    notes:
-      "Use this to catch western-longitude and DST regressions after trusted expected positions are entered.",
-    input: {
-      name: "Golden New York DST",
-      birth_date: "1990-07-15",
-      birth_time: "12:30",
-      time_unknown: false,
-      place_name: "New York, US",
-      country_code: "US",
-      lat: 40.7128,
-      lng: -74.006,
-      tz_str: "America/New_York"
-    },
-    expected: {
-      precision: "full",
-      points: []
+      points: [],
+      houses: []
     }
   }
 ];
@@ -175,10 +125,53 @@ export function compareGoldenChartCase(
       });
     }
 
+    if (actualPoint.absoluteLongitude == null) {
+      issues.push({
+        caseId: goldenCase.id,
+        message: `${expectedPoint.key}: missing absolute longitude.`
+      });
+    } else if (angularDistance(actualPoint.absoluteLongitude, expectedPoint.absoluteLongitude) > expectedPoint.toleranceDegrees) {
+      issues.push({
+        caseId: goldenCase.id,
+        message: `${expectedPoint.key}: expected absolute longitude ${expectedPoint.absoluteLongitude}deg ±${expectedPoint.toleranceDegrees}, received ${actualPoint.absoluteLongitude}deg.`
+      });
+    }
+
     if (expectedPoint.house != null && actualPoint.house !== expectedPoint.house) {
       issues.push({
         caseId: goldenCase.id,
         message: `${expectedPoint.key}: expected house ${expectedPoint.house}, received ${actualPoint.house ?? "none"}.`
+      });
+    }
+  }
+
+  if (actualChart.houses.length !== goldenCase.expected.houses.length) {
+    issues.push({
+      caseId: goldenCase.id,
+      message: `Expected ${goldenCase.expected.houses.length} houses, received ${actualChart.houses.length}.`
+    });
+  }
+
+  for (const expectedHouse of goldenCase.expected.houses) {
+    const actualHouse = actualChart.houses.find((house) => house.no === expectedHouse.no);
+
+    if (!actualHouse) {
+      issues.push({ caseId: goldenCase.id, message: `Missing house cusp ${expectedHouse.no}.` });
+      continue;
+    }
+    if (actualHouse.sign !== expectedHouse.sign) {
+      issues.push({
+        caseId: goldenCase.id,
+        message: `House ${expectedHouse.no}: expected sign ${expectedHouse.sign}, received ${actualHouse.sign}.`
+      });
+    }
+    const actualAbsoluteLongitude = absoluteLongitudeForSignDegree(actualHouse.sign, actualHouse.cuspDegree);
+    if (actualAbsoluteLongitude == null) {
+      issues.push({ caseId: goldenCase.id, message: `House ${expectedHouse.no}: unsupported sign ${actualHouse.sign}.` });
+    } else if (angularDistance(actualAbsoluteLongitude, expectedHouse.absoluteLongitude) > expectedHouse.toleranceDegrees) {
+      issues.push({
+        caseId: goldenCase.id,
+        message: `House ${expectedHouse.no}: expected cusp ${expectedHouse.absoluteLongitude}deg ±${expectedHouse.toleranceDegrees}, received ${actualAbsoluteLongitude}deg.`
       });
     }
   }
@@ -188,6 +181,21 @@ export function compareGoldenChartCase(
     passed: issues.length === 0,
     issues
   };
+}
+
+const SIGNS = [
+  "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+  "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+];
+
+function absoluteLongitudeForSignDegree(sign: string, degree: number): number | null {
+  const signIndex = SIGNS.indexOf(sign);
+  return signIndex < 0 ? null : signIndex * 30 + degree;
+}
+
+function angularDistance(left: number, right: number): number {
+  const distance = Math.abs(left - right) % 360;
+  return Math.min(distance, 360 - distance);
 }
 
 function addUnknownTimeShapeIssues(

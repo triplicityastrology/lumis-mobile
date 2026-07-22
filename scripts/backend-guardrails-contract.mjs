@@ -13,6 +13,7 @@ const profileEdge = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const chartWorker = readFileSync("workers/chart-mobile/worker.js", "utf8");
 const mobileChat = readFileSync("apps/mobile/src/services/chat.ts", "utf8");
 const mobileApp = readFileSync("apps/mobile/App.tsx", "utf8");
+const stagingSmoke = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
 
 for (const [name, source] of [["chat-message", chatEdge], ["profile", profileEdge]]) {
   const diagnostics = ts.transpileModule(source, {
@@ -118,6 +119,9 @@ assert.match(operations, /lumis-runtime-retention/);
 assert.match(operations, /lumis-external-sync-daily-report/);
 assert.doesNotMatch(operations, /external-sync-retry[\s\S]*net\.http_post/i);
 assert.match(schedulerStatus, /runtime_scheduler_status/i);
+assert.match(stagingSmoke, /isFutureIssuedJwtResponse/);
+assert.match(stagingSmoke, /maxClockSkewAttempts = 7/);
+assert.match(stagingSmoke, /setTimeout\(resolve, 5_000\)/);
 assert.match(schedulerStatus, /cron\.job_run_details/i);
 assert.match(schedulerStatus, /all_configured/i);
 assert.match(schedulerStatus, /all_have_successful_run/i);
