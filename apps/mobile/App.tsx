@@ -66,6 +66,7 @@ import {
   saveLocalDemoSession
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
+import { NoChartFoundScreen, RestoringSpaceScreen } from "./src/components/AuthSystemKit";
 import { CelestialBackground } from "./src/components/CelestialBackground";
 import { GeneratingView } from "./src/components/GeneratingView";
 import { LumisPersonaAvatar, PERSONA_AVATARS } from "./src/components/LumisPersonaAvatar";
@@ -151,7 +152,8 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "paywall" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab">("splash");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "paywall" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart">("splash");
+  const [restoreResult, setRestoreResult] = useState<"loading" | "foundChart" | "noChart" | "failed">("loading");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
@@ -292,6 +294,29 @@ export default function App() {
     clearVisibleAccountState("No saved Lumis profile was found on this device.");
   }
 
+  // AUTH-005 / AUTH-006: signed-in reload routes through the "Restoring your Lumis
+  // space" screen (large sky-wheel loader), then to Chat (found) / No chart found
+  // (setup) / a retryable failure. Local (no account) reload stays on home.
+  async function restoreSpace() {
+    const status = await refreshAuthStatus();
+    if (!(status.isConfigured && status.user)) {
+      await restoreAccountForStatus(status);
+      setScreen("home");
+      return;
+    }
+    setScreen("restoringSpace");
+    setRestoreResult("loading");
+    try {
+      const accountState = await loadSupabaseAccountState();
+      const restored = applySupabaseAccountState(accountState);
+      setRestoreResult(restored ? "foundChart" : "noChart");
+    } catch {
+      setAccountLoadStatus("error");
+      setAccountLoadMessage("We could not load your Lumis profile. Please try again.");
+      setRestoreResult("failed");
+    }
+  }
+
   async function saveDemoSession(
     nextProfileData: ProfileData,
     nextChartProfile: ChartV2,
@@ -380,7 +405,8 @@ export default function App() {
       if (s === "notifications") { setScreen(notificationsReturn); return true; }
       if (s === "paywall") { setScreen("plans"); return true; }
       if (s === "care" || s === "plans" || s === "birthDetails" || s === "chartUpdated") { setScreen("profileTab"); return true; }
-      if (s === "auth" || s === "persona" || s === "preview" || s === "reflections") { setScreen("home"); return true; }
+      if (s === "auth" || s === "persona" || s === "preview" || s === "reflections" || s === "noChart") { setScreen("home"); return true; }
+      if (s === "restoringSpace") { return true; } // block back while restoring
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
         setScreen("home"); return true;
       }
@@ -411,6 +437,26 @@ export default function App() {
 
   if (screen === "splash") {
     return <LumisSplashScreen onDone={() => setScreen(pendingAfterSplashRef.current ?? "home")} />;
+  }
+
+  if (screen === "restoringSpace") {
+    return (
+      <RestoringSpaceScreen
+        result={restoreResult}
+        onGoChat={() => setScreen(chartProfile ? "chat" : "home")}
+        onGoOnboarding={() => setScreen("noChart")}
+        onRetry={restoreSpace}
+      />
+    );
+  }
+
+  if (screen === "noChart") {
+    return (
+      <NoChartFoundScreen
+        onContinueSetup={() => setScreen("profile")}
+        onSignOut={() => setScreen("auth")}
+      />
+    );
   }
 
   if (screen === "auth") {
@@ -788,10 +834,7 @@ export default function App() {
           }
           setScreen("reflections");
         }}
-        onReload={async () => {
-          const status = await refreshAuthStatus();
-          await restoreAccountForStatus(status);
-        }}
+        onReload={restoreSpace}
       />
     </>
   );

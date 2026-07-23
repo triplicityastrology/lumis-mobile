@@ -136,9 +136,10 @@ These checks require deployed staging services but do not require finished UI.
 
 - [x] Three PM-approved known-time cases (Hong Kong, Malaysia, and Shenzhen) are populated from the official website Worker/KV-backed records with 14 supported points and 12 house cusps each; sanitized fixtures contain no detected customer names or email addresses.
 - [x] The three official cases are marked `ready` only after fixture generation from the live official records. QA independently re-fetched the records on 2026-07-22 and matched all 42 points and 36 house cusps with no fixture-source mismatches.
-- [ ] Remove real customer names and email addresses from `docs/qa/golden-chart-official-website-fixtures-2026-07-22.md`. The JSON fixtures are sanitized, but the committed documentation still contains PII for all three cases. Make a forward redaction immediately and ask PM/security whether repository history must also be rewritten.
-- [ ] Compare live Worker `chart_v2` output against the golden cases.
-- [ ] Run `test:golden-live:secure` against the signed mobile Worker and verify Hong Kong, Malaysia, and Shenzhen within the PM-approved tolerances. The comparison command exists and passes syntax/source QA, but requires the Worker signing secret through hidden input.
+- [x] Current repository state removes source customer names/emails, official result URLs, and website lookup/session tokens from golden documentation, JSON, tools, and live-test output. `test:pii` is included in `test:all-local` and independently passed on 2026-07-23.
+- [ ] PM/security must decide whether to rewrite shared Git history because commit `09fecf0` retains the original identities and lookup tokens. If approved, coordinate a maintenance window, force-update, and fresh clones on both Macs; do not rewrite shared history unilaterally.
+- [ ] PM/security must decide whether the source website records/session identifiers may remain valid in protected systems or must be invalidated/rotated, because possession can retrieve the original records.
+- [x] Technical reports the signed live Worker comparison passed the three official Hong Kong, Malaysia, and Shenzhen known-time cases within the approved tolerances. The protected identifiers are now accepted only through the hidden-input `test:golden:refresh:secure` workflow and are not written to artifacts or command history.
 - [ ] Verify Hong Kong unknown-time output.
 - [ ] Keep London/New York DST cases as separate future coverage; they were not part of the three PM-approved official website records in this source batch.
 - [ ] Confirm unknown-time output has no Ascendant, MC, houses, or planet house placements end to end.
@@ -227,6 +228,9 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Launcher/setup wording now distinguishes independently deletable secret keys from the long-lived legacy `service_role` JWT and no longer recommends routine legacy-key rotation.
 - [x] Current source accepts the optional pnpm `--` and the advertised crash-cleanup invocation reaches the hidden-key prompt with the correct run ID; a real cleanup against disposable staging data remains part of the privileged hosted gate.
 - [x] Source requires `last_sign_in_at` within 10 minutes before accepting an external account-deletion request; staging-test stale and recent sessions before connecting the destructive UI.
+- [x] Source migrations `0028`–`0030` guard deletion-request status lookup, derive enqueue counts from authoritative rows without unsafe JSON casts, and parenthesize JSON text extraction before Salesforce Subject concatenation. Local external-sync contracts and the full local suite pass.
+- [x] Technical records migration `0029` as deployed after hosted diagnostics.
+- [ ] Apply migration `0030`, redeploy `account-deletion-request`, and run the dedicated-key hosted deletion race/cleanup suite before connecting the destructive UI. Source/local passes are not staging execution evidence.
 - [ ] Implement and staging-test the final DEL-1 internal deletion sequence only after external cleanup is safely queued; ensure direct/admin deletion cannot bypass ledger redaction and external cleanup.
 - [x] Source uses `external_cleanup_requested` for the Google marker and Salesforce cleanup language, and reserves `internally_deleted` for the later DEL-1 completion stage; staging verification remains open.
 
@@ -294,11 +298,13 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Source Chat now uses the safe-area-context view with bottom excluded, matching the tab bar's ownership of the device bottom inset. Real-iPhone visual verification remains in the next item.
 - [ ] Run the tab-bar/safe-area matrix on an iPhone with a home indicator: Chat, Insights, Dice, and Profile; reload, rotation, background/resume, keyboard/composer, scrolling, tap targets, clipping, and no sky gap below the bar. Source inspection cannot close this visual/device gate.
 - [x] Source visible Back buttons return Care Circle, Plans, and Birth Details to Profile. Notification entry tracks Home/Chat/Insights/Dice/Profile as its return source, and the four main-tab bells use the shared helper.
-- [ ] Implement or explicitly defer production navigation semantics. The app still uses one conditional `screen` state and has no `BackHandler`, React Navigation/native stack, or gesture integration, so Android hardware Back and iOS swipe-back are not equivalent to the visible Back controls. Test system Back/gesture after the navigation decision.
+- [x] Source now registers Android `BackHandler` behavior matching the visible Back targets for notifications, Profile subpages, auth/persona/preview/reflections, and the four tabs.
+- [ ] Implement or explicitly defer production iOS navigation semantics. The app still uses one conditional `screen` state rather than a native stack, so interactive iOS swipe-back/deep-link stack behavior is not available. Device-test Android hardware/gesture Back and record the iOS architecture decision.
 - [ ] Do not treat `React.memo(CelestialBackground)` or the new two-layer native pulse as proof that navigation jank is fixed. Conditional screen returns still unmount one background and mount another. Record/profile repeated tab/Back navigation on an iPhone and either keep one shared mounted sky layer or explicitly accept the remount behavior.
 - [ ] Visually approve the 2026-07-21 star-animation tradeoff. Claude replaced 66 independently timed twinkles with two synchronized native-driven star-layer pulses to reduce JS work. The seeded positions, radii, base opacity, glows, shooting stars, and reduced-motion branch remain, but the prior individual timing/delay fidelity no longer does.
 - [x] At a 390x844 web viewport, QA independently confirmed Splash renders first, remains visible at about 1.8 seconds, auto-advances by about 4.8 seconds, and tap-to-skip works. Welcome renders the celestial sky and sunrise-to-sunset gradient CTA with readable copy.
-- [ ] Device-test Splash full-bleed safe areas, reduced motion, cold launch, reload/relaunch policy, and restored-account timing. Auth restoration runs concurrently and can route away from Splash before its four-second timer; confirm this duration variability is intended and never flashes Welcome or overrides the restored Chat route.
+- [x] Source now defers restored-account navigation through `routeAfterSplash`, so auth restoration can run concurrently without replacing Splash before its completion.
+- [ ] Device-test Splash full-bleed safe areas, reduced motion, cold launch, reload/relaunch policy, and restored-account timing. Confirm the full Splash duration is acceptable for every returning user and never flashes Welcome or overrides the restored Chat route.
 - [x] Source Chat removes the chart-context banner, makes the Persona chip open Insights, and adds a visible new-topic plus button.
 - [ ] Device/staging-test the new-topic button with an unsent draft, saved active thread, retry, double tap, local/offline state, and signed-in persistence. Confirm the prior conversation remains in Past Reflections and only one new thread is created on the first successful send.
 - [x] The stale notification assertion was updated for the shared `openNotifications` helper; QA independently reran `pnpm test:mobile-ui` successfully across 11 non-billing surfaces on 2026-07-21.
@@ -311,6 +317,23 @@ These checks require deployed staging services but do not require finished UI.
 - [x] Strict server-side request validation rejects malformed JSON/types, invalid times, non-boolean unknown-time values, and invalid coordinates before Worker access; hosted malformed-input scenarios exist.
 - [x] Mobile preserves and handles `49001`, `49002`, and `49003` separately, including authoritative limit-count refresh.
 - [x] Source removes the duplicate regeneration sky, hides Back while regeneration is active, and explicitly names ASC, MC, houses, and planet-house placements in unknown-time copy. Device accessibility/visual behavior remains in the open device check above.
+
+### Claude Fable source review and later device QA (`2026-07-23`)
+
+- [x] Source uses one shared `NatalWheel` for Insights and Chart Reveal. It is data-driven, pins the real ASC to the left for full-time charts, increases zodiac longitude clockwise, renders real house cusps/ASC/MC only for full precision, and does not expose ASC/MC/houses for unknown-time charts.
+- [ ] **Later device QA — natal wheel:** after the source fix, visually verify wheel edge labels. ASC is currently placed outside the SVG view box (`R_out + 0.045 * size`) and is therefore expected to be substantially clipped at the pinned-left position. Keep angle labels within the drawable bounds.
+- [ ] Add circular planet-label collision handling across the Pisces/Aries 360°/0° boundary. The current linear sorted pass does not compare the first and last placements, so close placements across that seam can overlap.
+- [ ] **Later device QA — natal wheel:** compare the shared wheel against trusted chart data and the approved design on both full-time and unknown-time fixtures. Source/data wiring is not golden-chart accuracy or visual signoff.
+- [x] Source places the Dice `Ready` control directly beneath the question and retains the question-required disabled state.
+- [ ] **Later device QA — Dice layout:** test hand overlap, keyboard behavior, scrolling, and small-screen spacing on an iPhone.
+- [x] Source places the Care Circle reminder toggle above frequency and wraps the iOS switch in a fixed-height centered container.
+- [ ] **Later device QA — Care Circle accessibility:** verify the actual iOS switch alignment, touch target, VoiceOver label, and announced on/off state.
+- [x] Source Care Circle direction now matches the founder correction: caree shows QR/manual code; carer scans or enters it; carer confirms “You'll care for …”; caree acceptance remains the next lifecycle step.
+- [x] `AC-UX-11` v1.1 and `AC-UX-15` already record the corrected QR direction. `AC-UX-07` remains the older reversed source and must be explicitly marked superseded or corrected so future implementation work does not regress.
+- [ ] Do not ship the current Care Circle mock as a real feature. It forces `eligible`, uses seeded people/statuses, accepts the universal `LUMIS123` code, exposes a “Simulate scan” action, has a no-op refresh, and enforces max five only in local UI state. Keep it unmistakably preview-only or unavailable until the paid gate, signed expiring code, lifecycle, RLS, and transactional max-five backend exist.
+- [ ] **Later device QA — Android Back:** use a physical Android device to verify system-button/gesture Back across tabs, notifications, Profile subpages, auth/persona/preview/reflections, and root exit behavior.
+- [ ] **Later architecture/device QA — iOS swipe-back:** adopt a native navigation stack or record PM acceptance that MVP relies on visible Back controls; then test the selected behavior on iPhone.
+- [ ] **Later device QA — celestial background:** repeatedly navigate Talk, Insights, Dice, and You on iPhone; check for hitching, flashing, animation restarts, blank gaps, heat, and reduced-motion behavior, and obtain design approval for the grouped-pulse tradeoff.
 
 - [ ] Rebuild the Claude handoff natively in Expo React Native/TypeScript; do not embed or ship the HTML/React prototype through a WebView.
 - [ ] Compare the native implementation against all 14 Navy/English reference screenshots at 390×844 for layout, hierarchy, spacing, typography, copy, and navigation.

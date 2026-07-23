@@ -5,6 +5,7 @@ import Mail from "lucide-react-native/icons/mail";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
+import { MagicLinkSentScreen } from "../components/AuthSystemKit";
 import { FlowScreen, flowStyles } from "../components/FlowScreen";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { getAuthStatus, sendMagicLink, signOut, type AuthStatus } from "../services/auth";
@@ -33,6 +34,8 @@ export function LumisAuthScreen({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The "Check your inbox" screen (AUTH-002) after a magic link is sent.
+  const [sentToEmail, setSentToEmail] = useState<string | null>(null);
 
   async function refreshAccount(messageText: string) {
     const status = await getAuthStatus();
@@ -52,12 +55,21 @@ export function LumisAuthScreen({
     setMessage("");
     onClearAuthError();
     try {
-      const result = await sendMagicLink(cleanedEmail);
-      await refreshAccount(result.message);
+      await sendMagicLink(cleanedEmail);
+      setSentToEmail(cleanedEmail);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to send your secure link.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function resendLink() {
+    if (!sentToEmail) return;
+    try {
+      await sendMagicLink(sentToEmail);
+    } catch {
+      // Resend is best-effort; the visible confirmation already shows "Link resent".
     }
   }
 
@@ -73,6 +85,19 @@ export function LumisAuthScreen({
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (sentToEmail) {
+    return (
+      <MagicLinkSentScreen
+        email={sentToEmail}
+        onResend={resendLink}
+        onChangeEmail={() => {
+          setSentToEmail(null);
+          setMessage("");
+        }}
+      />
+    );
   }
 
   return (
