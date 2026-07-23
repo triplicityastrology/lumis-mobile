@@ -70,6 +70,7 @@ import { CelestialBackground } from "./src/components/CelestialBackground";
 import { GeneratingView } from "./src/components/GeneratingView";
 import { LumisPersonaAvatar, PERSONA_AVATARS } from "./src/components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "./src/components/MainTabBar";
+import { NatalWheel } from "./src/components/NatalWheel";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
@@ -1320,94 +1321,12 @@ function formatPlacement(placement: ChartV2["planets"][number] | undefined) {
   return `${placement.sign} ${degrees}°${String(minutes).padStart(2, "0")}′`;
 }
 
-const SIGN_INDEX: Record<string, number> = {
-  aries: 0,
-  taurus: 1,
-  gemini: 2,
-  cancer: 3,
-  leo: 4,
-  virgo: 5,
-  libra: 6,
-  scorpio: 7,
-  sagittarius: 8,
-  capricorn: 9,
-  aquarius: 10,
-  pisces: 11
-};
-
-const PLANET_GLYPHS: Partial<Record<ChartV2["planets"][number]["key"], string>> = {
-  sun: "☉",
-  moon: "☽",
-  mercury: "☿",
-  venus: "♀",
-  mars: "♂",
-  jupiter: "♃",
-  saturn: "♄",
-  uranus: "♅",
-  neptune: "♆",
-  pluto: "♇",
-  chiron: "⚷",
-  true_node: "☊",
-  south_node: "☋"
-};
-
 function NatalChartWheel({ chart }: { chart: ChartV2 }) {
-  const center = 150;
-  const plottedPlanets = chart.planets.filter(
-    (planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli"
-  );
-  const houseAngles = chart.precision === "full"
-    ? chart.houses.map((house) => zodiacLongitude(house.sign, house.cuspDegree))
-    : [];
-
   return (
-    <Svg accessibilityLabel="Natal chart wheel" height="100%" viewBox="0 0 300 300" width="100%">
-      <Circle cx={center} cy={center} fill="rgba(7,19,33,0.82)" r="137" stroke="#D7A950" strokeWidth="1.2" />
-      <Circle cx={center} cy={center} fill="none" opacity="0.72" r="112" stroke="#EDE3D4" strokeWidth="0.7" />
-      <Circle cx={center} cy={center} fill="none" opacity="0.52" r="80" stroke="#9298D5" strokeWidth="0.8" />
-      <Circle cx={center} cy={center} fill="none" opacity="0.42" r="46" stroke="#EDE3D4" strokeWidth="0.6" />
-      {Array.from({ length: 12 }).map((_, index) => {
-        const outer = pointOnWheel(index * 30, 136);
-        const inner = pointOnWheel(index * 30, 112);
-        return <Line key={`sign-${index}`} opacity="0.48" stroke="#EDE3D4" strokeWidth="0.65" x1={inner.x} x2={outer.x} y1={inner.y} y2={outer.y} />;
-      })}
-      {houseAngles.map((angle, index) => {
-        const outer = pointOnWheel(angle, 111);
-        const inner = pointOnWheel(angle, 46);
-        return <Line key={`house-${index}`} opacity="0.28" stroke="#D7A950" strokeWidth="0.7" x1={inner.x} x2={outer.x} y1={inner.y} y2={outer.y} />;
-      })}
-      {plottedPlanets.map((planet, index) => {
-        const angle = planet.absoluteLongitude ?? zodiacLongitude(planet.sign, planet.degree);
-        const point = pointOnWheel(angle, 94 - (index % 3) * 9);
-        return (
-          <SvgText
-            fill={planet.key === "sun" || planet.key === "moon" ? "#F1C56B" : "#F7EBDD"}
-            fontSize={planet.key === "sun" || planet.key === "moon" ? 17 : 14}
-            fontWeight="600"
-            key={`${planet.key}-${index}`}
-            textAnchor="middle"
-            x={point.x}
-            y={point.y + 5}
-          >
-            {PLANET_GLYPHS[planet.key] ?? "•"}
-          </SvgText>
-        );
-      })}
-      <Circle cx={center} cy={center} fill="#D7A950" r="3.5" />
-    </Svg>
+    <View style={{ aspectRatio: 1, maxWidth: 300, width: "100%" }}>
+      <NatalWheel chart={chart} size={300} />
+    </View>
   );
-}
-
-function zodiacLongitude(sign: string, degree: number) {
-  return (SIGN_INDEX[sign.toLowerCase()] ?? 0) * 30 + degree;
-}
-
-function pointOnWheel(longitude: number, radius: number) {
-  const radians = ((longitude - 90) * Math.PI) / 180;
-  return {
-    x: 150 + Math.cos(radians) * radius,
-    y: 150 + Math.sin(radians) * radius
-  };
 }
 
 function PersonaStyleScreen({

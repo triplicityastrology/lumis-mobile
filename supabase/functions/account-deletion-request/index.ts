@@ -60,8 +60,20 @@ Deno.serve(async (request) => {
 
   if (error) {
     console.error("ACCOUNT_DELETION_QUEUE_FAILED", { code: error.code, user_id: authData.user.id });
+    const includeDiagnostics = Deno.env.get("LUMIS_ENV")?.trim().toLowerCase() === "staging";
+    const diagnosticCode = includeDiagnostics ? error.code : undefined;
+    const diagnosticMessage = includeDiagnostics
+      ? [error.message, error.details, error.hint].filter(Boolean).join(" | ").slice(0, 500)
+      : undefined;
     return jsonResponse(
-      { error: { code: "ACCOUNT_DELETION_QUEUE_FAILED", message: "Unable to queue account deletion" } },
+      {
+        error: {
+          code: "ACCOUNT_DELETION_QUEUE_FAILED",
+          message: "Unable to queue account deletion",
+          ...(diagnosticCode ? { diagnostic_code: diagnosticCode } : {}),
+          ...(diagnosticMessage ? { diagnostic_message: diagnosticMessage } : {})
+        }
+      },
       { status: 500 }
     );
   }

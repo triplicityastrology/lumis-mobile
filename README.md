@@ -47,6 +47,7 @@ docs/implementation-notes   Technical handoff notes
 ## Setup Guides
 
 - Supabase project setup: [docs/setup/supabase-project-setup.md](docs/setup/supabase-project-setup.md)
+- Second Mac and Expo Go setup: [docs/setup/other-mac-expo-go-setup.md](docs/setup/other-mac-expo-go-setup.md)
 
 ## Current Build Order
 

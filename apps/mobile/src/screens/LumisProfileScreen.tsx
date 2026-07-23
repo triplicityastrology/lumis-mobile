@@ -117,18 +117,23 @@ export function LumisProfileScreen({
             <View style={styles.switchRow}>
               <View style={styles.rowIcon}><Bell color={colors.periwinkle} size={17} /></View>
               <Text style={styles.switchLabel}>Enable check-in reminders</Text>
-              <Switch
-                accessibilityLabel="Enable check-in reminders"
-                onValueChange={setCheckInEnabled}
-                thumbColor={checkInEnabled ? colors.ice : colors.muted}
-                trackColor={{ false: colors.line, true: colors.gold }}
-                value={checkInEnabled}
-              />
+              {/* Bound the Switch in a fixed-height box: on iOS a Switch stretches to
+                  the row height and draws its control at the top, so it looks pinned
+                  to the top of the row. A 32pt wrapper keeps it vertically centered. */}
+              <View style={styles.switchControl}>
+                <Switch
+                  accessibilityLabel="Enable check-in reminders"
+                  onValueChange={setCheckInEnabled}
+                  thumbColor={checkInEnabled ? colors.ice : colors.muted}
+                  trackColor={{ false: colors.line, true: colors.gold }}
+                  value={checkInEnabled}
+                />
+              </View>
             </View>
             <ProfileRow icon={<Clock3 color={colors.periwinkle} size={17} />} label="Check-in frequency" value="Every 3 days" onPress={checkInEnabled ? onCareCircle : undefined} showChevron={checkInEnabled} />
+            <ProfileRow icon={<QrCode color={colors.periwinkle} size={17} />} label="My check-in code" onPress={onCareCircle} />
+            <ProfileRow icon={<UserRound color={colors.periwinkle} size={17} />} label="Add someone I care for" onPress={onCareCircle} />
             <ProfileRow icon={<UserRound color={colors.periwinkle} size={17} />} label="Emergency contact" value="Not set" onPress={onCareCircle} />
-            <ProfileRow icon={<QrCode color={colors.periwinkle} size={17} />} label="My carer QR code" onPress={onCareCircle} />
-            <ProfileRow icon={<QrCode color={colors.periwinkle} size={17} />} label="Add a carer" onPress={onCareCircle} />
             <ProfileRow icon={<Users color={colors.periwinkle} size={17} />} label="Manage linked Care Circle" onPress={onCareCircle} />
           </ProfileSection>
 
@@ -239,7 +244,8 @@ const styles = StyleSheet.create({
   personaAvatar: { alignItems: "center", borderRadius: 23, height: 46, justifyContent: "center", width: 46 },
   changeButton: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 38, paddingHorizontal: 13, justifyContent: "center" },
   changeText: { color: colors.ice, fontSize: 11.5, fontWeight: "700" },
-  switchRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 13 },
+  switchRow: { alignItems: "center", borderTopColor: colors.lineSoft, borderTopWidth: 1, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 13 },
+  switchControl: { alignItems: "center", height: 32, justifyContent: "center" },
   switchLabel: { color: colors.ice, flex: 1, fontSize: 13, fontWeight: "600" },
   notice: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: 8, borderWidth: 1, padding: 13 },
   noticeText: { color: colors.textSoft, fontSize: 11.5, lineHeight: 17 },

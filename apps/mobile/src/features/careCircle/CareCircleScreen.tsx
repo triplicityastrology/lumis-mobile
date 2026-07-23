@@ -12,13 +12,17 @@ import {
 
 /**
  * Care Circle UI-only flow (AC-UX-11). Full interactive journey on mock data:
- * dual-role home, add-carer (QR → scan → confirm), pending/active/removed,
- * check-in prompt, remove/leave. All relationship/QR/schedule behavior is
+ * dual-role home, check-in prompt, remove/leave. Link direction (founder
+ * correction 2026-07-22, supersedes AC-UX-11 / ac-care.jsx): the CAREE shows
+ * their check-in QR + manual code; the CARER scans or enters that code to add
+ * the caree (carer → scan → confirm). All relationship/QR/schedule behavior is
  * Backend later; gentle-check-in tone only (no emergency/rescue language).
  */
 
 const SAFETY = "Care Circle is for gentle check-ins only. It cannot guarantee push delivery, urgent response, or emergency support.";
 const MAX_CARERS = 5;
+// The caree displays this code; a carer scans or types it to add the caree.
+const MY_CHECKIN_CODE = "LUMIS123";
 
 type Carer = { id: string; name: string; status: "Active" | "Pending" };
 type Caree = { id: string; name: string; lastStatus: string };
@@ -27,30 +31,31 @@ type View_ =
   | { v: "home" }
   | { v: "qr" }
   | { v: "scan" }
-  | { v: "confirm"; carerName: string };
+  | { v: "confirm"; careeName: string };
 
 export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => void; eligible?: boolean }) {
   const [view, setView] = useState<View_>({ v: "home" });
   const [carers, setCarers] = useState<Carer[]>([
     { id: "c1", name: "Mei (sister)", status: "Active" }
   ]);
-  const [carees] = useState<Caree[]>([{ id: "e1", name: "Alex", lastStatus: "OK · 2h ago" }]);
+  const [carees, setCarees] = useState<Caree[]>([{ id: "e1", name: "Alex", lastStatus: "OK · 2h ago" }]);
   const [paused, setPaused] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [scanError, setScanError] = useState<"" | "invalid" | "expired">("");
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Carer | null>(null);
 
+  // The carer scans/enters the caree's code; on success we confirm the caree.
   function simulateScan(code?: string) {
-    if (code && code.toUpperCase() !== "LUMIS123") {
+    if (code && code.toUpperCase() !== MY_CHECKIN_CODE) {
       setScanError("invalid");
       return;
     }
     setScanError("");
-    setView({ v: "confirm", carerName: "Jordan" });
+    setView({ v: "confirm", careeName: "Jordan" });
   }
   function sendRequest(name: string) {
-    setCarers((prev) => [...prev, { id: `c${Date.now()}`, name, status: "Pending" }]);
+    setCarees((prev) => [...prev, { id: `e${Date.now()}`, name, lastStatus: "Waiting to accept" }]);
     setView({ v: "home" });
   }
 
@@ -70,14 +75,19 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
 
   if (view.v === "qr") {
     return (
-      <Shell title="My carer QR" onBack={() => setView({ v: "home" })}>
+      <Shell title="My check-in code" onBack={() => setView({ v: "home" })}>
         <View style={s.qrCard}>
           <QrPlaceholder />
           <Text style={s.qrName}>Ruby</Text>
+          {/* Manual code shown beneath the QR so a carer can add you without scanning. */}
+          <View style={s.codeBox}>
+            <Text style={s.codeLabel}>OR ENTER CODE</Text>
+            <Text style={s.codeValue}>{MY_CHECKIN_CODE}</Text>
+          </View>
           <View style={s.expiryChip}><Text style={s.expiryText}>Expires in 4:59</Text></View>
         </View>
         <Text style={s.explain}>
-          Let a trusted Lumis user scan this to request adding you as their carer. You'll still need to accept.
+          Share this with someone you trust. When your carer scans or enters this code, they can start caring for you — you'll still confirm the link.
         </Text>
         <GhostButton label="Refresh code" onPress={() => {}} style={{ marginTop: 6 }} />
         <SafetyNote text={SAFETY} />
@@ -87,48 +97,49 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
 
   if (view.v === "scan") {
     return (
-      <Shell title="Add a carer" onBack={() => { setView({ v: "home" }); setScanError(""); }}>
+      <Shell title="Add someone to care for" onBack={() => { setView({ v: "home" }); setScanError(""); }}>
         <View style={s.viewfinder}>
           <ViewfinderMask />
-          <Text style={s.viewfinderHint}>Point at your carer's QR code</Text>
+          <Text style={s.viewfinderHint}>Point at their check-in code</Text>
         </View>
         {scanError === "invalid" ? (
           <Text style={s.scanErr}>This code isn't valid. Ask them to refresh it.</Text>
         ) : scanError === "expired" ? (
           <Text style={s.scanErr}>This code has expired.</Text>
         ) : null}
-        <Text style={s.explainSmall}>Camera not available in preview — enter the code or simulate a scan.</Text>
+        <Text style={s.explainSmall}>Camera not available in preview — enter their code or simulate a scan.</Text>
         <View style={s.manualRow}>
           <TextInput
             autoCapitalize="characters"
             onChangeText={setManualCode}
-            placeholder="Enter code"
+            placeholder="Enter their code"
             placeholderTextColor={colors.muted}
             style={s.manualInput}
             value={manualCode}
           />
           <SoftButton label="Submit" onPress={() => simulateScan(manualCode)} />
         </View>
-        <BrandButton label="Simulate scan (LUMIS123)" onPress={() => simulateScan("LUMIS123")} style={{ marginTop: 12 }} />
+        <BrandButton label={`Simulate scan (${MY_CHECKIN_CODE})`} onPress={() => simulateScan(MY_CHECKIN_CODE)} style={{ marginTop: 12 }} />
       </Shell>
     );
   }
 
   if (view.v === "confirm") {
     return (
-      <Shell title="Confirm carer" onBack={() => setView({ v: "scan" })}>
+      <Shell title="Confirm care link" onBack={() => setView({ v: "scan" })}>
         <View style={s.confirmHero}>
-          <View style={s.avatar}><Text style={s.avatarText}>{view.carerName[0]}</Text></View>
-          <Text style={s.confirmName}>{view.carerName}</Text>
+          <View style={s.avatar}><Text style={s.avatarText}>{view.careeName[0]}</Text></View>
+          <Text style={s.confirmName}>You'll care for {view.careeName}</Text>
         </View>
         <View style={s.permCard}>
-          <Text style={s.permHead}>They will</Text>
-          <Text style={s.permItem}>· receive gentle check-in notices</Text>
-          <Text style={s.permItem}>· see your check-in status</Text>
-          <Text style={[s.permHead, { marginTop: 12 }]}>They won't</Text>
-          <Text style={s.permItem}>· see your chats, readings, birth details, credits, or billing</Text>
+          <Text style={s.permHead}>You will</Text>
+          <Text style={s.permItem}>· receive gentle check-in notices about them</Text>
+          <Text style={s.permItem}>· see their check-in status</Text>
+          <Text style={[s.permHead, { marginTop: 12 }]}>You won't</Text>
+          <Text style={s.permItem}>· see their chats, readings, birth details, credits, or billing</Text>
         </View>
-        <BrandButton label="Send request" onPress={() => sendRequest(view.carerName)} style={{ marginTop: 18 }} />
+        <Text style={s.explainSmall}>They'll be asked to accept before the link becomes active.</Text>
+        <BrandButton label="Send request" onPress={() => sendRequest(view.careeName)} style={{ marginTop: 12 }} />
         <GhostButton label="Cancel" onPress={() => setView({ v: "scan" })} style={{ marginTop: 8 }} />
       </Shell>
     );
@@ -150,9 +161,9 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
           <QuietEmptyState
             motif="hands"
             title="No carers yet."
-            sub="Add someone you trust to receive gentle notices."
-            ctaLabel="Add a carer"
-            onCta={() => setView({ v: "scan" })}
+            sub="Show your check-in code to someone you trust so they can care for you."
+            ctaLabel="Show my code"
+            onCta={() => setView({ v: "qr" })}
           />
         ) : (
           <View style={{ gap: 8, marginTop: 12 }}>
@@ -171,8 +182,8 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
 
         <View style={s.actionRow}>
           <SoftButton
-            label={canAdd ? "Add a carer" : "Limit reached (5)"}
-            onPress={() => canAdd && setView({ v: "scan" })}
+            label={canAdd ? "Show my code" : "Limit reached (5)"}
+            onPress={() => canAdd && setView({ v: "qr" })}
             disabled={!canAdd}
             style={{ flex: 1 }}
           />
@@ -188,9 +199,9 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
           <QuietEmptyState
             motif="hands"
             title="You're not caring for anyone yet."
-            sub="Share your QR when someone wants to add you."
-            ctaLabel="Show my carer QR"
-            onCta={() => setView({ v: "qr" })}
+            sub="Scan or enter their check-in code to start caring for someone."
+            ctaLabel="Add someone I care for"
+            onCta={() => setView({ v: "scan" })}
           />
         ) : (
           <View style={{ gap: 8 }}>
@@ -204,7 +215,7 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
                 <Pressable hitSlop={6}><Text style={s.rowLeave}>Leave</Text></Pressable>
               </View>
             ))}
-            <SoftButton label="Show my carer QR" onPress={() => setView({ v: "qr" })} style={{ marginTop: 8 }} />
+            <SoftButton label="Add someone I care for" onPress={() => setView({ v: "scan" })} style={{ marginTop: 8 }} />
           </View>
         )}
       </View>
@@ -307,6 +318,9 @@ const s = StyleSheet.create({
   actionRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   qrCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(215,185,120,0.55)", borderRadius: 22, borderWidth: 1.5, gap: 12, marginTop: 8, padding: 24 },
   qrName: { color: colors.ice, fontFamily: "Georgia", fontSize: 17 },
+  codeBox: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.1)", borderColor: "rgba(215,185,120,0.4)", borderRadius: radii.md, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 8 },
+  codeLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4 },
+  codeValue: { color: colors.goldLight, fontSize: 20, fontWeight: "700", letterSpacing: 4, marginTop: 2 },
   expiryChip: { backgroundColor: "rgba(201,169,110,0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   expiryText: { color: colors.goldLight, fontSize: 11.5, fontWeight: "600" },
   explain: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: 16, textAlign: "center" },

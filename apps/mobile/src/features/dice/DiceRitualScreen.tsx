@@ -468,13 +468,10 @@ export function DiceRitualScreen({
               />
             </BlurView>
 
-            <View style={styles.flexSpacer} pointerEvents="none" />
-
-            {phase === "READY" || phase === "MIXING" ? (
-              <Text style={styles.hint}>Shake to mix, then flick up to throw</Text>
-            ) : null}
+            {/* Ready sits directly under the question so it's clear a question
+                comes first, and it never covers the hand below. */}
             {phase === "IDLE" ? (
-              <>
+              <View style={styles.readyBlock}>
                 <BrandButton
                   label="Ready"
                   onPress={beginReady}
@@ -484,7 +481,13 @@ export function DiceRitualScreen({
                 {trimmedQuestion.length === 0 ? (
                   <Text style={styles.readyHint}>Enter a question to begin your throw</Text>
                 ) : null}
-              </>
+              </View>
+            ) : null}
+
+            <View style={styles.flexSpacer} pointerEvents="none" />
+
+            {phase === "READY" || phase === "MIXING" ? (
+              <Text style={styles.hint}>Shake to mix, then flick up to throw</Text>
             ) : null}
             {showTapThrow && (phase === "READY" || phase === "MIXING") ? (
               <SoftButton label="Tap to throw" onPress={() => performThrow(1)} />
@@ -938,6 +941,7 @@ const styles = StyleSheet.create({
   questionInput: { color: colors.ice, fontFamily: "Georgia", fontSize: 16, minHeight: 32, padding: 0, textAlign: "center" },
   flexSpacer: { flex: 1 },
   hint: { color: colors.ice, fontSize: 15, marginBottom: 12, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 8 },
+  readyBlock: { alignItems: "center", marginTop: 16, width: "100%" },
   readyHint: { color: "#A2B0C6", fontSize: 12.5, marginTop: 10, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6 },
   brandButtonWrap: { borderRadius: 15, elevation: 6, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.45, shadowRadius: 18 },
   brandButtonDisabled: { opacity: 0.42, shadowOpacity: 0 },

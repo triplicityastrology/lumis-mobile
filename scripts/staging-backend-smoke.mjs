@@ -8,6 +8,8 @@ const createdUserIds = [];
 
 const results = [];
 
+await verifyQaSecretKeyAccess();
+
 console.log(`Hosted QA run ID: ${runId}`);
 console.log(`If this process is interrupted, run: pnpm test:staging-backend:cleanup -- ${runId}`);
 
@@ -38,7 +40,10 @@ try {
   };
 
   const firstProfile = await invokeFunction("profile", primarySession.access_token, originalRequest);
-  assert(firstProfile.status === 200, `Initial profile returned HTTP ${firstProfile.status}.`);
+  assert(
+    firstProfile.status === 200,
+    `Initial profile returned HTTP ${firstProfile.status}: ${safeError(firstProfile.body)}.`
+  );
   assert(firstProfile.body.status === "profile_persisted", "Initial profile was not persisted.");
   assert(firstProfile.body.chart_version === 1, "Initial profile did not return chart_version 1.");
   assert(firstProfile.body.ai_profile_id, "Initial profile did not return ai_profile_id.");
@@ -769,7 +774,10 @@ try {
       })
     )
   ]);
-  assert(deletionRequest.status === 202, `Deletion request returned HTTP ${deletionRequest.status}.`);
+  assert(
+    deletionRequest.status === 202,
+    `Deletion request returned HTTP ${deletionRequest.status}: ${safeError(deletionRequest.body)}.`
+  );
   assert(lateCompletion.ok === true, "Late in-flight completion was not recorded.");
 
   const deletionEvents = await serviceSelect(
@@ -1127,8 +1135,25 @@ async function createConfirmedUser(email, userPassword) {
     body: JSON.stringify({ email, password: userPassword, email_confirm: true })
   });
   const body = await response.json();
-  assert(response.ok, `Unable to create disposable Auth user: ${body.message ?? response.status}.`);
+  assert(
+    response.ok,
+    `Unable to create disposable Auth user (HTTP ${response.status}): ${safeError(body)}.`
+  );
   return { id: body.id, email };
+}
+
+async function verifyQaSecretKeyAccess() {
+  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1`, {
+    headers: serviceHeaders()
+  });
+  const text = await response.text();
+  const body = text ? JSON.parse(text) : null;
+
+  assert(
+    response.ok,
+    `The dedicated Supabase QA key cannot use Auth Admin (HTTP ${response.status}): ${safeError(body)}. ` +
+      "Check that the complete active sb_secret_ key was copied from this staging project."
+  );
 }
 
 async function signIn(email, userPassword) {

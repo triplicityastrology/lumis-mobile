@@ -2,125 +2,23 @@ import { LinearGradient } from "expo-linear-gradient";
 import Bell from "lucide-react-native/icons/bell";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import Moon from "lucide-react-native/icons/moon";
-import Sparkles from "lucide-react-native/icons/sparkles";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
 
 import { CelestialBackground } from "../components/CelestialBackground";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
+import { NatalWheel } from "../components/NatalWheel";
 import { colors, radii, spacing } from "../theme/tokens";
 
 const SUNRISE = ["#E5C06B", "#E9B083", "#E89B92"] as const;
 
-const SIGN_INDEX: Record<string, number> = {
-  aries: 0, taurus: 1, gemini: 2, cancer: 3, leo: 4, virgo: 5,
-  libra: 6, scorpio: 7, sagittarius: 8, capricorn: 9, aquarius: 10, pisces: 11
-};
-
-const SIGN_GLYPHS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
-
 const PLANET_GLYPHS: Record<string, string> = {
-  sun: "☉", moon: "☽", mercury: "☿", venus: "♀", mars: "♂", jupiter: "♃",
-  saturn: "♄", uranus: "♅", neptune: "♆", pluto: "♇", chiron: "⚷",
-  true_node: "☊", south_node: "☋", ascendant: "ASC", medium_coeli: "MC"
+  sun: "\u2609", moon: "\u263D", mercury: "\u263F", venus: "\u2640", mars: "\u2642", jupiter: "\u2643",
+  saturn: "\u2644", uranus: "\u2645", neptune: "\u2646", pluto: "\u2647", chiron: "\u26B7",
+  true_node: "\u260A", south_node: "\u260B", ascendant: "ASC", medium_coeli: "MC"
 };
-
-function zodiacLongitude(sign: string, degree: number) {
-  return (SIGN_INDEX[sign.toLowerCase()] ?? 0) * 30 + degree;
-}
-
-function pointOnWheel(longitude: number, radius: number) {
-  const radians = ((longitude - 90) * Math.PI) / 180;
-  return { x: 150 + Math.cos(radians) * radius, y: 150 + Math.sin(radians) * radius };
-}
-
-function InsightsChartWheel({ chart, size = 230 }: { chart: ChartV2; size?: number }) {
-  const center = 150;
-  const plotted = chart.planets.filter(
-    (planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli"
-  );
-  const houseAngles =
-    chart.precision === "full"
-      ? chart.houses.map((house) => zodiacLongitude(house.sign, house.cuspDegree))
-      : [];
-  const ascLongitude = chart.angles.ascendant
-    ? zodiacLongitude(chart.angles.ascendant.sign, chart.angles.ascendant.degree)
-    : null;
-
-  return (
-    <Svg accessibilityLabel="Natal chart wheel" height={size} viewBox="0 0 300 300" width={size}>
-      <Circle cx={center} cy={center} fill="rgba(7,19,33,0.55)" r="137" stroke="#D7A950" strokeWidth="1.2" />
-      <Circle cx={center} cy={center} fill="none" opacity="0.72" r="112" stroke="#EDE3D4" strokeWidth="0.7" />
-      <Circle cx={center} cy={center} fill="none" opacity="0.52" r="80" stroke="#9298D5" strokeWidth="0.8" />
-      <Circle cx={center} cy={center} fill="none" opacity="0.42" r="46" stroke="#EDE3D4" strokeWidth="0.6" />
-
-      {/* sign sector dividers + glyphs on the rim */}
-      {Array.from({ length: 12 }).map((_, index) => {
-        const outer = pointOnWheel(index * 30, 136);
-        const inner = pointOnWheel(index * 30, 112);
-        const glyphPoint = pointOnWheel(index * 30 + 15, 124);
-        return (
-          <G key={`sign-${index}`}>
-            <Line opacity="0.4" stroke="#EDE3D4" strokeWidth="0.6" x1={inner.x} x2={outer.x} y1={inner.y} y2={outer.y} />
-            <SvgText fill="#C9A96E" fontSize="12" opacity="0.9" textAnchor="middle" x={glyphPoint.x} y={glyphPoint.y + 4}>
-              {SIGN_GLYPHS[index]}
-            </SvgText>
-          </G>
-        );
-      })}
-
-      {/* house cusp spokes */}
-      {houseAngles.map((angle, index) => {
-        const outer = pointOnWheel(angle, 111);
-        const inner = pointOnWheel(angle, 46);
-        return <Line key={`house-${index}`} opacity="0.26" stroke="#D7A950" strokeWidth="0.7" x1={inner.x} x2={outer.x} y1={inner.y} y2={outer.y} />;
-      })}
-
-      {/* Ascendant / Descendant axis */}
-      {ascLongitude != null ? (
-        <Line
-          opacity="0.7"
-          stroke="#EDE3D4"
-          strokeWidth="1.1"
-          x1={pointOnWheel(ascLongitude, 112).x}
-          x2={pointOnWheel(ascLongitude + 180, 112).x}
-          y1={pointOnWheel(ascLongitude, 112).y}
-          y2={pointOnWheel(ascLongitude + 180, 112).y}
-        />
-      ) : null}
-
-      {/* planets */}
-      {plotted.map((planet, index) => {
-        const angle = planet.absoluteLongitude ?? zodiacLongitude(planet.sign, planet.degree);
-        const point = pointOnWheel(angle, 94 - (index % 3) * 9);
-        const luminary = planet.key === "sun" || planet.key === "moon";
-        return (
-          <SvgText
-            fill={luminary ? "#F1C56B" : "#F7EBDD"}
-            fontSize={luminary ? 17 : 14}
-            fontWeight="600"
-            key={`${planet.key}-${index}`}
-            textAnchor="middle"
-            x={point.x}
-            y={point.y + 5}
-          >
-            {PLANET_GLYPHS[planet.key] ?? "•"}
-          </SvgText>
-        );
-      })}
-
-      {ascLongitude != null ? (
-        <SvgText fill="#8A9BB0" fontSize="9" fontWeight="700" textAnchor="middle" x={pointOnWheel(ascLongitude, 146).x} y={pointOnWheel(ascLongitude, 146).y + 3}>
-          ASC
-        </SvgText>
-      ) : null}
-      <Circle cx={center} cy={center} fill="#D7A950" r="3.5" />
-    </Svg>
-  );
-}
 
 export function ChartInsightsScreen({
   chart,
@@ -157,7 +55,7 @@ export function ChartInsightsScreen({
           {/* chart panel + continuous placements list share one rounded container */}
           <View style={styles.chartPanel}>
             <View style={styles.chartWheelWrap}>
-              <InsightsChartWheel chart={chart} size={232} />
+              <NatalWheel chart={chart} size={232} />
             </View>
             <Text style={styles.chartCaption}>{name.toUpperCase()} · NATAL CHART</Text>
 
