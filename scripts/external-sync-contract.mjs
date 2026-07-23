@@ -7,6 +7,7 @@ const deletionMigration = readFileSync("supabase/migrations/0013_account_deletio
 const strictRetentionMigration = readFileSync("supabase/migrations/0023_strict_sync_retention_and_provider_attempts.sql", "utf8");
 const payloadAllowlistMigration = readFileSync("supabase/migrations/0024_provider_attempt_concurrency_and_payload_allowlist.sql", "utf8");
 const safeDeletionRefreshMigration = readFileSync("supabase/migrations/0028_safe_account_deletion_status_refresh.sql", "utf8");
+const safeDeletionEnqueueMigration = readFileSync("supabase/migrations/0029_safe_account_deletion_enqueue_result.sql", "utf8");
 const deletionFunction = readFileSync("supabase/functions/account-deletion-request/index.ts", "utf8");
 const hostedQaLauncher = readFileSync("scripts/run-staging-backend-test.sh", "utf8");
 const hostedQaSmoke = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
@@ -68,6 +69,9 @@ assert.match(payloadAllowlistMigration, /status in \('pending', 'retry_pending',
 assert.match(safeDeletionRefreshMigration, /request\.request_id::text\s*=\s*coalesce/i);
 assert.match(safeDeletionRefreshMigration, /if not found then\s+return new/i);
 assert.doesNotMatch(safeDeletionRefreshMigration, /::uuid/i);
+assert.match(safeDeletionEnqueueMigration, /select count\(\*\)[\s\S]*payload_json->>'deletion_request_id'/i);
+assert.doesNotMatch(safeDeletionEnqueueMigration, /external_event_count'\)::int/i);
+assert.match(safeDeletionEnqueueMigration, /revoke all on function public\.enqueue_account_deletion_external_sync/i);
 
 assert.match(deletionFunction, /DELETE MY LUMIS ACCOUNT/);
 assert.match(deletionFunction, /auth\.getUser\(\)/);
