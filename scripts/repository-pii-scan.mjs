@@ -9,6 +9,8 @@ const goldenRoots = [
 ];
 const allowedEmailDomains = new Set(["example.com", "example.test", "invalid"]);
 const emailPattern = /[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})/gi;
+const websiteSessionPattern = /\bTRI-[A-Z0-9-]{8,}\b/g;
+const websiteResultUrlPattern = /triplicityastrology\.com\/chart\/result\?session=/gi;
 const goldenFilePattern = /golden/i;
 const forbiddenIdentityKeys = new Set([
   "email",
@@ -23,6 +25,7 @@ for (const file of await walk(documentationRoot)) {
   if (!file.endsWith(".md")) continue;
   const content = await readFile(file, "utf8");
   inspectEmails(file, content);
+  inspectProtectedReferenceTokens(file, content);
 
   if (file.includes("golden-chart-official-website-fixtures")) {
     for (const [index, line] of content.split(/\r?\n/).entries()) {
@@ -35,11 +38,14 @@ for (const file of await walk(documentationRoot)) {
 
 for (const root of goldenRoots) {
   for (const file of await walk(root)) {
-    if (!goldenFilePattern.test(path.basename(file))) continue;
-    if (!file.endsWith(".json")) continue;
+    const isGoldenPackageFile = root.startsWith("packages/") && goldenFilePattern.test(path.basename(file));
+    const isGoldenToolFile = root === "tools/golden-tests";
+    if (!isGoldenPackageFile && !isGoldenToolFile) continue;
+    if (!/\.(json|mjs|js|ts)$/.test(file)) continue;
     const content = await readFile(file, "utf8");
     inspectEmails(file, content);
-    inspectJsonIdentityKeys(file, JSON.parse(content));
+    inspectProtectedReferenceTokens(file, content);
+    if (file.endsWith(".json")) inspectJsonIdentityKeys(file, JSON.parse(content));
   }
 }
 
@@ -57,6 +63,17 @@ function inspectEmails(file, content) {
     if (!allowedEmailDomains.has(domain)) {
       const line = content.slice(0, match.index).split(/\r?\n/).length;
       failures.push(`${file}:${line} contains a non-placeholder email address`);
+    }
+  }
+}
+
+function inspectProtectedReferenceTokens(file, content) {
+  for (const pattern of [websiteSessionPattern, websiteResultUrlPattern]) {
+    pattern.lastIndex = 0;
+    const match = pattern.exec(content);
+    if (match) {
+      const line = content.slice(0, match.index).split(/\r?\n/).length;
+      failures.push(`${file}:${line} contains a protected website record lookup token`);
     }
   }
 }

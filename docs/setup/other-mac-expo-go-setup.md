@@ -110,6 +110,17 @@ cd "$HOME/Documents/Mobile App/lumis-mobile"
 test -f apps/mobile/.env && echo "Lumis mobile configuration is ready."
 ```
 
+Run the setup doctor:
+
+```bash
+cd "$HOME/Documents/Mobile App/lumis-mobile"
+pnpm setup:check
+```
+
+Do not continue until it prints `Lumis mobile setup is ready.` This check does
+not print the publishable key and rejects backend-only secrets if they were
+accidentally placed in the mobile environment.
+
 ## 5. Install and Prepare Expo Go
 
 1. On the iPhone, install or update **Expo Go** from the App Store.
@@ -260,3 +271,15 @@ Restart Expo with `--clear` after changing environment settings.
 ## Safe Multi-Mac Working Rule
 
 Use both Macs for testing, but avoid editing and committing the same files from both Macs at the same time. Before switching development machines, commit and push completed work from the first Mac, then pull it on the second Mac. Normal Expo testing does not modify source files.
+
+## Handoff Checklist for Another Technical AI
+
+The Technical AI on the second Mac should:
+
+1. Run `git status --short --branch` before making changes.
+2. Run `pnpm setup:check`.
+3. Run `pnpm typecheck`, `pnpm test:dice`, and `pnpm test:mobile-ui`.
+4. Start Expo in LAN mode, then use tunnel mode only if the office network blocks direct device traffic.
+5. Preserve `EXPO_PUBLIC_DICE_RITUAL=1`.
+6. Never request or place Supabase secret keys, database passwords, Cloudflare secrets, or provider API keys in `apps/mobile/.env`.
+7. Keep the first Mac's work committed and pushed before editing the same feature on the second Mac.

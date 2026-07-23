@@ -14,13 +14,10 @@ Technical and QA should use the official website Worker response as the source o
 
 ## Retrieval Method
 
-Use the existing website Worker endpoint:
-
-```bash
-curl -sS -X POST https://api.triplicityastrology.com/get-chart \
-  -H 'Content-Type: application/json' \
-  -d '{"session_id":"SESSION_ID_HERE"}'
-```
+Use the existing website Worker endpoint through the protected fixture-refresh
+script. Source record identifiers are lookup tokens and must be supplied through
+the `GOLDEN_REFERENCE_*_SESSION_ID` environment variables; they must not be
+stored in repository files, command examples, logs, or test output.
 
 The response should include:
 
@@ -39,15 +36,7 @@ Direct Cloudflare KV access is not required for this task. If the Worker endpoin
 
 ### Case 1: Hong Kong Full-Time Chart
 
-Official result:
-
-https://triplicityastrology.com/chart/result?session=TRI-BOOK-TEST-TRI-20260622-9986
-
-Worker session:
-
-```text
-TRI-BOOK-TEST-TRI-20260622-9986
-```
+Protected source reference: `GOLDEN_REFERENCE_HK_SESSION_ID`.
 
 Retrieved official input:
 
@@ -77,15 +66,7 @@ Spot-check values from Worker:
 
 ### Case 2: Malaysia Full-Time Chart
 
-Official result:
-
-https://triplicityastrology.com/chart/result?session=TRI-BOOK-TRI-20260630-4884
-
-Worker session:
-
-```text
-TRI-BOOK-TRI-20260630-4884
-```
+Protected source reference: `GOLDEN_REFERENCE_MY_SESSION_ID`.
 
 Retrieved official input:
 
@@ -115,15 +96,7 @@ Spot-check values from Worker:
 
 ### Case 3: Shenzhen Full-Time Chart
 
-Official result:
-
-https://triplicityastrology.com/chart/result?session=TRI-MP8H8JK0-DUT7&tri=P4nW7vR
-
-Worker session:
-
-```text
-TRI-MP8H8JK0-DUT7
-```
+Protected source reference: `GOLDEN_REFERENCE_SZ_SESSION_ID`.
 
 Retrieved official input:
 
@@ -190,7 +163,7 @@ Unknown-time coverage is still required separately before production. It should 
 
 ## Technical Tasks
 
-1. Fetch the official expected records from `POST https://api.triplicityastrology.com/get-chart` using the session IDs above.
+1. Fetch the official expected records from `POST https://api.triplicityastrology.com/get-chart` using protected environment variables supplied outside the repository.
 2. Convert the Worker response into golden fixtures under the existing astrology test structure.
 3. Prefer storing only the required expected values in fixtures, not full raw provider payloads, unless Technical needs full raw data for debugging.
 4. Include expected values for all major chart points used by mobile:

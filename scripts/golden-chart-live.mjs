@@ -42,7 +42,7 @@ for (const goldenCase of artifact.cases) {
 
   results.push({
     id: goldenCase.id,
-    sessionId: goldenCase.reference.sessionId,
+    fixtureLabel: goldenCase.reference.fixtureLabel,
     pointCount: response.body.chart_v2.planets.length,
     houseCount: response.body.chart_v2.houses.length,
     status: "passed"

@@ -19,7 +19,7 @@
       "status": "ready",
       "reference": {
         "kind": "official_website_worker",
-        "sessionId": "TRI-BOOK-TEST-TRI-20260622-9986"
+        "fixtureLabel": "HK-01"
       },
       "notes": "Official Triplicity website Worker/KV chart. Tropical, Placidus, apparent geocentric.",
       "input": {
@@ -243,7 +243,7 @@
       "status": "ready",
       "reference": {
         "kind": "official_website_worker",
-        "sessionId": "TRI-BOOK-TRI-20260630-4884"
+        "fixtureLabel": "MY-01"
       },
       "notes": "Official Triplicity website Worker/KV chart. Tropical, Placidus, apparent geocentric.",
       "input": {
@@ -467,7 +467,7 @@
       "status": "ready",
       "reference": {
         "kind": "official_website_worker",
-        "sessionId": "TRI-MP8H8JK0-DUT7"
+        "fixtureLabel": "SZ-01"
       },
       "notes": "Uses chartData.subject_data as authority: Asia/Shanghai and calculated coordinates 22.5733235, 114.0575822. inputData has a blank timezone and slightly different coordinates.",
       "input": {

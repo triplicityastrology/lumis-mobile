@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "setup:check": "node scripts/mobile-setup-doctor.mjs",
     "dev": "pnpm --filter @lumis/mobile start",
     "ios": "pnpm --filter @lumis/mobile ios",
     "android": "pnpm --filter @lumis/mobile android",
@@ -17,6 +18,7 @@
     "test:billing-entitlement": "node scripts/billing-entitlement-contract.mjs",
     "test:care-circle": "node scripts/care-circle-contract.mjs",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
+    "test:golden:refresh:secure": "bash scripts/run-golden-fixture-refresh.sh",
     "test:golden-live": "node scripts/golden-chart-live.mjs",
     "test:golden-live:secure": "bash scripts/run-golden-chart-live.sh",
     "test:worker": "node --check workers/chart-mobile/worker.js && node workers/chart-mobile/worker.fixtures.mjs",

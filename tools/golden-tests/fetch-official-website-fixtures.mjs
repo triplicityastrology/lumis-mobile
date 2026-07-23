@@ -18,21 +18,24 @@ const CASES = [
   {
     id: "official_hong_kong_full_time",
     label: "Official website Hong Kong full-time chart",
-    sessionId: "TRI-BOOK-TEST-TRI-20260622-9986",
+    fixtureLabel: "HK-01",
+    sessionEnvironment: "GOLDEN_REFERENCE_HK_SESSION_ID",
     expectedInput: { birthDate: "1986-09-27", birthTime: "06:30" },
     notes: "Official Triplicity website Worker/KV chart. Tropical, Placidus, apparent geocentric."
   },
   {
     id: "official_malaysia_full_time",
     label: "Official website Malaysia full-time chart",
-    sessionId: "TRI-BOOK-TRI-20260630-4884",
+    fixtureLabel: "MY-01",
+    sessionEnvironment: "GOLDEN_REFERENCE_MY_SESSION_ID",
     expectedInput: { birthDate: "1978-10-04", birthTime: "20:00" },
     notes: "Official Triplicity website Worker/KV chart. Tropical, Placidus, apparent geocentric."
   },
   {
     id: "official_shenzhen_full_time",
     label: "Official website Shenzhen full-time chart",
-    sessionId: "TRI-MP8H8JK0-DUT7",
+    fixtureLabel: "SZ-01",
+    sessionEnvironment: "GOLDEN_REFERENCE_SZ_SESSION_ID",
     expectedInput: { birthDate: "1986-09-28", birthTime: "00:30" },
     notes:
       "Uses chartData.subject_data as authority: Asia/Shanghai and calculated coordinates 22.5733235, 114.0575822. inputData has a blank timezone and slightly different coordinates."
@@ -42,10 +45,11 @@ const CASES = [
 const cases = [];
 
 for (const definition of CASES) {
+  const sessionId = requireEnvironment(definition.sessionEnvironment);
   const response = await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: definition.sessionId })
+    body: JSON.stringify({ session_id: sessionId })
   });
 
   if (!response.ok) {
@@ -119,7 +123,7 @@ function toSanitizedCase(definition, raw) {
     id: definition.id,
     label: definition.label,
     status: "ready",
-    reference: { kind: "official_website_worker", sessionId: definition.sessionId },
+    reference: { kind: "official_website_worker", fixtureLabel: definition.fixtureLabel },
     notes: definition.notes,
     input: {
       name: `Golden ${definition.id}`,
@@ -156,6 +160,12 @@ function requireNumber(value, field) {
   const number = Number(value);
   if (!Number.isFinite(number)) throw new Error(`${field} is not numeric.`);
   return number;
+}
+
+function requireEnvironment(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required to refresh protected golden references.`);
+  return value;
 }
 
 function assertNoPrivateSourceFields(value, path = "root") {
