@@ -8,6 +8,7 @@ Source:
 
 - `supabase/migrations/0028_safe_account_deletion_status_refresh.sql`
 - `supabase/migrations/0029_safe_account_deletion_enqueue_result.sql`
+- `supabase/migrations/0030_safe_salesforce_deletion_subject_json.sql`
 - `supabase/functions/account-deletion-request/index.ts`
 - `scripts/staging-backend-smoke.mjs`
 
@@ -15,6 +16,12 @@ Source:
 against the user's existing deletion request. `0029` removes the remaining
 JSON text-to-integer conversion from the enqueue result and derives the
 external event count from authoritative rows.
+
+Hosted diagnostics then identified the remaining `22P02` cause precisely:
+Salesforce subject construction concatenated `'LUMIS-'` with a JSON extraction
+without parentheses. PostgreSQL could resolve that as JSON concatenation and
+attempt to parse the subject as raw JSON. `0030` explicitly concatenates text
+after parenthesized `->>` extraction.
 
 The staging Edge Function may return a database diagnostic code/message only
 when `LUMIS_ENV=staging`. Production responses remain generic.
@@ -29,7 +36,8 @@ external sync contract checks passed
 Staging gate:
 
 - `0028` is deployed.
-- Apply `0029`.
+- `0029` is deployed.
+- Apply `0030`.
 - Deploy `account-deletion-request`.
 - Run the dedicated-key hosted deletion race and cleanup suite.
 - The dedicated `sb_secret_` key must pass Auth Admin preflight before a hosted
