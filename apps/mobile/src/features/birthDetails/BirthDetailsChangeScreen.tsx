@@ -6,7 +6,6 @@ import {
 } from "react-native";
 
 import { colors, radii, spacing } from "../../theme/tokens";
-import { CelestialBackground } from "../../components/CelestialBackground";
 import { GeneratingView } from "../../components/GeneratingView";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
@@ -168,7 +167,6 @@ export function BirthDetailsChangeScreen({
 
   return (
     <SafeAreaView style={s.safe}>
-      <CelestialBackground />
       {step !== "regenerating" ? (
         <ScreenHeader
           title="Birth Details"
@@ -379,7 +377,7 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
 }
 
 const s = StyleSheet.create({
-  safe: { backgroundColor: colors.navy950, flex: 1 },
+  safe: { backgroundColor: "transparent", flex: 1 },
   content: { padding: spacing.lg, paddingBottom: 40 },
   eyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.4, marginBottom: 6 },
   editTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 26 },

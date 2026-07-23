@@ -3,7 +3,6 @@ import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View 
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 
-import { CelestialBackground } from "../components/CelestialBackground";
 import { colors } from "../theme/tokens";
 
 /**
@@ -45,7 +44,6 @@ export function LumisSplashScreen({ onDone }: { onDone: () => void }) {
   return (
     <Pressable style={styles.flex} onPress={finish} accessibilityRole="button" accessibilityLabel="Skip intro">
       <SafeAreaView style={styles.safe}>
-        <CelestialBackground />
         <Animated.View style={[styles.center, { opacity: fade }]}>
           <View style={styles.mark}>
             <Svg width={120} height={120} viewBox="0 0 120 120">
@@ -69,7 +67,7 @@ export function LumisSplashScreen({ onDone }: { onDone: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  safe: { backgroundColor: colors.navy950, flex: 1 },
+  safe: { backgroundColor: "transparent", flex: 1 },
   center: { alignItems: "center", flex: 1, justifyContent: "center", gap: 4 },
   mark: { alignItems: "center", height: 120, justifyContent: "center", width: 120 },
   orbit: { height: 120, position: "absolute", width: 120 },

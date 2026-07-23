@@ -76,15 +76,26 @@ pnpm test:golden
 passed
 ```
 
-History gate:
+PM/security decisions:
 
 - Commit `09fecf0` contains the original identities and lookup tokens.
 - Forward redaction commit `7cfe21a` removed names/emails from the current file.
 - This batch removes lookup tokens from the current repository state.
-- PM/security must decide whether to rewrite Git history and whether the source
-  website records/session identifiers should be invalidated or rotated.
-- Do not rewrite shared history without a coordinated maintenance window and
-  fresh clones on every development Mac.
+- Leave Git history unchanged while the repository remains private and access
+  is limited to Rubie and trusted core collaborators.
+- Reopen and likely perform a coordinated history rewrite before making the
+  repository public, sharing it outside the trusted core team, or handing it
+  to external developers. A rewrite requires a maintenance window and fresh
+  clones on every development Mac.
+- Do not invalidate the original Triplicity website chart session identifiers.
+  They reference real client website records and cannot be revoked solely for
+  mobile golden-chart testing.
+- Never store the protected identifiers, original names/emails, official result
+  URLs, screenshots, or unredacted QA exports in the mobile repository or
+  public documentation.
+- Request protected identifiers directly from Rubie only when a fixture refresh
+  is necessary; accept them only through hidden local input and keep redacted
+  fixtures as the mobile test source.
 
 ## Second-Mac Testing
 

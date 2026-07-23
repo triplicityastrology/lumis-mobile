@@ -15,7 +15,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Line, RadialGradient, Stop } from "react-native-svg";
 
 import { colors } from "../theme/tokens";
-import { CelestialBackground } from "./CelestialBackground";
 
 /**
  * Auth & System States kit (AC-UX-13 / handoff 2026-07-23): shared building
@@ -133,7 +132,6 @@ export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.shell}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <View style={styles.shellBody}>{children}</View>
     </SafeAreaView>
   );
@@ -449,7 +447,7 @@ export function PermissionBridgeScreen({
 }
 
 const styles = StyleSheet.create({
-  shell: { backgroundColor: colors.navy950, flex: 1 },
+  shell: { backgroundColor: "transparent", flex: 1 },
   shellBody: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center" },
   center: { alignItems: "center", flex: 1, paddingHorizontal: 26, paddingTop: 30 },
   centerMiddle: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },

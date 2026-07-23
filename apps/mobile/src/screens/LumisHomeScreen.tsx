@@ -15,7 +15,6 @@ import type { ChartV2 } from "@lumis/shared";
 
 import { LinearGradient } from "expo-linear-gradient";
 
-import { CelestialBackground } from "../components/CelestialBackground";
 import { MainTabBar } from "../components/MainTabBar";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { colors, radii, spacing } from "../theme/tokens";
@@ -50,7 +49,6 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <CelestialBackground />
       <View style={styles.appFrame}>
         <View style={styles.header}>
           <View style={styles.identityRow}>
@@ -154,7 +152,6 @@ function WelcomeState(props: LumisHomeScreenProps) {
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <CelestialBackground />
       <View style={styles.appFrame}>
         <View style={styles.welcomeHeader}>
           <View style={styles.markRow}>
@@ -244,7 +241,7 @@ function findPoint(chart: ChartV2, key: string) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.navy950 },
+  safe: { flex: 1, backgroundColor: "transparent" },
   appFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
   header: { minHeight: 68, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 11 },

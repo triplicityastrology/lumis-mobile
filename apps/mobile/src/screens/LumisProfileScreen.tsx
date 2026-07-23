@@ -20,7 +20,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
 
-import { CelestialBackground } from "../components/CelestialBackground";
 import { LumisPersonaAvatar } from "../components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { colors, spacing } from "../theme/tokens";
@@ -73,7 +72,6 @@ export function LumisProfileScreen({
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
@@ -215,7 +213,7 @@ function formatMainFocus(value: string | null) {
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.navy950, flex: 1 },
+  safe: { backgroundColor: "transparent", flex: 1 },
   frame: { alignSelf: "center", flex: 1, maxWidth: 480, width: "100%" },
   header: { alignItems: "center", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 64, paddingHorizontal: spacing.lg },
   title: { color: colors.ice, fontFamily: "Georgia", fontSize: 23 },

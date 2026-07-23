@@ -5,7 +5,6 @@ import {
 import Svg, { Rect } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
-import { CelestialBackground } from "../../components/CelestialBackground";
 import {
   BrandButton, GhostButton, LineMotif, QuietEmptyState, SafetyNote, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
@@ -259,7 +258,6 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
 function Shell({ title, onBack, emblem, children }: { title: string; onBack: () => void; emblem?: boolean; children: React.ReactNode }) {
   return (
     <SafeAreaView style={s.safe}>
-      <CelestialBackground variant="care" />
       <ScreenHeader title={title} onBack={onBack} />
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {emblem ? (
@@ -296,7 +294,7 @@ function ViewfinderMask() {
 }
 
 const s = StyleSheet.create({
-  safe: { backgroundColor: "#081C22", flex: 1 },
+  safe: { backgroundColor: "transparent", flex: 1 },
   content: { padding: spacing.lg, paddingBottom: 40 },
   emblemWrap: { alignItems: "center", marginBottom: 18 },
   emblem: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },

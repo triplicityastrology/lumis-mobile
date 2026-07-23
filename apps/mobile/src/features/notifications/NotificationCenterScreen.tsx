@@ -5,7 +5,6 @@ import {
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
-import { CelestialBackground } from "../../components/CelestialBackground";
 import {
   GhostButton, QuietEmptyState, RetryCard, ScreenHeader, SkeletonRow, SoftButton
 } from "../../components/states/StateKit";
@@ -124,7 +123,6 @@ export function NotificationCenterScreen({
 
   return (
     <SafeAreaView style={s.safe}>
-      <CelestialBackground />
       <ScreenHeader
         title="Notifications"
         onBack={onBack}
@@ -189,7 +187,7 @@ export function NotificationCenterScreen({
 }
 
 const s = StyleSheet.create({
-  safe: { backgroundColor: colors.navy950, flex: 1 },
+  safe: { backgroundColor: "transparent", flex: 1 },
   badge: { alignItems: "center", backgroundColor: colors.gold, borderRadius: 11, height: 22, justifyContent: "center", minWidth: 22, paddingHorizontal: 6 },
   badgeText: { color: colors.navy950, fontSize: 11, fontWeight: "700" },
   demoBar: { flexDirection: "row", gap: 6, paddingBottom: 8, paddingHorizontal: spacing.lg },

@@ -7,7 +7,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
 
-import { CelestialBackground } from "../components/CelestialBackground";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { NatalWheel } from "../components/NatalWheel";
 import { colors, radii, spacing } from "../theme/tokens";
@@ -41,7 +40,6 @@ export function ChartInsightsScreen({
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Sky</Text>
@@ -121,7 +119,7 @@ function formatDegree(value: number) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.navy950 },
+  safe: { flex: 1, backgroundColor: "transparent" },
   frame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
   header: { minHeight: 64, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg },
   iconBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(22,39,61,0.5)", borderWidth: 1, borderColor: colors.line },

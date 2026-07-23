@@ -15,7 +15,6 @@ import Svg, {
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { CelestialBackground } from "../../components/CelestialBackground";
 import { MainTabBar, type MainTab } from "../../components/MainTabBar";
 import { colors, radii, spacing } from "../../theme/tokens";
 import { DICE_TIMINGS, DIE_ORDER, FACE_SETS, type DiceFace, type DieKind } from "./constants";
@@ -396,7 +395,6 @@ export function DiceRitualScreen({
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-      <CelestialBackground />
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable
@@ -927,7 +925,7 @@ function jitter(magnitude: number): number {
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.navy950, flex: 1 },
+  safe: { backgroundColor: "transparent", flex: 1 },
   frame: { alignSelf: "center", flex: 1, maxWidth: 480, width: "100%" },
   header: { alignItems: "center", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", justifyContent: "space-between", minHeight: 64, paddingHorizontal: spacing.lg },
   headerTitle: { color: colors.ice, fontSize: 15, fontWeight: "700" },

@@ -435,6 +435,10 @@ export default function App() {
     void initializeAuth();
   }, []);
 
+  // Screens render as transparent foregrounds over ONE persistent sky mounted at
+  // the app root (below), so navigating never remounts the heavy CelestialBackground
+  // SVG — this is what removes the transition "kick". Screen logic is unchanged.
+  const renderScreen = () => {
   if (screen === "splash") {
     return <LumisSplashScreen onDone={() => setScreen(pendingAfterSplashRef.current ?? "home")} />;
   }
@@ -728,6 +732,31 @@ export default function App() {
             birthPlace: next.birthPlace,
             timeUnknown: next.timeUnknown
           };
+
+          // Local / not-signed-in sessions have no server-side change endpoint, so
+          // regenerate the chart locally like onboarding (submitChartProfile) rather
+          // than hard-failing. Signed-in accounts keep the server-authoritative path
+          // below (which enforces the 3-change limit).
+          if (!(authStatus?.isConfigured && authStatus.user)) {
+            try {
+              const local = await submitChartProfile(updated);
+              setProfileData(updated);
+              setChartProfile(local.chart);
+              setBirthDetailChanges((count) => Math.min(count + 1, 3));
+              setChatTurns([]);
+              setActiveSupabaseThreadId(null);
+              setPendingChatDraft(null);
+              setScreen("chartUpdated");
+              return { ok: true };
+            } catch {
+              return {
+                ok: false,
+                code: "49003",
+                message: "Your previous chart is still active. Please try again."
+              };
+            }
+          }
+
           try {
             const result = await regenerateBirthDetails(updated, clientRequestId);
             const accountState = await loadSupabaseAccountState();
@@ -837,6 +866,19 @@ export default function App() {
         onReload={restoreSpace}
       />
     </>
+  );
+  };
+
+  // Persistent sky: the Care Circle area uses the cooler teal variant, everything
+  // else the warm sunrise sky. This single instance stays mounted across all
+  // navigation, so foreground screens (which are transparent) swap without the
+  // sky re-rendering from scratch.
+  const skyVariant = screen === "care" ? "care" : "default";
+  return (
+    <View style={styles.appRoot}>
+      <CelestialBackground variant={skyVariant} />
+      {renderScreen()}
+    </View>
   );
 }
 
@@ -1276,7 +1318,6 @@ function ChartGeneratingScreen({ activeStep, name }: { activeStep: number; name:
   return (
     <SafeAreaView style={styles.generatingSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <GeneratingView activeStep={activeStep} name={name} />
       <Text style={styles.generatingPrivacy}>Your birth details stay linked to your private Lumis account.</Text>
     </SafeAreaView>
@@ -1305,7 +1346,6 @@ function ChartRevealScreen({
   return (
     <SafeAreaView style={styles.chartRevealSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <ScrollView contentContainerStyle={styles.chartRevealContent} showsVerticalScrollIndicator={false}>
         <View style={styles.chartRevealTopBar}>
           <Pressable accessibilityLabel="Back" onPress={onBack} style={styles.chartRevealIconButton}>
@@ -1418,7 +1458,6 @@ function PersonaStyleScreen({
     return (
       <SafeAreaView style={styles.personaSafe}>
         <StatusBar style="light" />
-        <CelestialBackground />
         <ScrollView contentContainerStyle={styles.personaContent} showsVerticalScrollIndicator={false}>
           <View style={styles.personaTopBar}>
             <Pressable accessibilityLabel="Back" style={styles.personaBackButton} onPress={() => setStep("style")}>
@@ -1513,7 +1552,6 @@ function PersonaStyleScreen({
   return (
     <SafeAreaView style={styles.personaSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <ScrollView contentContainerStyle={styles.personaContent} showsVerticalScrollIndicator={false}>
         <View style={styles.personaTopBar}>
           <Pressable accessibilityLabel="Back" style={styles.personaBackButton} onPress={onBack}>
@@ -1755,7 +1793,6 @@ function ChatShellScreen({
   return (
     <SafeAreaViewCtx edges={["top", "left", "right"]} style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <View style={styles.chatShell}>
         <View style={styles.chatTopBar}>
           <Pressable style={styles.chatIconButton} onPress={onBack} accessibilityLabel="Back to home">
@@ -1974,7 +2011,6 @@ function PastReflectionsScreen({
   return (
     <SafeAreaView style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <View style={styles.reflectionsShell}>
         <View style={styles.reflectionsHeader}>
           <Pressable style={styles.chatIconButton} onPress={onBack} accessibilityLabel="Back to home">
@@ -2143,7 +2179,6 @@ function PaywallScreen({ onClose, onStartCheckout }: { onClose: () => void; onSt
   return (
     <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <ScrollView contentContainerStyle={styles.paywallContent} showsVerticalScrollIndicator={false}>
         <View style={styles.paywallTopBar}>
           <Pressable style={styles.paywallClose} onPress={onClose} accessibilityLabel="Close">
@@ -2231,7 +2266,6 @@ function PlansAccessScreen({
   return (
     <SafeAreaViewCtx edges={["top", "left", "right"]} style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
-      <CelestialBackground />
       <View style={styles.plansFrame}>
         <View style={styles.plansHeader}>
           <Pressable style={styles.plansBackBtn} onPress={onBack} accessibilityLabel="Back">
@@ -2460,6 +2494,10 @@ function ChartWheel() {
 }
 
 const styles = StyleSheet.create({
+  appRoot: {
+    flex: 1,
+    backgroundColor: "#06101C"
+  },
   safe: {
     flex: 1,
     backgroundColor: "#F3ECE0"
@@ -2868,7 +2906,7 @@ const styles = StyleSheet.create({
     paddingLeft: 9
   },
   personaSafe: {
-    backgroundColor: "#091525",
+    backgroundColor: "transparent",
     flex: 1
   },
   personaContent: {
@@ -3991,7 +4029,7 @@ const styles = StyleSheet.create({
     width: 132
   },
   generatingSafe: {
-    backgroundColor: "#071321",
+    backgroundColor: "transparent",
     flex: 1
   },
   generatingFrame: {
@@ -4153,7 +4191,7 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   chartRevealSafe: {
-    backgroundColor: "#091525",
+    backgroundColor: "transparent",
     flex: 1
   },
   chartRevealContent: {
@@ -4288,7 +4326,7 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   lumisDarkSafe: {
-    backgroundColor: "#071321",
+    backgroundColor: "transparent",
     flex: 1
   },
   chatIconButton: {
