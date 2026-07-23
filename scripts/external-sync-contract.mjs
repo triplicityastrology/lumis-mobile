@@ -8,6 +8,7 @@ const strictRetentionMigration = readFileSync("supabase/migrations/0023_strict_s
 const payloadAllowlistMigration = readFileSync("supabase/migrations/0024_provider_attempt_concurrency_and_payload_allowlist.sql", "utf8");
 const safeDeletionRefreshMigration = readFileSync("supabase/migrations/0028_safe_account_deletion_status_refresh.sql", "utf8");
 const safeDeletionEnqueueMigration = readFileSync("supabase/migrations/0029_safe_account_deletion_enqueue_result.sql", "utf8");
+const safeSalesforceSubjectMigration = readFileSync("supabase/migrations/0030_safe_salesforce_deletion_subject_json.sql", "utf8");
 const deletionFunction = readFileSync("supabase/functions/account-deletion-request/index.ts", "utf8");
 const hostedQaLauncher = readFileSync("scripts/run-staging-backend-test.sh", "utf8");
 const hostedQaSmoke = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
@@ -72,6 +73,14 @@ assert.doesNotMatch(safeDeletionRefreshMigration, /::uuid/i);
 assert.match(safeDeletionEnqueueMigration, /select count\(\*\)[\s\S]*payload_json->>'deletion_request_id'/i);
 assert.doesNotMatch(safeDeletionEnqueueMigration, /external_event_count'\)::int/i);
 assert.match(safeDeletionEnqueueMigration, /revoke all on function public\.enqueue_account_deletion_external_sync/i);
+assert.match(
+  safeSalesforceSubjectMigration,
+  /'LUMIS-'\s*\|\|\s*\(payload_json->>'request_id'\)/i
+);
+assert.doesNotMatch(
+  safeSalesforceSubjectMigration,
+  /'LUMIS-'\s*\|\|\s*payload_json->>'request_id'/i
+);
 
 assert.match(deletionFunction, /DELETE MY LUMIS ACCOUNT/);
 assert.match(deletionFunction, /auth\.getUser\(\)/);
