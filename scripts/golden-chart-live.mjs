@@ -49,7 +49,83 @@ for (const goldenCase of artifact.cases) {
   });
 }
 
-console.log(JSON.stringify({ ok: true, workerUrl, source: artifact.source, cases: results }, null, 2));
+const unknownTimeResult = await verifySignedUnknownTimeContract();
+
+console.log(
+  JSON.stringify(
+    {
+      ok: true,
+      workerUrl,
+      source: artifact.source,
+      cases: results,
+      unknownTimeContract: unknownTimeResult
+    },
+    null,
+    2
+  )
+);
+
+async function verifySignedUnknownTimeContract() {
+  const payload = {
+    user_id: "00000000-0000-4000-8000-000000000001",
+    calculation_version: "mobile_natal_v1",
+    request_id: `golden-unknown-time-${crypto.randomUUID()}`,
+    requested_at: new Date().toISOString(),
+    client: { source: "lumis_mobile_supabase", environment: "staging" },
+    audit: {
+      source: "mobile_app",
+      product: "Lumis",
+      flow: "golden_unknown_time_contract",
+      plan: "starter",
+      chart_type: "natal"
+    },
+    birth_data: {
+      name: "Golden unknown-time contract",
+      birth_date: "1990-01-15",
+      birth_time: null,
+      time_unknown: true,
+      place_name: "Hong Kong",
+      country_code: "HK",
+      lat: 22.3193,
+      lng: 114.1694,
+      tz_str: "Asia/Hong_Kong"
+    }
+  };
+  const response = await invokeSigned(payload);
+
+  if (response.status !== 200) {
+    throw new Error(
+      `signed unknown-time contract returned HTTP ${response.status}: ${JSON.stringify(response.body)}`
+    );
+  }
+
+  const chart = response.body?.chart_v2;
+  const issues = [];
+
+  if (chart?.precision !== "no_birth_time") issues.push("precision is not no_birth_time");
+  if ((chart?.houses?.length ?? 0) !== 0) issues.push("houses are present");
+  if (chart?.angles?.ascendant) issues.push("Ascendant angle is present");
+  if (chart?.angles?.mediumCoeli) issues.push("MC angle is present");
+  if (chart?.planets?.some((point) => ["ascendant", "medium_coeli"].includes(point.key))) {
+    issues.push("Ascendant or MC point is present");
+  }
+  if (chart?.planets?.some((point) => point.house != null)) {
+    issues.push("planet house placement is present");
+  }
+
+  if (issues.length > 0) {
+    throw new Error(`signed unknown-time contract failed:\n- ${issues.join("\n- ")}`);
+  }
+
+  return {
+    fixtureLabel: "Unknown time privacy invariant",
+    precision: chart.precision,
+    pointCount: chart.planets.length,
+    houseCount: chart.houses.length,
+    status: "passed",
+    accuracyStatus: "pending_reference"
+  };
+}
 
 function compareCase(goldenCase, actual) {
   const issues = [];
