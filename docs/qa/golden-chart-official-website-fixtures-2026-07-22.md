@@ -53,8 +53,7 @@ Retrieved official input:
 
 | Field | Value |
 |---|---|
-| Name | Ruby Ku |
-| Email | rubyannku@gmail.com |
+| Fixture label | Golden Fixture HK-01 |
 | Birth date | 1986-09-27 |
 | Birth time | 06:30 |
 | Birthplace | Hong Kong |
@@ -92,8 +91,7 @@ Retrieved official input:
 
 | Field | Value |
 |---|---|
-| Name | LEE SWEE YEN |
-| Email | yen_lee99@yahoo.com |
+| Fixture label | Golden Fixture MY-01 |
 | Birth date | 1978-10-04 |
 | Birth time | 20:00 |
 | Birthplace | Rompin, Negeri Sembilan, Malaysia |
@@ -131,8 +129,7 @@ Retrieved official input:
 
 | Field | Value |
 |---|---|
-| Name | 林小滿 |
-| Email | aman.cm.lam@gmail.com |
+| Fixture label | Golden Fixture SZ-01 |
 | Birth date | 1986-09-28 |
 | Birth time | 00:30 |
 | Birthplace | Shenzhen, Guangdong, China |

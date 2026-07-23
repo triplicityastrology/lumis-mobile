@@ -31,8 +31,9 @@
     "test:mobile-ui": "node scripts/mobile-ui-contract.mjs",
     "test:backend-guardrails": "node scripts/backend-guardrails-contract.mjs",
     "test:route-credits": "node scripts/route-credit-drift.mjs",
+    "test:pii": "node scripts/repository-pii-scan.mjs",
     "test:birth-details-change": "node scripts/birth-details-regeneration-contract.mjs",
-    "test:all-local": "pnpm test:router && pnpm test:dice && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:care-circle && pnpm test:golden && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:birth-details-change",
+    "test:all-local": "pnpm test:router && pnpm test:dice && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:care-circle && pnpm test:golden && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:pii && pnpm test:birth-details-change",
     "external-sync:report": "node scripts/external-sync-admin.mjs report",
     "external-sync:replay": "node scripts/external-sync-admin.mjs replay",
     "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve"
