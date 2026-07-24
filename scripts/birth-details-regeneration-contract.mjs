@@ -64,14 +64,36 @@ assert.match(birthDetailsScreen, /onRegenerate\(draft, clientRequestId\)/);
 assert.match(birthDetailsScreen, /outcome\.code === "49002"[\s\S]*setStep\("edit"\)/);
 assert.match(birthDetailsScreen, /outcome\.code === "49001"[\s\S]*setStep\("display"\)/);
 assert.match(birthDetailsScreen, /ASC, MC, houses, or planet-house placements/);
-assert.equal((birthDetailsScreen.match(/<CelestialBackground \/>/g) ?? []).length, 1);
+assert.equal(
+  (mobileApp.match(/<CelestialBackground(?:\s[^>]*)?\/>/g) ?? []).length,
+  1,
+  "App must mount one shared CelestialBackground"
+);
+assert.equal(
+  (birthDetailsScreen.match(/<CelestialBackground(?:\s[^>]*)?\/>/g) ?? []).length,
+  0,
+  "BirthDetailsChangeScreen must reuse the shared root background"
+);
 assert.match(birthDetailsScreen, /step !== "regenerating" \? \(/);
 assert.match(accountState, /active_chart_version, successful_change_count/);
 assert.match(accountState, /successfulBirthDetailChanges:\s*birthData\.successful_change_count/);
 assert.match(mobileApp, /setBirthDetailChanges\(accountState\.successfulBirthDetailChanges\)/);
+const normalBirthDetailsPath = mobileApp.slice(
+  mobileApp.indexOf('if (screen === "birthDetails")'),
+  mobileApp.indexOf('if (screen === "chartUpdated"')
+);
+assert.ok(normalBirthDetailsPath.length > 0, "normal birth-details route was not found");
+assert.match(normalBirthDetailsPath, /regenerateBirthDetails\(updated, clientRequestId\)/);
+assert.match(normalBirthDetailsPath, /code:\s*"AUTH_REQUIRED"/);
 assert.doesNotMatch(
-  mobileApp.slice(mobileApp.indexOf('if (screen === "birthDetails")'), mobileApp.indexOf('if (screen === "insights"')),
-  /submitChartProfile\(updated\)/
+  normalBirthDetailsPath,
+  /submitChartProfile|buildFixtureChart/,
+  "normal birth-details changes must never reuse onboarding or fixture generation"
+);
+assert.doesNotMatch(
+  normalBirthDetailsPath,
+  /setBirthDetailChanges\(\s*\(?(?:count|current|value)|Math\.min\([^)]*\+\s*1|successfulChanges\s*\+\s*1/,
+  "mobile must not increment the PROF-2 lifetime counter"
 );
 
 assert.match(migration, /create table if not exists public\.birth_detail_change_requests/i);

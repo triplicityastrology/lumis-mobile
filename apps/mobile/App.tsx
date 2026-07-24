@@ -733,28 +733,12 @@ export default function App() {
             timeUnknown: next.timeUnknown
           };
 
-          // Local / not-signed-in sessions have no server-side change endpoint, so
-          // regenerate the chart locally like onboarding (submitChartProfile) rather
-          // than hard-failing. Signed-in accounts keep the server-authoritative path
-          // below (which enforces the 3-change limit).
           if (!(authStatus?.isConfigured && authStatus.user)) {
-            try {
-              const local = await submitChartProfile(updated);
-              setProfileData(updated);
-              setChartProfile(local.chart);
-              setBirthDetailChanges((count) => Math.min(count + 1, 3));
-              setChatTurns([]);
-              setActiveSupabaseThreadId(null);
-              setPendingChatDraft(null);
-              setScreen("chartUpdated");
-              return { ok: true };
-            } catch {
-              return {
-                ok: false,
-                code: "49003",
-                message: "Your previous chart is still active. Please try again."
-              };
-            }
+            return {
+              ok: false,
+              code: "AUTH_REQUIRED",
+              message: "Please sign in again before changing your birth details."
+            };
           }
 
           try {
