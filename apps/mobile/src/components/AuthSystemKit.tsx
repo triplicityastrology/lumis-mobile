@@ -498,6 +498,10 @@ export function LogoutDialog({
             <>
               <Text style={styles.dialogTitle}>Signed out.</Text>
               <Text style={styles.dialogBody}>You're safely logged out of Lumis.</Text>
+              {/* S1-C01-R1: an obvious way out of the success state so an Auth-screen
+                  user is never trapped. Closes presentation only — the real sign-out
+                  already happened in onConfirm; this adds no session logic. */}
+              <PrimaryButton label="Done" onPress={onCancel} />
             </>
           ) : phase === "error" ? (
             <>
