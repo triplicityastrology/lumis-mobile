@@ -6,7 +6,7 @@ import Svg, { Circle, Path } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import {
-  GhostButton, QuietEmptyState, RetryCard, ScreenHeader, SkeletonRow, SoftButton
+  GhostButton, PreviewBadge, QuietEmptyState, RetryCard, ScreenHeader, SkeletonRow, SoftButton
 } from "../../components/states/StateKit";
 
 /**
@@ -129,14 +129,23 @@ export function NotificationCenterScreen({
         right={unreadCount > 0 ? <View style={s.badge}><Text style={s.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View> : undefined}
       />
 
-      {/* demo switcher — dev only; shows each designed state. Remove when backend wires real data. */}
-      <View style={s.demoBar}>
-        {(["populated", "empty", "loading", "error"] as DemoMode[]).map((m) => (
-          <Pressable key={m} onPress={() => setDemo(m)} style={[s.demoChip, demo === m && s.demoChipOn]}>
-            <Text style={[s.demoChipText, demo === m && s.demoChipTextOn]}>{m}</Text>
-          </Pressable>
-        ))}
+      {/* Persistent Preview label: these notices are sample data until backend
+          delivery is wired (S1-C02). Always visible in every build. */}
+      <View style={s.previewBar}>
+        <PreviewBadge label="Preview · sample notifications" />
       </View>
+
+      {/* State switcher is a DEV-only tool to view each designed state; it is
+          compiled out of release builds so the shipped app has no dev switcher. */}
+      {__DEV__ ? (
+        <View style={s.demoBar}>
+          {(["populated", "empty", "loading", "error"] as DemoMode[]).map((m) => (
+            <Pressable key={m} onPress={() => setDemo(m)} style={[s.demoChip, demo === m && s.demoChipOn]}>
+              <Text style={[s.demoChipText, demo === m && s.demoChipTextOn]}>{m}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {demo === "loading" ? (
@@ -190,6 +199,7 @@ const s = StyleSheet.create({
   safe: { backgroundColor: "transparent", flex: 1 },
   badge: { alignItems: "center", backgroundColor: colors.gold, borderRadius: 11, height: 22, justifyContent: "center", minWidth: 22, paddingHorizontal: 6 },
   badgeText: { color: colors.navy950, fontSize: 11, fontWeight: "700" },
+  previewBar: { paddingBottom: 8, paddingHorizontal: spacing.lg },
   demoBar: { flexDirection: "row", gap: 6, paddingBottom: 8, paddingHorizontal: spacing.lg },
   demoChip: { backgroundColor: "rgba(255,255,255,0.04)", borderColor: colors.line, borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4 },
   demoChipOn: { backgroundColor: "rgba(215,185,120,0.16)", borderColor: "rgba(215,185,120,0.4)" },

@@ -179,6 +179,28 @@ export function SkeletonRow() {
   );
 }
 
+/* ---------- Preview / Unavailable truthfulness labels (S1-C02) ---------- */
+
+/** Persistent "Preview" tag for surfaces backed by mock data (not a dev toggle).
+ *  Makes it truthful that the content is a preview, not live. */
+export function PreviewBadge({ label = "Preview", style }: { label?: string; style?: ViewStyle }) {
+  return (
+    <View style={[k.previewBadge, style]} accessibilityRole="text" accessibilityLabel={`${label} — sample data, not live`}>
+      <Text style={k.previewBadgeText}>{label.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+/** Small "Unavailable" pill for actions that are visibly not usable yet — never
+ *  implies the action ran. */
+export function UnavailablePill({ label = "Unavailable" }: { label?: string }) {
+  return (
+    <View style={k.unavailablePill} accessibilityRole="text" accessibilityLabel={`${label} — not available yet`}>
+      <Text style={k.unavailablePillText}>{label}</Text>
+    </View>
+  );
+}
+
 /* ---------- safety note (Care Circle) ---------- */
 
 export function SafetyNote({ text }: { text: string }) {
@@ -210,6 +232,10 @@ const k = StyleSheet.create({
   skelBar: { backgroundColor: colors.line, borderRadius: 6, height: 10 },
   safety: { backgroundColor: "rgba(58,80,118,0.30)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, marginTop: 14, padding: 12 },
   safetyText: { color: colors.muted, fontSize: 11.5, lineHeight: 17, textAlign: "center" },
+  previewBadge: { alignSelf: "flex-start", backgroundColor: "rgba(201,169,110,0.12)", borderColor: "rgba(215,185,120,0.45)", borderRadius: 999, borderWidth: 1, borderStyle: "dashed", paddingHorizontal: 9, paddingVertical: 3 },
+  previewBadgeText: { color: colors.goldLight, fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
+  unavailablePill: { backgroundColor: "rgba(255,255,255,0.05)", borderColor: colors.line, borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3 },
+  unavailablePillText: { color: colors.muted, fontSize: 10.5, fontWeight: "700", letterSpacing: 0.4 },
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 56, paddingHorizontal: 16 },
   iconBtn: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: 19, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
   iconBtnGhost: { height: 38, width: 38 },

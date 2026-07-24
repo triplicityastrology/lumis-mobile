@@ -79,11 +79,21 @@ export function DiceHistorySheet({
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<HistoryEntry | null>(null);
   const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [deleteError, setDeleteError] = useState<HistoryEntry | null>(null);
 
   async function removeEntry(entry: HistoryEntry) {
-    setRemovedIds((prev) => [...prev, entry.id]);
+    setDeleteError(null);
+    // Optimistic removal for a responsive feel...
+    setRemovedIds((prev) => (prev.includes(entry.id) ? prev : [...prev, entry.id]));
     // Session rolls have synthetic ids; only persisted rows hit the delete service.
-    if (!entry.id.startsWith("session-")) await deleteDiceThrow(entry.id);
+    if (entry.id.startsWith("session-")) return;
+    const ok = await deleteDiceThrow(entry.id);
+    if (!ok) {
+      // ...but roll it back if the delete didn't actually succeed, so the UI never
+      // implies a deletion that didn't happen. Offer a safe retry.
+      setRemovedIds((prev) => prev.filter((id) => id !== entry.id));
+      setDeleteError(entry);
+    }
   }
 
   useEffect(() => {
@@ -132,6 +142,20 @@ export function DiceHistorySheet({
               <X color={colors.ice} size={18} />
             </Pressable>
           </View>
+
+          {deleteError ? (
+            <View style={styles.deleteErrorRow}>
+              <Text style={styles.deleteErrorText}>Couldn’t delete that roll. Nothing was removed.</Text>
+              <Pressable
+                onPress={() => removeEntry(deleteError)}
+                accessibilityRole="button"
+                accessibilityLabel="Retry deleting this roll"
+                style={styles.deleteRetryButton}
+              >
+                <Text style={styles.deleteRetryText}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           {detail ? (
             <ScrollView contentContainerStyle={styles.detailContent}>
@@ -231,6 +255,10 @@ const styles = StyleSheet.create({
   headerText: { flex: 1, paddingRight: 12 },
   title: { color: colors.ice, fontFamily: "Georgia", fontSize: 21 },
   subtitle: { color: "#A2B0C6", fontSize: 11.5, marginTop: 3 },
+  deleteErrorRow: { alignItems: "center", backgroundColor: "rgba(224,153,127,0.1)", borderColor: "rgba(224,153,127,0.34)", borderRadius: 12, borderWidth: 1, flexDirection: "row", gap: 10, justifyContent: "space-between", marginBottom: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  deleteErrorText: { color: "#E9B083", flex: 1, fontSize: 12, lineHeight: 16 },
+  deleteRetryButton: { borderColor: "rgba(224,153,127,0.5)", borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 5 },
+  deleteRetryText: { color: "#E9B083", fontSize: 12, fontWeight: "700" },
   closeButton: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(206,216,255,0.16)", borderRadius: 18, borderWidth: 1, height: 36, justifyContent: "center", width: 36 },
   search: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.045)", borderColor: "rgba(206,216,255,0.16)", borderRadius: radii.md, borderWidth: 1, flexDirection: "row", gap: 8, marginBottom: 12, minHeight: 44, paddingHorizontal: 12 },
   searchInput: { color: colors.ice, flex: 1, fontSize: 14, padding: 0 },

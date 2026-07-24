@@ -4,13 +4,14 @@ import Bell from "lucide-react-native/icons/bell";
 import Camera from "lucide-react-native/icons/camera";
 import Check from "lucide-react-native/icons/check";
 import Dices from "lucide-react-native/icons/dices";
+import LogOut from "lucide-react-native/icons/log-out";
 import Mail from "lucide-react-native/icons/mail";
 import RefreshCw from "lucide-react-native/icons/refresh-cw";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import WifiOff from "lucide-react-native/icons/wifi-off";
 import X from "lucide-react-native/icons/x";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Line, RadialGradient, Stop } from "react-native-svg";
 
@@ -446,8 +447,105 @@ export function PermissionBridgeScreen({
   );
 }
 
+// ---- S1-C01 Log out: confirm → submitting → success/error dialog ----
+// `onConfirm` is the Technical logout handler (passed in by the owner of account
+// state); it must throw on failure. This dialog never navigates or clears state
+// itself — it only reflects the handler's outcome, so logout is never simulated.
+export function LogoutDialog({
+  visible,
+  onCancel,
+  onConfirm
+}: {
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [phase, setPhase] = useState<"confirm" | "submitting" | "success" | "error">("confirm");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (visible) {
+      setPhase("confirm");
+      setError("");
+    }
+  }, [visible]);
+
+  async function submit() {
+    setPhase("submitting");
+    setError("");
+    try {
+      await onConfirm();
+      // Parent/account state reacts to the real sign-out; show a brief confirmation
+      // in case this dialog is still mounted when it happens.
+      setPhase("success");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "We couldn't log you out. Please try again.");
+      setPhase("error");
+    }
+  }
+
+  const busy = phase === "submitting";
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={busy ? undefined : onCancel}>
+      <View style={styles.dialogScrim}>
+        <View style={styles.dialog} accessibilityViewIsModal accessibilityLabel="Log out of Lumis">
+          <SkyEmblem tone={phase === "error" ? "warn" : "accent"} size={52}>
+            {phase === "success" ? <Check color={INK} size={22} strokeWidth={3} /> : <LogOut color={INK} size={20} />}
+          </SkyEmblem>
+
+          {phase === "success" ? (
+            <>
+              <Text style={styles.dialogTitle}>Signed out.</Text>
+              <Text style={styles.dialogBody}>You're safely logged out of Lumis.</Text>
+            </>
+          ) : phase === "error" ? (
+            <>
+              <Text style={styles.dialogTitle}>Couldn't log out.</Text>
+              <Text style={styles.dialogBody}>{error}</Text>
+              <PrimaryButton label="Try again" onPress={submit} />
+              <LinkButton label="Cancel" onPress={onCancel} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.dialogTitle}>Log out of Lumis?</Text>
+              <Text style={styles.dialogBody}>
+                You'll need your email sign-in link to return to your saved chart and Past Reflections. Your data stays safe on your account.
+              </Text>
+              <Pressable
+                style={[styles.primaryBtn, busy && styles.dim]}
+                onPress={submit}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Log out"
+                accessibilityState={{ busy }}
+              >
+                {busy ? <ActivityIndicator color="#1a1206" /> : <LogOut color="#1a1206" size={18} />}
+                <Text style={styles.primaryBtnText}>{busy ? "Logging out…" : "Log out"}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.linkBtn}
+                onPress={onCancel}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel and stay signed in"
+              >
+                <Text style={[styles.linkBtnText, busy && styles.dim]}>Cancel</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   shell: { backgroundColor: "transparent", flex: 1 },
+  dialogScrim: { alignItems: "center", backgroundColor: "rgba(4,10,20,0.66)", flex: 1, justifyContent: "center", padding: 28 },
+  dialog: { alignItems: "center", backgroundColor: "rgba(30,44,70,0.98)", borderColor: colors.line, borderRadius: 24, borderWidth: 1, padding: 24, width: "100%" },
+  dialogTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, marginBottom: 8, marginTop: 12, textAlign: "center" },
+  dialogBody: { color: colors.textSoft, fontSize: 13.5, lineHeight: 20, marginBottom: 18, textAlign: "center" },
   shellBody: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center" },
   center: { alignItems: "center", flex: 1, paddingHorizontal: 26, paddingTop: 30 },
   centerMiddle: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },

@@ -116,6 +116,8 @@ export function DiceRitualScreen({
   const [, setFrame] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const lastThrowRef = useRef<{ question: string | null; planetKey: string; signKey: string; houseKey: string } | null>(null);
   const sessionRollsRef = useRef<SessionRoll[]>([]);
 
   const phaseRef = useRef<Phase>("IDLE");
@@ -186,6 +188,17 @@ export function DiceRitualScreen({
     }
   }, []);
 
+  // Persist the throw and surface a safe, non-blocking retry if saving fails.
+  // "local" mode (demo, no account) is not a failure — rolling is unaffected.
+  const persistThrow = useCallback(async (input: NonNullable<typeof lastThrowRef.current>) => {
+    try {
+      const result = await saveDiceThrow(input);
+      setSaveError(result.mode === "error");
+    } catch {
+      setSaveError(true);
+    }
+  }, []);
+
   const completeSettle = useCallback(() => {
     const world = worldRef.current;
     const { readings } = resolveSettledFaces(world);
@@ -214,13 +227,14 @@ export function DiceRitualScreen({
       },
       ...sessionRollsRef.current
     ];
-    void saveDiceThrow({
+    lastThrowRef.current = {
       question: questionRef.current.trim() || null,
       planetKey: nextSymbols.planet.key,
       signKey: nextSymbols.sign.key,
       houseKey: nextSymbols.house.key
-    });
-  }, [transition]);
+    };
+    void persistThrow(lastThrowRef.current);
+  }, [transition, persistThrow]);
   completeSettleRef.current = completeSettle;
 
   const beginReady = useCallback(() => {
@@ -282,6 +296,7 @@ export function DiceRitualScreen({
   );
 
   const rethrow = useCallback(() => {
+    setSaveError(false);
     dimAnim.setValue(0);
     cardAnim.setValue(0);
     worldRef.current = createWorld();
@@ -526,11 +541,31 @@ export function DiceRitualScreen({
                 : null}
             </View>
             <Text style={styles.sheetNote}>Dice are a mirror for reflection, not a verdict.</Text>
-            {phase === "INTERPRET" ? (
-              <View style={styles.sheetActions}>
-                <SoftButton label="Roll again" onPress={rethrow} style={styles.sheetAction} />
-                <BrandButton label="Save this reflection" onPress={() => onReflect(reflectionPrompt)} style={styles.sheetAction} />
+            {saveError ? (
+              <View style={styles.saveErrorRow}>
+                <Text style={styles.saveErrorText}>Couldn’t save this roll to your history. Your result is safe on screen.</Text>
+                <Pressable
+                  onPress={() => lastThrowRef.current && void persistThrow(lastThrowRef.current)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry saving this roll"
+                  style={styles.saveRetryButton}
+                >
+                  <Text style={styles.saveRetryText}>Retry</Text>
+                </Pressable>
               </View>
+            ) : null}
+            {phase === "INTERPRET" ? (
+              <>
+                <View style={styles.sheetActions}>
+                  <SoftButton label="Roll again" onPress={rethrow} style={styles.sheetAction} />
+                  <BrandButton label="Reflect in chat" onPress={() => onReflect(reflectionPrompt)} style={styles.sheetAction} />
+                </View>
+                {/* The full Lumis dice interpretation (paid route) is not wired yet;
+                    "Reflect in chat" opens a free reflection and charges nothing. */}
+                <View style={styles.interpretPreviewRow}>
+                  <Text style={styles.interpretPreviewText}>Lumis dice reading · Preview — no credits are charged</Text>
+                </View>
+              </>
             ) : null}
             </BlurView>
           </Animated.View>
@@ -959,6 +994,12 @@ const styles = StyleSheet.create({
   symbolZh: { color: colors.ice, fontSize: 14, marginTop: 2 },
   symbolEn: { color: "#A2B0C6", fontSize: 11 },
   sheetNote: { color: "#A2B0C6", fontSize: 12, marginTop: 12, textAlign: "center" },
+  saveErrorRow: { alignItems: "center", backgroundColor: "rgba(224,153,127,0.1)", borderColor: "rgba(224,153,127,0.34)", borderRadius: 12, borderWidth: 1, gap: 8, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  saveErrorText: { color: "#E9B083", fontSize: 12, lineHeight: 17, textAlign: "center" },
+  saveRetryButton: { borderColor: "rgba(224,153,127,0.5)", borderRadius: 999, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 6 },
+  saveRetryText: { color: "#E9B083", fontSize: 12.5, fontWeight: "700" },
+  interpretPreviewRow: { alignItems: "center", marginTop: 10 },
+  interpretPreviewText: { color: colors.muted, fontSize: 10.5, fontWeight: "600", letterSpacing: 0.3 },
   sheetActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 14 },
   sheetAction: { flex: 1 }
 });

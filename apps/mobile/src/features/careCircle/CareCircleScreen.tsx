@@ -6,7 +6,7 @@ import Svg, { Rect } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import {
-  BrandButton, GhostButton, LineMotif, QuietEmptyState, SafetyNote, ScreenHeader, SoftButton
+  BrandButton, GhostButton, LineMotif, PreviewBadge, QuietEmptyState, SafetyNote, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
 
 /**
@@ -148,6 +148,12 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
   const canAdd = carers.length < MAX_CARERS;
   return (
     <Shell title="Care Circle" onBack={onBack} emblem>
+      {/* Persistent Preview label: check-ins and carer links are not active yet
+          (S1-C02). Always visible, not a dev toggle. */}
+      <View style={s.previewRow}>
+        <PreviewBadge label="Preview · not active yet" />
+      </View>
+
       {/* caree section */}
       <Text style={s.sectionLabel}>Your check-ins</Text>
       <View style={s.card}>
@@ -298,6 +304,7 @@ const s = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: 40 },
   emblemWrap: { alignItems: "center", marginBottom: 18 },
   emblem: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
+  previewRow: { alignItems: "center", marginBottom: 16, marginTop: -4 },
   sectionLabel: { color: colors.muted, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.8, marginBottom: 10, textTransform: "uppercase" },
   card: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, padding: 16 },
   scheduleRow: { alignItems: "center", flexDirection: "row", gap: 10 },

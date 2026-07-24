@@ -5,7 +5,7 @@ import Mail from "lucide-react-native/icons/mail";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { MagicLinkSentScreen } from "../components/AuthSystemKit";
+import { LogoutDialog, MagicLinkSentScreen } from "../components/AuthSystemKit";
 import { FlowScreen, flowStyles } from "../components/FlowScreen";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { getAuthStatus, sendMagicLink, signOut, type AuthStatus } from "../services/auth";
@@ -36,6 +36,7 @@ export function LumisAuthScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   // The "Check your inbox" screen (AUTH-002) after a magic link is sent.
   const [sentToEmail, setSentToEmail] = useState<string | null>(null);
+  const [signOutOpen, setSignOutOpen] = useState(false);
 
   async function refreshAccount(messageText: string) {
     const status = await getAuthStatus();
@@ -73,18 +74,12 @@ export function LumisAuthScreen({
     }
   }
 
-  async function handleSignOut() {
-    setIsSubmitting(true);
-    setError("");
-    try {
-      await signOut();
-      onSignedOut();
-      await refreshAccount("Signed out.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to sign out.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  // S1-C01: the confirmed Log out dialog runs this; it throws on failure so the
+  // dialog can show its error state. Calls the real signOut service (not simulated).
+  async function confirmSignOut() {
+    await signOut();
+    onSignedOut();
+    await refreshAccount("Signed out.");
   }
 
   if (sentToEmail) {
@@ -154,13 +149,17 @@ export function LumisAuthScreen({
       <Pressable
         style={[flowStyles.primaryButton, isSubmitting && flowStyles.disabled]}
         disabled={isSubmitting}
-        onPress={authStatus?.user ? handleSignOut : sendLink}
+        onPress={authStatus?.user ? () => setSignOutOpen(true) : sendLink}
+        accessibilityRole="button"
+        accessibilityLabel={authStatus?.user ? "Log out" : "Send secure link"}
       >
         <Text style={flowStyles.primaryButtonText}>
-          {isSubmitting ? "Please wait..." : authStatus?.user ? "Sign out" : "Send secure link"}
+          {isSubmitting ? "Please wait..." : authStatus?.user ? "Log out" : "Send secure link"}
         </Text>
         {!authStatus?.user ? <ChevronRight color={colors.navy950} size={19} /> : null}
       </Pressable>
+
+      <LogoutDialog visible={signOutOpen} onCancel={() => setSignOutOpen(false)} onConfirm={confirmSignOut} />
 
       <Pressable style={flowStyles.secondaryButton} onPress={() => refreshAccount("Account reloaded.")}>
         <Text style={flowStyles.secondaryButtonText}>Reload account</Text>

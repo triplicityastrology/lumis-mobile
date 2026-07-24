@@ -20,6 +20,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
 
+import { LogoutDialog } from "../components/AuthSystemKit";
+import { UnavailablePill } from "../components/states/StateKit";
 import { LumisPersonaAvatar } from "../components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { colors, spacing } from "../theme/tokens";
@@ -43,7 +45,8 @@ export function LumisProfileScreen({
   onNotifications,
   onPersona,
   onPlans,
-  onSelectTab
+  onSelectTab,
+  onLogout
 }: {
   birthDate: string;
   birthPlace: string;
@@ -64,9 +67,13 @@ export function LumisProfileScreen({
   onPersona: () => void;
   onPlans: () => void;
   onSelectTab: (tab: MainTab) => void;
+  /** S1-C01: real sign-out handler owned by account state (must throw on failure).
+   *  Provided by App wiring; when present the confirmed Log out action appears. */
+  onLogout?: () => Promise<void>;
 }) {
   const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [notice, setNotice] = useState("");
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const plan = PRODUCTS.find((product) => product.tier === planTier) ?? PRODUCTS[0];
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
@@ -139,22 +146,40 @@ export function LumisProfileScreen({
             <ProfileRow icon={<Bell color={colors.periwinkle} size={17} />} label="Notifications" onPress={onNotifications} />
             <ProfileRow icon={<ShieldCheck color={colors.periwinkle} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
             <ProfileRow icon={<Headphones color={colors.periwinkle} size={17} />} label="Contact support" onPress={() => showPendingNotice("Contact support")} />
-            <ProfileRow icon={<Download color={colors.periwinkle} size={17} />} label="Export my data" onPress={() => showPendingNotice("Data export")} />
-            <ProfileRow danger icon={<Trash2 color={colors.warn} size={17} />} label="Delete account" onPress={() => showPendingNotice("Account deletion")} />
+            <ProfileRow icon={<Download color={colors.periwinkle} size={17} />} label="Export my data" unavailable onPress={() => showPendingNotice("Data export")} />
+            <ProfileRow danger icon={<Trash2 color={colors.warn} size={17} />} label="Delete account" unavailable onPress={() => showPendingNotice("Account deletion")} />
           </ProfileSection>
 
           {notice ? <Pressable onPress={() => setNotice("")} style={styles.notice}><Text style={styles.noticeText}>{notice}</Text><Text style={styles.noticeDismiss}>Dismiss</Text></Pressable> : null}
 
-          <Pressable style={styles.accountButton} onPress={onAccount}>
-            <LogOut color={colors.textSoft} size={18} />
+          <Pressable style={styles.accountButton} onPress={onAccount} accessibilityRole="button">
+            <UserRound color={colors.textSoft} size={18} />
             <View><Text style={styles.accountButtonText}>{email ? "Manage sign-in" : "Save this profile"}</Text>{email ? <Text style={styles.accountEmail}>{email}</Text> : null}</View>
           </Pressable>
+
+          {/* S1-C01: obvious, confirmed Log out for signed-in users. Only shown once
+              the real handler is wired in (never a navigation-only fake). */}
+          {email && onLogout ? (
+            <Pressable
+              style={styles.logoutButton}
+              onPress={() => setLogoutOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Log out of Lumis"
+            >
+              <LogOut color={colors.warn} size={18} />
+              <Text style={styles.logoutButtonText}>Log out</Text>
+            </Pressable>
+          ) : null}
 
           <Text style={styles.disclaimer}>Lumis offers reflective AI and astrology-based guidance. It is not a replacement for professional medical, legal, financial, or mental-health advice.</Text>
         </ScrollView>
 
         <MainTabBar active="profile" onSelect={onSelectTab} />
       </View>
+
+      {onLogout ? (
+        <LogoutDialog visible={logoutOpen} onCancel={() => setLogoutOpen(false)} onConfirm={onLogout} />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -175,7 +200,8 @@ function ProfileRow({
   label,
   onPress,
   showChevron = true,
-  value
+  value,
+  unavailable = false
 }: {
   danger?: boolean;
   icon: ReactNode;
@@ -183,19 +209,27 @@ function ProfileRow({
   onPress?: () => void;
   showChevron?: boolean;
   value?: string;
+  unavailable?: boolean;
 }) {
   return (
     <Pressable
       accessibilityLabel={value ? `${label}: ${value}` : label}
       accessibilityRole={onPress ? "button" : "text"}
+      accessibilityHint={unavailable ? "Currently unavailable" : undefined}
       disabled={!onPress}
       onPress={onPress}
       style={styles.row}
     >
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>{icon}</View>
-      <View style={styles.rowCopy}><Text style={[styles.rowLabel, danger && styles.dangerText]}>{label}</Text></View>
-      {value ? <Text numberOfLines={2} style={[styles.rowTrailing, danger && styles.dangerText]}>{value}</Text> : null}
-      {showChevron && onPress ? <ChevronRight color={danger ? colors.warn : colors.muted} size={17} /> : null}
+      <View style={styles.rowCopy}><Text style={[styles.rowLabel, danger && styles.dangerText, unavailable && styles.rowLabelMuted]}>{label}</Text></View>
+      {unavailable ? (
+        <UnavailablePill />
+      ) : (
+        <>
+          {value ? <Text numberOfLines={2} style={[styles.rowTrailing, danger && styles.dangerText]}>{value}</Text> : null}
+          {showChevron && onPress ? <ChevronRight color={danger ? colors.warn : colors.muted} size={17} /> : null}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -235,6 +269,7 @@ const styles = StyleSheet.create({
   rowIconDanger: { backgroundColor: "rgba(211,107,93,0.12)" },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.ice, fontSize: 13, fontWeight: "600" },
+  rowLabelMuted: { color: colors.muted },
   rowValue: { color: colors.muted, fontSize: 10.5, marginTop: 3 },
   rowTrailing: { color: colors.textSoft, flexShrink: 1, fontSize: 11.5, lineHeight: 16, maxWidth: "48%", textAlign: "right" },
   dangerText: { color: colors.warn },
@@ -251,5 +286,7 @@ const styles = StyleSheet.create({
   accountButton: { alignItems: "center", alignSelf: "center", flexDirection: "row", gap: 9, minHeight: 48 },
   accountButtonText: { color: colors.textSoft, fontSize: 12.5, fontWeight: "700" },
   accountEmail: { color: colors.muted, fontSize: 9.5, marginTop: 2, maxWidth: 260 },
+  logoutButton: { alignItems: "center", alignSelf: "center", borderColor: "rgba(224,153,127,0.4)", borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 8, marginTop: 6, minHeight: 46, paddingHorizontal: 22 },
+  logoutButtonText: { color: colors.warn, fontSize: 13.5, fontWeight: "700" },
   disclaimer: { color: colors.muted, fontSize: 9.5, lineHeight: 15, textAlign: "center" }
 });
