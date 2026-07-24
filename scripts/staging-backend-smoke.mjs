@@ -342,7 +342,84 @@ try {
   });
   pass("Expired same-request recovery preserves the original Worker request identity");
 
-  await servicePatch("birth_data", `user_id=eq.${birthChangeUser.id}`, { successful_change_count: 3 });
+  const secondSuccessfulChange = await invokeFunction(
+    "profile/birth-details/change",
+    birthChangeSession.access_token,
+    {
+      ...changedBirthRequest,
+      client_request_id: crypto.randomUUID(),
+      birth_date: "1986-02-22",
+      birth_time: "10:15",
+      place_name: "Hong Kong",
+      country_code: "HK",
+      lat: 22.3193,
+      lng: 114.1694,
+      tz_str: "Spoofed/Timezone"
+    }
+  );
+  assert(
+    secondSuccessfulChange.status === 200 &&
+      secondSuccessfulChange.body?.chart_version === 3 &&
+      secondSuccessfulChange.body?.successful_change_count === 2 &&
+      secondSuccessfulChange.body?.remaining_changes === 1,
+    `Second successful PROF-2 change returned an invalid result: ${safeError(secondSuccessfulChange.body)}.`
+  );
+
+  const thirdSuccessfulChange = await invokeFunction(
+    "profile/birth-details/change",
+    birthChangeSession.access_token,
+    {
+      ...changedBirthRequest,
+      client_request_id: crypto.randomUUID(),
+      birth_date: "1986-02-23",
+      birth_time: "11:45",
+      place_name: "New York, US",
+      country_code: "US",
+      lat: 40.7128,
+      lng: -74.006,
+      tz_str: "Spoofed/Timezone"
+    }
+  );
+  assert(
+    thirdSuccessfulChange.status === 200 &&
+      thirdSuccessfulChange.body?.chart_version === 4 &&
+      thirdSuccessfulChange.body?.successful_change_count === 3 &&
+      thirdSuccessfulChange.body?.remaining_changes === 0,
+    `Third successful PROF-2 change returned an invalid result: ${safeError(thirdSuccessfulChange.body)}.`
+  );
+
+  const [threeChangeBirthRow, threeChangeHistories, threeChangeProfiles] = await Promise.all([
+    serviceSelectOne("birth_data", birthChangeUser.id, "user_id"),
+    serviceSelect(
+      "birth_data_history",
+      `user_id=eq.${birthChangeUser.id}&select=chart_version,status&order=chart_version.asc`
+    ),
+    serviceSelect(
+      "ai_profiles",
+      `user_id=eq.${birthChangeUser.id}&select=chart_version,is_active&order=chart_version.asc`
+    )
+  ]);
+  assert(
+    threeChangeBirthRow.successful_change_count === 3 &&
+      threeChangeBirthRow.active_chart_version === 4,
+    "Three real PROF-2 successes did not produce authoritative count three and active version four."
+  );
+  assert(
+    threeChangeHistories.length === 4 &&
+      threeChangeHistories.filter((row) => row.status === "active").length === 1 &&
+      threeChangeHistories.at(-1)?.chart_version === 4 &&
+      threeChangeHistories.at(-1)?.status === "active",
+    "Chart history did not preserve exactly one active fourth version after three changes."
+  );
+  assert(
+    threeChangeProfiles.length === 4 &&
+      threeChangeProfiles.filter((row) => row.is_active === true).length === 1 &&
+      threeChangeProfiles.at(-1)?.chart_version === 4 &&
+      threeChangeProfiles.at(-1)?.is_active === true,
+    "AI profiles did not preserve exactly one active fourth chart version after three changes."
+  );
+  pass("Three real signed PROF-2 changes advance the lifetime count and active chart exactly once each");
+
   const providerAttemptsBeforeLimit = await serviceSelect(
     "chart_provider_call_attempt_events",
     `user_id=eq.${birthChangeUser.id}&select=request_id,attempt_number`
@@ -350,7 +427,15 @@ try {
   const limitedBirthChange = await invokeFunction(
     "profile/birth-details/change",
     birthChangeSession.access_token,
-    { ...changedBirthRequest, client_request_id: crypto.randomUUID(), birth_date: "1986-02-22" }
+    {
+      ...changedBirthRequest,
+      client_request_id: crypto.randomUUID(),
+      birth_date: "1986-02-24",
+      place_name: "London, UK",
+      country_code: "GB",
+      lat: 51.5072,
+      lng: -0.1276
+    }
   );
   assert(limitedBirthChange.status === 409 && limitedBirthChange.body?.error?.code === "49001", "Three-change limit was not enforced.");
   const providerAttemptsAfterLimit = await serviceSelect(
