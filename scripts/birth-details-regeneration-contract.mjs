@@ -55,6 +55,13 @@ const mobileRegeneration = mobileProfile.slice(
   mobileProfile.indexOf("function isEdgeFunctionTransportError")
 );
 assert.doesNotMatch(mobileRegeneration, /buildFixtureChart/);
+assert.match(mobileRegeneration, /PROFILE_CONFIGURATION_REQUIRED/);
+assert.match(mobileRegeneration, /PROFILE_AUTH_REQUIRED/);
+assert.doesNotMatch(
+  mobileRegeneration,
+  /throw new Error\("Sign in to change saved birth details\."\)/,
+  "mobile must preserve truthful auth/configuration failure codes"
+);
 assert.match(mobileApp, /regenerateBirthDetails\(updated, clientRequestId\)/);
 assert.match(mobileApp, /setBirthDetailChanges\(result\.successful_change_count\)/);
 assert.match(mobileApp, /loadSupabaseAccountState\(\)[\s\S]*setChatTurns\(\[\]\)[\s\S]*setActiveSupabaseThreadId\(null\)[\s\S]*setForceNewSupabaseThread\(true\)/);
@@ -63,6 +70,8 @@ assert.match(birthDetailsScreen, /requestIdRef\.current \?\? randomUUID\(\)/);
 assert.match(birthDetailsScreen, /onRegenerate\(draft, clientRequestId\)/);
 assert.match(birthDetailsScreen, /outcome\.code === "49002"[\s\S]*setStep\("edit"\)/);
 assert.match(birthDetailsScreen, /outcome\.code === "49001"[\s\S]*setStep\("display"\)/);
+assert.match(birthDetailsScreen, /setFailureMessage\(outcome\.message\)[\s\S]*setStep\("failure"\)/);
+assert.match(birthDetailsScreen, /sub=\{failureMessage \?\?/);
 assert.match(birthDetailsScreen, /ASC, MC, houses, or planet-house placements/);
 assert.equal(
   (mobileApp.match(/<CelestialBackground(?:\s[^>]*)?\/>/g) ?? []).length,
@@ -95,6 +104,21 @@ assert.doesNotMatch(
   /setBirthDetailChanges\(\s*\(?(?:count|current|value)|Math\.min\([^)]*\+\s*1|successfulChanges\s*\+\s*1/,
   "mobile must not increment the PROF-2 lifetime counter"
 );
+const birthChangeHandler = profile.slice(
+  profile.indexOf("async function handleBirthDetailsChange"),
+  profile.indexOf("function validateBirthChangeRequest")
+);
+assert.match(birthChangeHandler, /requireLiveWorker:\s*true/);
+assert.doesNotMatch(
+  birthChangeHandler,
+  /error:\s*error instanceof Error \? error\.message/,
+  "PROF-2 logs must not emit arbitrary provider or transport error messages"
+);
+const chartGeneration = profile.slice(
+  profile.indexOf("async function generateChart"),
+  profile.indexOf("function allowsFixtureFallback")
+);
+assert.match(chartGeneration, /input\.requireLiveWorker \|\| !allowsFixtureFallback\(\)/);
 
 assert.match(migration, /create table if not exists public\.birth_detail_change_requests/i);
 assert.match(migration, /where status = 'processing'/i);

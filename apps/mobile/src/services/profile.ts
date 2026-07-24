@@ -270,14 +270,20 @@ export async function regenerateBirthDetails(
   const config = getSupabaseConfig();
 
   if (!supabase || !config.url || !config.anonKey) {
-    throw new Error("Sign in to change saved birth details.");
+    throw new BirthDetailsChangeError(
+      "Lumis account services are not configured on this device.",
+      "PROFILE_CONFIGURATION_REQUIRED"
+    );
   }
 
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
 
   if (!accessToken) {
-    throw new Error("Sign in to change saved birth details.");
+    throw new BirthDetailsChangeError(
+      "Please sign in again before changing your birth details.",
+      "PROFILE_AUTH_REQUIRED"
+    );
   }
 
   const response = await fetch(`${config.url}/functions/v1/profile/birth-details/change`, {

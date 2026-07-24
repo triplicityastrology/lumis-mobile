@@ -666,12 +666,12 @@ async function handleBirthDetailsChange(input: {
 
     try {
       rateLimit = await consumeProfileRateLimit(serviceClient, userId, endpoint, 3, 600);
-    } catch (error) {
+    } catch {
       await failBirthChangeReservation(serviceClient, userId, clientRequestId, "49003");
       console.error("BIRTH_CHANGE_RATE_LIMIT_CHECK_FAILED", {
         request_id: input.requestId,
         user_id: userId,
-        error: error instanceof Error ? error.message : "unknown"
+        code: "RATE_LIMIT_CHECK_FAILED"
       });
       return birthChangeError("49003", "Birth-detail changes are briefly unavailable. Please try again.", 503, input.requestId);
     }
@@ -735,14 +735,15 @@ async function handleBirthDetailsChange(input: {
       chartRequest,
       body,
       workerRequestId: reservation.worker_request_id ?? clientRequestId,
-      requestedAt: reservation.worker_requested_at
+      requestedAt: reservation.worker_requested_at,
+      requireLiveWorker: true
     });
-  } catch (error) {
+  } catch {
     await failBirthChangeReservation(serviceClient, userId, clientRequestId, "CHART_WORKER_FAILED");
     console.error("BIRTH_CHANGE_CHART_WORKER_FAILED", {
       request_id: input.requestId,
       user_id: userId,
-      error: error instanceof Error ? error.message : "unknown"
+      code: "CHART_WORKER_FAILED"
     });
     await recordProfileRuntimeEvent(serviceClient, {
       requestId: input.requestId,
@@ -1332,12 +1333,13 @@ async function generateChart(input: {
   body: ProfileRequest;
   workerRequestId?: string;
   requestedAt?: string;
+  requireLiveWorker?: boolean;
 }): Promise<ChartGenerationResult> {
   const workerUrl = chartWorkerUrl();
   const signingSecret = Deno.env.get("CHART_WORKER_SIGNING_SECRET");
 
   if (!workerUrl || !signingSecret) {
-    if (!allowsFixtureFallback()) {
+    if (input.requireLiveWorker || !allowsFixtureFallback()) {
       throw new Error(
         "Chart Worker is not configured. Production deployments must set CHART_WORKER_URL and CHART_WORKER_SIGNING_SECRET."
       );

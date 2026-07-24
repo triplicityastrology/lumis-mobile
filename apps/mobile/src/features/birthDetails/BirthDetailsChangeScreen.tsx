@@ -84,6 +84,7 @@ export function BirthDetailsChangeScreen({
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
   const [regenStep, setRegenStep] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
+  const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const clearTimers = () => {
@@ -96,12 +97,14 @@ export function BirthDetailsChangeScreen({
   function updateDraft(updater: (current: BirthDetails) => BirthDetails) {
     requestIdRef.current = null;
     setFormError(null);
+    setFailureMessage(null);
     setDraft(updater);
   }
 
   function beginEditing() {
     requestIdRef.current = null;
     setFormError(null);
+    setFailureMessage(null);
     setDraft(details ?? draft);
     setStep("edit");
   }
@@ -125,6 +128,7 @@ export function BirthDetailsChangeScreen({
     requestIdRef.current = clientRequestId;
     setStep("regenerating");
     setRegenStep(0);
+    setFailureMessage(null);
     // Status steps advance for feedback; the real backend result decides the outcome.
     timersRef.current = [
       setTimeout(() => setRegenStep(1), 900),
@@ -153,6 +157,7 @@ export function BirthDetailsChangeScreen({
       return;
     }
 
+    setFailureMessage(outcome.message);
     setStep("failure");
   }
 
@@ -286,10 +291,10 @@ export function BirthDetailsChangeScreen({
           <View style={s.centered}>
             <RetryCard
               title="We couldn't update your chart just now."
-              sub="Your previous chart is still active, and this change has not been counted."
+              sub={failureMessage ?? "Your previous chart is still active, and this change has not been counted."}
               onRetry={runRegeneration}
               secondaryLabel="Back"
-              onSecondary={() => { requestIdRef.current = null; setStep("edit"); }}
+              onSecondary={() => { requestIdRef.current = null; setFailureMessage(null); setStep("edit"); }}
             />
           </View>
         ) : null}
