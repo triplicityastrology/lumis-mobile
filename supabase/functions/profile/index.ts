@@ -556,7 +556,16 @@ async function handleBirthDetailsChange(input: {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-  if (!authHeader || !supabaseUrl || !anonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    return birthChangeError(
+      "PROFILE_CONFIGURATION_REQUIRED",
+      "Lumis account services are temporarily unavailable.",
+      503,
+      input.requestId
+    );
+  }
+
+  if (!authHeader) {
     return birthChangeError("PROFILE_AUTH_REQUIRED", "Sign in before changing birth details.", 401, input.requestId);
   }
 

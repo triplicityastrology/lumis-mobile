@@ -108,6 +108,43 @@ const birthChangeHandler = profile.slice(
   profile.indexOf("async function handleBirthDetailsChange"),
   profile.indexOf("function validateBirthChangeRequest")
 );
+const configurationFailureIndex = birthChangeHandler.indexOf(
+  'birthChangeError(\n      "PROFILE_CONFIGURATION_REQUIRED"'
+);
+const missingHeaderFailureIndex = birthChangeHandler.indexOf(
+  'if (!authHeader)'
+);
+const invalidSessionFailureIndex = birthChangeHandler.indexOf(
+  'if (authError || !authData.user)'
+);
+assert.ok(configurationFailureIndex >= 0, "server must return PROFILE_CONFIGURATION_REQUIRED");
+assert.ok(missingHeaderFailureIndex > configurationFailureIndex, "configuration must be checked before authentication");
+assert.ok(invalidSessionFailureIndex > missingHeaderFailureIndex, "invalid sessions must remain authentication failures");
+const configurationFailureBlock = birthChangeHandler.slice(
+  birthChangeHandler.indexOf("if (!supabaseUrl || !anonKey || !serviceRoleKey)"),
+  missingHeaderFailureIndex
+);
+const missingHeaderFailureBlock = birthChangeHandler.slice(
+  missingHeaderFailureIndex,
+  birthChangeHandler.indexOf("const userClient")
+);
+const invalidSessionFailureBlock = birthChangeHandler.slice(
+  invalidSessionFailureIndex,
+  birthChangeHandler.indexOf("const userId")
+);
+assert.match(configurationFailureBlock, /"PROFILE_CONFIGURATION_REQUIRED"/);
+assert.match(configurationFailureBlock, /\b503\b/);
+assert.doesNotMatch(configurationFailureBlock, /PROFILE_AUTH_REQUIRED/);
+assert.match(missingHeaderFailureBlock, /"PROFILE_AUTH_REQUIRED"/);
+assert.match(missingHeaderFailureBlock, /\b401\b/);
+assert.doesNotMatch(missingHeaderFailureBlock, /PROFILE_CONFIGURATION_REQUIRED/);
+assert.match(invalidSessionFailureBlock, /"PROFILE_AUTH_REQUIRED"/);
+assert.match(invalidSessionFailureBlock, /\b401\b/);
+assert.doesNotMatch(
+  configurationFailureBlock,
+  /PROFILE_CONFIGURATION_REQUIRED[\s\S]{0,240}(SUPABASE_URL|SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY)/,
+  "configuration errors must not expose missing environment-variable names"
+);
 assert.match(birthChangeHandler, /requireLiveWorker:\s*true/);
 assert.doesNotMatch(
   birthChangeHandler,
