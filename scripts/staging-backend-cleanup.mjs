@@ -48,15 +48,27 @@ async function cleanupUser(userId) {
   await deleteRows("account_deletion_requests", `user_id=eq.${userId}`);
   await deleteRows("users", `id=eq.${userId}`);
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-    method: "DELETE",
-    headers: serviceHeaders()
-  });
-  const body = await response.json().catch(() => null);
-  assert(
-    response.ok || response.status === 404,
-    `Unable to delete disposable Auth user (HTTP ${response.status}): ${body?.error_code ?? body?.code ?? "AUTH_ADMIN_FAILED"}.`
-  );
+  await deleteAuthUserWithRetry(userId);
+}
+
+async function deleteAuthUserWithRetry(userId) {
+  for (let attempt = 1; attempt <= 7; attempt += 1) {
+    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: serviceHeaders()
+    });
+    const body = await response.json().catch(() => null);
+
+    if (response.ok || response.status === 404) return;
+    if (response.status === 403 && body?.error_code === "bad_jwt" && attempt < 7) {
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      continue;
+    }
+
+    throw new Error(
+      `Unable to delete disposable Auth user (HTTP ${response.status}): ${body?.error_code ?? body?.code ?? "AUTH_ADMIN_FAILED"}.`
+    );
+  }
 }
 
 async function deleteRows(table, query) {

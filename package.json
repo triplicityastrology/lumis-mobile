@@ -27,6 +27,7 @@
     "test:staging-backend": "node scripts/staging-backend-smoke.mjs",
     "test:staging-backend:secure": "bash scripts/run-staging-backend-test.sh",
     "test:staging-prof2:secure": "STAGING_QA_SCOPE=prof2 bash scripts/run-staging-backend-test.sh",
+    "test:staging-prof2-missing-worker:secure": "bash scripts/run-staging-prof2-missing-worker-proof.sh",
     "test:staging-backend:cleanup": "bash scripts/run-staging-backend-test.sh cleanup",
     "test:account-deletion-db": "node scripts/staging-backend-smoke.mjs",
     "test:worker-live": "node scripts/cloudflare-worker-smoke.mjs",

@@ -13,6 +13,7 @@ const deletionFunction = readFileSync("supabase/functions/account-deletion-reque
 const hostedQaLauncher = readFileSync("scripts/run-staging-backend-test.sh", "utf8");
 const hostedQaSmoke = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
 const hostedQaCleanup = readFileSync("scripts/staging-backend-cleanup.mjs", "utf8");
+const missingWorkerProof = readFileSync("scripts/staging-prof2-missing-worker-proof.mjs", "utf8");
 const retryFunction = readFileSync("supabase/functions/external-sync-retry/index.ts", "utf8");
 const worker = readFileSync("workers/chart-mobile/worker.js", "utf8");
 const adminScript = readFileSync("scripts/external-sync-admin.mjs", "utf8");
@@ -104,6 +105,16 @@ assert.match(hostedQaCleanup, /createClient\(supabaseUrl, secretKey/);
 assert.match(hostedQaCleanup, /admin\.listUsers/);
 assert.match(hostedQaCleanup, /method: "DELETE"/);
 assert.match(hostedQaSmoke, /qaScope === "full"/);
+assert.match(hostedQaSmoke, /deleteAuthUserWithRetry/);
+assert.match(hostedQaCleanup, /deleteAuthUserWithRetry/);
+assert.match(missingWorkerProof, /secrets", "unset", "CHART_WORKER_URL"/);
+assert.match(missingWorkerProof, /finally \{/);
+assert.match(missingWorkerProof, /CHART_WORKER_URL=\$\{workerUrl\}/);
+assert.match(missingWorkerProof, /failedChange\.body\?\.error\?\.code === "49003"/);
+assert.match(missingWorkerProof, /successful_change_count === 0/);
+assert.match(missingWorkerProof, /histories\.length === 1 && after\.profiles\.length === 1/);
+assert.match(missingWorkerProof, /!containsFixture/);
+assert.doesNotMatch(missingWorkerProof, /console\.log\([^)]*(secretKey|password|accessToken)/);
 
 const documentedCleanupInvocation = spawnSync(
   "bash",
