@@ -91,6 +91,7 @@ assert.match(deletionFunction, /enqueue_account_deletion_external_sync/);
 assert.match(hostedQaLauncher, /sb_secret_/);
 assert.doesNotMatch(hostedQaLauncher, /temporary legacy|SUPABASE_SERVICE_ROLE_KEY/);
 assert.match(hostedQaLauncher, /test:staging-backend:cleanup/);
+assert.match(hostedQaLauncher, /import\("@supabase\/supabase-js"\)/);
 assert.match(hostedQaSmoke, /Hosted QA run ID/);
 assert.match(hostedQaSmoke, /SUPABASE_SECRET_KEY/);
 assert.doesNotMatch(hostedQaSmoke, /Authorization.*Bearer.*secretKey/);

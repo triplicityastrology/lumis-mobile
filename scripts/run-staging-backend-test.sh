@@ -40,6 +40,11 @@ if [[ "$mode" == "run" && -z "${SUPABASE_ANON_KEY:-}" ]]; then
   exit 1
 fi
 
+node --input-type=module -e '
+  const module = await import("@supabase/supabase-js");
+  if (typeof module.createClient !== "function") process.exit(1);
+'
+
 if [[ "$mode" == "run" ]]; then
   printf 'Lumis hosted QA will create disposable staging users, run race/RLS/deletion checks, then clean them up.\n'
 else
