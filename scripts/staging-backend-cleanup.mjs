@@ -1,6 +1,15 @@
+import { createClient } from "@supabase/supabase-js";
+
 const projectRef = process.env.SUPABASE_PROJECT_REF ?? "bmqhwofmdgebpcihjlnb";
 const supabaseUrl = `https://${projectRef}.supabase.co`;
 const secretKey = requireSecretKey();
+const adminClient = createClient(supabaseUrl, secretKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
 const runId = process.argv[2];
 
 if (!/^\d{13}-[a-f0-9]+$/.test(runId ?? "")) {
@@ -26,12 +35,9 @@ async function listQaUsers() {
   const perPage = 100;
 
   for (let page = 1; ; page += 1) {
-    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
-      headers: serviceHeaders()
-    });
-    const body = await response.json();
-    assert(response.ok, `Unable to list Auth users: HTTP ${response.status}.`);
-    const pageUsers = Array.isArray(body.users) ? body.users : [];
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage });
+    assert(!error, `Unable to list Auth users: ${error?.code ?? "AUTH_ADMIN_FAILED"}.`);
+    const pageUsers = Array.isArray(data.users) ? data.users : [];
     users.push(...pageUsers);
     if (pageUsers.length < perPage) return users;
   }
@@ -42,11 +48,8 @@ async function cleanupUser(userId) {
   await deleteRows("account_deletion_requests", `user_id=eq.${userId}`);
   await deleteRows("users", `id=eq.${userId}`);
 
-  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-    method: "DELETE",
-    headers: serviceHeaders()
-  });
-  assert(response.ok || response.status === 404, `Unable to delete disposable Auth user ${userId}.`);
+  const { error } = await adminClient.auth.admin.deleteUser(userId);
+  assert(!error || error.status === 404, `Unable to delete disposable Auth user: ${error?.code ?? "AUTH_ADMIN_FAILED"}.`);
 }
 
 async function deleteRows(table, query) {

@@ -94,8 +94,16 @@ assert.match(hostedQaLauncher, /test:staging-backend:cleanup/);
 assert.match(hostedQaSmoke, /Hosted QA run ID/);
 assert.match(hostedQaSmoke, /SUPABASE_SECRET_KEY/);
 assert.doesNotMatch(hostedQaSmoke, /Authorization.*Bearer.*secretKey/);
+assert.match(hostedQaSmoke, /createClient\(supabaseUrl, secretKey/);
+assert.match(hostedQaSmoke, /admin\.createUser/);
+assert.match(hostedQaSmoke, /admin\.listUsers/);
+assert.match(hostedQaSmoke, /admin\.deleteUser/);
+assert.doesNotMatch(hostedQaSmoke, /fetch\(`\$\{supabaseUrl\}\/auth\/v1\/admin\/users/);
 assert.match(hostedQaCleanup, /endsWith\(`\.\$\{runId\}@example\.com`\)/);
-assert.match(hostedQaCleanup, /auth\/v1\/admin\/users/);
+assert.match(hostedQaCleanup, /createClient\(supabaseUrl, secretKey/);
+assert.match(hostedQaCleanup, /admin\.listUsers/);
+assert.match(hostedQaCleanup, /admin\.deleteUser/);
+assert.doesNotMatch(hostedQaCleanup, /fetch\(`\$\{supabaseUrl\}\/auth\/v1\/admin\/users/);
 
 const documentedCleanupInvocation = spawnSync(
   "bash",

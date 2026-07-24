@@ -1,7 +1,16 @@
+import { createClient } from "@supabase/supabase-js";
+
 const projectRef = process.env.SUPABASE_PROJECT_REF ?? "bmqhwofmdgebpcihjlnb";
 const supabaseUrl = `https://${projectRef}.supabase.co`;
 const anonKey = requireEnvironment("SUPABASE_ANON_KEY");
 const secretKey = requireSecretKey();
+const adminClient = createClient(supabaseUrl, secretKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});
 const runId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const password = `Lumis-QA-${crypto.randomUUID()}!`;
 const createdUserIds = [];
@@ -1214,29 +1223,23 @@ function assertSuccessfulNoChargeChat(result) {
 }
 
 async function createConfirmedUser(email, userPassword) {
-  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-    method: "POST",
-    headers: serviceHeaders(),
-    body: JSON.stringify({ email, password: userPassword, email_confirm: true })
+  const { data, error } = await adminClient.auth.admin.createUser({
+    email,
+    password: userPassword,
+    email_confirm: true
   });
-  const body = await response.json();
   assert(
-    response.ok,
-    `Unable to create disposable Auth user (HTTP ${response.status}): ${safeError(body)}.`
+    !error && data.user,
+    `Unable to create disposable Auth user (HTTP ${error?.status ?? "unknown"}): ${error?.code ?? "AUTH_ADMIN_FAILED"}.`
   );
-  return { id: body.id, email };
+  return { id: data.user.id, email };
 }
 
 async function verifyQaSecretKeyAccess() {
-  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users?page=1&per_page=1`, {
-    headers: serviceHeaders()
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
-
+  const { error } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1 });
   assert(
-    response.ok,
-    `The dedicated Supabase QA key cannot use Auth Admin (HTTP ${response.status}): ${safeError(body)}. ` +
+    !error,
+    `The dedicated Supabase QA key cannot use Auth Admin (HTTP ${error?.status ?? "unknown"}): ${error?.code ?? "AUTH_ADMIN_FAILED"}. ` +
       "Check that the complete active sb_secret_ key was copied from this staging project."
   );
 }
@@ -1355,11 +1358,8 @@ async function cleanupUser(userId) {
   await serviceDelete("external_sync_events", `user_id=eq.${userId}`);
   await serviceDelete("account_deletion_requests", `user_id=eq.${userId}`);
   await serviceDelete("users", `id=eq.${userId}`);
-  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-    method: "DELETE",
-    headers: serviceHeaders()
-  });
-  assert(response.ok, `Unable to delete disposable Auth user ${userId}.`);
+  const { error } = await adminClient.auth.admin.deleteUser(userId);
+  assert(!error, `Unable to delete disposable Auth user: ${error?.code ?? "AUTH_ADMIN_FAILED"}.`);
 }
 
 function serviceHeaders() {
