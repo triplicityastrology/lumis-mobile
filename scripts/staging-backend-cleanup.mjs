@@ -48,8 +48,15 @@ async function cleanupUser(userId) {
   await deleteRows("account_deletion_requests", `user_id=eq.${userId}`);
   await deleteRows("users", `id=eq.${userId}`);
 
-  const { error } = await adminClient.auth.admin.deleteUser(userId);
-  assert(!error || error.status === 404, `Unable to delete disposable Auth user: ${error?.code ?? "AUTH_ADMIN_FAILED"}.`);
+  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+    method: "DELETE",
+    headers: serviceHeaders()
+  });
+  const body = await response.json().catch(() => null);
+  assert(
+    response.ok || response.status === 404,
+    `Unable to delete disposable Auth user (HTTP ${response.status}): ${body?.error_code ?? body?.code ?? "AUTH_ADMIN_FAILED"}.`
+  );
 }
 
 async function deleteRows(table, query) {

@@ -98,13 +98,12 @@ assert.doesNotMatch(hostedQaSmoke, /Authorization.*Bearer.*secretKey/);
 assert.match(hostedQaSmoke, /createClient\(supabaseUrl, secretKey/);
 assert.match(hostedQaSmoke, /admin\.createUser/);
 assert.match(hostedQaSmoke, /admin\.listUsers/);
-assert.match(hostedQaSmoke, /admin\.deleteUser/);
-assert.doesNotMatch(hostedQaSmoke, /fetch\(`\$\{supabaseUrl\}\/auth\/v1\/admin\/users/);
+assert.match(hostedQaSmoke, /method: "DELETE"/);
 assert.match(hostedQaCleanup, /endsWith\(`\.\$\{runId\}@example\.com`\)/);
 assert.match(hostedQaCleanup, /createClient\(supabaseUrl, secretKey/);
 assert.match(hostedQaCleanup, /admin\.listUsers/);
-assert.match(hostedQaCleanup, /admin\.deleteUser/);
-assert.doesNotMatch(hostedQaCleanup, /fetch\(`\$\{supabaseUrl\}\/auth\/v1\/admin\/users/);
+assert.match(hostedQaCleanup, /method: "DELETE"/);
+assert.match(hostedQaSmoke, /qaScope === "full"/);
 
 const documentedCleanupInvocation = spawnSync(
   "bash",

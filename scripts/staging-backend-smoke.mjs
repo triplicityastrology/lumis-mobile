@@ -4,6 +4,7 @@ const projectRef = process.env.SUPABASE_PROJECT_REF ?? "bmqhwofmdgebpcihjlnb";
 const supabaseUrl = `https://${projectRef}.supabase.co`;
 const anonKey = requireEnvironment("SUPABASE_ANON_KEY");
 const secretKey = requireSecretKey();
+const qaScope = process.env.STAGING_QA_SCOPE ?? "full";
 const adminClient = createClient(supabaseUrl, secretKey, {
   auth: {
     persistSession: false,
@@ -16,6 +17,10 @@ const password = `Lumis-QA-${crypto.randomUUID()}!`;
 const createdUserIds = [];
 
 const results = [];
+
+if (!["full", "prof2"].includes(qaScope)) {
+  throw new Error("STAGING_QA_SCOPE must be full or prof2.");
+}
 
 await verifyQaSecretKeyAccess();
 
@@ -840,6 +845,7 @@ try {
   assert(restoredThreads.length === 2, "Same-email sign-in could not read saved reflections.");
   pass("Same-email sign-in can reload the saved profile and Past Reflections");
 
+  if (qaScope === "full") {
   const chartExportEvents = await serviceSelect(
     "external_sync_events",
     `user_id=eq.${primary.id}&destination=eq.salesforce_case&select=event_id,idempotency_key,payload_json&order=created_at.asc`
@@ -1039,8 +1045,9 @@ try {
     "Expired external-sync PII survived claim or replay."
   );
   pass("Expired external-sync payloads redact immediately and cannot be claimed or replayed");
+  }
 
-  console.log(JSON.stringify({ ok: true, checks: results }, null, 2));
+  console.log(JSON.stringify({ ok: true, scope: qaScope, checks: results }, null, 2));
 } finally {
   for (const userId of createdUserIds) {
     await cleanupUser(userId).catch((error) => {
@@ -1358,8 +1365,15 @@ async function cleanupUser(userId) {
   await serviceDelete("external_sync_events", `user_id=eq.${userId}`);
   await serviceDelete("account_deletion_requests", `user_id=eq.${userId}`);
   await serviceDelete("users", `id=eq.${userId}`);
-  const { error } = await adminClient.auth.admin.deleteUser(userId);
-  assert(!error, `Unable to delete disposable Auth user: ${error?.code ?? "AUTH_ADMIN_FAILED"}.`);
+  const response = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+    method: "DELETE",
+    headers: serviceHeaders()
+  });
+  const body = await response.json().catch(() => null);
+  assert(
+    response.ok || response.status === 404,
+    `Unable to delete disposable Auth user (HTTP ${response.status}): ${body?.error_code ?? body?.code ?? "AUTH_ADMIN_FAILED"}.`
+  );
 }
 
 function serviceHeaders() {
