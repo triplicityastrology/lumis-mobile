@@ -42,6 +42,7 @@
     "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.52.0",
     "typescript": "^5.8.3"
   }
 }
