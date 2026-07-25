@@ -326,10 +326,10 @@ export function RestoringSpaceScreen({
 // ---- AUTH-006 No chart found / continue setup ----
 export function NoChartFoundScreen({
   onContinueSetup,
-  onSignOut
+  onRequestLogout
 }: {
   onContinueSetup: () => void;
-  onSignOut: () => void;
+  onRequestLogout: () => void;
 }) {
   return (
     <AuthShell>
@@ -339,7 +339,7 @@ export function NoChartFoundScreen({
         <Text style={styles.body}>Your account is ready, but we don't have your birth chart yet. It only takes a minute.</Text>
         <View style={styles.gap} />
         <PrimaryButton label="Continue setup" icon={<ArrowRight color={INK} size={19} />} onPress={onContinueSetup} />
-        <LinkButton label="Sign out" onPress={onSignOut} />
+        <LinkButton label="Sign out" onPress={onRequestLogout} />
       </View>
     </AuthShell>
   );

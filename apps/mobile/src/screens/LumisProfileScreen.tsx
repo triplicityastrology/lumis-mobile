@@ -20,7 +20,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
 
-import { LogoutDialog } from "../components/AuthSystemKit";
 import { UnavailablePill } from "../components/states/StateKit";
 import { LumisPersonaAvatar } from "../components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
@@ -46,7 +45,7 @@ export function LumisProfileScreen({
   onPersona,
   onPlans,
   onSelectTab,
-  onLogout
+  onRequestLogout
 }: {
   birthDate: string;
   birthPlace: string;
@@ -67,13 +66,11 @@ export function LumisProfileScreen({
   onPersona: () => void;
   onPlans: () => void;
   onSelectTab: (tab: MainTab) => void;
-  /** S1-C01: real sign-out handler owned by account state (must throw on failure).
-   *  Provided by App wiring; when present the confirmed Log out action appears. */
-  onLogout?: () => Promise<void>;
+  /** Requests the app-owned, authoritative sign-out confirmation flow. */
+  onRequestLogout?: () => void;
 }) {
   const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [notice, setNotice] = useState("");
-  const [logoutOpen, setLogoutOpen] = useState(false);
   const plan = PRODUCTS.find((product) => product.tier === planTier) ?? PRODUCTS[0];
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
@@ -159,10 +156,10 @@ export function LumisProfileScreen({
 
           {/* S1-C01: obvious, confirmed Log out for signed-in users. Only shown once
               the real handler is wired in (never a navigation-only fake). */}
-          {email && onLogout ? (
+          {email && onRequestLogout ? (
             <Pressable
               style={styles.logoutButton}
-              onPress={() => setLogoutOpen(true)}
+              onPress={onRequestLogout}
               accessibilityRole="button"
               accessibilityLabel="Log out of Lumis"
             >
@@ -177,9 +174,6 @@ export function LumisProfileScreen({
         <MainTabBar active="profile" onSelect={onSelectTab} />
       </View>
 
-      {onLogout ? (
-        <LogoutDialog visible={logoutOpen} onCancel={() => setLogoutOpen(false)} onConfirm={onLogout} />
-      ) : null}
     </SafeAreaView>
   );
 }

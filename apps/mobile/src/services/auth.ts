@@ -160,11 +160,12 @@ function cleanAuthUrl() {
   );
 }
 
-export async function signOut(): Promise<void> {
+export async function signOut(): Promise<AuthStatus> {
+  const config = getSupabaseConfig();
   const supabase = getSupabaseClient();
 
-  if (!supabase) {
-    return;
+  if (!config.isConfigured || !supabase) {
+    return { isConfigured: false, user: null };
   }
 
   const { error } = await supabase.auth.signOut();
@@ -172,4 +173,6 @@ export async function signOut(): Promise<void> {
   if (error) {
     throw new Error(error.message);
   }
+
+  return { isConfigured: true, user: null };
 }

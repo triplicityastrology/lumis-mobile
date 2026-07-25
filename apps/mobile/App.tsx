@@ -66,7 +66,7 @@ import {
   saveLocalDemoSession
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
-import { NoChartFoundScreen, RestoringSpaceScreen } from "./src/components/AuthSystemKit";
+import { LogoutDialog, NoChartFoundScreen, RestoringSpaceScreen } from "./src/components/AuthSystemKit";
 import { CelestialBackground } from "./src/components/CelestialBackground";
 import { GeneratingView } from "./src/components/GeneratingView";
 import { LumisPersonaAvatar, PERSONA_AVATARS } from "./src/components/LumisPersonaAvatar";
@@ -181,6 +181,7 @@ export default function App() {
   const [forceNewSupabaseThread, setForceNewSupabaseThread] = useState(false);
   const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
 
   async function refreshAuthStatus() {
@@ -207,6 +208,18 @@ export default function App() {
     setAccountLoadMessage(message);
     setForceNewSupabaseThread(false);
     setActiveSupabaseThreadId(null);
+    setPendingChatDraft(null);
+  }
+
+  async function performAuthoritativeSignOut() {
+    await clearLocalDemoSession();
+    const signedOutStatus = await signOut();
+    clearVisibleAccountState("Signed out.");
+    pendingAfterSplashRef.current = null;
+    setAuthNotice("");
+    setAuthError("");
+    setAuthStatus(signedOutStatus);
+    setScreen("auth");
   }
 
   async function startOver() {
@@ -246,9 +259,8 @@ export default function App() {
 
   async function restoreAccountForStatus(status: AuthStatus, routeLoadedAccount = false) {
     if (status.isConfigured && status.user) {
+      clearVisibleAccountState("Loading your Lumis profile...");
       setAccountLoadStatus("loading");
-      setAccountLoadMessage("Loading your Lumis profile...");
-      setHasLocalDemoSession(false);
 
       try {
         const accountState = await loadSupabaseAccountState();
@@ -458,7 +470,7 @@ export default function App() {
     return (
       <NoChartFoundScreen
         onContinueSetup={() => setScreen("profile")}
-        onSignOut={() => setScreen("auth")}
+        onRequestLogout={() => setLogoutDialogOpen(true)}
       />
     );
   }
@@ -470,7 +482,7 @@ export default function App() {
         onBack={() => setScreen("home")}
         onContinueLocal={() => setScreen("profile")}
         onAccountStatusRefreshed={(status) => restoreAccountForStatus(status, true)}
-        onSignedOut={() => clearVisibleAccountState("Signed out.")}
+        onRequestLogout={() => setLogoutDialogOpen(true)}
         authNotice={authNotice}
         authError={authError}
         onClearAuthError={() => setAuthError("")}
@@ -702,6 +714,7 @@ export default function App() {
         onPersona={() => setScreen("persona")}
         onPlans={() => setScreen("plans")}
         onSelectTab={openMainTab}
+        onRequestLogout={() => setLogoutDialogOpen(true)}
       />
     );
   }
@@ -862,6 +875,11 @@ export default function App() {
     <View style={styles.appRoot}>
       <CelestialBackground variant={skyVariant} />
       {renderScreen()}
+      <LogoutDialog
+        visible={logoutDialogOpen}
+        onCancel={() => setLogoutDialogOpen(false)}
+        onConfirm={performAuthoritativeSignOut}
+      />
     </View>
   );
 }
@@ -872,7 +890,7 @@ function AuthScreen({
   onContinueLocal,
   onRefreshAuthStatus,
   onAccountStatusRefreshed,
-  onSignedOut,
+  onAuthoritativeSignOut,
   authNotice,
   authError,
   onClearAuthError
@@ -882,7 +900,7 @@ function AuthScreen({
   onContinueLocal: () => void;
   onRefreshAuthStatus: () => Promise<AuthStatus>;
   onAccountStatusRefreshed: (status: AuthStatus) => Promise<void>;
-  onSignedOut: () => void;
+  onAuthoritativeSignOut: () => Promise<void>;
   authNotice: string;
   authError: string;
   onClearAuthError: () => void;
@@ -923,9 +941,7 @@ function AuthScreen({
     setIsSubmitting(true);
 
     try {
-      await signOut();
-      await onRefreshAuthStatus();
-      onSignedOut();
+      await onAuthoritativeSignOut();
       setMessage("Signed out.");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Unable to sign out.");
