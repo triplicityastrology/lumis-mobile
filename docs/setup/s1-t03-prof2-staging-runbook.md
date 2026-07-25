@@ -38,7 +38,6 @@ NODE="/Users/rubyku/.local/node22/bin/node"
 EXPECTED_REF="bmqhwofmdgebpcihjlnb"
 EXPECTED_WORKER="lumis-chart-staging"
 WORKER_URL="https://lumis-chart-staging.triplicityastrology.workers.dev"
-ROLLBACK_COMMIT="467a3f980a3bc201d69d14747e13ebd38326ca73"
 EVIDENCE_DIR="/private/tmp/lumis-s1-t03-$(date +%Y%m%d-%H%M%S)"
 SECRET_FILE="$(mktemp)"
 
@@ -214,7 +213,6 @@ printf 'Step 10: Running the reversible missing-Worker rollback proof.\n'
 tee "$EVIDENCE_DIR/prof2-missing-worker-proof.log"
 
 printf 'S1-T03 staging run completed. Redacted evidence is in:\n%s\n' "$EVIDENCE_DIR"
-printf 'Rollback baseline, if needed: %s\n' "$ROLLBACK_COMMIT"
 )
 ```
 
@@ -272,44 +270,22 @@ cd "$REPO"
 )
 ```
 
-## 4. Edge Function Rollback
+## 4. Safe Recovery Boundary
 
-The safe rollback leaves migration `0026` in place because it is additive,
-backend-only, and may contain audit/reservation rows. It deploys the reviewed
-pre-T02 `profile` function from a detached temporary worktree without changing
-the current branch.
+There is no Edge Function rollback command in this runbook. Never deploy a
+pre-S1-T02 `profile` function: it could restore fixture fallback, weaker
+configuration handling, or a mobile-enforced PROF-2 limit.
 
-```bash
-(
-set -euo pipefail
+Emergency recovery is limited to:
 
-REPO="/Users/rubyku/Documents/Mobile App/lumis-mobile"
-PNPM="/Users/rubyku/.local/node22/bin/pnpm"
-ROLLBACK_COMMIT="467a3f980a3bc201d69d14747e13ebd38326ca73"
-ROLLBACK_DIR="/private/tmp/lumis-profile-rollback-$$"
+- restoring `CHART_WORKER_URL`;
+- installing a fresh matching signing secret in Cloudflare and Supabase;
+- pausing further PROF-2 requests while a reviewed post-S1-T02 function repair
+  is prepared and tested.
 
-cleanup_rollback() {
-  cd "$REPO"
-  git worktree remove --force "$ROLLBACK_DIR" 2>/dev/null || true
-}
-trap cleanup_rollback EXIT INT TERM
-
-cd "$REPO"
-git worktree add --detach "$ROLLBACK_DIR" "$ROLLBACK_COMMIT"
-cd "$ROLLBACK_DIR"
-
-"$PNPM" dlx supabase@latest functions deploy profile \
-  --project-ref bmqhwofmdgebpcihjlnb
-
-printf 'Profile function rolled back to commit %s.\n' "$ROLLBACK_COMMIT"
-printf 'Migration 0026 was intentionally retained as dormant additive schema.\n'
-)
-```
-
-Do not drop `birth_detail_change_requests` or the PROF-2 RPCs as an emergency
-rollback. If schema removal is ever required, create a separately reviewed
-forward migration after confirming there are no retained requests or audit
-requirements.
+Migration `0026` is forward-only. Do not remove its table, RPCs, reservations,
+or audit state as emergency recovery. Any database correction must be a
+separately reviewed forward migration.
 
 ## 5. Recorded Staging Evidence
 
@@ -324,3 +300,7 @@ As of 2026-07-26:
 - No fixture or replacement chart/profile version was committed.
 - Cross-user and protected RPC access: denied.
 - Temporary Worker URL removal: restored successfully.
+
+The complete redacted handback is stored in:
+
+`docs/qa/s1-t03-prof2-staging-evidence-2026-07-26.md`
