@@ -190,6 +190,10 @@ export default function App() {
     return status;
   }
 
+  function requestAuthoritativeLogout() {
+    setLogoutDialogOpen(true);
+  }
+
   function clearVisibleAccountState(message = "") {
     setProfileData(null);
     setChartProfile(null);
@@ -304,6 +308,11 @@ export default function App() {
     }
 
     clearVisibleAccountState("No saved Lumis profile was found on this device.");
+  }
+
+  async function applyRefreshedAuthStatus(status: AuthStatus) {
+    setAuthStatus(status);
+    await restoreAccountForStatus(status, true);
   }
 
   // AUTH-005 / AUTH-006: signed-in reload routes through the "Restoring your Lumis
@@ -470,7 +479,7 @@ export default function App() {
     return (
       <NoChartFoundScreen
         onContinueSetup={() => setScreen("profile")}
-        onRequestLogout={() => setLogoutDialogOpen(true)}
+        onRequestLogout={requestAuthoritativeLogout}
       />
     );
   }
@@ -481,8 +490,8 @@ export default function App() {
         authStatus={authStatus}
         onBack={() => setScreen("home")}
         onContinueLocal={() => setScreen("profile")}
-        onAccountStatusRefreshed={(status) => restoreAccountForStatus(status, true)}
-        onRequestLogout={() => setLogoutDialogOpen(true)}
+        onAccountStatusRefreshed={applyRefreshedAuthStatus}
+        onRequestLogout={requestAuthoritativeLogout}
         authNotice={authNotice}
         authError={authError}
         onClearAuthError={() => setAuthError("")}
@@ -698,7 +707,7 @@ export default function App() {
         birthDate={profileData.birthDate}
         birthPlace={profileData.birthPlace}
         birthTime={profileData.birthTime}
-        email={authStatus?.user?.email}
+        email={authStatus?.isConfigured ? authStatus.user?.email : undefined}
         name={profileData.name}
         personaName={personaName}
         personaAvatarKey={personaAvatarKey}
@@ -714,7 +723,7 @@ export default function App() {
         onPersona={() => setScreen("persona")}
         onPlans={() => setScreen("plans")}
         onSelectTab={openMainTab}
-        onRequestLogout={() => setLogoutDialogOpen(true)}
+        onRequestLogout={requestAuthoritativeLogout}
       />
     );
   }

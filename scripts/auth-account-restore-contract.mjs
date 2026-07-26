@@ -89,9 +89,20 @@ for (const reset of [
 }
 
 assert.equal(
-  (app.match(/onRequestLogout=\{\(\) => setLogoutDialogOpen\(true\)\}/g) ?? []).length,
+  (app.match(/onRequestLogout=\{requestAuthoritativeLogout\}/g) ?? []).length,
   3,
   "Profile, Auth, and No-Chart must request the same app-owned logout flow"
+);
+const logoutRequester = extractRange(
+  app,
+  "function requestAuthoritativeLogout",
+  "function clearVisibleAccountState"
+);
+assert.match(logoutRequester, /setLogoutDialogOpen\(true\)/);
+assert.doesNotMatch(
+  logoutRequester,
+  /signOut|clearVisibleAccountState|clearLocalDemoSession|setScreen/,
+  "requesting logout may only open the shared confirmation dialog"
 );
 assert.equal(
   (app.match(/<LogoutDialog/g) ?? []).length,
@@ -112,6 +123,53 @@ for (const [name, source] of [
 }
 assert.doesNotMatch(authScreen, /services\/auth";[\s\S]*\bsignOut\b/);
 assert.doesNotMatch(profileScreen, /<LogoutDialog/);
+const profileRoute = extractRange(
+  app,
+  'if (screen === "profileTab" && profileData)',
+  'if (screen === "birthDetails")'
+);
+assert.match(profileRoute, /<LumisProfileScreen/);
+assert.match(
+  profileRoute,
+  /email=\{authStatus\?\.isConfigured \? authStatus\.user\?\.email : undefined\}/
+);
+assert.match(profileRoute, /onRequestLogout=\{requestAuthoritativeLogout\}/);
+assert.match(app, /onAccountStatusRefreshed=\{applyRefreshedAuthStatus\}/);
+const refreshedAuthStatus = extractRange(
+  app,
+  "async function applyRefreshedAuthStatus",
+  "// AUTH-005"
+);
+assert.match(refreshedAuthStatus, /setAuthStatus\(status\)/);
+assert.match(refreshedAuthStatus, /await restoreAccountForStatus\(status, true\)/);
+assert.ok(
+  refreshedAuthStatus.indexOf("setAuthStatus(status)") <
+    refreshedAuthStatus.indexOf("await restoreAccountForStatus(status, true)"),
+  "a refreshed real session must be visible before its account route is restored"
+);
+assert.match(
+  profileScreen,
+  /\{email && onRequestLogout \? \([\s\S]{0,260}onPress=\{onRequestLogout\}[\s\S]{0,220}>Log out</,
+  "a real signed-in Profile must expose the shared Log out action"
+);
+assert.match(
+  profileScreen,
+  /\{email \? "Manage sign-in" : "Save this profile"\}/,
+  "local demo profiles must remain visibly unsigned"
+);
+assert.equal(
+  resolveProfileAuthPresentation({
+    isConfigured: true,
+    user: { email: "account-a@example.test" }
+  }).showLogout,
+  true,
+  "a configured Supabase user must see Profile logout"
+);
+assert.deepEqual(
+  resolveProfileAuthPresentation({ isConfigured: false, user: null }),
+  { email: undefined, accountLabel: "Save this profile", showLogout: false },
+  "a local demo must not expose a signed-in email or fake logout"
+);
 assert.match(authSystemKit, /<PrimaryButton label="Done" onPress=\{onCancel\}/);
 assert.match(authSystemKit, /accessibilityLabel="Cancel and stay signed in"/);
 
@@ -277,4 +335,13 @@ async function simulateResend({ state, resendImpl }) {
     state.error = caught instanceof Error ? caught.message : "Unable to resend your secure link.";
     state.canRetry = true;
   }
+}
+
+function resolveProfileAuthPresentation(status) {
+  const email = status.isConfigured ? status.user?.email : undefined;
+  return {
+    email,
+    accountLabel: email ? "Manage sign-in" : "Save this profile",
+    showLogout: Boolean(email)
+  };
 }
