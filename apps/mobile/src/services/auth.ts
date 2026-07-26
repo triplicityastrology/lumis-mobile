@@ -29,6 +29,7 @@ export type MagicLinkResult =
 export type AuthRedirectResult = {
   handled: boolean;
   message?: string;
+  status?: AuthStatus;
 };
 
 export async function getAuthStatus(): Promise<AuthStatus> {
@@ -44,7 +45,11 @@ export async function getAuthStatus(): Promise<AuthStatus> {
     return { isConfigured: false, user: null };
   }
 
-  const { data } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error) {
+    throw new Error(formatSessionNetworkError(error));
+  }
 
   return {
     isConfigured: true,
@@ -91,37 +96,45 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
   const authCode = currentUrl.searchParams.get("code");
 
   if (authCode) {
-    const { error } = await supabase.auth.exchangeCodeForSession(authCode);
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
 
-    if (error) {
-      throw new Error(formatRedirectError(error.message));
+      if (error || !data.session?.user) {
+        throw new Error(formatRedirectError(error?.message));
+      }
+
+      cleanBrowserAuthUrl();
+      return successfulRedirect(data.session.user);
+    } catch (error) {
+      throw new Error(formatRedirectExchangeError(error));
     }
-
-    cleanBrowserAuthUrl();
-    return {
-      handled: true,
-      message: "Email confirmed. Lumis account is ready."
-    };
   }
 
-  const accessToken = hashParams.get("access_token");
-  const refreshToken = hashParams.get("refresh_token");
+  const accessToken =
+    currentUrl.searchParams.get("access_token") ?? hashParams.get("access_token");
+  const refreshToken =
+    currentUrl.searchParams.get("refresh_token") ?? hashParams.get("refresh_token");
 
   if (accessToken && refreshToken) {
-    const { error } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken
-    });
+    try {
+      const { data, error } = await setNativeSessionWithResumeRetry(
+        () =>
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          }),
+        Platform.OS !== "web"
+      );
 
-    if (error) {
-      throw new Error(formatRedirectError(error.message));
+      if (error || !data.session?.user) {
+        throw new Error(formatRedirectError(error?.message));
+      }
+
+      cleanBrowserAuthUrl();
+      return successfulRedirect(data.session.user);
+    } catch (error) {
+      throw new Error(formatRedirectExchangeError(error));
     }
-
-    cleanBrowserAuthUrl();
-    return {
-      handled: true,
-      message: "Email confirmed. Lumis account is ready."
-    };
   }
 
   return { handled: false };
@@ -197,8 +210,57 @@ function isLocalhostUrl(value: string): boolean {
   }
 }
 
-function formatRedirectError(_message: string): string {
+function successfulRedirect(user: User): AuthRedirectResult {
+  return {
+    handled: true,
+    message: "Email confirmed. Lumis account is ready.",
+    status: {
+      isConfigured: true,
+      user
+    }
+  };
+}
+
+async function setNativeSessionWithResumeRetry<T>(
+  exchange: () => Promise<T>,
+  canRetry: boolean
+): Promise<T> {
+  try {
+    return await exchange();
+  } catch (error) {
+    if (!canRetry || !isNetworkFailure(error)) {
+      throw error;
+    }
+
+    // iOS can dispatch the deep link before networking has fully resumed.
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    return exchange();
+  }
+}
+
+function formatRedirectError(_message?: string): string {
   return "That sign-in link is invalid or expired. Request a new secure link.";
+}
+
+function formatRedirectExchangeError(error: unknown): string {
+  if (isNetworkFailure(error)) {
+    return "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link.";
+  }
+
+  return formatRedirectError();
+}
+
+function formatSessionNetworkError(error: unknown): string {
+  if (isNetworkFailure(error)) {
+    return "Lumis could not securely check your account. Check your connection and try again.";
+  }
+
+  return "Lumis could not securely check your account. Please try again.";
+}
+
+function isNetworkFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(message);
 }
 
 function cleanBrowserAuthUrl() {

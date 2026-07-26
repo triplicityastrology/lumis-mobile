@@ -7,6 +7,7 @@ const accountState = readFileSync("apps/mobile/src/services/accountState.ts", "u
 const authScreen = readFileSync("apps/mobile/src/screens/LumisAuthScreen.tsx", "utf8");
 const profileScreen = readFileSync("apps/mobile/src/screens/LumisProfileScreen.tsx", "utf8");
 const authSystemKit = readFileSync("apps/mobile/src/components/AuthSystemKit.tsx", "utf8");
+const supabaseService = readFileSync("apps/mobile/src/services/supabase.ts", "utf8");
 
 assert.match(authService, /import \* as Linking from "expo-linking"/);
 const emailRedirect = extractRange(
@@ -32,11 +33,58 @@ assert.match(redirectHandler, /new URL\(redirectUrl\)/);
 assert.match(redirectHandler, /isLumisAuthCallback\(currentUrl\)/);
 assert.match(redirectHandler, /exchangeCodeForSession\(authCode\)/);
 assert.match(redirectHandler, /setSession\(\{[\s\S]*access_token: accessToken,[\s\S]*refresh_token: refreshToken/);
+assert.match(redirectHandler, /setNativeSessionWithResumeRetry/);
+assert.match(redirectHandler, /successfulRedirect\(data\.session\.user\)/);
+assert.match(redirectHandler, /formatRedirectExchangeError\(error\)/);
 assert.doesNotMatch(
   redirectHandler,
   /console\.|setAuthStatus|setProfileData|starter_onboarding/,
   "redirect parsing must neither log private links nor create fake account state"
 );
+
+const successfulRedirect = extractRange(
+  authService,
+  "function successfulRedirect",
+  "async function setNativeSessionWithResumeRetry"
+);
+assert.match(successfulRedirect, /status:\s*\{[\s\S]*isConfigured: true,[\s\S]*user/);
+assert.doesNotMatch(
+  successfulRedirect,
+  /getAuthStatus|getUser|email|access_token|refresh_token/,
+  "a successful exchange must return only the real session user without another network lookup"
+);
+
+const nativeResumeRetry = extractRange(
+  authService,
+  "async function setNativeSessionWithResumeRetry",
+  "function formatRedirectError"
+);
+assert.match(nativeResumeRetry, /isNetworkFailure\(error\)/);
+assert.match(nativeResumeRetry, /setTimeout\(resolve, 750\)/);
+assert.equal(
+  (nativeResumeRetry.match(/return (?:await )?exchange\(\)/g) ?? []).length,
+  2,
+  "native session establishment may retry one interrupted resume request exactly once"
+);
+
+const safeRedirectFailure = extractRange(
+  authService,
+  "function formatRedirectExchangeError",
+  "function formatSessionNetworkError"
+);
+assert.match(safeRedirectFailure, /isNetworkFailure\(error\)/);
+assert.match(safeRedirectFailure, /connection was interrupted/);
+assert.doesNotMatch(
+  safeRedirectFailure,
+  /throw error|error\.message|console\./,
+  "native exchange failures must not expose raw fetch or credential details"
+);
+
+assert.match(
+  supabaseService,
+  /import \{ createClient, processLock, type SupabaseClient \} from "@supabase\/supabase-js"/
+);
+assert.match(supabaseService, /lock: processLock/);
 
 const authLinkLifecycle = extractRange(
   app,
@@ -46,12 +94,39 @@ const authLinkLifecycle = extractRange(
 assert.match(authLinkLifecycle, /Linking\.getInitialURL\(\)/);
 assert.match(authLinkLifecycle, /Linking\.addEventListener\("url", \(\{ url \}\) =>/);
 assert.match(authLinkLifecycle, /handleAuthRedirectFromUrl\(url\)/);
-assert.match(authLinkLifecycle, /applyRefreshedAuthStatus\(await getAuthStatus\(\)\)/);
+assert.match(authLinkLifecycle, /authRedirectInFlightRef\.current/);
+assert.match(authLinkLifecycle, /processedAuthRedirectUrlsRef\.current\.has\(url\)/);
+assert.match(authLinkLifecycle, /processedAuthRedirectUrlsRef\.current\.add\(url\)/);
+assert.match(authLinkLifecycle, /result\.status \?\? \(await getAuthStatus\(\)\)/);
+assert.match(authLinkLifecycle, /await applyRefreshedAuthStatus\(status\)/);
 assert.match(authLinkLifecycle, /subscription\.remove\(\)/);
+const callbackLifecycle = extractRange(
+  authLinkLifecycle,
+  "async function restoreAfterAuthRedirect",
+  "const subscription = Linking.addEventListener"
+);
+const redirectFailureCatch = extractRange(
+  callbackLifecycle,
+  "} catch (error) {",
+  "} finally {"
+);
+assert.match(redirectFailureCatch, /setAuthError\(/);
+assert.match(redirectFailureCatch, /setScreen\("auth"\)/);
+assert.doesNotMatch(
+  redirectFailureCatch,
+  /applyRefreshedAuthStatus|getAuthStatus|console\./,
+  "a failed exchange cannot restore or manufacture account state"
+);
 assert.doesNotMatch(
   authLinkLifecycle,
   /setAuthStatus\(\s*\{[\s\S]*user:/,
   "callback handling must restore only the session returned by Supabase"
+);
+
+assert.match(authScreen, /if \(authError\) \{\s*setSentToEmail\(null\)/);
+assert.match(
+  authScreen,
+  /accessibilityRole="alert"[\s\S]*accessibilityLiveRegion="assertive"/
 );
 
 for (const mobileCallback of [
@@ -76,6 +151,64 @@ assert.deepEqual(
     error: "That sign-in link is invalid or expired. Request a new secure link."
   },
   "an invalid callback must stay truthful and cannot manufacture an authenticated state"
+);
+
+const successfulExchangeState = {
+  authenticated: false,
+  restored: false,
+  error: ""
+};
+await simulateCallbackExchange({
+  state: successfulExchangeState,
+  exchange: async () => ({
+    isConfigured: true,
+    user: { id: "fixture-user" }
+  }),
+  restore: async (status) => {
+    assert.equal(status.user.id, "fixture-user");
+    successfulExchangeState.restored = true;
+  }
+});
+assert.deepEqual(successfulExchangeState, {
+  authenticated: true,
+  restored: true,
+  error: ""
+});
+
+let nativeResumeAttempts = 0;
+const resumedSession = await simulateNetworkResumeRetry(async () => {
+  nativeResumeAttempts += 1;
+  if (nativeResumeAttempts === 1) {
+    throw new TypeError("Network request failed");
+  }
+  return { userId: "fixture-user" };
+});
+assert.equal(nativeResumeAttempts, 2);
+assert.equal(resumedSession.userId, "fixture-user");
+
+const failedExchangeState = {
+  authenticated: false,
+  restored: false,
+  error: ""
+};
+await simulateCallbackExchange({
+  state: failedExchangeState,
+  exchange: async () => {
+    throw new TypeError("Network request failed");
+  },
+  restore: async () => {
+    failedExchangeState.restored = true;
+  }
+});
+assert.deepEqual(
+  failedExchangeState,
+  {
+    authenticated: false,
+    restored: false,
+    error:
+      "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link."
+  },
+  "a native fetch failure must remain signed out and show only the safe recovery message"
 );
 
 const signOutService = extractRange(
@@ -426,5 +559,34 @@ async function simulateInvalidRedirect(state) {
     throw new Error("That sign-in link is invalid or expired. Request a new secure link.");
   } catch (caught) {
     state.error = caught instanceof Error ? caught.message : "Unable to confirm account.";
+  }
+}
+
+async function simulateCallbackExchange({ state, exchange, restore }) {
+  try {
+    const status = await exchange();
+    state.authenticated = Boolean(status.user);
+    await restore(status);
+  } catch (caught) {
+    state.error = /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(
+      caught instanceof Error ? caught.message : String(caught)
+    )
+      ? "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link."
+      : "That sign-in link is invalid or expired. Request a new secure link.";
+  }
+}
+
+async function simulateNetworkResumeRetry(exchange) {
+  try {
+    return await exchange();
+  } catch (caught) {
+    if (
+      !/network request failed|failed to fetch|networkerror|load failed|fetch/i.test(
+        caught instanceof Error ? caught.message : String(caught)
+      )
+    ) {
+      throw caught;
+    }
+    return exchange();
   }
 }

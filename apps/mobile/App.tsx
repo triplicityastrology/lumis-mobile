@@ -175,6 +175,8 @@ export default function App() {
   >("home");
   const screenRef = useRef(screen);
   screenRef.current = screen;
+  const authRedirectInFlightRef = useRef(false);
+  const processedAuthRedirectUrlsRef = useRef(new Set<string>());
   const pendingAfterSplashRef = useRef<"home" | "chat" | null>(null);
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
@@ -441,7 +443,34 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    async function restoreAfterAuthRedirect(url?: string | null) {
+    async function restoreExistingAuthSession() {
+      try {
+        await applyRefreshedAuthStatus(await getAuthStatus());
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : "Lumis could not securely check your account. Check your connection and try again."
+        );
+      }
+    }
+
+    async function restoreAfterAuthRedirect(url: string) {
+      if (
+        authRedirectInFlightRef.current ||
+        processedAuthRedirectUrlsRef.current.has(url)
+      ) {
+        return;
+      }
+
+      // Keep one-time callback credentials in memory only, never logs or UI.
+      processedAuthRedirectUrlsRef.current.add(url);
+      authRedirectInFlightRef.current = true;
+
       try {
         const result = await handleAuthRedirectFromUrl(url);
 
@@ -450,15 +479,24 @@ export default function App() {
         }
 
         if (isMounted) {
-          await applyRefreshedAuthStatus(await getAuthStatus());
+          const status = result.status ?? (await getAuthStatus());
+          setAuthError("");
+          await applyRefreshedAuthStatus(status);
         }
       } catch (error) {
         if (!isMounted) {
           return;
         }
 
-        setAuthError(error instanceof Error ? error.message : "Unable to confirm account.");
-        await applyRefreshedAuthStatus(await getAuthStatus());
+        setAuthNotice("");
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : "Lumis could not finish secure sign-in. Check your connection and request a new sign-in link."
+        );
+        setScreen("auth");
+      } finally {
+        authRedirectInFlightRef.current = false;
       }
     }
 
@@ -466,7 +504,21 @@ export default function App() {
       void restoreAfterAuthRedirect(url);
     });
 
-    void Linking.getInitialURL().then((url) => restoreAfterAuthRedirect(url));
+    void Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          return restoreAfterAuthRedirect(url);
+        }
+
+        return restoreExistingAuthSession();
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAuthError(
+            "Lumis could not securely check your account. Check your connection and try again."
+          );
+        }
+      });
 
     return () => {
       isMounted = false;

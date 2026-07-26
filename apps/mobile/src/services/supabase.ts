@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, processLock, type SupabaseClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
@@ -35,6 +35,7 @@ export function getSupabaseClient(): SupabaseClient | null {
     auth: {
       autoRefreshToken: true,
       detectSessionInUrl: Platform.OS === "web",
+      lock: processLock,
       persistSession: true,
       storage: createAuthStorage()
     }

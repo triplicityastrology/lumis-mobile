@@ -2,7 +2,7 @@ import Check from "lucide-react-native/icons/check";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import LockKeyhole from "lucide-react-native/icons/lock-keyhole";
 import Mail from "lucide-react-native/icons/mail";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { MagicLinkSentScreen } from "../components/AuthSystemKit";
@@ -36,6 +36,12 @@ export function LumisAuthScreen({
   const [isSubmitting, setIsSubmitting] = useState(false);
   // The "Check your inbox" screen (AUTH-002) after a magic link is sent.
   const [sentToEmail, setSentToEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authError) {
+      setSentToEmail(null);
+    }
+  }, [authError]);
 
   async function refreshAccount(messageText: string) {
     const status = await getAuthStatus();
@@ -131,7 +137,15 @@ export function LumisAuthScreen({
           <Text style={flowStyles.message}>{message || authNotice}</Text>
         </View>
       ) : null}
-      {error || authError ? <View style={flowStyles.error}><Text style={flowStyles.errorText}>{error || authError}</Text></View> : null}
+      {error || authError ? (
+        <View
+          style={flowStyles.error}
+          accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
+        >
+          <Text style={flowStyles.errorText}>{error || authError}</Text>
+        </View>
+      ) : null}
 
       <Pressable
         style={[flowStyles.primaryButton, isSubmitting && flowStyles.disabled]}
