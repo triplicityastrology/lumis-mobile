@@ -31,15 +31,19 @@ const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
 const chatSource = await readFile(path.join(root, "apps/mobile/src/services/chat.ts"), "utf8");
 const generatingSource = await readFile(path.join(root, "apps/mobile/src/components/GeneratingView.tsx"), "utf8");
-const paywallSource = extractRange(appSource, "const PAYWALL_STARTER_LINES", "function NotificationBellIcon");
-const nonPaywallAppSource = appSource.replace(paywallSource, "");
+const diceSource = await readFile(path.join(screensPath, "LumisDiceScreen.tsx"), "utf8");
+const diceRitualSource = await readFile(
+  path.join(featuresPath, "dice/DiceRitualScreen.tsx"),
+  "utf8"
+);
+const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
 const screenFiles = (await readdir(screensPath))
-  .filter((name) => name.endsWith(".tsx") && !/profile|paywall/i.test(name))
+  .filter((name) => name.endsWith(".tsx"))
   .map((name) => path.join(screensPath, name));
 const featureFiles = await listTsxFiles(featuresPath);
 
 const scannedSurfaces = [
-  { name: "App surfaces outside Paywall", source: nonPaywallAppSource },
+  { name: "App surfaces", source: appSource },
   ...await Promise.all([...screenFiles, ...featureFiles].map(async (file) => ({
     name: path.relative(root, file),
     source: await readFile(file, "utf8")
@@ -50,7 +54,23 @@ for (const surface of scannedSurfaces) {
   assertNoVisibleBilling(surface.source, surface.name);
 }
 
-assert.match(paywallSource, /credits/i, "Paywall must retain credit information");
+assert.doesNotMatch(
+  appSource,
+  /["'](?:plans|paywall)["']/,
+  "preview navigation cannot expose Plans or Paywall routes"
+);
+assert.doesNotMatch(appSource, /function (?:PlansAccessScreen|PaywallScreen)\b/);
+assert.doesNotMatch(profileScreenSource, /Credit balance|onPlans|planTier|remainingCredits/);
+assert.match(
+  diceSource,
+  /Preview — no credits are charged/,
+  "the fallback Dice preview must disclose its no-charge state"
+);
+assert.match(
+  diceRitualSource,
+  /Preview — no credits are charged/,
+  "the default Dice preview must disclose its no-charge state"
+);
 assert.doesNotMatch(appSource, /accessibilityLabel="Credit estimate"/i);
 assert.doesNotMatch(appSource, /test mode:\s*no charge/i);
 assert.match(mainTabBarSource, /label: "Talk"/);
@@ -140,7 +160,6 @@ await assertScreenUsesTab("LumisDiceScreen.tsx", "dice");
 await assertScreenUsesTab("LumisProfileScreen.tsx", "profile");
 const insightsSource = await readFile(path.join(screensPath, "ChartInsightsScreen.tsx"), "utf8");
 assert.match(insightsSource, /accessibilityLabel="Notifications"/);
-const diceSource = await readFile(path.join(screensPath, "LumisDiceScreen.tsx"), "utf8");
 assert.match(diceSource, /type DiceStep = "ask" \| "shake" \| "result"/);
 assert.match(diceSource, /Accelerometer\.addListener/);
 assert.match(diceSource, /<OctaDie/);
@@ -148,7 +167,6 @@ assert.match(diceSource, /Save this reflection/);
 assert.match(diceSource, /function cancelRoll\(\)[\s\S]{0,160}clearRollTimers\(\)/);
 assert.match(diceSource, /onPress=\{step === "result" \? reset : cancelRoll\}/);
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
-const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
 const personaAvatarSource = await readFile(
   path.join(root, "apps/mobile/src/components/LumisPersonaAvatar.tsx"),
   "utf8"
@@ -157,7 +175,6 @@ const birthProfileSource = await readFile(path.join(screensPath, "LumisBirthProf
 for (const requiredProfileSurface of [
   "YOUR CHART",
   "LUMIS PERSONA",
-  "PLAN",
   "CARE CIRCLE",
   "PRIVACY & SUPPORT",
   "Export my data",
@@ -181,7 +198,6 @@ assert.match(careCircleSource, /\{__DEV__ \? \(\s*<View style=\{s\.codeBox\}>/);
 assert.match(careCircleSource, /\{__DEV__ \? \(\s*<>[\s\S]*?Simulate scan/);
 assert.match(profileScreenSource, /showPendingNotice\("Account deletion"\)/);
 assert.match(profileScreenSource, /will be connected after its security review is complete/);
-assert.match(profileScreenSource, /PRODUCTS\.find\(\(product\) => product\.tier === planTier\)/);
 assert.match(profileScreenSource, /value=\{formatMainFocus\(mainFocus\)\}/);
 assert.match(profileScreenSource, /<LumisPersonaAvatar avatarKey=\{personaAvatarKey\} size=\{46\}/);
 assert.match(appSource, /<LumisPersonaAvatar avatarKey=\{lumisAvatarKey\} size=\{38\}/);
@@ -277,14 +293,18 @@ async function listTsxFiles(directory) {
   const files = await Promise.all(entries.map(async (entry) => {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return listTsxFiles(entryPath);
-    return entry.name.endsWith(".tsx") && !/profile|paywall/i.test(entry.name) ? [entryPath] : [];
+    return entry.name.endsWith(".tsx") ? [entryPath] : [];
   }));
   return files.flat();
 }
 
 function assertNoVisibleBilling(source, surface) {
-  const visibleBillingStrings = [...source.matchAll(
-    /["'`]([^"'`\n]*(?:\bcredits?\b|\bbilling\b|test mode|no charge)[^"'`\n]*)["'`]/gi
+  const sourceWithoutApprovedDiceDisclosure = source.replace(
+    /Preview — no credits are charged/g,
+    "Preview"
+  );
+  const visibleBillingStrings = [...sourceWithoutApprovedDiceDisclosure.matchAll(
+    /["'`]([^"'`\n]*(?:\bcredits?\b|\bbilling\b|\bpaywall\b|\btop[- ]?up\b|\bpurchase\b|\bpayment\b|\binsufficient[- ]?credit\b|HK\$|\bcharged\b|\bcharge amount\b|\bprice\b|\bpricing\b)[^"'`\n]*)["'`]/gi
   )].map((match) => match[1]);
 
   assert.deepEqual(

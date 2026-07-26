@@ -18,20 +18,12 @@ import Search from "lucide-react-native/icons/search";
 import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
-import X from "lucide-react-native/icons/x";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { BackHandler, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx } from "react-native-safe-area-context";
 
 import {
   PERSONA_STYLES,
-  FEATURE_LABELS,
-  PLAN_ENTITLEMENTS,
-  PRODUCT_TERMS,
-  PRODUCTS,
-  ROUTE_CREDITS,
-  ROUTE_PLAN_REQUIREMENTS,
-  canUseRoute,
   type ChartV2,
   type PlanTier,
   type PersonaStyleKey
@@ -84,10 +76,6 @@ import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
-
-const highlightRoutes = ROUTE_CREDITS.filter((route) =>
-  ["casual", "dice", "astro_deep"].includes(route.route)
-);
 
 type ProfileData = BirthProfileForm;
 
@@ -153,7 +141,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "plans" | "paywall" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart">("splash");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart">("splash");
   const [restoreResult, setRestoreResult] = useState<"loading" | "foundChart" | "noChart" | "failed">("loading");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
@@ -432,8 +420,7 @@ export default function App() {
     const onHardwareBack = () => {
       const s = screenRef.current;
       if (s === "notifications") { setScreen(notificationsReturn); return true; }
-      if (s === "paywall") { setScreen("plans"); return true; }
-      if (s === "care" || s === "plans" || s === "birthDetails" || s === "chartUpdated") { setScreen("profileTab"); return true; }
+      if (s === "care" || s === "birthDetails" || s === "chartUpdated") { setScreen("profileTab"); return true; }
       if (s === "auth" || s === "persona" || s === "preview" || s === "reflections" || s === "noChart") { setScreen("home"); return true; }
       if (s === "restoringSpace") { return true; } // block back while restoring
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
@@ -738,27 +725,6 @@ export default function App() {
     );
   }
 
-  if (screen === "plans") {
-    return (
-      <PlansAccessScreen
-        currentPlan={planTier}
-        onBack={() => setScreen("profileTab")}
-        onUpgrade={() => setScreen("paywall")}
-      />
-    );
-  }
-
-  if (screen === "paywall") {
-    return (
-      <PaywallScreen
-        onClose={() => setScreen("plans")}
-        // Billing is not wired yet (RevenueCat / App Store pending). Until then the
-        // CTA returns to the Plans reference page rather than starting a purchase.
-        onStartCheckout={() => setScreen("plans")}
-      />
-    );
-  }
-
   if (screen === "dice" && profileData && chartProfile) {
     // Feature-flagged physics ritual (AC-DICE-01/04); LumisDiceScreen stays as
     // the identical-flow fallback path until the device spike passes.
@@ -787,16 +753,13 @@ export default function App() {
         personaName={personaName}
         personaAvatarKey={personaAvatarKey}
         mainFocus={mainFocus}
-        planTier={planTier}
         personaStyle={personaStyle}
-        remainingCredits={remainingCredits}
         timeUnknown={profileData.timeUnknown}
         onAccount={() => setScreen("auth")}
         onBirthDetails={() => setScreen("birthDetails")}
         onCareCircle={() => setScreen("care")}
         onNotifications={openNotifications}
         onPersona={() => setScreen("persona")}
-        onPlans={() => setScreen("plans")}
         onSelectTab={openMainTab}
         onRequestLogout={requestAuthoritativeLogout}
       />
@@ -2243,208 +2206,6 @@ function getChatPersistenceMessage(errorCode?: string | null) {
   return "This reply was not saved. Please try sending your message again.";
 }
 
-const PAYWALL_STARTER_LINES = ["50 one-time credits", "Your chart summary", "First reflections with Lumis"];
-const PAYWALL_ESSENTIAL_LINES = [
-  "150 credits / month",
-  "Natal chart chat",
-  "All 3 Lumis Personas",
-  "Astrology dice",
-  "Knowledge library"
-];
-
-// Interrupt-and-upsell modal (distinct from the calm Plans & Access reference page).
-function PaywallScreen({ onClose, onStartCheckout }: { onClose: () => void; onStartCheckout: () => void }) {
-  const starter = PRODUCTS.find((product) => product.tier === "starter");
-  const essential = PRODUCTS.find((product) => product.tier === "essential");
-
-  return (
-    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.lumisDarkSafe}>
-      <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.paywallContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.paywallTopBar}>
-          <Pressable style={styles.paywallClose} onPress={onClose} accessibilityLabel="Close">
-            <X color="#F0F4F8" size={19} />
-          </Pressable>
-        </View>
-
-        <View style={styles.paywallEyebrow}>
-          <Sparkles color="#E9B083" size={12} />
-          <Text style={styles.paywallEyebrowText}>CHOOSE YOUR PLAN</Text>
-        </View>
-        <Text style={styles.paywallTitle}>Go deeper with Lumis.</Text>
-        <Text style={styles.paywallSubtitle}>
-          Start free. Upgrade when the conversations start earning their keep.
-        </Text>
-
-        {/* Starter — free tier, no CTA */}
-        <View style={styles.paywallCard}>
-          <View style={styles.paywallCardHead}>
-            <Text style={styles.paywallPlanName}>{starter?.name ?? "Starter"}</Text>
-            <Text style={styles.paywallPlanPrice}>HK${starter?.priceHkd ?? 0}</Text>
-          </View>
-          <View style={styles.paywallChecklist}>
-            {PAYWALL_STARTER_LINES.map((line) => (
-              <View key={line} style={styles.paywallCheckRow}>
-                <Check color="#86C8A6" size={15} />
-                <Text style={styles.paywallCheckText}>{line}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Lumis Essential — recommended, gold border + badge + in-card CTA */}
-        <View style={styles.paywallCardFeatured}>
-          <View style={styles.paywallBadge}>
-            <Text style={styles.paywallBadgeText}>MOST POPULAR</Text>
-          </View>
-          <View style={styles.paywallCardHead}>
-            <Text style={styles.paywallPlanName}>{essential?.name ?? "Lumis Essential"}</Text>
-            <Text style={styles.paywallPlanPrice}>
-              HK${essential?.priceHkd ?? 58}
-              <Text style={styles.paywallPlanPer}>/mo</Text>
-            </Text>
-          </View>
-          <View style={styles.paywallChecklist}>
-            {PAYWALL_ESSENTIAL_LINES.map((line) => (
-              <View key={line} style={styles.paywallCheckRow}>
-                <Check color="#86C8A6" size={15} />
-                <Text style={styles.paywallCheckText}>{line}</Text>
-              </View>
-            ))}
-          </View>
-          <Pressable onPress={onStartCheckout} accessibilityRole="button" accessibilityLabel="Choose Essential">
-            <LinearGradient colors={SUNRISE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.paywallInCardCta}>
-              <Text style={styles.paywallInCardCtaText}>Choose Essential</Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
-
-        <Pressable onPress={onStartCheckout} accessibilityRole="button" accessibilityLabel="Start with Lumis Essential">
-          <LinearGradient colors={SUNRISE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.paywallPrimaryCta}>
-            <Text style={styles.paywallPrimaryCtaText}>Start with Lumis Essential  →</Text>
-          </LinearGradient>
-        </Pressable>
-
-        <Text style={styles.paywallFootnote}>
-          Subscriptions and purchases are managed through your App Store or Google Play settings.
-        </Text>
-      </ScrollView>
-    </SafeAreaViewCtx>
-  );
-}
-
-function PlansAccessScreen({
-  currentPlan,
-  onBack,
-  onUpgrade
-}: {
-  currentPlan: PlanTier;
-  onBack: () => void;
-  onUpgrade: () => void;
-}) {
-  const planRank = { starter: 0, essential: 1, prime: 2 } as const;
-
-  return (
-    <SafeAreaViewCtx edges={["top", "left", "right"]} style={styles.lumisDarkSafe}>
-      <StatusBar style="light" />
-      <View style={styles.plansFrame}>
-        <View style={styles.plansHeader}>
-          <Pressable style={styles.plansBackBtn} onPress={onBack} accessibilityLabel="Back">
-            <ArrowLeft color="#F0F4F8" size={20} />
-          </Pressable>
-          <Text style={styles.plansHeaderTitle}>Plans & Access</Text>
-          <View style={styles.plansBackBtn} />
-        </View>
-
-        <ScrollView contentContainerStyle={styles.plansContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.plansIntroCard}>
-            <View style={styles.plansIntroIcon}>
-              <Sparkles color="#3A2218" size={20} />
-            </View>
-            <View style={styles.paywallEyebrow}>
-              <Sparkles color="#E9B083" size={11} />
-              <Text style={styles.paywallEyebrowText}>PLANS & ACCESS</Text>
-            </View>
-            <Text style={styles.plansIntroTitle}>Credits, routes, and premium gates.</Text>
-            <Text style={styles.plansIntroBody}>
-              This scaffold shows the current entitlement rules. Live purchases will be connected
-              after RevenueCat and App Store setup.
-            </Text>
-          </View>
-
-          {PRODUCTS.map((product) => {
-            const tier = product.tier as PlanTier;
-            const isCurrent = tier === currentPlan;
-            const isUpgrade = planRank[tier] > planRank[currentPlan];
-            const features = PLAN_ENTITLEMENTS[tier] ?? [];
-
-            return (
-              <View key={product.code} style={[styles.plansCard, isUpgrade && styles.plansCardUpgrade]}>
-                <View style={styles.plansCardHead}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.plansCardName}>{product.name}</Text>
-                    <Text style={styles.plansCardPrice}>
-                      HK${product.priceHkd} · {product.credits} credits
-                    </Text>
-                  </View>
-                  {isCurrent ? (
-                    <Text style={styles.plansPillCurrent}>Current</Text>
-                  ) : isUpgrade ? (
-                    <Text style={styles.plansPillUpgrade}>Upgrade</Text>
-                  ) : null}
-                </View>
-                <View style={styles.plansFeatureList}>
-                  {features.map((feature) => (
-                    <View key={feature} style={styles.plansFeatureRow}>
-                      <Text style={styles.plansFeatureText}>{FEATURE_LABELS[feature]}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            );
-          })}
-
-          {currentPlan !== "prime" ? (
-            <Pressable onPress={onUpgrade} accessibilityRole="button" accessibilityLabel="See upgrade options">
-              <LinearGradient colors={SUNRISE_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.plansUpgradeCta}>
-                <Text style={styles.plansUpgradeCtaText}>See upgrade options</Text>
-              </LinearGradient>
-            </Pressable>
-          ) : null}
-
-          <Text style={styles.sectionLabelDark}>ROUTE ACCESS</Text>
-          <View style={styles.plansRouteCard}>
-            {ROUTE_CREDITS.map((route, index) => {
-              const available = canUseRoute(currentPlan, route.route);
-              return (
-                <View key={route.route} style={[styles.plansRouteRow, index === 0 && styles.plansRouteRowFirst]}>
-                  <View style={styles.plansRouteCopy}>
-                    <Text style={styles.plansRouteTitle}>{route.label}</Text>
-                    <Text style={styles.plansRouteMeta}>
-                      {route.credits} credits · min {ROUTE_PLAN_REQUIREMENTS[route.route]}
-                    </Text>
-                  </View>
-                  <Text style={[styles.plansRouteStatus, available ? styles.plansRouteStatusOpen : styles.plansRouteStatusLocked]}>
-                    {available ? "Available" : "Upgrade"}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-
-          <View style={styles.plansNoteCard}>
-            <Info color="#8A9BB0" size={15} />
-            <Text style={styles.plansNoteText}>
-              Backend functions enforce credits and plan gates. This page is a reference only and is
-              never trusted for billing or access control.
-            </Text>
-          </View>
-        </ScrollView>
-      </View>
-    </SafeAreaViewCtx>
-  );
-}
-
 function MiniChartStat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.miniChartStat}>
@@ -3493,64 +3254,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800"
   },
-  // ---- Paywall ----
-  paywallContent: { paddingHorizontal: 22, paddingBottom: 36, paddingTop: 6 },
-  paywallTopBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
-  paywallClose: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(22,39,61,0.5)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
-  paywallEyebrow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  paywallEyebrowText: { color: "#E9B083", fontSize: 10, fontWeight: "700", letterSpacing: 2 },
-  paywallTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 30, fontWeight: "600", marginTop: 10 },
-  paywallSubtitle: { color: "#C4CEDB", fontSize: 13.5, lineHeight: 20, marginTop: 8, marginBottom: 20 },
-  paywallCard: { backgroundColor: "rgba(58,80,118,0.24)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 20, borderWidth: 1, padding: 18, marginBottom: 16 },
-  paywallCardFeatured: { backgroundColor: "rgba(58,80,118,0.28)", borderColor: "rgba(201,169,110,0.6)", borderRadius: 20, borderWidth: 1.5, padding: 18, marginBottom: 22, marginTop: 6 },
-  paywallBadge: { position: "absolute", top: -11, left: 18, backgroundColor: "#C9A96E", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 },
-  paywallBadgeText: { color: "#2A1C08", fontSize: 9, fontWeight: "800", letterSpacing: 1.2 },
-  paywallCardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  paywallPlanName: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 19, fontWeight: "600" },
-  paywallPlanPrice: { color: "#F0F4F8", fontSize: 20, fontWeight: "700" },
-  paywallPlanPer: { color: "#8A9BB0", fontSize: 12, fontWeight: "600" },
-  paywallChecklist: { gap: 10 },
-  paywallCheckRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  paywallCheckText: { color: "#C4CEDB", fontSize: 13.5, flex: 1 },
-  paywallInCardCta: { minHeight: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", marginTop: 16 },
-  paywallInCardCtaText: { color: "#3A2218", fontSize: 14, fontWeight: "700" },
-  paywallPrimaryCta: { minHeight: 54, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  paywallPrimaryCtaText: { color: "#3A2218", fontSize: 15, fontWeight: "700" },
-  paywallFootnote: { color: "#71839A", fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 16, paddingHorizontal: 12 },
-  // ---- Plans & Access ----
-  plansFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
-  plansHeader: { minHeight: 60, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 18 },
-  plansHeaderTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 20, fontWeight: "600" },
-  plansBackBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(22,39,61,0.5)", borderWidth: 1, borderColor: "rgba(255,255,255,0.09)" },
-  plansContent: { paddingHorizontal: 18, paddingBottom: 40, paddingTop: 6 },
-  plansIntroCard: { backgroundColor: "rgba(58,80,118,0.24)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 20, borderWidth: 1, padding: 22, alignItems: "center", marginBottom: 18 },
-  plansIntroIcon: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "#C9A96E", marginBottom: 14 },
-  plansIntroTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 24, fontWeight: "600", textAlign: "center", marginTop: 10, lineHeight: 30 },
-  plansIntroBody: { color: "#C4CEDB", fontSize: 12.5, lineHeight: 19, textAlign: "center", marginTop: 8 },
-  plansCard: { backgroundColor: "rgba(58,80,118,0.2)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 18, borderWidth: 1, padding: 16, marginBottom: 12 },
-  plansCardUpgrade: { borderColor: "rgba(201,169,110,0.4)" },
-  plansCardHead: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  plansCardName: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 17, fontWeight: "600" },
-  plansCardPrice: { color: "#8A9BB0", fontSize: 12, marginTop: 3 },
-  plansPillCurrent: { color: "#86C8A6", backgroundColor: "rgba(134,200,166,0.14)", borderColor: "rgba(134,200,166,0.4)", borderWidth: 1, borderRadius: 999, fontSize: 11, fontWeight: "700", overflow: "hidden", paddingHorizontal: 11, paddingVertical: 5 },
-  plansPillUpgrade: { color: "#E9B083", backgroundColor: "rgba(233,176,131,0.12)", borderColor: "rgba(233,176,131,0.4)", borderWidth: 1, borderRadius: 999, fontSize: 11, fontWeight: "700", overflow: "hidden", paddingHorizontal: 11, paddingVertical: 5 },
-  plansFeatureList: { gap: 0 },
-  plansFeatureRow: { borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)", paddingVertical: 9 },
-  plansFeatureText: { color: "#C4CEDB", fontSize: 13 },
-  plansUpgradeCta: { minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4, marginBottom: 8 },
-  plansUpgradeCtaText: { color: "#3A2218", fontSize: 14.5, fontWeight: "700" },
-  sectionLabelDark: { color: "#8A9BB0", fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7, marginTop: 18, marginBottom: 10 },
-  plansRouteCard: { backgroundColor: "rgba(58,80,118,0.2)", borderColor: "rgba(255,255,255,0.09)", borderRadius: 18, borderWidth: 1, overflow: "hidden" },
-  plansRouteRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 15, paddingVertical: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.05)" },
-  plansRouteRowFirst: { borderTopWidth: 0 },
-  plansRouteCopy: { flex: 1 },
-  plansRouteTitle: { color: "#F0F4F8", fontSize: 13.5, fontWeight: "700" },
-  plansRouteMeta: { color: "#8A9BB0", fontSize: 11, marginTop: 3 },
-  plansRouteStatus: { fontSize: 11.5, fontWeight: "700" },
-  plansRouteStatusOpen: { color: "#86C8A6" },
-  plansRouteStatusLocked: { color: "#E9B083" },
-  plansNoteCard: { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: "rgba(22,39,61,0.4)", borderColor: "rgba(255,255,255,0.06)", borderRadius: 14, borderWidth: 1, padding: 14, marginTop: 16 },
-  plansNoteText: { color: "#8A9BB0", fontSize: 11.5, lineHeight: 17, flex: 1 },
   chatStartOverButton: {
     alignItems: "center",
     paddingVertical: 4
@@ -3729,98 +3432,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 12
-  },
-  planHeroIcon: {
-    color: "#8B6429",
-    fontSize: 18,
-    fontWeight: "900"
-  },
-  planCardGrid: {
-    gap: 12
-  },
-  planAccessCard: {
-    backgroundColor: "#FBF7EE",
-    borderColor: "rgba(120,90,40,0.12)",
-    borderRadius: 22,
-    borderWidth: 1,
-    gap: 12,
-    padding: 16
-  },
-  planAccessCardCurrent: {
-    backgroundColor: "rgba(180,134,63,0.09)",
-    borderColor: "rgba(180,134,63,0.28)"
-  },
-  planAccessHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "space-between"
-  },
-  planAccessName: {
-    color: "#2F2B25",
-    fontSize: 17,
-    fontWeight: "800"
-  },
-  planAccessPrice: {
-    color: "#8A7659",
-    fontSize: 13,
-    marginTop: 4
-  },
-  currentPlanPill: {
-    backgroundColor: "rgba(47,111,80,0.10)",
-    borderColor: "rgba(47,111,80,0.18)",
-    borderRadius: 999,
-    borderWidth: 1,
-    color: "#2F6F50",
-    fontSize: 11,
-    fontWeight: "800",
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  featureList: {
-    gap: 6
-  },
-  featureText: {
-    color: "#6F6252",
-    fontSize: 13,
-    lineHeight: 18
-  },
-  routeAccessPanel: {
-    backgroundColor: "#10213A",
-    borderColor: "rgba(238,224,201,0.18)",
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16
-  },
-  routeAccessRow: {
-    alignItems: "center",
-    borderTopColor: "rgba(238,224,201,0.13)",
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "space-between",
-    paddingVertical: 12
-  },
-  routeAccessCopy: {
-    flex: 1
-  },
-  routeAccessTitle: {
-    color: "#F9F0E1",
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  routeAccessMeta: {
-    color: "#CFC6B6",
-    fontSize: 12,
-    marginTop: 4
-  },
-  routeAccessStatus: {
-    color: "#D2A24F",
-    fontSize: 12,
-    fontWeight: "800"
-  },
-  routeAccessStatusOpen: {
-    color: "#87C7A3"
   },
   birthPolicyCard: {
     backgroundColor: "#FBF7EE",

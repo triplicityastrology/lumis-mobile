@@ -11,14 +11,13 @@ import LogOut from "lucide-react-native/icons/log-out";
 import MapPin from "lucide-react-native/icons/map-pin";
 import QrCode from "lucide-react-native/icons/qr-code";
 import ShieldCheck from "lucide-react-native/icons/shield-check";
-import Sparkles from "lucide-react-native/icons/sparkles";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import UserRound from "lucide-react-native/icons/user-round";
 import Users from "lucide-react-native/icons/users";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { PRODUCTS, type PersonaStyleKey, type PlanTier } from "@lumis/shared";
+import type { PersonaStyleKey } from "@lumis/shared";
 
 import { UnavailablePill } from "../components/states/StateKit";
 import { LumisPersonaAvatar } from "../components/LumisPersonaAvatar";
@@ -34,16 +33,13 @@ export function LumisProfileScreen({
   name,
   personaAvatarKey,
   personaName,
-  planTier,
   personaStyle,
-  remainingCredits,
   timeUnknown,
   onAccount,
   onBirthDetails,
   onCareCircle,
   onNotifications,
   onPersona,
-  onPlans,
   onSelectTab,
   onRequestLogout
 }: {
@@ -55,23 +51,19 @@ export function LumisProfileScreen({
   name: string;
   personaAvatarKey: string;
   personaName: string;
-  planTier: PlanTier;
   personaStyle: PersonaStyleKey;
-  remainingCredits: number;
   timeUnknown: boolean;
   onAccount: () => void;
   onBirthDetails: () => void;
   onCareCircle: () => void;
   onNotifications: () => void;
   onPersona: () => void;
-  onPlans: () => void;
   onSelectTab: (tab: MainTab) => void;
   /** Requests the app-owned, authoritative sign-out confirmation flow. */
   onRequestLogout?: () => void;
 }) {
   const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [notice, setNotice] = useState("");
-  const plan = PRODUCTS.find((product) => product.tier === planTier) ?? PRODUCTS[0];
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
   return (
@@ -89,7 +81,6 @@ export function LumisProfileScreen({
             <View style={styles.avatar}><Text style={styles.avatarText}>{name.trim().slice(0, 1).toUpperCase() || "L"}</Text></View>
             <View style={styles.heroCopy}>
               <Text style={styles.name}>{name}</Text>
-              <View style={styles.memberBadge}><Sparkles color={colors.gold} size={12} /><Text style={styles.memberText}>{plan.name} member</Text></View>
             </View>
           </View>
 
@@ -108,11 +99,6 @@ export function LumisProfileScreen({
               <Pressable style={styles.changeButton} onPress={onPersona}><Text style={styles.changeText}>Change</Text></Pressable>
             </View>
             <ProfileRow icon={<Compass color={colors.periwinkle} size={17} />} label="Main focus" value={formatMainFocus(mainFocus)} showChevron={false} />
-          </ProfileSection>
-
-          <ProfileSection label="PLAN">
-            <ProfileRow icon={<Sparkles color={colors.gold} size={17} />} label="Plan" value={plan.name} onPress={onPlans} />
-            <ProfileRow icon={<UserRound color={colors.gold} size={17} />} label="Credit balance" value={`${remainingCredits} credits`} onPress={onPlans} />
           </ProfileSection>
 
           <ProfileSection label="CARE CIRCLE" note="Preview only. Check-ins and carer links are not active yet.">
@@ -251,8 +237,6 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.navy950, fontFamily: "Georgia", fontSize: 25 },
   heroCopy: { flex: 1, minWidth: 0 },
   name: { color: colors.ice, fontFamily: "Georgia", fontSize: 23 },
-  memberBadge: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(201,169,110,0.12)", borderRadius: 10, flexDirection: "row", gap: 5, marginTop: 5, paddingHorizontal: 8, paddingVertical: 4 },
-  memberText: { color: colors.goldLight, fontSize: 10.5 },
   section: { gap: 7 },
   sectionLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4 },
   sectionNote: { color: colors.muted, fontSize: 10, lineHeight: 15, paddingHorizontal: 3 },

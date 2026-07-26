@@ -222,6 +222,7 @@ export function LumisDiceScreen({
               <Pressable onPress={reset} style={styles.secondaryButton}><Dices color={colors.ice} size={18} /><Text style={styles.secondaryText}>Roll again</Text></Pressable>
               <Pressable onPress={() => onReflect(reflectionPrompt)} style={styles.chatButton}><MessageCircle color={colors.gold} size={18} /><Text style={styles.chatText}>Save this reflection</Text></Pressable>
             </View>
+            <Text style={styles.previewNotice}>Preview — no credits are charged</Text>
             <Text style={styles.note}>Dice are a mirror for reflection, not a verdict.</Text>
           </ScrollView>
         ) : null}
@@ -295,6 +296,7 @@ const styles = StyleSheet.create({
   resultTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 23, lineHeight: 30 },
   readingBubble: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, marginTop: 12, padding: 15 },
   readingText: { color: colors.textSoft, fontSize: 13, lineHeight: 20 },
+  previewNotice: { color: colors.muted, fontSize: 10.5, fontWeight: "600", textAlign: "center" },
   reflectCard: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, marginTop: 13, padding: 14 },
   reflectLabel: { color: colors.gold, fontSize: 8.5, fontWeight: "700", letterSpacing: 1.1 },
   reflectQuestion: { color: colors.ice, fontFamily: "Georgia", fontSize: 16, lineHeight: 23, marginTop: 7 },

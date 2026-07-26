@@ -148,7 +148,7 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
           <Text style={s.permItem}>· receive gentle check-in notices about them</Text>
           <Text style={s.permItem}>· see their check-in status</Text>
           <Text style={[s.permHead, { marginTop: 12 }]}>You won't</Text>
-          <Text style={s.permItem}>· see their chats, readings, birth details, credits, or billing</Text>
+          <Text style={s.permItem}>· see private account details or activity outside shared check-ins</Text>
         </View>
         <Text style={s.explainSmall}>They'll be asked to accept before the link becomes active.</Text>
         <BrandButton label="Send request" onPress={() => sendRequest(view.careeName)} style={{ marginTop: 12 }} />
