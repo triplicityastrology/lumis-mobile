@@ -1,8 +1,12 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import { Platform } from "react-native";
 
-import { getSupabaseClient, getSupabaseConfig } from "./supabase";
+import {
+  getSupabaseClient,
+  getSupabaseConfig,
+  probeSupabaseAuthConnection
+} from "./supabase";
 
 export type AuthStatus =
   | {
@@ -97,21 +101,11 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
 
   if (authCode) {
     try {
-      const { data, error } = await exchangeNativeCredentialWithResumeRetry(
-        () => supabase.auth.exchangeCodeForSession(authCode),
-        Platform.OS !== "web"
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data.session?.user) {
-        throw new Error(formatRedirectError());
-      }
+      await prepareNativeAuthExchange();
+      const user = await exchangeCodeOnce(supabase, authCode);
 
       cleanBrowserAuthUrl();
-      return successfulRedirect(data.session.user);
+      return successfulRedirect(user);
     } catch (error) {
       throw new Error(formatRedirectExchangeError(error));
     }
@@ -124,25 +118,11 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
 
   if (accessToken && refreshToken) {
     try {
-      const { data, error } = await exchangeNativeCredentialWithResumeRetry(
-        () =>
-          supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          }),
-        Platform.OS !== "web"
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data.session?.user) {
-        throw new Error(formatRedirectError());
-      }
+      await prepareNativeAuthExchange();
+      const user = await setTokenSessionOnce(supabase, accessToken, refreshToken);
 
       cleanBrowserAuthUrl();
-      return successfulRedirect(data.session.user);
+      return successfulRedirect(user);
     } catch (error) {
       throw new Error(formatRedirectExchangeError(error));
     }
@@ -236,20 +216,116 @@ function successfulRedirect(user: User): AuthRedirectResult {
   };
 }
 
-async function exchangeNativeCredentialWithResumeRetry<T>(
-  exchange: () => Promise<T>,
-  canRetry: boolean
-): Promise<T> {
+type RedirectFailureKind = "invalid_link" | "network_interrupted" | "session_restore_failed";
+
+class AuthRedirectFailure extends Error {
+  constructor(readonly kind: RedirectFailureKind) {
+    super(kind);
+    this.name = "AuthRedirectFailure";
+  }
+}
+
+async function prepareNativeAuthExchange(): Promise<void> {
+  if (Platform.OS === "web") {
+    return;
+  }
+
+  if (await probeSupabaseAuthConnection()) {
+    return;
+  }
+
+  // A deep link can foreground iOS before its network route is ready. Probe the
+  // harmless Auth health endpoint once more; the one-time credential is untouched.
+  await new Promise((resolve) => setTimeout(resolve, 750));
+
+  if (!(await probeSupabaseAuthConnection())) {
+    throw new AuthRedirectFailure("network_interrupted");
+  }
+}
+
+async function exchangeCodeOnce(
+  supabase: SupabaseClient,
+  authCode: string
+): Promise<User> {
+  const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
+
+  if (error) {
+    if (!isNetworkFailure(error)) {
+      throw new AuthRedirectFailure("invalid_link");
+    }
+
+    const persistedUser = await readPersistedSessionUser(supabase);
+    if (persistedUser) {
+      return persistedUser;
+    }
+
+    // A fetch failure is ambiguous: the server may have consumed the code.
+    // Never exchange that one-time code again.
+    throw new AuthRedirectFailure("network_interrupted");
+  }
+
+  if (data.session?.user) {
+    return data.session.user;
+  }
+
+  const persistedUser = await readPersistedSessionUser(supabase);
+  if (persistedUser) {
+    return persistedUser;
+  }
+
+  throw new AuthRedirectFailure("session_restore_failed");
+}
+
+async function setTokenSessionOnce(
+  supabase: SupabaseClient,
+  accessToken: string,
+  refreshToken: string
+): Promise<User> {
+  const { data, error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken
+  });
+
+  if (error) {
+    if (!isNetworkFailure(error)) {
+      throw new AuthRedirectFailure("invalid_link");
+    }
+
+    const persistedUser = await readPersistedSessionUser(supabase);
+    if (persistedUser) {
+      return persistedUser;
+    }
+
+    throw new AuthRedirectFailure("network_interrupted");
+  }
+
+  if (data.session?.user) {
+    return data.session.user;
+  }
+
+  const persistedUser = await readPersistedSessionUser(supabase);
+  if (persistedUser) {
+    return persistedUser;
+  }
+
+  throw new AuthRedirectFailure("session_restore_failed");
+}
+
+async function readPersistedSessionUser(supabase: SupabaseClient): Promise<User | null> {
   try {
-    return await exchange();
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error) {
+      throw new AuthRedirectFailure("session_restore_failed");
+    }
+
+    return data.session?.user ?? null;
   } catch (error) {
-    if (!canRetry || !isNetworkFailure(error)) {
+    if (error instanceof AuthRedirectFailure) {
       throw error;
     }
 
-    // iOS can dispatch the deep link before networking has fully resumed.
-    await new Promise((resolve) => setTimeout(resolve, 750));
-    return exchange();
+    throw new AuthRedirectFailure("session_restore_failed");
   }
 }
 
@@ -258,6 +334,18 @@ function formatRedirectError(_message?: string): string {
 }
 
 function formatRedirectExchangeError(error: unknown): string {
+  if (error instanceof AuthRedirectFailure) {
+    if (error.kind === "network_interrupted") {
+      return "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link.";
+    }
+
+    if (error.kind === "session_restore_failed") {
+      return "Lumis could not verify the secure session after sign-in. Close and reopen Lumis, then request a new link if needed.";
+    }
+
+    return formatRedirectError();
+  }
+
   if (isNetworkFailure(error)) {
     return "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link.";
   }

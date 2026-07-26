@@ -31,30 +31,24 @@ const redirectHandler = extractRange(
 assert.match(redirectHandler, /url\?: string \| null/);
 assert.match(redirectHandler, /new URL\(redirectUrl\)/);
 assert.match(redirectHandler, /isLumisAuthCallback\(currentUrl\)/);
-assert.match(redirectHandler, /exchangeCodeForSession\(authCode\)/);
-assert.match(redirectHandler, /setSession\(\{[\s\S]*access_token: accessToken,[\s\S]*refresh_token: refreshToken/);
-assert.equal(
-  (redirectHandler.match(/exchangeNativeCredentialWithResumeRetry\(/g) ?? []).length,
-  2,
-  "both code exchange and token fallback must use the bounded native resume retry"
-);
 const codeExchangePath = extractRange(
   redirectHandler,
   "if (authCode) {",
   "const accessToken"
 );
-assert.match(
-  codeExchangePath,
-  /exchangeNativeCredentialWithResumeRetry\(\s*\(\) => supabase\.auth\.exchangeCodeForSession\(authCode\),\s*Platform\.OS !== "web"\s*\)/
-);
+assert.match(codeExchangePath, /await prepareNativeAuthExchange\(\)/);
+assert.match(codeExchangePath, /await exchangeCodeOnce\(supabase, authCode\)/);
 const tokenExchangePath = extractRange(
   redirectHandler,
   "if (accessToken && refreshToken) {",
   "return { handled: false }"
 );
-assert.match(tokenExchangePath, /exchangeNativeCredentialWithResumeRetry/);
-assert.match(tokenExchangePath, /supabase\.auth\.setSession/);
-assert.match(redirectHandler, /successfulRedirect\(data\.session\.user\)/);
+assert.match(tokenExchangePath, /await prepareNativeAuthExchange\(\)/);
+assert.match(
+  tokenExchangePath,
+  /await setTokenSessionOnce\(supabase, accessToken, refreshToken\)/
+);
+assert.match(redirectHandler, /successfulRedirect\(user\)/);
 assert.match(redirectHandler, /formatRedirectExchangeError\(error\)/);
 assert.doesNotMatch(
   redirectHandler,
@@ -65,7 +59,7 @@ assert.doesNotMatch(
 const successfulRedirect = extractRange(
   authService,
   "function successfulRedirect",
-  "async function exchangeNativeCredentialWithResumeRetry"
+  "type RedirectFailureKind"
 );
 assert.match(successfulRedirect, /status:\s*\{[\s\S]*isConfigured: true,[\s\S]*user/);
 assert.doesNotMatch(
@@ -74,17 +68,60 @@ assert.doesNotMatch(
   "a successful exchange must return only the real session user without another network lookup"
 );
 
-const nativeResumeRetry = extractRange(
+const nativeNetworkReadiness = extractRange(
   authService,
-  "async function exchangeNativeCredentialWithResumeRetry",
+  "async function prepareNativeAuthExchange",
+  "async function exchangeCodeOnce"
+);
+assert.match(nativeNetworkReadiness, /probeSupabaseAuthConnection\(\)/);
+assert.match(nativeNetworkReadiness, /setTimeout\(resolve, 750\)/);
+assert.equal(
+  (nativeNetworkReadiness.match(/probeSupabaseAuthConnection\(\)/g) ?? []).length,
+  2,
+  "native foreground recovery may retry only the harmless Auth health probe"
+);
+
+const codeExchange = extractRange(
+  authService,
+  "async function exchangeCodeOnce",
+  "async function setTokenSessionOnce"
+);
+assert.equal(
+  (codeExchange.match(/exchangeCodeForSession\(authCode\)/g) ?? []).length,
+  1,
+  "a one-time auth code must be exchanged exactly once"
+);
+assert.match(codeExchange, /isNetworkFailure\(error\)/);
+assert.match(codeExchange, /await readPersistedSessionUser\(supabase\)/);
+assert.match(codeExchange, /AuthRedirectFailure\("network_interrupted"\)/);
+assert.doesNotMatch(
+  codeExchange,
+  /setTimeout|prepareNativeAuthExchange|exchangeCodeForSession\(authCode\)[\s\S]*exchangeCodeForSession\(authCode\)/,
+  "an ambiguous code response cannot trigger a blind second exchange"
+);
+
+const tokenExchange = extractRange(
+  authService,
+  "async function setTokenSessionOnce",
+  "async function readPersistedSessionUser"
+);
+assert.equal(
+  (tokenExchange.match(/supabase\.auth\.setSession\(/g) ?? []).length,
+  1,
+  "token fallback must also avoid duplicate native callback processing"
+);
+assert.match(tokenExchange, /await readPersistedSessionUser\(supabase\)/);
+
+const persistedSessionRecovery = extractRange(
+  authService,
+  "async function readPersistedSessionUser",
   "function formatRedirectError"
 );
-assert.match(nativeResumeRetry, /isNetworkFailure\(error\)/);
-assert.match(nativeResumeRetry, /setTimeout\(resolve, 750\)/);
-assert.equal(
-  (nativeResumeRetry.match(/return (?:await )?exchange\(\)/g) ?? []).length,
-  2,
-  "native session establishment may retry one interrupted resume request exactly once"
+assert.match(persistedSessionRecovery, /supabase\.auth\.getSession\(\)/);
+assert.match(
+  persistedSessionRecovery,
+  /AuthRedirectFailure\("session_restore_failed"\)/,
+  "session-storage failure must remain distinct from an invalid link"
 );
 
 const safeRedirectFailure = extractRange(
@@ -94,6 +131,7 @@ const safeRedirectFailure = extractRange(
 );
 assert.match(safeRedirectFailure, /isNetworkFailure\(error\)/);
 assert.match(safeRedirectFailure, /connection was interrupted/);
+assert.match(safeRedirectFailure, /could not verify the secure session/);
 assert.doesNotMatch(
   safeRedirectFailure,
   /throw error|error\.message|console\./,
@@ -106,6 +144,18 @@ assert.match(
 );
 assert.match(supabaseService, /lock: processLock/);
 assert.match(supabaseService, /global:\s*\{\s*fetch: authSafeFetch\s*\}/);
+const authConnectionProbe = extractRange(
+  supabaseService,
+  "export async function probeSupabaseAuthConnection",
+  "const authSafeFetch"
+);
+assert.match(authConnectionProbe, /authSafeFetch\(`\$\{config\.url\}\/auth\/v1\/health`/);
+assert.match(authConnectionProbe, /return response\.status < 500/);
+assert.doesNotMatch(
+  authConnectionProbe,
+  /console\.|exchangeCodeForSession|setSession/,
+  "the preflight may test connectivity only and cannot consume callback credentials"
+);
 const safeAuthFetch = extractRange(
   supabaseService,
   "const authSafeFetch",
@@ -132,16 +182,6 @@ assert.match(
   "non-auth requests and unrelated errors must remain visible to developers"
 );
 assert.match(authService, /AUTH_NETWORK_INTERRUPTED/);
-assert.match(
-  codeExchangePath,
-  /if \(error\) \{\s*throw error;\s*\}/,
-  "code exchange must preserve the safe network marker for classification"
-);
-assert.match(
-  tokenExchangePath,
-  /if \(error\) \{\s*throw error;\s*\}/,
-  "token exchange must preserve the safe network marker for classification"
-);
 
 const containedAuthNetworkResponse = await simulateAuthSafeFetch(
   "https://fixture.supabase.co",
@@ -292,56 +332,100 @@ assert.deepEqual(successfulExchangeState, {
   error: ""
 });
 
-let codeResumeAttempts = 0;
-const resumedCodeSession = await simulateNetworkResumeRetry(async () => {
-  codeResumeAttempts += 1;
-  if (codeResumeAttempts === 1) {
-    throw new TypeError("Network request failed");
-  }
-  return { userId: "code-user" };
-});
-assert.equal(codeResumeAttempts, 2);
-assert.equal(resumedCodeSession.userId, "code-user");
-
-let tokenResumeAttempts = 0;
-const resumedTokenSession = await simulateNetworkResumeRetry(async () => {
-  tokenResumeAttempts += 1;
-  if (tokenResumeAttempts === 1) {
-    throw new TypeError("Network request failed");
-  }
-  return { userId: "token-user" };
-});
-assert.equal(tokenResumeAttempts, 2);
-assert.equal(resumedTokenSession.userId, "token-user");
-
-const failedExchangeState = {
-  authenticated: false,
-  restored: false,
-  error: ""
-};
-let failedCodeAttempts = 0;
-await simulateCallbackExchange({
-  state: failedExchangeState,
-  exchange: () =>
-    simulateNetworkResumeRetry(async () => {
-      failedCodeAttempts += 1;
-      throw new TypeError("Network request failed");
-    }),
-  restore: async () => {
-    failedExchangeState.restored = true;
-  }
-});
-assert.equal(failedCodeAttempts, 2, "a failed code callback stops after one bounded retry");
-assert.deepEqual(
-  failedExchangeState,
-  {
-    authenticated: false,
-    restored: false,
-    error:
-      "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link."
+let successfulCodeExchangeCount = 0;
+const directCodeResult = await simulateNativeCredentialExchange({
+  probeResults: [true],
+  exchange: async () => {
+    successfulCodeExchangeCount += 1;
+    return { id: "code-user" };
   },
-  "a native fetch failure must remain signed out and show only the safe recovery message"
+  readPersistedUser: async () => null
+});
+assert.equal(successfulCodeExchangeCount, 1);
+assert.deepEqual(directCodeResult, { kind: "success", user: { id: "code-user" } });
+
+let preExchangeAttemptCount = 0;
+const preExchangeInterruption = await simulateNativeCredentialExchange({
+  probeResults: [false, false],
+  exchange: async () => {
+    preExchangeAttemptCount += 1;
+    return { id: "never-called" };
+  },
+  readPersistedUser: async () => null
+});
+assert.equal(
+  preExchangeAttemptCount,
+  0,
+  "failed network readiness must not consume the one-time code"
 );
+assert.deepEqual(preExchangeInterruption, {
+  kind: "network_interrupted",
+  user: null
+});
+
+let ambiguousExchangeCount = 0;
+const recoveredAmbiguousExchange = await simulateNativeCredentialExchange({
+  probeResults: [true],
+  exchange: async () => {
+    ambiguousExchangeCount += 1;
+    throw new TypeError("Network request failed");
+  },
+  readPersistedUser: async () => ({ id: "persisted-real-user" })
+});
+assert.equal(
+  ambiguousExchangeCount,
+  1,
+  "an ambiguous exchange may inspect persisted state but cannot re-exchange the code"
+);
+assert.deepEqual(recoveredAmbiguousExchange, {
+  kind: "success",
+  user: { id: "persisted-real-user" }
+});
+
+let failedAmbiguousExchangeCount = 0;
+const failedAmbiguousExchange = await simulateNativeCredentialExchange({
+  probeResults: [true],
+  exchange: async () => {
+    failedAmbiguousExchangeCount += 1;
+    throw new TypeError("Network request failed");
+  },
+  readPersistedUser: async () => null
+});
+assert.equal(failedAmbiguousExchangeCount, 1);
+assert.deepEqual(
+  failedAmbiguousExchange,
+  { kind: "network_interrupted", user: null },
+  "an ambiguous exchange without a real persisted session must remain signed out"
+);
+
+const invalidUsedLink = await simulateNativeCredentialExchange({
+  probeResults: [true],
+  exchange: async () => {
+    throw new Error("otp_expired");
+  },
+  readPersistedUser: async () => {
+    throw new Error("invalid links do not enter session recovery");
+  }
+});
+assert.deepEqual(invalidUsedLink, { kind: "invalid_link", user: null });
+
+const missingRestoredSession = await simulateNativeCredentialExchange({
+  probeResults: [true],
+  exchange: async () => null,
+  readPersistedUser: async () => null
+});
+assert.deepEqual(
+  missingRestoredSession,
+  { kind: "session_restore_failed", user: null },
+  "a completed exchange without a real session must report restoration failure, not authenticate locally"
+);
+
+const tokenFallbackResult = await simulateNativeCredentialExchange({
+  probeResults: [true],
+  exchange: async () => ({ id: "token-user" }),
+  readPersistedUser: async () => null
+});
+assert.deepEqual(tokenFallbackResult, { kind: "success", user: { id: "token-user" } });
 
 const processedCallbackUrls = new Set();
 let duplicateCodeExchangeCount = 0;
@@ -731,18 +815,43 @@ async function simulateCallbackExchange({ state, exchange, restore }) {
   }
 }
 
-async function simulateNetworkResumeRetry(exchange) {
+async function simulateNativeCredentialExchange({
+  probeResults,
+  exchange,
+  readPersistedUser
+}) {
+  const probes = [...probeResults];
+  const firstProbe = probes.shift() ?? false;
+  const networkReady = firstProbe || (probes.shift() ?? false);
+
+  if (!networkReady) {
+    return { kind: "network_interrupted", user: null };
+  }
+
   try {
-    return await exchange();
-  } catch (caught) {
-    if (
-      !/network request failed|failed to fetch|networkerror|load failed|fetch/i.test(
-        caught instanceof Error ? caught.message : String(caught)
-      )
-    ) {
-      throw caught;
+    const user = await exchange();
+    if (user) {
+      return { kind: "success", user };
     }
-    return exchange();
+
+    const persistedUser = await readPersistedUser();
+    return persistedUser
+      ? { kind: "success", user: persistedUser }
+      : { kind: "session_restore_failed", user: null };
+  } catch (caught) {
+    const isNetworkError =
+      /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(
+        caught instanceof Error ? caught.message : String(caught)
+      );
+
+    if (!isNetworkError) {
+      return { kind: "invalid_link", user: null };
+    }
+
+    const persistedUser = await readPersistedUser();
+    return persistedUser
+      ? { kind: "success", user: persistedUser }
+      : { kind: "network_interrupted", user: null };
   }
 }
 

@@ -46,6 +46,23 @@ export function getSupabaseClient(): SupabaseClient | null {
   return cachedClient;
 }
 
+export async function probeSupabaseAuthConnection(): Promise<boolean> {
+  const config = getSupabaseConfig();
+
+  if (!config.isConfigured || !config.url || !config.anonKey) {
+    return false;
+  }
+
+  const response = await authSafeFetch(`${config.url}/auth/v1/health`, {
+    headers: {
+      apikey: config.anonKey
+    },
+    method: "GET"
+  });
+
+  return response.status < 500;
+}
+
 const authSafeFetch: typeof globalThis.fetch = async (input, init) => {
   try {
     return await globalThis.fetch(input, init);
