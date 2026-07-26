@@ -158,7 +158,12 @@ function WelcomeState(props: LumisHomeScreenProps) {
             <MiniChartWheel size={34} />
             <Text style={styles.brand}>Lumis</Text>
           </View>
-          <Pressable style={styles.signInButton} onPress={props.onAccount}>
+          <Pressable
+            style={styles.signInButton}
+            onPress={props.onAccount}
+            accessibilityRole="button"
+            accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}
+          >
             <LogIn color={colors.ice} size={17} />
             <Text style={styles.signInText}>{props.isAuthenticated ? "Account" : "Sign in"}</Text>
           </Pressable>
@@ -191,6 +196,8 @@ function WelcomeState(props: LumisHomeScreenProps) {
             style={[styles.welcomePrimaryWrap, isLoading && styles.disabled]}
             disabled={isLoading}
             onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}
+            accessibilityRole="button"
+            accessibilityLabel={props.isAuthenticated ? "Create my chart" : "Get started"}
           >
             <LinearGradient
               colors={["#E5C06B", "#E9B083", "#E89B92"]}
@@ -204,7 +211,16 @@ function WelcomeState(props: LumisHomeScreenProps) {
               <ChevronRight color="#3A2218" size={20} />
             </LinearGradient>
           </Pressable>
-          <Pressable style={styles.welcomeSecondary} onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}>
+          <Pressable
+            style={styles.welcomeSecondary}
+            onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}
+            accessibilityRole="button"
+            accessibilityLabel={
+              props.isAuthenticated
+                ? "Continue chart onboarding"
+                : "I already have an account"
+            }
+          >
             <Text style={styles.welcomeSecondaryText}>
               {props.isAuthenticated ? "No chart yet? Continue onboarding" : "I already have an account"}
             </Text>

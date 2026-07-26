@@ -193,6 +193,16 @@ export default function App() {
     return status;
   }
 
+  function openAccountEntry() {
+    setAuthError("");
+    setScreen("auth");
+    void refreshAuthStatus().catch(() => {
+      setAuthError(
+        "Lumis could not securely check your account. Check your connection and try again."
+      );
+    });
+  }
+
   function requestAuthoritativeLogout() {
     setLogoutDialogOpen(true);
   }
@@ -913,10 +923,7 @@ export default function App() {
         email={authStatus?.user?.email}
         isAuthenticated={Boolean(authStatus?.user)}
         name={profileData?.name}
-        onAccount={async () => {
-          await refreshAuthStatus();
-          setScreen("auth");
-        }}
+        onAccount={openAccountEntry}
         onCreateChart={() => setScreen("profile")}
         onDice={() => openMainTab("dice")}
         onInsights={() => setScreen(chartProfile ? "insights" : "profile")}

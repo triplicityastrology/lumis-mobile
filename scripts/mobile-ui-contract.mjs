@@ -10,6 +10,18 @@ const featuresPath = path.join(root, "apps/mobile/src/features");
 const mainTabBarPath = path.join(root, "apps/mobile/src/components/MainTabBar.tsx");
 const appSource = await readFile(appPath, "utf8");
 const mainTabBarSource = await readFile(mainTabBarPath, "utf8");
+const celestialBackgroundSource = await readFile(
+  path.join(root, "apps/mobile/src/components/CelestialBackground.tsx"),
+  "utf8"
+);
+const homeScreenSource = await readFile(
+  path.join(root, "apps/mobile/src/screens/LumisHomeScreen.tsx"),
+  "utf8"
+);
+const authScreen = await readFile(
+  path.join(root, "apps/mobile/src/screens/LumisAuthScreen.tsx"),
+  "utf8"
+);
 const accountStateSource = await readFile(path.join(root, "apps/mobile/src/services/accountState.ts"), "utf8");
 const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
@@ -43,6 +55,50 @@ assert.match(mainTabBarSource, /label: "Dice"/);
 assert.match(mainTabBarSource, /label: "You"/);
 assert.match(appSource, /<MainTabBar active="chat"/);
 assert.match(appSource, /restoreAccountForStatus\(status, true\)/);
+const accountEntryHandler = extractRange(
+  appSource,
+  "function openAccountEntry",
+  "function requestAuthoritativeLogout"
+);
+assert.match(accountEntryHandler, /setScreen\("auth"\)/);
+assert.match(accountEntryHandler, /void refreshAuthStatus\(\)\.catch/);
+assert.ok(
+  accountEntryHandler.indexOf('setScreen("auth")') <
+    accountEntryHandler.indexOf("refreshAuthStatus()"),
+  "account entry must navigate before any network-dependent auth refresh"
+);
+assert.doesNotMatch(
+  accountEntryHandler,
+  /await refreshAuthStatus|setAuthStatus\(\s*\{|\buser:/,
+  "account entry cannot block taps or manufacture authentication"
+);
+assert.match(appSource, /onAccount=\{openAccountEntry\}/);
+for (const welcomeAction of [
+  'accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}',
+  'accessibilityLabel={props.isAuthenticated ? "Create my chart" : "Get started"}',
+  '"I already have an account"'
+]) {
+  assert.match(homeScreenSource, new RegExp(escapeRegExp(welcomeAction)));
+}
+assert.ok(
+  (homeScreenSource.match(/props\.onAccount/g) ?? []).length >= 3,
+  "all three signed-out welcome actions must reach the shared account entry"
+);
+assert.match(
+  celestialBackgroundSource,
+  /<View pointerEvents="none" style=\{styles\.fill\} accessibilityElementsHidden>/,
+  "the single root celestial background must never participate in hit testing"
+);
+assert.equal(
+  (appSource.match(/<CelestialBackground variant=\{skyVariant\} \/>/g) ?? []).length,
+  1,
+  "the app must retain one shared root celestial background"
+);
+assert.match(
+  authScreen,
+  /<TextInput[\s\S]{0,420}value=\{email\}[\s\S]{0,420}onChangeText=\{setEmail\}/,
+  "the account entry email field must remain interactive"
+);
 // A restored account still routes to Chat; navigation is deferred past the splash
 // via routeAfterSplash (which resolves to setScreen("chat")).
 assert.match(appSource, /if \(restored && routeLoadedAccount\)[\s\S]{0,120}routeAfterSplash\("chat"\)/);
@@ -198,6 +254,10 @@ function extractRange(source, startMarker, endMarker) {
   assert.notEqual(start, -1, `${startMarker} must exist`);
   assert.notEqual(end, -1, `${endMarker} must exist after ${startMarker}`);
   return source.slice(start, end);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function listTsxFiles(directory) {
