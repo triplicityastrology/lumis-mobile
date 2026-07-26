@@ -28,6 +28,7 @@ import { configureSecureRandom, secureRandom, seededRandom } from "./rng";
 import { cradleTick, landingThump, mixTick, releaseImpact, resultTap } from "./haptics";
 import { saveDiceThrow } from "../../services/diceThrows";
 import { DiceHistorySheet, type SessionRoll } from "./DiceHistorySheet";
+import { normalizeDiceQuestion } from "./question";
 import { useMotionGestures } from "./useMotionGestures";
 
 configureSecureRandom(getRandomValues);
@@ -122,6 +123,7 @@ export function DiceRitualScreen({
 
   const phaseRef = useRef<Phase>("IDLE");
   const questionRef = useRef("");
+  const activeQuestionRef = useRef<string | null>(null);
   const worldRef = useRef<DiceWorld>(createWorld());
   const palmOrientations = useRef([randomOrientation(), randomOrientation(), randomOrientation()]);
   const palmSpin = useRef<Vec3[]>([vec(0, 0, 0), vec(0, 0, 0), vec(0, 0, 0)]);
@@ -200,6 +202,13 @@ export function DiceRitualScreen({
   }, []);
 
   const completeSettle = useCallback(() => {
+    const activeQuestion = activeQuestionRef.current;
+    if (!activeQuestion) {
+      transition("IDLE");
+      AccessibilityInfo.announceForAccessibility("Enter a question before rolling the dice.");
+      return;
+    }
+
     const world = worldRef.current;
     const { readings } = resolveSettledFaces(world);
     for (const die of world.dice) groundDie(die);
@@ -219,7 +228,7 @@ export function DiceRitualScreen({
     // until the user asks Lumis to read it.
     sessionRollsRef.current = [
       {
-        question: questionRef.current.trim() || null,
+        question: activeQuestion,
         planetKey: nextSymbols.planet.key,
         signKey: nextSymbols.sign.key,
         houseKey: nextSymbols.house.key,
@@ -228,7 +237,7 @@ export function DiceRitualScreen({
       ...sessionRollsRef.current
     ];
     lastThrowRef.current = {
-      question: questionRef.current.trim() || null,
+      question: activeQuestion,
       planetKey: nextSymbols.planet.key,
       signKey: nextSymbols.sign.key,
       houseKey: nextSymbols.house.key
@@ -239,7 +248,14 @@ export function DiceRitualScreen({
 
   const beginReady = useCallback(() => {
     if (phaseRef.current !== "IDLE") return;
-    if (questionRef.current.trim().length === 0) return;
+    const normalizedQuestion = normalizeDiceQuestion(questionRef.current);
+    if (!normalizedQuestion) {
+      AccessibilityInfo.announceForAccessibility("Enter a question to begin your throw.");
+      return;
+    }
+    questionRef.current = normalizedQuestion;
+    activeQuestionRef.current = normalizedQuestion;
+    setQuestion(normalizedQuestion);
     transition("READY");
     handPoseRef.current = 1;
     cradleTick();
@@ -307,6 +323,7 @@ export function DiceRitualScreen({
     glowRef.current = 0;
     setSymbols(null);
     setShowTapThrow(false);
+    activeQuestionRef.current = null;
     transition("IDLE");
   }, [cardAnim, dimAnim, transition]);
 
@@ -403,9 +420,11 @@ export function DiceRitualScreen({
   const { width: W, height: H } = stageSize;
   const showPalm = phase === "IDLE" || phase === "READY" || phase === "MIXING";
   const showTable = !showPalm;
-  const trimmedQuestion = question.trim();
+  const normalizedQuestion = normalizeDiceQuestion(question);
+  const activeQuestion = activeQuestionRef.current;
   const reflectionPrompt = symbols
-    ? `Help me reflect on my astrology dice throw. My question was: “${trimmedQuestion || "What should I notice right now?"}” The dice showed ${symbols.planet.en}, ${symbols.sign.en}, ${symbols.house.en}.`
+    && activeQuestion
+    ? `Help me reflect on my astrology dice throw. My question was: “${activeQuestion}” The dice showed ${symbols.planet.en}, ${symbols.sign.en}, ${symbols.house.en}.`
     : "";
 
   return (
@@ -488,11 +507,17 @@ export function DiceRitualScreen({
                 <BrandButton
                   label="Ready"
                   onPress={beginReady}
-                  disabled={trimmedQuestion.length === 0}
+                  disabled={normalizedQuestion.length === 0}
                   style={styles.fullWidthButton}
                 />
-                {trimmedQuestion.length === 0 ? (
-                  <Text style={styles.readyHint}>Enter a question to begin your throw</Text>
+                {normalizedQuestion.length === 0 ? (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    accessibilityRole="alert"
+                    style={styles.readyHint}
+                  >
+                    Enter a question to begin your throw
+                  </Text>
                 ) : null}
               </View>
             ) : null}
@@ -522,9 +547,9 @@ export function DiceRitualScreen({
             ]}
           >
             <BlurView intensity={28} tint="dark" style={styles.sheet}>
-            <Text style={styles.sheetQuestion}>
-              “{trimmedQuestion || "What should I notice right now?"}”
-            </Text>
+            {activeQuestion ? (
+              <Text style={styles.sheetQuestion}>“{activeQuestion}”</Text>
+            ) : null}
             <View style={styles.symbolsRow}>
               {symbols
                 ? DIE_ORDER.map((kind) => {

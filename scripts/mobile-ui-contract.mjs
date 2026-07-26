@@ -36,6 +36,10 @@ const diceRitualSource = await readFile(
   path.join(featuresPath, "dice/DiceRitualScreen.tsx"),
   "utf8"
 );
+const diceHistorySource = await readFile(
+  path.join(featuresPath, "dice/DiceHistorySheet.tsx"),
+  "utf8"
+);
 const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
 const screenFiles = (await readdir(screensPath))
   .filter((name) => name.endsWith(".tsx"))
@@ -186,6 +190,20 @@ assert.match(diceSource, /<OctaDie/);
 assert.match(diceSource, /Save this reflection/);
 assert.match(diceSource, /function cancelRoll\(\)[\s\S]{0,160}clearRollTimers\(\)/);
 assert.match(diceSource, /onPress=\{step === "result" \? reset : cancelRoll\}/);
+for (const [name, source] of [
+  ["default Dice ritual", diceRitualSource],
+  ["fallback Dice screen", diceSource],
+  ["Dice history", diceHistorySource]
+]) {
+  assert.doesNotMatch(
+    source,
+    /What should I notice right now\?/,
+    `${name} cannot silently substitute a question`
+  );
+}
+assert.match(diceRitualSource, /activeQuestionRef\.current = normalizedQuestion/);
+assert.match(diceSource, /const normalizedQuestion = normalizeDiceQuestion\(question\)/);
+assert.match(diceHistorySource, /const QUESTION_UNAVAILABLE = "Question unavailable"/);
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
 const personaAvatarSource = await readFile(
   path.join(root, "apps/mobile/src/components/LumisPersonaAvatar.tsx"),

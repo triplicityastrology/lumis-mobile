@@ -5,6 +5,7 @@ import {
   type DignityReading, type ElementInfo, type HouseAttributes, type PlanetAttributes,
   type ReadingTension
 } from "./classicalAttributes";
+import { requireDiceQuestion } from "./question";
 
 /**
  * Interpretation bank (Level 1 meanings) + Level 2 classical layer — see
@@ -296,7 +297,7 @@ export function buildDiceInterpretationRequest(
   const houseKey = symbols.house.key;
   return {
     aiTool: "dice",
-    question: question.trim() || "What should I notice right now?",
+    question: requireDiceQuestion(question),
     symbols: {
       planet: { face: symbols.planet, meaning: PLANET_BANK[planetKey] },
       sign: { face: symbols.sign, meaning: SIGN_BANK[signKey] },

@@ -5,11 +5,12 @@ import Dices from "lucide-react-native/icons/dices";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Polygon } from "react-native-svg";
 
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
+import { normalizeDiceQuestion } from "../features/dice/question";
 import { colors, radii, spacing } from "../theme/tokens";
 
 type DiceStep = "ask" | "shake" | "result";
@@ -47,6 +48,8 @@ export function LumisDiceScreen({
   void onBack;
   const [step, setStep] = useState<DiceStep>("ask");
   const [question, setQuestion] = useState("");
+  const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
+  const [questionError, setQuestionError] = useState("");
   const [rolling, setRolling] = useState(false);
   const [display, setDisplay] = useState(["♀", "♐", "X"]);
   const [result, setResult] = useState<DieResult[] | null>(null);
@@ -58,6 +61,12 @@ export function LumisDiceScreen({
 
   function roll() {
     if (rollingRef.current) return;
+    if (!activeQuestion) {
+      setStep("ask");
+      setQuestionError("Enter a question before rolling the dice.");
+      AccessibilityInfo.announceForAccessibility("Enter a question before rolling the dice.");
+      return;
+    }
 
     rollingRef.current = true;
     setRolling(true);
@@ -119,6 +128,7 @@ export function LumisDiceScreen({
     setRolling(false);
     rollingRef.current = false;
     setResult(null);
+    setActiveQuestion(null);
   }
 
   function reset() {
@@ -126,9 +136,23 @@ export function LumisDiceScreen({
   }
 
   const resultTitle = result ? `${result[0].name} in ${result[1].name}, ${result[2].name}.` : "";
-  const reflectionPrompt = result
-    ? `Help me reflect on my astrology dice roll. My question was: “${question || "What should I notice right now?"}” I rolled ${resultTitle}`
+  const reflectionPrompt = result && activeQuestion
+    ? `Help me reflect on my astrology dice roll. My question was: “${activeQuestion}” I rolled ${resultTitle}`
     : "";
+
+  function continueToRoll() {
+    const normalizedQuestion = normalizeDiceQuestion(question);
+    if (!normalizedQuestion) {
+      setQuestionError("Enter a question before continuing.");
+      AccessibilityInfo.announceForAccessibility("Enter a question before continuing.");
+      return;
+    }
+
+    setQuestion(normalizedQuestion);
+    setActiveQuestion(normalizedQuestion);
+    setQuestionError("");
+    setStep("shake");
+  }
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
@@ -153,17 +177,35 @@ export function LumisDiceScreen({
               <Text style={styles.intro}>Three dice, planet, sign, and house, become a prompt to think with.</Text>
             </View>
             <TextInput
-              onChangeText={setQuestion}
+              onChangeText={(value) => {
+                setQuestion(value);
+                if (questionError) setQuestionError("");
+              }}
               placeholder="What is your question?"
               placeholderTextColor={colors.muted}
               style={styles.input}
               value={question}
             />
-            <Pressable onPress={() => setQuestion(EXAMPLE_QUESTION)} style={styles.exampleButton}>
+            {questionError ? (
+              <Text
+                accessibilityLiveRegion="assertive"
+                accessibilityRole="alert"
+                style={styles.validationError}
+              >
+                {questionError}
+              </Text>
+            ) : null}
+            <Pressable
+              onPress={() => {
+                setQuestion(EXAMPLE_QUESTION);
+                setQuestionError("");
+              }}
+              style={styles.exampleButton}
+            >
               <Text style={styles.exampleText}>“{EXAMPLE_QUESTION}”</Text>
             </Pressable>
             <View style={styles.flexSpacer} />
-            <Pressable onPress={() => setStep("shake")} style={styles.primaryButton}>
+            <Pressable onPress={continueToRoll} style={styles.primaryButton}>
               <Text style={styles.primaryText}>Next</Text>
               <ChevronLeft color={colors.navy950} size={20} style={styles.nextIcon} />
             </Pressable>
@@ -174,7 +216,7 @@ export function LumisDiceScreen({
         {step === "shake" ? (
           <View style={styles.shakeContent}>
             <View style={styles.shakeCenter}>
-              {question ? <Text style={styles.question}>“{question}”</Text> : null}
+              {activeQuestion ? <Text style={styles.question}>“{activeQuestion}”</Text> : null}
               <Text style={styles.shakeTitle}>{rolling ? "Rolling..." : "Shake to roll"}</Text>
               {!rolling ? <Dices color={colors.gold} size={30} /> : null}
               <Pressable accessibilityRole="button" onPress={roll} style={styles.diceRow}>
@@ -198,7 +240,7 @@ export function LumisDiceScreen({
               <View style={styles.avatar}><Sparkles color={colors.navy950} size={17} /></View>
               <View><Text style={styles.companionName}>Lumis</Text><Text style={styles.companionSub}>Reading your roll</Text></View>
             </View>
-            {question ? <Text style={styles.question}>“{question}”</Text> : null}
+            {activeQuestion ? <Text style={styles.question}>“{activeQuestion}”</Text> : null}
             <View style={styles.resultDiceRow}>
               {result.map((item) => (
                 <View key={item.kind} style={styles.resultDieCell}>
@@ -268,6 +310,7 @@ const styles = StyleSheet.create({
   title: { color: colors.ice, fontFamily: "Georgia", fontSize: 29, lineHeight: 36 },
   intro: { color: colors.textSoft, fontSize: 14, lineHeight: 21, marginTop: 9 },
   input: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, color: colors.ice, fontSize: 15, minHeight: 54, outlineStyle: "none", paddingHorizontal: 15 } as never,
+  validationError: { color: colors.warn, fontSize: 12, lineHeight: 18 },
   exampleButton: { alignSelf: "flex-start", minHeight: 38, justifyContent: "center" },
   exampleText: { color: colors.goldLight, fontSize: 12.5, fontStyle: "italic" },
   flexSpacer: { flex: 1, minHeight: 100 },

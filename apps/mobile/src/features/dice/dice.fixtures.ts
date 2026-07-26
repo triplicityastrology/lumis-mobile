@@ -17,6 +17,11 @@ import {
   createWorld, groundDie, launch, resolveSettledFaces, stepWorld, FIXED_STEP
 } from "./physics";
 import {
+  DICE_QUESTION_REQUIRED,
+  normalizeDiceQuestion,
+  requireDiceQuestion
+} from "./question";
+import {
   dot, normalize, quatBetween, quatFromAxisAngle, quatMultiply, quatRotate, sub, vec
 } from "./math";
 import { seededRandom } from "./rng";
@@ -35,6 +40,19 @@ function check(name: string, ok: boolean, detail = ""): void {
 }
 
 console.log("dice fixtures: geometry");
+check(
+  "question normalization preserves the user's words without silent substitution",
+  normalizeDiceQuestion("  Should   I go?  ") === "Should I go?"
+);
+check("empty question normalizes to empty", normalizeDiceQuestion(" \n\t ") === "");
+let emptyQuestionRejected = false;
+try {
+  requireDiceQuestion("   ");
+} catch (error) {
+  emptyQuestionRejected =
+    error instanceof Error && error.message === DICE_QUESTION_REQUIRED;
+}
+check("interpretation rejects an empty question", emptyQuestionRejected);
 {
   check("12 faces", DODECA_FACES.length === 12);
   check("20 vertices", DODECA_VERTICES.length === 20);

@@ -52,7 +52,11 @@ function timeAgo(at: number): string {
   return `${weeks} weeks ago`;
 }
 
-const FALLBACK_QUESTION = "What should I notice right now?";
+const QUESTION_UNAVAILABLE = "Question unavailable";
+
+function displayQuestion(question: string | null): string {
+  return question?.trim() || QUESTION_UNAVAILABLE;
+}
 
 function MiniOctaDie({ glyph, size = 28 }: { glyph: string; size?: number }) {
   return (
@@ -124,7 +128,7 @@ export function DiceHistorySheet({
     const q = query.trim().toLowerCase();
     const visible = base.filter((e) => !removedIds.includes(e.id));
     if (!q) return visible;
-    return visible.filter((e) => (e.question ?? FALLBACK_QUESTION).toLowerCase().includes(q));
+    return visible.filter((e) => displayQuestion(e.question).toLowerCase().includes(q));
   }, [remote, sessionRolls, query, removedIds]);
 
   return (
@@ -159,7 +163,7 @@ export function DiceHistorySheet({
 
           {detail ? (
             <ScrollView contentContainerStyle={styles.detailContent}>
-              <Text style={styles.detailQuestion}>“{detail.question?.trim() || FALLBACK_QUESTION}”</Text>
+              <Text style={styles.detailQuestion}>{displayQuestion(detail.question)}</Text>
               <View style={styles.detailChips}>
                 {DIE_ORDER.map((kind) => {
                   const face = faceFor(
@@ -206,7 +210,7 @@ export function DiceHistorySheet({
                       <View key={entry.id} style={[styles.row, index > 0 && styles.rowDivider]}>
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`${entry.question?.trim() || FALLBACK_QUESTION}, ${timeAgo(entry.at)}. View reading.`}
+                          accessibilityLabel={`${displayQuestion(entry.question)}, ${timeAgo(entry.at)}. View reading.`}
                           onPress={() => setDetail(entry)}
                           style={styles.rowMain}
                         >
@@ -217,7 +221,7 @@ export function DiceHistorySheet({
                           </View>
                           <View style={styles.rowText}>
                             <Text numberOfLines={1} style={styles.rowQuestion}>
-                              {entry.question?.trim() || FALLBACK_QUESTION}
+                              {displayQuestion(entry.question)}
                             </Text>
                             <Text style={styles.rowDate}>{timeAgo(entry.at)}</Text>
                           </View>
