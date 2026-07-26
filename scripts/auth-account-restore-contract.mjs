@@ -37,8 +37,35 @@ for (const requiredOperation of [
 }
 assert.ok(
   authoritativeSignOut.indexOf("await signOut()") <
+    authoritativeSignOut.indexOf("await clearLocalDemoSession()"),
+  "local session cleanup must happen only after authoritative sign-out succeeds"
+);
+assert.ok(
+  authoritativeSignOut.indexOf("await clearLocalDemoSession()") <
     authoritativeSignOut.indexOf('clearVisibleAccountState("Signed out.")'),
-  "visible private state must clear only after authoritative sign-out succeeds"
+  "visible private state must clear only after successful auth and local cleanup"
+);
+
+const failedSignOutState = {
+  localSession: "preserved",
+  visibleAccount: "preserved"
+};
+await assert.rejects(
+  simulateAuthoritativeSignOut({
+    state: failedSignOutState,
+    signOutImpl: async () => {
+      throw new Error("Supabase sign-out failed");
+    }
+  }),
+  /Supabase sign-out failed/
+);
+assert.deepEqual(
+  failedSignOutState,
+  {
+    localSession: "preserved",
+    visibleAccount: "preserved"
+  },
+  "failed authoritative sign-out must preserve local and visible account state"
 );
 
 const visibleStateReset = extractRange(
@@ -182,4 +209,10 @@ function extractRange(source, startMarker, endMarker) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function simulateAuthoritativeSignOut({ state, signOutImpl }) {
+  await signOutImpl();
+  state.localSession = "cleared";
+  state.visibleAccount = "cleared";
 }

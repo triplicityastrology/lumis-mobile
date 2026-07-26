@@ -212,8 +212,8 @@ export default function App() {
   }
 
   async function performAuthoritativeSignOut() {
-    await clearLocalDemoSession();
     const signedOutStatus = await signOut();
+    await clearLocalDemoSession();
     clearVisibleAccountState("Signed out.");
     pendingAfterSplashRef.current = null;
     setAuthNotice("");
