@@ -22,6 +22,10 @@ const authScreen = await readFile(
   path.join(root, "apps/mobile/src/screens/LumisAuthScreen.tsx"),
   "utf8"
 );
+const flowScreenSource = await readFile(
+  path.join(root, "apps/mobile/src/components/FlowScreen.tsx"),
+  "utf8"
+);
 const accountStateSource = await readFile(path.join(root, "apps/mobile/src/services/accountState.ts"), "utf8");
 const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
@@ -61,18 +65,26 @@ const accountEntryHandler = extractRange(
   "function requestAuthoritativeLogout"
 );
 assert.match(accountEntryHandler, /setScreen\("auth"\)/);
-assert.match(accountEntryHandler, /void refreshAuthStatus\(\)\.catch/);
-assert.ok(
-  accountEntryHandler.indexOf('setScreen("auth")') <
-    accountEntryHandler.indexOf("refreshAuthStatus()"),
-  "account entry must navigate before any network-dependent auth refresh"
-);
 assert.doesNotMatch(
   accountEntryHandler,
-  /await refreshAuthStatus|setAuthStatus\(\s*\{|\buser:/,
-  "account entry cannot block taps or manufacture authentication"
+  /refreshAuthStatus|getAuthStatus|setAuthStatus|setAuthNotice|\buser:/,
+  "account entry cannot trigger a delayed visible auth update or manufacture authentication"
 );
 assert.match(appSource, /onAccount=\{openAccountEntry\}/);
+assert.match(
+  flowScreenSource,
+  /import \{ SafeAreaView \} from "react-native-safe-area-context"/,
+  "Auth and onboarding must use the same provider-backed safe-area geometry as Home"
+);
+assert.doesNotMatch(
+  flowScreenSource,
+  /import \{[^}]*SafeAreaView[^}]*\} from "react-native"/,
+  "the shared destination shell cannot mix React Native safe-area layout with the app provider"
+);
+assert.match(
+  flowScreenSource,
+  /<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/
+);
 for (const welcomeAction of [
   'accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}',
   'accessibilityLabel={props.isAuthenticated ? "Create my chart" : "Get started"}',

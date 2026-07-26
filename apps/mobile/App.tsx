@@ -196,11 +196,6 @@ export default function App() {
   function openAccountEntry() {
     setAuthError("");
     setScreen("auth");
-    void refreshAuthStatus().catch(() => {
-      setAuthError(
-        "Lumis could not securely check your account. Check your connection and try again."
-      );
-    });
   }
 
   function requestAuthoritativeLogout() {

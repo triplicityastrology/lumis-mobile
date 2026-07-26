@@ -1,6 +1,7 @@
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import type { ReactNode } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radii, spacing } from "../theme/tokens";
 
@@ -20,7 +21,7 @@ export function FlowScreen({
   title: string;
 }) {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable style={styles.back} onPress={onBack} accessibilityLabel="Back">
