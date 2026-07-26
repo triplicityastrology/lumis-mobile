@@ -135,7 +135,6 @@ export function LumisProfileScreen({
             <ProfileRow icon={<Clock3 color={colors.periwinkle} size={17} />} label="Check-in frequency" value="Every 3 days" onPress={checkInEnabled ? onCareCircle : undefined} showChevron={checkInEnabled} />
             <ProfileRow icon={<QrCode color={colors.periwinkle} size={17} />} label="My check-in code" onPress={onCareCircle} />
             <ProfileRow icon={<UserRound color={colors.periwinkle} size={17} />} label="Add someone I care for" onPress={onCareCircle} />
-            <ProfileRow icon={<UserRound color={colors.periwinkle} size={17} />} label="Emergency contact" value="Not set" onPress={onCareCircle} />
             <ProfileRow icon={<Users color={colors.periwinkle} size={17} />} label="Manage linked Care Circle" onPress={onCareCircle} />
           </ProfileSection>
 

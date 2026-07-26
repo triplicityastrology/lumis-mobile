@@ -45,7 +45,10 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
   const [removeTarget, setRemoveTarget] = useState<Carer | null>(null);
 
   // The carer scans/enters the caree's code; on success we confirm the caree.
+  // DEV-ONLY: the fixed mock code (LUMIS123) never establishes a link in a
+  // release build — Care Circle is Preview only, so nothing here is callable live.
   function simulateScan(code?: string) {
+    if (!__DEV__) return;
     if (code && code.toUpperCase() !== MY_CHECKIN_CODE) {
       setScanError("invalid");
       return;
@@ -78,15 +81,18 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
         <View style={s.qrCard}>
           <QrPlaceholder />
           <Text style={s.qrName}>Ruby</Text>
-          {/* Manual code shown beneath the QR so a carer can add you without scanning. */}
-          <View style={s.codeBox}>
-            <Text style={s.codeLabel}>OR ENTER CODE</Text>
-            <Text style={s.codeValue}>{MY_CHECKIN_CODE}</Text>
-          </View>
+          {/* DEV-ONLY: the fixed mock code is never shown in a release build so it
+              can't read as a live, working code (Care Circle is Preview only). */}
+          {__DEV__ ? (
+            <View style={s.codeBox}>
+              <Text style={s.codeLabel}>OR ENTER CODE</Text>
+              <Text style={s.codeValue}>{MY_CHECKIN_CODE}</Text>
+            </View>
+          ) : null}
           <View style={s.expiryChip}><Text style={s.expiryText}>Expires in 4:59</Text></View>
         </View>
         <Text style={s.explain}>
-          Share this with someone you trust. When your carer scans or enters this code, they can start caring for you — you'll still confirm the link.
+          Care Circle is in preview — linking isn't active yet. This is where you'll share your code with someone you trust once it goes live.
         </Text>
         <GhostButton label="Refresh code" onPress={() => {}} style={{ marginTop: 6 }} />
         <SafetyNote text={SAFETY} />
@@ -106,19 +112,26 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
         ) : scanError === "expired" ? (
           <Text style={s.scanErr}>This code has expired.</Text>
         ) : null}
-        <Text style={s.explainSmall}>Camera not available in preview — enter their code or simulate a scan.</Text>
-        <View style={s.manualRow}>
-          <TextInput
-            autoCapitalize="characters"
-            onChangeText={setManualCode}
-            placeholder="Enter their code"
-            placeholderTextColor={colors.muted}
-            style={s.manualInput}
-            value={manualCode}
-          />
-          <SoftButton label="Submit" onPress={() => simulateScan(manualCode)} />
-        </View>
-        <BrandButton label={`Simulate scan (${MY_CHECKIN_CODE})`} onPress={() => simulateScan(MY_CHECKIN_CODE)} style={{ marginTop: 12 }} />
+        <Text style={s.explainSmall}>Care Circle is in preview — linking isn't active yet. Scanning will be available once it goes live.</Text>
+        {/* DEV-ONLY: the mock manual-code entry and Simulate scan control are
+            compiled out of release builds so the Preview scan flow can never
+            appear live or trusted, and the fixed code is not callable. */}
+        {__DEV__ ? (
+          <>
+            <View style={s.manualRow}>
+              <TextInput
+                autoCapitalize="characters"
+                onChangeText={setManualCode}
+                placeholder="Enter their code"
+                placeholderTextColor={colors.muted}
+                style={s.manualInput}
+                value={manualCode}
+              />
+              <SoftButton label="Submit" onPress={() => simulateScan(manualCode)} />
+            </View>
+            <BrandButton label={`Simulate scan (${MY_CHECKIN_CODE})`} onPress={() => simulateScan(MY_CHECKIN_CODE)} style={{ marginTop: 12 }} />
+          </>
+        ) : null}
       </Shell>
     );
   }

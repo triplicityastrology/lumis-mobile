@@ -98,6 +98,19 @@ for (const requiredProfileSurface of [
   assert.match(profileScreenSource, new RegExp(requiredProfileSurface));
 }
 assert.match(profileScreenSource, /Preview only\. Check-ins and carer links are not active yet\./);
+// S1-C03 preview-safety: no Emergency contact row in the Profile Care Circle group.
+assert.doesNotMatch(profileScreenSource, /Emergency contact/);
+// S1-C03 preview-safety: Care Circle stays Preview-labelled on every route (the
+// badge lives in the shared Shell), and the fixed LUMIS123 code + Simulate scan
+// control are DEV-only — never visible or callable in a release build.
+const careCircleSource = await readFile(
+  path.join(root, "apps/mobile/src/features/careCircle/CareCircleScreen.tsx"),
+  "utf8"
+);
+assert.match(careCircleSource, /function Shell\(\{[\s\S]*?<PreviewBadge label="Preview · not active yet" \/>/);
+assert.match(careCircleSource, /function simulateScan\(code\?: string\) \{\s*if \(!__DEV__\) return;/);
+assert.match(careCircleSource, /\{__DEV__ \? \(\s*<View style=\{s\.codeBox\}>/);
+assert.match(careCircleSource, /\{__DEV__ \? \(\s*<>[\s\S]*?Simulate scan/);
 assert.match(profileScreenSource, /showPendingNotice\("Account deletion"\)/);
 assert.match(profileScreenSource, /will be connected after its security review is complete/);
 assert.match(profileScreenSource, /PRODUCTS\.find\(\(product\) => product\.tier === planTier\)/);
