@@ -222,7 +222,7 @@ export function LumisDiceScreen({
               <Pressable onPress={reset} style={styles.secondaryButton}><Dices color={colors.ice} size={18} /><Text style={styles.secondaryText}>Roll again</Text></Pressable>
               <Pressable onPress={() => onReflect(reflectionPrompt)} style={styles.chatButton}><MessageCircle color={colors.gold} size={18} /><Text style={styles.chatText}>Save this reflection</Text></Pressable>
             </View>
-            <Text style={styles.previewNotice}>Preview — no credits are charged</Text>
+            <Text style={styles.previewNotice}>Preview — no credits charged</Text>
             <Text style={styles.note}>Dice are a mirror for reflection, not a verdict.</Text>
           </ScrollView>
         ) : null}

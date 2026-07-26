@@ -563,7 +563,7 @@ export function DiceRitualScreen({
                 {/* The full Lumis dice interpretation (paid route) is not wired yet;
                     "Reflect in chat" opens a free reflection and charges nothing. */}
                 <View style={styles.interpretPreviewRow}>
-                  <Text style={styles.interpretPreviewText}>Lumis dice reading · Preview — no credits are charged</Text>
+                  <Text style={styles.interpretPreviewText}>Lumis dice reading · Preview — no credits charged</Text>
                 </View>
               </>
             ) : null}

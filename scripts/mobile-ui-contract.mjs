@@ -63,12 +63,12 @@ assert.doesNotMatch(appSource, /function (?:PlansAccessScreen|PaywallScreen)\b/)
 assert.doesNotMatch(profileScreenSource, /Credit balance|onPlans|planTier|remainingCredits/);
 assert.match(
   diceSource,
-  /Preview — no credits are charged/,
+  /Preview — no credits charged/,
   "the fallback Dice preview must disclose its no-charge state"
 );
 assert.match(
   diceRitualSource,
-  /Preview — no credits are charged/,
+  /Preview — no credits charged/,
   "the default Dice preview must disclose its no-charge state"
 );
 assert.doesNotMatch(appSource, /accessibilityLabel="Credit estimate"/i);
@@ -300,7 +300,7 @@ async function listTsxFiles(directory) {
 
 function assertNoVisibleBilling(source, surface) {
   const sourceWithoutApprovedDiceDisclosure = source.replace(
-    /Preview — no credits are charged/g,
+    /Preview — no credits charged/g,
     "Preview"
   );
   const visibleBillingStrings = [...sourceWithoutApprovedDiceDisclosure.matchAll(
