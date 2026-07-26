@@ -1,4 +1,6 @@
 import type { User } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
+import { Platform } from "react-native";
 
 import { getSupabaseClient, getSupabaseConfig } from "./supabase";
 
@@ -50,8 +52,10 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   };
 }
 
-export async function handleAuthRedirectFromUrl(): Promise<AuthRedirectResult> {
-  if (typeof globalThis.location === "undefined") {
+export async function handleAuthRedirectFromUrl(url?: string | null): Promise<AuthRedirectResult> {
+  const redirectUrl = url ?? getBrowserUrl();
+
+  if (!redirectUrl) {
     return { handled: false };
   }
 
@@ -61,24 +65,45 @@ export async function handleAuthRedirectFromUrl(): Promise<AuthRedirectResult> {
     return { handled: false };
   }
 
-  const currentUrl = new URL(globalThis.location.href);
+  let currentUrl: URL;
+
+  try {
+    currentUrl = new URL(redirectUrl);
+  } catch {
+    throw new Error("That sign-in link is invalid. Request a new secure link.");
+  }
+
+  if (!isLumisAuthCallback(currentUrl)) {
+    return { handled: false };
+  }
+
+  const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
+  const authError =
+    currentUrl.searchParams.get("error_description") ??
+    hashParams.get("error_description") ??
+    currentUrl.searchParams.get("error") ??
+    hashParams.get("error");
+
+  if (authError) {
+    throw new Error(formatRedirectError(authError));
+  }
+
   const authCode = currentUrl.searchParams.get("code");
 
   if (authCode) {
     const { error } = await supabase.auth.exchangeCodeForSession(authCode);
 
     if (error) {
-      throw new Error(error.message);
+      throw new Error(formatRedirectError(error.message));
     }
 
-    cleanAuthUrl();
+    cleanBrowserAuthUrl();
     return {
       handled: true,
       message: "Email confirmed. Lumis account is ready."
     };
   }
 
-  const hashParams = new URLSearchParams(currentUrl.hash.replace(/^#/, ""));
   const accessToken = hashParams.get("access_token");
   const refreshToken = hashParams.get("refresh_token");
 
@@ -89,10 +114,10 @@ export async function handleAuthRedirectFromUrl(): Promise<AuthRedirectResult> {
     });
 
     if (error) {
-      throw new Error(error.message);
+      throw new Error(formatRedirectError(error.message));
     }
 
-    cleanAuthUrl();
+    cleanBrowserAuthUrl();
     return {
       handled: true,
       message: "Email confirmed. Lumis account is ready."
@@ -132,12 +157,14 @@ export async function sendMagicLink(email: string): Promise<MagicLinkResult> {
   };
 }
 
-function getEmailRedirectTo(): string | undefined {
-  if (typeof globalThis.location === "undefined") {
-    return undefined;
+export function getEmailRedirectTo(): string {
+  const redirectUrl = Linking.createURL("auth/callback");
+
+  if (Platform.OS !== "web" && isLocalhostUrl(redirectUrl)) {
+    throw new Error("Secure mobile sign-in is not configured for this build.");
   }
 
-  return globalThis.location.origin;
+  return redirectUrl;
 }
 
 function formatAuthErrorMessage(message: string): string {
@@ -148,7 +175,37 @@ function formatAuthErrorMessage(message: string): string {
   return message;
 }
 
-function cleanAuthUrl() {
+function getBrowserUrl(): string | null {
+  if (typeof globalThis.location === "undefined") {
+    return null;
+  }
+
+  return globalThis.location.href;
+}
+
+function isLumisAuthCallback(url: URL): boolean {
+  const callbackPath = `${url.hostname}${url.pathname}`.replace(/\/+/g, "/");
+  return callbackPath.endsWith("auth/callback");
+}
+
+function isLocalhostUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+  } catch {
+    return true;
+  }
+}
+
+function formatRedirectError(_message: string): string {
+  return "That sign-in link is invalid or expired. Request a new secure link.";
+}
+
+function cleanBrowserAuthUrl() {
+  if (Platform.OS !== "web") {
+    return;
+  }
+
   if (typeof globalThis.location === "undefined" || typeof globalThis.history === "undefined") {
     return;
   }

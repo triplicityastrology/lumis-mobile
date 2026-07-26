@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { randomUUID } from "expo-crypto";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Bell from "lucide-react-native/icons/bell";
 import CalendarClock from "lucide-react-native/icons/calendar-clock";
@@ -438,22 +439,39 @@ export default function App() {
   }, [notificationsReturn]);
 
   useEffect(() => {
-    async function initializeAuth() {
-      try {
-        const result = await handleAuthRedirectFromUrl();
+    let isMounted = true;
 
-        if (result.message) {
+    async function restoreAfterAuthRedirect(url?: string | null) {
+      try {
+        const result = await handleAuthRedirectFromUrl(url);
+
+        if (isMounted && result.message) {
           setAuthNotice(result.message);
         }
 
-        const status = await refreshAuthStatus();
-        await restoreAccountForStatus(status, true);
+        if (isMounted) {
+          await applyRefreshedAuthStatus(await getAuthStatus());
+        }
       } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
         setAuthError(error instanceof Error ? error.message : "Unable to confirm account.");
+        await applyRefreshedAuthStatus(await getAuthStatus());
       }
     }
 
-    void initializeAuth();
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      void restoreAfterAuthRedirect(url);
+    });
+
+    void Linking.getInitialURL().then((url) => restoreAfterAuthRedirect(url));
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
   }, []);
 
   // Screens render as transparent foregrounds over ONE persistent sky mounted at

@@ -8,6 +8,76 @@ const authScreen = readFileSync("apps/mobile/src/screens/LumisAuthScreen.tsx", "
 const profileScreen = readFileSync("apps/mobile/src/screens/LumisProfileScreen.tsx", "utf8");
 const authSystemKit = readFileSync("apps/mobile/src/components/AuthSystemKit.tsx", "utf8");
 
+assert.match(authService, /import \* as Linking from "expo-linking"/);
+const emailRedirect = extractRange(
+  authService,
+  "export function getEmailRedirectTo",
+  "function formatAuthErrorMessage"
+);
+assert.match(emailRedirect, /Linking\.createURL\("auth\/callback"\)/);
+assert.match(emailRedirect, /Platform\.OS !== "web" && isLocalhostUrl\(redirectUrl\)/);
+assert.doesNotMatch(
+  emailRedirect,
+  /globalThis\.location\.origin/,
+  "mobile magic links must not use the browser localhost origin"
+);
+
+const redirectHandler = extractRange(
+  authService,
+  "export async function handleAuthRedirectFromUrl",
+  "export async function sendMagicLink"
+);
+assert.match(redirectHandler, /url\?: string \| null/);
+assert.match(redirectHandler, /new URL\(redirectUrl\)/);
+assert.match(redirectHandler, /isLumisAuthCallback\(currentUrl\)/);
+assert.match(redirectHandler, /exchangeCodeForSession\(authCode\)/);
+assert.match(redirectHandler, /setSession\(\{[\s\S]*access_token: accessToken,[\s\S]*refresh_token: refreshToken/);
+assert.doesNotMatch(
+  redirectHandler,
+  /console\.|setAuthStatus|setProfileData|starter_onboarding/,
+  "redirect parsing must neither log private links nor create fake account state"
+);
+
+const authLinkLifecycle = extractRange(
+  app,
+  "useEffect(() => {\n    let isMounted = true;",
+  "// Screens render as transparent foregrounds"
+);
+assert.match(authLinkLifecycle, /Linking\.getInitialURL\(\)/);
+assert.match(authLinkLifecycle, /Linking\.addEventListener\("url", \(\{ url \}\) =>/);
+assert.match(authLinkLifecycle, /handleAuthRedirectFromUrl\(url\)/);
+assert.match(authLinkLifecycle, /applyRefreshedAuthStatus\(await getAuthStatus\(\)\)/);
+assert.match(authLinkLifecycle, /subscription\.remove\(\)/);
+assert.doesNotMatch(
+  authLinkLifecycle,
+  /setAuthStatus\(\s*\{[\s\S]*user:/,
+  "callback handling must restore only the session returned by Supabase"
+);
+
+for (const mobileCallback of [
+  "exp://192.0.2.10:8081/--/auth/callback",
+  "lumis://auth/callback"
+]) {
+  assert.equal(isFixtureAuthCallback(mobileCallback), true);
+  assert.equal(new URL(mobileCallback).hostname === "localhost", false);
+}
+assert.equal(isFixtureAuthCallback("http://localhost:8081"), false);
+const invalidRedirectState = {
+  authenticated: false,
+  restored: false,
+  error: ""
+};
+await simulateInvalidRedirect(invalidRedirectState);
+assert.deepEqual(
+  invalidRedirectState,
+  {
+    authenticated: false,
+    restored: false,
+    error: "That sign-in link is invalid or expired. Request a new secure link."
+  },
+  "an invalid callback must stay truthful and cannot manufacture an authenticated state"
+);
+
 const signOutService = extractRange(
   authService,
   "export async function signOut",
@@ -344,4 +414,17 @@ function resolveProfileAuthPresentation(status) {
     accountLabel: email ? "Manage sign-in" : "Save this profile",
     showLogout: Boolean(email)
   };
+}
+
+function isFixtureAuthCallback(value) {
+  const url = new URL(value);
+  return `${url.hostname}${url.pathname}`.replace(/\/+/g, "/").endsWith("auth/callback");
+}
+
+async function simulateInvalidRedirect(state) {
+  try {
+    throw new Error("That sign-in link is invalid or expired. Request a new secure link.");
+  } catch (caught) {
+    state.error = caught instanceof Error ? caught.message : "Unable to confirm account.";
+  }
 }
