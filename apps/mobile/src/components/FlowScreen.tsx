@@ -21,7 +21,7 @@ export function FlowScreen({
   title: string;
 }) {
   return (
-    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable style={styles.back} onPress={onBack} accessibilityLabel="Back">
@@ -29,7 +29,12 @@ export function FlowScreen({
           </Pressable>
           <View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View>
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.eyebrow}>✦ {eyebrow}</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.body}>{body}</Text>

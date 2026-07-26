@@ -169,7 +169,11 @@ function WelcomeState(props: LumisHomeScreenProps) {
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.welcomeContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.welcomeContent}
+          contentInsetAdjustmentBehavior="never"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.halo}>
             <MiniChartWheel size={148} />
           </View>
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
   markRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   signInButton: { height: 40, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
   signInText: { color: colors.ice, fontSize: 12.5, fontWeight: "600" },
-  welcomeContent: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 26, paddingTop: 18, paddingBottom: 34 },
+  welcomeContent: { flexGrow: 1, paddingHorizontal: 26, paddingTop: 18, paddingBottom: 34 },
   halo: { alignSelf: "center", width: 176, height: 176, borderRadius: 88, alignItems: "center", justifyContent: "center", marginBottom: 20, backgroundColor: colors.periwinkleFill },
   welcomeTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 32, lineHeight: 38, maxWidth: 390 },
   welcomeBody: { color: colors.textSoft, fontSize: 14.5, lineHeight: 22, marginTop: 12 },

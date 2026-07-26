@@ -103,7 +103,27 @@ assert.doesNotMatch(
 );
 assert.match(
   flowScreenSource,
-  /<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/
+  /<SafeAreaView edges=\{\["top", "left", "right"\]\}/
+);
+assert.match(
+  flowScreenSource,
+  /contentInsetAdjustmentBehavior="never"/,
+  "flow screens must not receive a second automatic iOS safe-area inset after mount"
+);
+assert.match(
+  flowScreenSource,
+  /keyboardShouldPersistTaps="handled"/,
+  "stable flow geometry must preserve interactive keyboard forms"
+);
+assert.match(
+  homeScreenSource,
+  /contentInsetAdjustmentBehavior="never"/,
+  "the signed-out Home scroll view must opt out of post-mount automatic inset adjustment"
+);
+assert.doesNotMatch(
+  homeScreenSource,
+  /welcomeContent:\s*\{[^}]*justifyContent:\s*"center"/,
+  "variable-height welcome content cannot be vertically recentered after child measurement"
 );
 for (const welcomeAction of [
   'accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}',
