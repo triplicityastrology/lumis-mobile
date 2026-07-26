@@ -1,13 +1,22 @@
 # Dice ritual module
 
 Physics-true astro dice (AC-DICE-01 v1.3 build spec + AC-DICE-04 v1.2 animation
-package in Drive `06_Dice_Mini_Game/`). Feature-flagged; `LumisDiceScreen`
-remains the identical-flow fallback.
+package in Drive `06_Dice_Mini_Game/`). This is the founder-approved, **default**
+Dice experience; `LumisDiceScreen` is the identical-flow 2D fallback.
 
-## Enable
+## Default & flag (S1-DICE-P1, 2026-07-24)
 
-Set `EXPO_PUBLIC_DICE_RITUAL=1` in the build environment. Flag lives in
-`featureFlag.ts`; the switch is in `App.tsx` at the `screen === "dice"` branch.
+The physics ritual is **on by default — no env var required**. It renders on the
+Dice tab for normal local/device testing and on the founder's phone.
+
+`featureFlag.ts` is now **opt-OUT**: `DICE_RITUAL_ENABLED = process.env.EXPO_PUBLIC_DICE_RITUAL !== "0"`.
+Set `EXPO_PUBLIC_DICE_RITUAL=0` only to fall back to `LumisDiceScreen` for the
+device-performance spike. The routing switch is in `App.tsx` at the
+`screen === "dice"` branch.
+
+Why this changed: it was previously opt-IN (`=== "1"`) and the flag lived only in
+the gitignored `apps/mobile/.env`, so the founder's device build never received
+it and always showed the 2D fallback.
 
 ## Layout
 

@@ -23,8 +23,8 @@ check(
   "apps/mobile/.env is missing the staging publishable key."
 );
 check(
-  mobileEnvironment.EXPO_PUBLIC_DICE_RITUAL === "1",
-  "EXPO_PUBLIC_DICE_RITUAL must be 1 for the current device-test build."
+  mobileEnvironment.EXPO_PUBLIC_DICE_RITUAL !== "0",
+  "EXPO_PUBLIC_DICE_RITUAL must not be 0 — the founder-approved physics Dice ritual ships by DEFAULT (no env var needed). Only omit or set it; setting it to 0 downgrades the founder's phone to the 2D fallback."
 );
 
 for (const forbiddenName of [
