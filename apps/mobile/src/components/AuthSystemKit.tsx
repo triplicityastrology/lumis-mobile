@@ -170,10 +170,30 @@ export function MagicLinkSentScreen({
   onChangeEmail
 }: {
   email: string;
-  onResend: () => void;
+  onResend: () => Promise<void>;
   onChangeEmail: () => void;
 }) {
-  const [resent, setResent] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [resendError, setResendError] = useState("");
+
+  async function resend() {
+    setResendState("submitting");
+    setResendError("");
+
+    try {
+      await onResend();
+      setResendState("success");
+    } catch (caught) {
+      setResendError(
+        caught instanceof Error ? caught.message : "Unable to resend your secure link."
+      );
+      setResendState("error");
+    }
+  }
+
+  const resendSucceeded = resendState === "success";
+  const resendSubmitting = resendState === "submitting";
+
   return (
     <AuthShell>
       <View style={styles.center}>
@@ -183,13 +203,19 @@ export function MagicLinkSentScreen({
         <Text style={styles.bodyStrong}>{email}</Text>
         <Text style={styles.small}>The link expires in 15 minutes and can only be used once. If you don't see it, check spam.</Text>
         <View style={styles.spacer} />
+        {resendState === "error" ? (
+          <View
+            style={styles.resendError}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+          >
+            <Text style={styles.resendErrorText}>{resendError}</Text>
+          </View>
+        ) : null}
         <SoftButton
-          label={resent ? "Link resent" : "Resend link"}
-          disabled={resent}
-          onPress={() => {
-            setResent(true);
-            onResend();
-          }}
+          label={resendSucceeded ? "Link resent" : resendSubmitting ? "Resending..." : "Resend link"}
+          disabled={resendSucceeded || resendSubmitting}
+          onPress={resend}
         />
         <LinkButton label="Use a different email" onPress={onChangeEmail} />
       </View>
@@ -566,6 +592,8 @@ const styles = StyleSheet.create({
   primaryBtnText: { color: "#1a1206", fontSize: 15.5, fontWeight: "700" },
   softBtn: { alignItems: "center", alignSelf: "stretch", backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderRadius: 15, borderWidth: 1, justifyContent: "center", minHeight: 52, marginBottom: 12 },
   softBtnText: { color: colors.ice, fontSize: 15, fontWeight: "600" },
+  resendError: { alignSelf: "stretch", backgroundColor: "rgba(210,130,95,0.14)", borderColor: "rgba(210,130,95,0.42)", borderRadius: 12, borderWidth: 1, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 11 },
+  resendErrorText: { color: "#F2C39C", fontSize: 12.5, lineHeight: 18, textAlign: "center" },
   dim: { opacity: 0.5 },
   linkBtn: { alignItems: "center", justifyContent: "center", minHeight: 40 },
   linkBtnText: { color: colors.textSoft, fontSize: 13.5, fontWeight: "600" },

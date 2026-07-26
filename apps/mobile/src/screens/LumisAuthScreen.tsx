@@ -66,11 +66,7 @@ export function LumisAuthScreen({
 
   async function resendLink() {
     if (!sentToEmail) return;
-    try {
-      await sendMagicLink(sentToEmail);
-    } catch {
-      // Resend is best-effort; the visible confirmation already shows "Link resent".
-    }
+    await sendMagicLink(sentToEmail);
   }
 
   if (sentToEmail) {

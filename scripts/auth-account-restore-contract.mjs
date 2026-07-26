@@ -115,6 +115,53 @@ assert.doesNotMatch(profileScreen, /<LogoutDialog/);
 assert.match(authSystemKit, /<PrimaryButton label="Done" onPress=\{onCancel\}/);
 assert.match(authSystemKit, /accessibilityLabel="Cancel and stay signed in"/);
 
+const magicLinkSentScreen = extractRange(
+  authSystemKit,
+  "export function MagicLinkSentScreen",
+  "// ---- AUTH-003"
+);
+assert.match(magicLinkSentScreen, /await onResend\(\)/);
+assert.ok(
+  magicLinkSentScreen.indexOf("await onResend()") <
+    magicLinkSentScreen.indexOf('setResendState("success")'),
+  "resend success may be shown only after the request resolves"
+);
+assert.match(magicLinkSentScreen, /catch \(caught\)/);
+assert.match(magicLinkSentScreen, /setResendError\(/);
+assert.match(magicLinkSentScreen, /setResendState\("error"\)/);
+assert.match(magicLinkSentScreen, /accessibilityRole="alert"/);
+assert.match(magicLinkSentScreen, /accessibilityLiveRegion="assertive"/);
+assert.match(magicLinkSentScreen, /resendSucceeded \|\| resendSubmitting/);
+assert.match(magicLinkSentScreen, /<LinkButton label="Use a different email"/);
+assert.doesNotMatch(
+  authScreen,
+  /async function resendLink\(\)[\s\S]{0,180}catch/,
+  "the Auth screen must not swallow resend errors"
+);
+
+const resendState = {
+  status: "idle",
+  error: "",
+  canRetry: true,
+  canChangeEmail: true
+};
+await simulateResend({
+  state: resendState,
+  resendImpl: async () => {
+    throw new Error("Too many sign-in emails were requested.");
+  }
+});
+assert.deepEqual(
+  resendState,
+  {
+    status: "error",
+    error: "Too many sign-in emails were requested.",
+    canRetry: true,
+    canChangeEmail: true
+  },
+  "a rejected resend must show its truthful error and preserve both recovery actions"
+);
+
 const signedInRestore = extractRange(
   app,
   "async function restoreAccountForStatus",
@@ -215,4 +262,19 @@ async function simulateAuthoritativeSignOut({ state, signOutImpl }) {
   await signOutImpl();
   state.localSession = "cleared";
   state.visibleAccount = "cleared";
+}
+
+async function simulateResend({ state, resendImpl }) {
+  state.status = "submitting";
+  state.error = "";
+
+  try {
+    await resendImpl();
+    state.status = "success";
+    state.canRetry = false;
+  } catch (caught) {
+    state.status = "error";
+    state.error = caught instanceof Error ? caught.message : "Unable to resend your secure link.";
+    state.canRetry = true;
+  }
 }
