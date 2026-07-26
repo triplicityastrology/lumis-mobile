@@ -33,7 +33,27 @@ assert.match(redirectHandler, /new URL\(redirectUrl\)/);
 assert.match(redirectHandler, /isLumisAuthCallback\(currentUrl\)/);
 assert.match(redirectHandler, /exchangeCodeForSession\(authCode\)/);
 assert.match(redirectHandler, /setSession\(\{[\s\S]*access_token: accessToken,[\s\S]*refresh_token: refreshToken/);
-assert.match(redirectHandler, /setNativeSessionWithResumeRetry/);
+assert.equal(
+  (redirectHandler.match(/exchangeNativeCredentialWithResumeRetry\(/g) ?? []).length,
+  2,
+  "both code exchange and token fallback must use the bounded native resume retry"
+);
+const codeExchangePath = extractRange(
+  redirectHandler,
+  "if (authCode) {",
+  "const accessToken"
+);
+assert.match(
+  codeExchangePath,
+  /exchangeNativeCredentialWithResumeRetry\(\s*\(\) => supabase\.auth\.exchangeCodeForSession\(authCode\),\s*Platform\.OS !== "web"\s*\)/
+);
+const tokenExchangePath = extractRange(
+  redirectHandler,
+  "if (accessToken && refreshToken) {",
+  "return { handled: false }"
+);
+assert.match(tokenExchangePath, /exchangeNativeCredentialWithResumeRetry/);
+assert.match(tokenExchangePath, /supabase\.auth\.setSession/);
 assert.match(redirectHandler, /successfulRedirect\(data\.session\.user\)/);
 assert.match(redirectHandler, /formatRedirectExchangeError\(error\)/);
 assert.doesNotMatch(
@@ -45,7 +65,7 @@ assert.doesNotMatch(
 const successfulRedirect = extractRange(
   authService,
   "function successfulRedirect",
-  "async function setNativeSessionWithResumeRetry"
+  "async function exchangeNativeCredentialWithResumeRetry"
 );
 assert.match(successfulRedirect, /status:\s*\{[\s\S]*isConfigured: true,[\s\S]*user/);
 assert.doesNotMatch(
@@ -56,7 +76,7 @@ assert.doesNotMatch(
 
 const nativeResumeRetry = extractRange(
   authService,
-  "async function setNativeSessionWithResumeRetry",
+  "async function exchangeNativeCredentialWithResumeRetry",
   "function formatRedirectError"
 );
 assert.match(nativeResumeRetry, /isNetworkFailure\(error\)/);
@@ -175,31 +195,46 @@ assert.deepEqual(successfulExchangeState, {
   error: ""
 });
 
-let nativeResumeAttempts = 0;
-const resumedSession = await simulateNetworkResumeRetry(async () => {
-  nativeResumeAttempts += 1;
-  if (nativeResumeAttempts === 1) {
+let codeResumeAttempts = 0;
+const resumedCodeSession = await simulateNetworkResumeRetry(async () => {
+  codeResumeAttempts += 1;
+  if (codeResumeAttempts === 1) {
     throw new TypeError("Network request failed");
   }
-  return { userId: "fixture-user" };
+  return { userId: "code-user" };
 });
-assert.equal(nativeResumeAttempts, 2);
-assert.equal(resumedSession.userId, "fixture-user");
+assert.equal(codeResumeAttempts, 2);
+assert.equal(resumedCodeSession.userId, "code-user");
+
+let tokenResumeAttempts = 0;
+const resumedTokenSession = await simulateNetworkResumeRetry(async () => {
+  tokenResumeAttempts += 1;
+  if (tokenResumeAttempts === 1) {
+    throw new TypeError("Network request failed");
+  }
+  return { userId: "token-user" };
+});
+assert.equal(tokenResumeAttempts, 2);
+assert.equal(resumedTokenSession.userId, "token-user");
 
 const failedExchangeState = {
   authenticated: false,
   restored: false,
   error: ""
 };
+let failedCodeAttempts = 0;
 await simulateCallbackExchange({
   state: failedExchangeState,
-  exchange: async () => {
-    throw new TypeError("Network request failed");
-  },
+  exchange: () =>
+    simulateNetworkResumeRetry(async () => {
+      failedCodeAttempts += 1;
+      throw new TypeError("Network request failed");
+    }),
   restore: async () => {
     failedExchangeState.restored = true;
   }
 });
+assert.equal(failedCodeAttempts, 2, "a failed code callback stops after one bounded retry");
 assert.deepEqual(
   failedExchangeState,
   {
@@ -209,6 +244,29 @@ assert.deepEqual(
       "Lumis could not finish secure sign-in because the connection was interrupted. Check your connection and request a new sign-in link."
   },
   "a native fetch failure must remain signed out and show only the safe recovery message"
+);
+
+const processedCallbackUrls = new Set();
+let duplicateCodeExchangeCount = 0;
+const duplicateCallbackUrl = "lumis://auth/callback?code=redacted-fixture";
+await simulateDeduplicatedCallback(
+  duplicateCallbackUrl,
+  processedCallbackUrls,
+  async () => {
+    duplicateCodeExchangeCount += 1;
+  }
+);
+await simulateDeduplicatedCallback(
+  duplicateCallbackUrl,
+  processedCallbackUrls,
+  async () => {
+    duplicateCodeExchangeCount += 1;
+  }
+);
+assert.equal(
+  duplicateCodeExchangeCount,
+  1,
+  "cold-start and live URL delivery cannot re-exchange one callback"
 );
 
 const signOutService = extractRange(
@@ -589,4 +647,12 @@ async function simulateNetworkResumeRetry(exchange) {
     }
     return exchange();
   }
+}
+
+async function simulateDeduplicatedCallback(url, processedUrls, exchange) {
+  if (processedUrls.has(url)) {
+    return;
+  }
+  processedUrls.add(url);
+  await exchange();
 }

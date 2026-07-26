@@ -97,7 +97,10 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
 
   if (authCode) {
     try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
+      const { data, error } = await exchangeNativeCredentialWithResumeRetry(
+        () => supabase.auth.exchangeCodeForSession(authCode),
+        Platform.OS !== "web"
+      );
 
       if (error || !data.session?.user) {
         throw new Error(formatRedirectError(error?.message));
@@ -117,7 +120,7 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
 
   if (accessToken && refreshToken) {
     try {
-      const { data, error } = await setNativeSessionWithResumeRetry(
+      const { data, error } = await exchangeNativeCredentialWithResumeRetry(
         () =>
           supabase.auth.setSession({
             access_token: accessToken,
@@ -221,7 +224,7 @@ function successfulRedirect(user: User): AuthRedirectResult {
   };
 }
 
-async function setNativeSessionWithResumeRetry<T>(
+async function exchangeNativeCredentialWithResumeRetry<T>(
   exchange: () => Promise<T>,
   canRetry: boolean
 ): Promise<T> {
