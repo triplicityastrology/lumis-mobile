@@ -2,8 +2,9 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import {
-  Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View
+  Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import { GeneratingView } from "../../components/GeneratingView";
@@ -171,7 +172,7 @@ export function BirthDetailsChangeScreen({
   }
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={s.safe}>
       {step !== "regenerating" ? (
         <ScreenHeader
           title="Birth Details"
@@ -179,7 +180,12 @@ export function BirthDetailsChangeScreen({
         />
       ) : null}
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {step === "display" ? (
           <>
             <View style={s.card}>

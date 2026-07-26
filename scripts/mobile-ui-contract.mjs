@@ -40,6 +40,14 @@ const diceHistorySource = await readFile(
   path.join(featuresPath, "dice/DiceHistorySheet.tsx"),
   "utf8"
 );
+const careCircleSource = await readFile(
+  path.join(featuresPath, "careCircle/CareCircleScreen.tsx"),
+  "utf8"
+);
+const birthDetailsSource = await readFile(
+  path.join(featuresPath, "birthDetails/BirthDetailsChangeScreen.tsx"),
+  "utf8"
+);
 const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
 const screenFiles = (await readdir(screensPath))
   .filter((name) => name.endsWith(".tsx"))
@@ -204,6 +212,36 @@ for (const [name, source] of [
 assert.match(diceRitualSource, /activeQuestionRef\.current = normalizedQuestion/);
 assert.match(diceSource, /const normalizedQuestion = normalizeDiceQuestion\(question\)/);
 assert.match(diceHistorySource, /const QUESTION_UNAVAILABLE = "Question unavailable"/);
+for (const [name, source] of [
+  ["Profile", profileScreenSource],
+  ["fallback Dice", diceSource],
+  ["Dice history", diceHistorySource],
+  ["Care Circle", careCircleSource],
+  ["Birth Details", birthDetailsSource]
+]) {
+  assert.match(
+    source,
+    /contentInsetAdjustmentBehavior="never"/,
+    `${name} must not accept a second automatic iOS content inset after mount`
+  );
+}
+for (const [name, source] of [
+  ["Care Circle", careCircleSource],
+  ["Birth Details", birthDetailsSource]
+]) {
+  assert.match(source, /import \{ SafeAreaView \} from "react-native-safe-area-context"/);
+  assert.match(source, /<SafeAreaView edges=\{\["top", "left", "right"\]\}/);
+  assert.doesNotMatch(
+    source,
+    /import \{[^}]*SafeAreaView[^}]*\} from "react-native"/,
+    `${name} must share the app's provider-backed safe-area geometry`
+  );
+  assert.match(
+    source,
+    /keyboardShouldPersistTaps="handled"/,
+    `${name} must preserve form interaction while the keyboard is open`
+  );
+}
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
 const personaAvatarSource = await readFile(
   path.join(root, "apps/mobile/src/components/LumisPersonaAvatar.tsx"),
@@ -226,10 +264,6 @@ assert.doesNotMatch(profileScreenSource, /Emergency contact/);
 // S1-C03 preview-safety: Care Circle stays Preview-labelled on every route (the
 // badge lives in the shared Shell), and the fixed LUMIS123 code + Simulate scan
 // control are DEV-only — never visible or callable in a release build.
-const careCircleSource = await readFile(
-  path.join(root, "apps/mobile/src/features/careCircle/CareCircleScreen.tsx"),
-  "utf8"
-);
 assert.match(careCircleSource, /function Shell\(\{[\s\S]*?<PreviewBadge label="Preview · not active yet" \/>/);
 assert.match(careCircleSource, /function simulateScan\(code\?: string\) \{\s*if \(!__DEV__\) return;/);
 assert.match(careCircleSource, /\{__DEV__ \? \(\s*<View style=\{s\.codeBox\}>/);

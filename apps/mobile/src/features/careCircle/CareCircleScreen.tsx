@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
-  Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View
+  Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Rect } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
@@ -270,7 +271,7 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
 
 function Shell({ title, onBack, emblem, children }: { title: string; onBack: () => void; emblem?: boolean; children: React.ReactNode }) {
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={s.safe}>
       <ScreenHeader title={title} onBack={onBack} />
       {/* S1-C02-R1: Preview badge lives in the shared Shell so EVERY Care Circle
           route (home, QR, scan, confirm, empty/gate) shows it — early-return
@@ -278,7 +279,12 @@ function Shell({ title, onBack, emblem, children }: { title: string; onBack: () 
       <View style={s.previewRow}>
         <PreviewBadge label="Preview · not active yet" />
       </View>
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {emblem ? (
           <View style={s.emblemWrap}>
             <View style={s.emblem}><LineMotif name="hands" size={30} /></View>

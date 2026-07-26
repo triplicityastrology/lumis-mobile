@@ -170,7 +170,11 @@ export function LumisDiceScreen({
         </View>
 
         {step === "ask" ? (
-          <ScrollView contentContainerStyle={styles.askContent} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={styles.askContent}
+            contentInsetAdjustmentBehavior="never"
+            keyboardShouldPersistTaps="handled"
+          >
             <View>
               <Text style={styles.eyebrow}>A REFLECTIVE ROLL</Text>
               <Text style={styles.title}>Hold one question lightly.</Text>
@@ -235,7 +239,10 @@ export function LumisDiceScreen({
         ) : null}
 
         {step === "result" && result ? (
-          <ScrollView contentContainerStyle={styles.resultContent}>
+          <ScrollView
+            contentContainerStyle={styles.resultContent}
+            contentInsetAdjustmentBehavior="never"
+          >
             <View style={styles.companionRow}>
               <View style={styles.avatar}><Sparkles color={colors.navy950} size={17} /></View>
               <View><Text style={styles.companionName}>Lumis</Text><Text style={styles.companionSub}>Reading your roll</Text></View>

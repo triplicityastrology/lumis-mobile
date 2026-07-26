@@ -162,7 +162,10 @@ export function DiceHistorySheet({
           ) : null}
 
           {detail ? (
-            <ScrollView contentContainerStyle={styles.detailContent}>
+            <ScrollView
+              contentContainerStyle={styles.detailContent}
+              contentInsetAdjustmentBehavior="never"
+            >
               <Text style={styles.detailQuestion}>{displayQuestion(detail.question)}</Text>
               <View style={styles.detailChips}>
                 {DIE_ORDER.map((kind) => {
@@ -198,7 +201,10 @@ export function DiceHistorySheet({
                   value={query}
                 />
               </View>
-              <ScrollView style={styles.listScroll}>
+              <ScrollView
+                contentInsetAdjustmentBehavior="never"
+                style={styles.listScroll}
+              >
                 {entries.length === 0 ? (
                   <View style={styles.empty}>
                     <Text style={styles.emptyTitle}>No rolls yet</Text>
