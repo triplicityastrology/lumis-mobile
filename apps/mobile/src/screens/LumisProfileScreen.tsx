@@ -5,16 +5,13 @@ import CalendarDays from "lucide-react-native/icons/calendar-days";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Clock3 from "lucide-react-native/icons/clock-3";
 import Compass from "lucide-react-native/icons/compass";
-import Download from "lucide-react-native/icons/download";
 import Headphones from "lucide-react-native/icons/headphones";
 import LogOut from "lucide-react-native/icons/log-out";
 import MapPin from "lucide-react-native/icons/map-pin";
-import QrCode from "lucide-react-native/icons/qr-code";
 import ShieldCheck from "lucide-react-native/icons/shield-check";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import UserRound from "lucide-react-native/icons/user-round";
-import Users from "lucide-react-native/icons/users";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { PersonaStyleKey } from "@lumis/shared";
@@ -62,7 +59,6 @@ export function LumisProfileScreen({
   /** Requests the app-owned, authoritative sign-out confirmation flow. */
   onRequestLogout?: () => void;
 }) {
-  const [checkInEnabled, setCheckInEnabled] = useState(false);
   const [notice, setNotice] = useState("");
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
@@ -106,33 +102,18 @@ export function LumisProfileScreen({
           </ProfileSection>
 
           <ProfileSection label="CARE CIRCLE" note="Preview only. Check-ins and carer links are not active yet.">
-            <View style={styles.switchRow}>
-              <View style={styles.rowIcon}><Bell color={colors.periwinkle} size={17} /></View>
-              <Text style={styles.switchLabel}>Enable check-in reminders</Text>
-              {/* Bound the Switch in a fixed-height box: on iOS a Switch stretches to
-                  the row height and draws its control at the top, so it looks pinned
-                  to the top of the row. A 32pt wrapper keeps it vertically centered. */}
-              <View style={styles.switchControl}>
-                <Switch
-                  accessibilityLabel="Enable check-in reminders"
-                  onValueChange={setCheckInEnabled}
-                  thumbColor={checkInEnabled ? colors.ice : colors.muted}
-                  trackColor={{ false: colors.line, true: colors.gold }}
-                  value={checkInEnabled}
-                />
-              </View>
-            </View>
-            <ProfileRow icon={<Clock3 color={colors.periwinkle} size={17} />} label="Check-in frequency" value="Every 3 days" onPress={checkInEnabled ? onCareCircle : undefined} showChevron={checkInEnabled} />
-            <ProfileRow icon={<QrCode color={colors.periwinkle} size={17} />} label="My check-in code" onPress={onCareCircle} />
-            <ProfileRow icon={<UserRound color={colors.periwinkle} size={17} />} label="Add someone I care for" onPress={onCareCircle} />
-            <ProfileRow icon={<Users color={colors.periwinkle} size={17} />} label="Manage linked Care Circle" onPress={onCareCircle} />
+            <ProfileRow
+              icon={<Bell color={colors.periwinkle} size={17} />}
+              label="Care Circle preview"
+              value="Not active yet"
+              onPress={onCareCircle}
+            />
           </ProfileSection>
 
           <ProfileSection label="PRIVACY & SUPPORT">
             <ProfileRow icon={<Bell color={colors.periwinkle} size={17} />} label="Notifications" onPress={onNotifications} />
             <ProfileRow icon={<ShieldCheck color={colors.periwinkle} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
             <ProfileRow icon={<Headphones color={colors.periwinkle} size={17} />} label="Contact support" onPress={() => showPendingNotice("Contact support")} />
-            <ProfileRow icon={<Download color={colors.periwinkle} size={17} />} label="Export my data" unavailable onPress={() => showPendingNotice("Data export")} />
             <ProfileRow danger icon={<Trash2 color={colors.warn} size={17} />} label="Delete account" unavailable onPress={() => showPendingNotice("Account deletion")} />
           </ProfileSection>
 
@@ -258,9 +239,6 @@ const styles = StyleSheet.create({
   personaAvatar: { alignItems: "center", borderRadius: 23, height: 46, justifyContent: "center", width: 46 },
   changeButton: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 38, paddingHorizontal: 13, justifyContent: "center" },
   changeText: { color: colors.ice, fontSize: 11.5, fontWeight: "700" },
-  switchRow: { alignItems: "center", borderTopColor: colors.lineSoft, borderTopWidth: 1, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 13 },
-  switchControl: { alignItems: "center", height: 32, justifyContent: "center" },
-  switchLabel: { color: colors.ice, flex: 1, fontSize: 13, fontWeight: "600" },
   notice: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: 8, borderWidth: 1, padding: 13 },
   noticeText: { color: colors.textSoft, fontSize: 11.5, lineHeight: 17 },
   noticeDismiss: { color: colors.gold, fontSize: 10.5, fontWeight: "700", marginTop: 7 },

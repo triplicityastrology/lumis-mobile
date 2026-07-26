@@ -33,6 +33,19 @@ type View_ =
   | { v: "scan" }
   | { v: "confirm"; careeName: string };
 
+export function CareCirclePreviewScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <Shell title="Care Circle" onBack={onBack} emblem>
+      <QuietEmptyState
+        motif="hands"
+        title="Care Circle is a preview."
+        sub="Check-ins, linking, codes, and reminders are not active in this build."
+      />
+      <SafetyNote text={SAFETY} />
+    </Shell>
+  );
+}
+
 export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => void; eligible?: boolean }) {
   const [view, setView] = useState<View_>({ v: "home" });
   const [carers, setCarers] = useState<Carer[]>([
@@ -67,10 +80,8 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
       <Shell title="Care Circle" onBack={onBack}>
         <QuietEmptyState
           motif="hands"
-          title="Care Circle is a paid feature."
-          sub="Care Circle is available with paid Lumis plans."
-          ctaLabel="View plans"
-          onCta={onBack}
+          title="Care Circle is a preview."
+          sub="Check-ins and linking are not active in this build."
         />
       </Shell>
     );

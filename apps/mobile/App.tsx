@@ -70,7 +70,7 @@ import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
 import { DiceRitualScreen } from "./src/features/dice/DiceRitualScreen";
 import { NotificationCenterScreen } from "./src/features/notifications/NotificationCenterScreen";
-import { CareCircleScreen as CareCircleFlowScreen } from "./src/features/careCircle/CareCircleScreen";
+import { CareCirclePreviewScreen } from "./src/features/careCircle/CareCircleScreen";
 import { BirthDetailsChangeScreen } from "./src/features/birthDetails/BirthDetailsChangeScreen";
 import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
@@ -716,11 +716,8 @@ export default function App() {
 
   if (screen === "care") {
     return (
-      <CareCircleFlowScreen
+      <CareCirclePreviewScreen
         onBack={() => setScreen("profileTab")}
-        // Care Circle is a paid feature; during UAT it's left reviewable. Wire the
-        // real gate with `eligible={planTier !== "starter"}` once entitlements land.
-        eligible
       />
     );
   }

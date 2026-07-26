@@ -72,7 +72,9 @@ assert.doesNotMatch(
   "preview navigation cannot expose Plans or Paywall routes"
 );
 assert.doesNotMatch(appSource, /function (?:PlansAccessScreen|PaywallScreen)\b/);
+assert.doesNotMatch(appSource, /setScreen\("(?:plans|paywall|topup|purchase|upgrade)"\)/i);
 assert.doesNotMatch(profileScreenSource, /Credit balance|onPlans|planTier|remainingCredits/);
+assert.doesNotMatch(profileScreenSource, /Export my data|Data export/);
 assert.match(
   diceSource,
   /Preview — no credits charged/,
@@ -253,12 +255,34 @@ for (const requiredProfileSurface of [
   "LUMIS PERSONA",
   "CARE CIRCLE",
   "PRIVACY & SUPPORT",
-  "Export my data",
   "Delete account"
 ]) {
   assert.match(profileScreenSource, new RegExp(requiredProfileSurface));
 }
 assert.match(profileScreenSource, /Preview only\. Check-ins and carer links are not active yet\./);
+assert.match(profileScreenSource, /label="Care Circle preview"/);
+assert.match(profileScreenSource, /value="Not active yet"/);
+assert.doesNotMatch(
+  profileScreenSource,
+  /<Switch|Enable check-in reminders|Check-in frequency|My check-in code|Add someone I care for|Manage linked Care Circle/
+);
+assert.match(appSource, /import \{ CareCirclePreviewScreen \}/);
+assert.match(appSource, /<CareCirclePreviewScreen[\s\S]{0,120}onBack=/);
+assert.doesNotMatch(appSource, /<CareCircleFlowScreen|<CareCircleScreen|eligible=\{/);
+const careCirclePreview = extractRange(
+  careCircleSource,
+  "export function CareCirclePreviewScreen",
+  "export function CareCircleScreen"
+);
+assert.match(
+  careCirclePreview,
+  /Check-ins, linking, codes, and reminders are not active in this build\./
+);
+assert.doesNotMatch(
+  careCirclePreview,
+  /onCta|setView|simulateScan|sendRequest|setPaused|setCheckinOpen|setRemoveTarget/,
+  "the reachable Care Circle preview cannot expose active relationship or check-in actions"
+);
 // S1-C03 preview-safety: no Emergency contact row in the Profile Care Circle group.
 assert.doesNotMatch(profileScreenSource, /Emergency contact/);
 // S1-C03 preview-safety: Care Circle stays Preview-labelled on every route (the
@@ -376,7 +400,7 @@ function assertNoVisibleBilling(source, surface) {
     "Preview"
   );
   const visibleBillingStrings = [...sourceWithoutApprovedDiceDisclosure.matchAll(
-    /["'`]([^"'`\n]*(?:\bcredits?\b|\bbilling\b|\bpaywall\b|\btop[- ]?up\b|\bpurchase\b|\bpayment\b|\binsufficient[- ]?credit\b|HK\$|\bcharged\b|\bcharge amount\b|\bprice\b|\bpricing\b)[^"'`\n]*)["'`]/gi
+    /["'`]([^"'`\n]*(?:\bcredits?\b|\bunits?\b|\bbilling\b|\bpaywall\b|\btop[- ]?up\b|\bpurchase\b|\bpayment\b|\binsufficient[- ]?credit\b|HK\$|\bcharged\b|\bcharging\b|\bcharge amount\b|\bprice\b|\bpricing\b|\bplans?\b|\bsubscriptions?\b|\bupgrade\b|\bspen(?:d|ding|t)\b)[^"'`\n]*)["'`]/gi
   )].map((match) => match[1]);
 
   assert.deepEqual(
