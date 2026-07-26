@@ -102,8 +102,12 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
         Platform.OS !== "web"
       );
 
-      if (error || !data.session?.user) {
-        throw new Error(formatRedirectError(error?.message));
+      if (error) {
+        throw error;
+      }
+
+      if (!data.session?.user) {
+        throw new Error(formatRedirectError());
       }
 
       cleanBrowserAuthUrl();
@@ -129,8 +133,12 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
         Platform.OS !== "web"
       );
 
-      if (error || !data.session?.user) {
-        throw new Error(formatRedirectError(error?.message));
+      if (error) {
+        throw error;
+      }
+
+      if (!data.session?.user) {
+        throw new Error(formatRedirectError());
       }
 
       cleanBrowserAuthUrl();
@@ -184,6 +192,10 @@ export function getEmailRedirectTo(): string {
 }
 
 function formatAuthErrorMessage(message: string): string {
+  if (isNetworkFailure(message)) {
+    return "Lumis could not send a secure sign-in link because the connection was interrupted. Check your connection and try again.";
+  }
+
   if (/rate limit/i.test(message)) {
     return "Too many sign-in emails were requested. Please wait about 1 hour before trying again.";
   }
@@ -263,7 +275,7 @@ function formatSessionNetworkError(error: unknown): string {
 
 function isNetworkFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(message);
+  return /AUTH_NETWORK_INTERRUPTED|network request failed|failed to fetch|networkerror|load failed|fetch/i.test(message);
 }
 
 function cleanBrowserAuthUrl() {
@@ -293,7 +305,7 @@ export async function signOut(): Promise<AuthStatus> {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error(formatSessionNetworkError(error));
   }
 
   return { isConfigured: true, user: null };

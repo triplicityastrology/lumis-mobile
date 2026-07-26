@@ -105,6 +105,67 @@ assert.match(
   /import \{ createClient, processLock, type SupabaseClient \} from "@supabase\/supabase-js"/
 );
 assert.match(supabaseService, /lock: processLock/);
+assert.match(supabaseService, /global:\s*\{\s*fetch: authSafeFetch\s*\}/);
+const safeAuthFetch = extractRange(
+  supabaseService,
+  "const authSafeFetch",
+  "function createAuthStorage"
+);
+assert.match(safeAuthFetch, /isSupabaseAuthRequest\(input\)/);
+assert.match(safeAuthFetch, /isTransportFailure\(error\)/);
+assert.match(safeAuthFetch, /message: "AUTH_NETWORK_INTERRUPTED"/);
+assert.match(safeAuthFetch, /status: 503/);
+assert.doesNotMatch(
+  safeAuthFetch,
+  /console\.(?:error|warn|log)\s*\(|LogBox\.\w+\s*\(/,
+  "the auth fetch boundary must contain transport failures without logging raw errors"
+);
+assert.match(
+  safeAuthFetch,
+  /if \(!isSupabaseAuthRequest\(input\) \|\| !isTransportFailure\(error\)\) \{\s*throw error;/,
+  "non-auth requests and unrelated errors must remain visible to developers"
+);
+assert.match(authService, /AUTH_NETWORK_INTERRUPTED/);
+assert.match(
+  codeExchangePath,
+  /if \(error\) \{\s*throw error;\s*\}/,
+  "code exchange must preserve the safe network marker for classification"
+);
+assert.match(
+  tokenExchangePath,
+  /if \(error\) \{\s*throw error;\s*\}/,
+  "token exchange must preserve the safe network marker for classification"
+);
+
+const containedAuthNetworkResponse = await simulateAuthSafeFetch(
+  "https://fixture.supabase.co/auth/v1/token",
+  async () => {
+    throw new TypeError("Network request failed");
+  }
+);
+assert.equal(containedAuthNetworkResponse.status, 503);
+assert.deepEqual(await containedAuthNetworkResponse.json(), {
+  message: "AUTH_NETWORK_INTERRUPTED"
+});
+
+const invalidLinkResponse = await simulateAuthSafeFetch(
+  "https://fixture.supabase.co/auth/v1/token",
+  async () =>
+    new Response(JSON.stringify({ message: "otp_expired" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 400
+    })
+);
+assert.equal(invalidLinkResponse.status, 400);
+assert.deepEqual(await invalidLinkResponse.json(), { message: "otp_expired" });
+
+await assert.rejects(
+  simulateAuthSafeFetch("https://fixture.supabase.co/rest/v1/users", async () => {
+    throw new TypeError("Network request failed");
+  }),
+  /Network request failed/,
+  "non-auth transport failures cannot be globally suppressed"
+);
 
 const authLinkLifecycle = extractRange(
   app,
@@ -655,4 +716,25 @@ async function simulateDeduplicatedCallback(url, processedUrls, exchange) {
   }
   processedUrls.add(url);
   await exchange();
+}
+
+async function simulateAuthSafeFetch(input, request) {
+  try {
+    return await request();
+  } catch (caught) {
+    const isAuthRequest = input.includes("/auth/v1/");
+    const isNetworkFailure =
+      /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(
+        caught instanceof Error ? caught.message : String(caught)
+      );
+
+    if (!isAuthRequest || !isNetworkFailure) {
+      throw caught;
+    }
+
+    return new Response(JSON.stringify({ message: "AUTH_NETWORK_INTERRUPTED" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 503
+    });
+  }
 }

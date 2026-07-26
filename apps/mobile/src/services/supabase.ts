@@ -38,9 +38,46 @@ export function getSupabaseClient(): SupabaseClient | null {
       lock: processLock,
       persistSession: true,
       storage: createAuthStorage()
+    },
+    global: {
+      fetch: authSafeFetch
     }
   });
   return cachedClient;
+}
+
+const authSafeFetch: typeof globalThis.fetch = async (input, init) => {
+  try {
+    return await globalThis.fetch(input, init);
+  } catch (error) {
+    if (!isSupabaseAuthRequest(input) || !isTransportFailure(error)) {
+      throw error;
+    }
+
+    // Supabase Auth logs a thrown fetch error before returning control to us.
+    // A safe HTTP response keeps native transport details out of LogBox while
+    // preserving a truthful, classifiable authentication failure.
+    return new Response(JSON.stringify({ message: "AUTH_NETWORK_INTERRUPTED" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 503
+    });
+  }
+};
+
+function isSupabaseAuthRequest(input: Parameters<typeof globalThis.fetch>[0]): boolean {
+  const requestUrl =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+  return requestUrl.includes("/auth/v1/");
+}
+
+function isTransportFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(message);
 }
 
 function createAuthStorage() {
