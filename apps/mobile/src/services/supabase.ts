@@ -50,7 +50,7 @@ const authSafeFetch: typeof globalThis.fetch = async (input, init) => {
   try {
     return await globalThis.fetch(input, init);
   } catch (error) {
-    if (!isSupabaseAuthRequest(input) || !isTransportFailure(error)) {
+    if (!isConfiguredSupabaseAuthRequest(input) || !isTransportFailure(error)) {
       throw error;
     }
 
@@ -64,15 +64,33 @@ const authSafeFetch: typeof globalThis.fetch = async (input, init) => {
   }
 };
 
-function isSupabaseAuthRequest(input: Parameters<typeof globalThis.fetch>[0]): boolean {
-  const requestUrl =
-    typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.toString()
-        : input.url;
+function isConfiguredSupabaseAuthRequest(
+  input: Parameters<typeof globalThis.fetch>[0]
+): boolean {
+  const config = getSupabaseConfig();
 
-  return requestUrl.includes("/auth/v1/");
+  if (!config.isConfigured || !config.url) {
+    return false;
+  }
+
+  try {
+    const configuredOrigin = new URL(config.url).origin;
+    const inputValue =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+    const requestUrl = new URL(inputValue);
+
+    return (
+      requestUrl.origin === configuredOrigin &&
+      (requestUrl.pathname === "/auth/v1" ||
+        requestUrl.pathname.startsWith("/auth/v1/"))
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isTransportFailure(error: unknown): boolean {

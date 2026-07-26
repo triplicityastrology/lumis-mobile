@@ -111,8 +111,14 @@ const safeAuthFetch = extractRange(
   "const authSafeFetch",
   "function createAuthStorage"
 );
-assert.match(safeAuthFetch, /isSupabaseAuthRequest\(input\)/);
+assert.match(safeAuthFetch, /isConfiguredSupabaseAuthRequest\(input\)/);
 assert.match(safeAuthFetch, /isTransportFailure\(error\)/);
+assert.match(safeAuthFetch, /const config = getSupabaseConfig\(\)/);
+assert.match(safeAuthFetch, /new URL\(config\.url\)\.origin/);
+assert.match(safeAuthFetch, /requestUrl\.origin === configuredOrigin/);
+assert.match(safeAuthFetch, /requestUrl\.pathname === "\/auth\/v1"/);
+assert.match(safeAuthFetch, /requestUrl\.pathname\.startsWith\("\/auth\/v1\/"\)/);
+assert.match(safeAuthFetch, /catch \{\s*return false;\s*\}/);
 assert.match(safeAuthFetch, /message: "AUTH_NETWORK_INTERRUPTED"/);
 assert.match(safeAuthFetch, /status: 503/);
 assert.doesNotMatch(
@@ -122,7 +128,7 @@ assert.doesNotMatch(
 );
 assert.match(
   safeAuthFetch,
-  /if \(!isSupabaseAuthRequest\(input\) \|\| !isTransportFailure\(error\)\) \{\s*throw error;/,
+  /if \(!isConfiguredSupabaseAuthRequest\(input\) \|\| !isTransportFailure\(error\)\) \{\s*throw error;/,
   "non-auth requests and unrelated errors must remain visible to developers"
 );
 assert.match(authService, /AUTH_NETWORK_INTERRUPTED/);
@@ -138,6 +144,7 @@ assert.match(
 );
 
 const containedAuthNetworkResponse = await simulateAuthSafeFetch(
+  "https://fixture.supabase.co",
   "https://fixture.supabase.co/auth/v1/token",
   async () => {
     throw new TypeError("Network request failed");
@@ -149,6 +156,7 @@ assert.deepEqual(await containedAuthNetworkResponse.json(), {
 });
 
 const invalidLinkResponse = await simulateAuthSafeFetch(
+  "https://fixture.supabase.co",
   "https://fixture.supabase.co/auth/v1/token",
   async () =>
     new Response(JSON.stringify({ message: "otp_expired" }), {
@@ -160,11 +168,39 @@ assert.equal(invalidLinkResponse.status, 400);
 assert.deepEqual(await invalidLinkResponse.json(), { message: "otp_expired" });
 
 await assert.rejects(
-  simulateAuthSafeFetch("https://fixture.supabase.co/rest/v1/users", async () => {
-    throw new TypeError("Network request failed");
-  }),
+  simulateAuthSafeFetch(
+    "https://fixture.supabase.co",
+    "https://other.example/auth/v1/token",
+    async () => {
+      throw new TypeError("Network request failed");
+    }
+  ),
   /Network request failed/,
-  "non-auth transport failures cannot be globally suppressed"
+  "another origin cannot use the configured Supabase Auth containment boundary"
+);
+
+await assert.rejects(
+  simulateAuthSafeFetch(
+    "https://fixture.supabase.co",
+    "https://fixture.supabase.co/rest/v1/users",
+    async () => {
+      throw new TypeError("Network request failed");
+    }
+  ),
+  /Network request failed/,
+  "configured Supabase REST failures cannot use the Auth containment boundary"
+);
+
+await assert.rejects(
+  simulateAuthSafeFetch(
+    "not-a-valid-origin",
+    "not-a-valid-request",
+    async () => {
+      throw new TypeError("Network request failed");
+    }
+  ),
+  /Network request failed/,
+  "malformed or unknown inputs cannot be contained"
 );
 
 const authLinkLifecycle = extractRange(
@@ -718,11 +754,21 @@ async function simulateDeduplicatedCallback(url, processedUrls, exchange) {
   await exchange();
 }
 
-async function simulateAuthSafeFetch(input, request) {
+async function simulateAuthSafeFetch(configuredUrl, input, request) {
   try {
     return await request();
   } catch (caught) {
-    const isAuthRequest = input.includes("/auth/v1/");
+    let isAuthRequest = false;
+    try {
+      const configuredOrigin = new URL(configuredUrl).origin;
+      const requestUrl = new URL(input);
+      isAuthRequest =
+        requestUrl.origin === configuredOrigin &&
+        (requestUrl.pathname === "/auth/v1" ||
+          requestUrl.pathname.startsWith("/auth/v1/"));
+    } catch {
+      isAuthRequest = false;
+    }
     const isNetworkFailure =
       /network request failed|failed to fetch|networkerror|load failed|fetch/i.test(
         caught instanceof Error ? caught.message : String(caught)
