@@ -26,6 +26,10 @@ const flowScreenSource = await readFile(
   path.join(root, "apps/mobile/src/components/FlowScreen.tsx"),
   "utf8"
 );
+const authSystemKit = await readFile(
+  path.join(root, "apps/mobile/src/components/AuthSystemKit.tsx"),
+  "utf8"
+);
 const accountStateSource = await readFile(path.join(root, "apps/mobile/src/services/accountState.ts"), "utf8");
 const authSource = await readFile(path.join(root, "apps/mobile/src/services/auth.ts"), "utf8");
 const profileSource = await readFile(path.join(root, "apps/mobile/src/services/profile.ts"), "utf8");
@@ -141,7 +145,7 @@ assert.doesNotMatch(
 );
 for (const welcomeAction of [
   'accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}',
-  'accessibilityLabel={props.isAuthenticated ? "Create my chart" : "Get started"}',
+  '"Get started"',
   '"I already have an account"'
 ]) {
   assert.match(homeScreenSource, new RegExp(escapeRegExp(welcomeAction)));
@@ -168,6 +172,21 @@ assert.match(
 // A restored account still routes to Chat; navigation is deferred past the splash
 // via routeAfterSplash (which resolves to setScreen("chat")).
 assert.match(appSource, /if \(restored && routeLoadedAccount\)[\s\S]{0,120}routeAfterSplash\("chat"\)/);
+assert.match(
+  appSource,
+  /else if \(!restored && routeLoadedAccount\)[\s\S]{0,100}routeAfterSplash\("noChart"\)/,
+  "only a confirmed empty account may route into no-chart onboarding"
+);
+assert.match(
+  appSource,
+  /catch \(error\)[\s\S]{0,220}routeAfterSplash\("restoringSpace"\)/,
+  "temporary restoration failures must remain in the retryable restore flow"
+);
+assert.match(homeScreenSource, /const canCreateChart = props\.isAuthenticated && props\.accountLoadStatus === "empty"/);
+assert.match(homeScreenSource, /const restoreFailed = props\.isAuthenticated && props\.accountLoadStatus === "error"/);
+assert.match(homeScreenSource, /restoreFailed\s*\?\s*props\.onReload/);
+assert.match(authSystemKit, /<PrimaryButton label="Retry" onPress=\{onRetry\} \/>/);
+assert.match(authSystemKit, /<LinkButton label="Back to account" onPress=\{onBack\} \/>/);
 assert.match(appSource, /function routeAfterSplash[\s\S]{0,220}setScreen\(target\)/);
 assert.match(appSource, /accessibilityLabel="Past Reflections"/);
 assert.match(appSource, /placeholder="Search reflections"/);

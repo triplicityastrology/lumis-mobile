@@ -149,6 +149,20 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
 
 function WelcomeState(props: LumisHomeScreenProps) {
   const isLoading = props.accountLoadStatus === "loading";
+  const canCreateChart = props.isAuthenticated && props.accountLoadStatus === "empty";
+  const restoreFailed = props.isAuthenticated && props.accountLoadStatus === "error";
+  const primaryLabel = isLoading
+    ? "Loading your account..."
+    : restoreFailed
+      ? "Retry account restore"
+      : canCreateChart
+        ? "Create my chart"
+        : "Get started";
+  const primaryAction = restoreFailed
+    ? props.onReload
+    : canCreateChart
+      ? props.onCreateChart
+      : props.onAccount;
 
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
@@ -199,9 +213,9 @@ function WelcomeState(props: LumisHomeScreenProps) {
           <Pressable
             style={[styles.welcomePrimaryWrap, isLoading && styles.disabled]}
             disabled={isLoading}
-            onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}
+            onPress={primaryAction}
             accessibilityRole="button"
-            accessibilityLabel={props.isAuthenticated ? "Create my chart" : "Get started"}
+            accessibilityLabel={primaryLabel}
           >
             <LinearGradient
               colors={["#E5C06B", "#E9B083", "#E89B92"]}
@@ -209,24 +223,28 @@ function WelcomeState(props: LumisHomeScreenProps) {
               end={{ x: 1, y: 0.4 }}
               style={styles.welcomePrimary}
             >
-              <Text style={styles.welcomePrimaryText}>
-                {isLoading ? "Loading your account..." : props.isAuthenticated ? "Create my chart" : "Get started"}
-              </Text>
+              <Text style={styles.welcomePrimaryText}>{primaryLabel}</Text>
               <ChevronRight color="#3A2218" size={20} />
             </LinearGradient>
           </Pressable>
           <Pressable
             style={styles.welcomeSecondary}
-            onPress={props.isAuthenticated ? props.onCreateChart : props.onAccount}
+            onPress={restoreFailed ? props.onAccount : canCreateChart ? props.onCreateChart : props.onAccount}
             accessibilityRole="button"
             accessibilityLabel={
-              props.isAuthenticated
+              restoreFailed
+                ? "Back to account"
+                : canCreateChart
                 ? "Continue chart onboarding"
                 : "I already have an account"
             }
           >
             <Text style={styles.welcomeSecondaryText}>
-              {props.isAuthenticated ? "No chart yet? Continue onboarding" : "I already have an account"}
+              {restoreFailed
+                ? "Back to account"
+                : canCreateChart
+                  ? "No chart yet? Continue onboarding"
+                  : "I already have an account"}
             </Text>
           </Pressable>
         </ScrollView>

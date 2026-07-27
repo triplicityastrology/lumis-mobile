@@ -52,7 +52,7 @@ assert.match(mobileProfile, /class BirthDetailsChangeError extends Error/);
 assert.match(mobileProfile, /Authorization:\s*`Bearer \$\{accessToken\}`/);
 const mobileRegeneration = mobileProfile.slice(
   mobileProfile.indexOf("export async function regenerateBirthDetails"),
-  mobileProfile.indexOf("function isEdgeFunctionTransportError")
+  mobileProfile.indexOf("function normalizeBirthTimeForApi")
 );
 assert.doesNotMatch(mobileRegeneration, /buildFixtureChart/);
 assert.match(mobileRegeneration, /PROFILE_CONFIGURATION_REQUIRED/);
@@ -64,7 +64,7 @@ assert.doesNotMatch(
 );
 assert.match(mobileApp, /regenerateBirthDetails\(updated, clientRequestId\)/);
 assert.match(mobileApp, /setBirthDetailChanges\(result\.successful_change_count\)/);
-assert.match(mobileApp, /loadSupabaseAccountState\(\)[\s\S]*setChatTurns\(\[\]\)[\s\S]*setActiveSupabaseThreadId\(null\)[\s\S]*setForceNewSupabaseThread\(true\)/);
+assert.match(mobileApp, /loadSupabaseAccountState\(authStatus\.user\.id\)[\s\S]*setChatTurns\(\[\]\)[\s\S]*setActiveSupabaseThreadId\(null\)[\s\S]*setForceNewSupabaseThread\(true\)/);
 assert.match(mobileApp, /error\.code === "49001"/);
 assert.match(birthDetailsScreen, /requestIdRef\.current \?\? randomUUID\(\)/);
 assert.match(birthDetailsScreen, /onRegenerate\(draft, clientRequestId\)/);

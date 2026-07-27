@@ -40,6 +40,7 @@ import {
   type PersonaIdentityPreference
 } from "./src/services/profile";
 import {
+  AccountRestoreError,
   loadSupabaseAccountState,
   type RestoredReflectionThread,
   type SupabaseAccountState
@@ -165,7 +166,7 @@ export default function App() {
   screenRef.current = screen;
   const authRedirectInFlightRef = useRef(false);
   const processedAuthRedirectUrlsRef = useRef(new Set<string>());
-  const pendingAfterSplashRef = useRef<"home" | "chat" | null>(null);
+  const pendingAfterSplashRef = useRef<"home" | "chat" | "noChart" | "restoringSpace" | null>(null);
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
   const [accountLoadStatus, setAccountLoadStatus] = useState<"idle" | "loading" | "loaded" | "empty" | "error">("idle");
   const [accountLoadMessage, setAccountLoadMessage] = useState("");
@@ -259,22 +260,23 @@ export default function App() {
 
   async function restoreAccountForStatus(status: AuthStatus, routeLoadedAccount = false) {
     if (status.isConfigured && status.user) {
-      clearVisibleAccountState("Loading your Lumis profile...");
       setAccountLoadStatus("loading");
+      setAccountLoadMessage("Loading your Lumis profile...");
 
       try {
-        const accountState = await loadSupabaseAccountState();
+        const accountState = await loadSupabaseAccountState(status.user.id);
         const restored = applySupabaseAccountState(accountState);
         if (restored && routeLoadedAccount) {
           routeAfterSplash("chat");
         } else if (!restored && routeLoadedAccount) {
-          routeAfterSplash("home");
+          routeAfterSplash("noChart");
         }
       } catch (error) {
-        clearVisibleAccountState("We could not load your Lumis profile. Please try again.");
         setAccountLoadStatus("error");
+        setAccountLoadMessage(safeAccountRestoreMessage(error));
+        setRestoreResult("failed");
         if (routeLoadedAccount) {
-          routeAfterSplash("home");
+          routeAfterSplash("restoringSpace");
         }
       }
 
@@ -324,12 +326,12 @@ export default function App() {
     setScreen("restoringSpace");
     setRestoreResult("loading");
     try {
-      const accountState = await loadSupabaseAccountState();
+      const accountState = await loadSupabaseAccountState(status.user.id);
       const restored = applySupabaseAccountState(accountState);
       setRestoreResult(restored ? "foundChart" : "noChart");
-    } catch {
+    } catch (error) {
       setAccountLoadStatus("error");
-      setAccountLoadMessage("We could not load your Lumis profile. Please try again.");
+      setAccountLoadMessage(safeAccountRestoreMessage(error));
       setRestoreResult("failed");
     }
   }
@@ -379,7 +381,7 @@ export default function App() {
   // Splash decision: the branded splash holds for its full ~4s moment. Account
   // restoration runs in parallel but its navigation is deferred until splash ends
   // (a returning user is routed after, not mid-splash), so the intro isn't cut short.
-  function routeAfterSplash(target: "home" | "chat") {
+  function routeAfterSplash(target: "home" | "chat" | "noChart" | "restoringSpace") {
     if (screenRef.current === "splash") {
       pendingAfterSplashRef.current = target;
     } else {
@@ -533,6 +535,7 @@ export default function App() {
         onGoChat={() => setScreen(chartProfile ? "chat" : "home")}
         onGoOnboarding={() => setScreen("noChart")}
         onRetry={restoreSpace}
+        onBack={() => setScreen("auth")}
       />
     );
   }
@@ -800,7 +803,7 @@ export default function App() {
 
           try {
             const result = await regenerateBirthDetails(updated, clientRequestId);
-            const accountState = await loadSupabaseAccountState();
+            const accountState = await loadSupabaseAccountState(authStatus.user.id);
 
             if (!applySupabaseAccountState(accountState)) {
               throw new BirthDetailsChangeError(
@@ -821,7 +824,7 @@ export default function App() {
               if (typeof error.successfulChangeCount === "number") {
                 setBirthDetailChanges(error.successfulChangeCount);
               } else if (error.code === "49001") {
-                const accountState = await loadSupabaseAccountState();
+                const accountState = await loadSupabaseAccountState(authStatus.user.id);
                 applySupabaseAccountState(accountState);
               }
               return { ok: false, code: error.code, message: error.message };
@@ -891,12 +894,10 @@ export default function App() {
             setAccountLoadMessage("Refreshing Past Reflections...");
 
             try {
-              applySupabaseAccountState(await loadSupabaseAccountState());
+              applySupabaseAccountState(await loadSupabaseAccountState(authStatus.user.id));
             } catch (error) {
               setAccountLoadStatus("error");
-              setAccountLoadMessage(
-                error instanceof Error ? error.message : "Unable to refresh Past Reflections."
-              );
+              setAccountLoadMessage(safeAccountRestoreMessage(error));
             }
           }
           setScreen("reflections");
@@ -1223,6 +1224,12 @@ function ProfileFormScreen({
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function safeAccountRestoreMessage(error: unknown): string {
+  return error instanceof AccountRestoreError
+    ? error.message
+    : "Lumis could not load your saved account right now. Your data was not changed.";
 }
 
 function ChartPreviewScreen({

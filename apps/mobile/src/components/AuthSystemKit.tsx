@@ -306,12 +306,14 @@ export function RestoringSpaceScreen({
   result,
   onGoChat,
   onGoOnboarding,
-  onRetry
+  onRetry,
+  onBack
 }: {
   result: "loading" | "foundChart" | "noChart" | "failed";
   onGoChat: () => void;
   onGoOnboarding: () => void;
   onRetry: () => void;
+  onBack: () => void;
 }) {
   useEffect(() => {
     if (result === "foundChart") {
@@ -335,6 +337,7 @@ export function RestoringSpaceScreen({
             <Text style={styles.body}>Your account is signed in, but we had trouble loading your chart. Let's try again.</Text>
             <View style={styles.gap} />
             <PrimaryButton label="Retry" onPress={onRetry} />
+            <LinkButton label="Back to account" onPress={onBack} />
           </>
         ) : (
           <>

@@ -85,18 +85,54 @@ export type SupabaseAccountState = {
   message: string;
 };
 
-export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> {
+export type AccountRestoreErrorCode =
+  | "ACCOUNT_CONFIGURATION_REQUIRED"
+  | "ACCOUNT_AUTH_REQUIRED"
+  | "ACCOUNT_DATA_UNAVAILABLE"
+  | "ACCOUNT_DATA_INCOMPLETE";
+
+export class AccountRestoreError extends Error {
+  constructor(
+    readonly code: AccountRestoreErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "AccountRestoreError";
+  }
+}
+
+export async function loadSupabaseAccountState(
+  authenticatedUserId?: string
+): Promise<SupabaseAccountState> {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    return emptyAccountState("Secure account access is not available in this build.");
+    throw new AccountRestoreError(
+      "ACCOUNT_CONFIGURATION_REQUIRED",
+      "Secure account access is not available in this build."
+    );
   }
 
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id;
+  let userId = authenticatedUserId;
 
   if (!userId) {
-    return emptyAccountState("Please sign in to restore your Lumis profile.");
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw new AccountRestoreError(
+        "ACCOUNT_AUTH_REQUIRED",
+        "Lumis could not verify this session. Please sign in again."
+      );
+    }
+
+    userId = sessionData.session?.user.id;
+  }
+
+  if (!userId) {
+    throw new AccountRestoreError(
+      "ACCOUNT_AUTH_REQUIRED",
+      "Please sign in to restore your Lumis profile."
+    );
   }
 
   const [
@@ -145,19 +181,34 @@ export async function loadSupabaseAccountState(): Promise<SupabaseAccountState> 
   const firstError = userResult.error ?? birthResult.error ?? profileResult.error ?? balanceResult.error ?? threadsResult.error ?? planResult.error;
 
   if (firstError) {
-    throw new Error(firstError.message);
+    throw new AccountRestoreError(
+      "ACCOUNT_DATA_UNAVAILABLE",
+      "Lumis could not load your saved account right now. Your data was not changed."
+    );
   }
 
+  const user = userResult.data as UserRow | null;
   const birthData = birthResult.data as BirthDataRow | null;
   const profile = profileResult.data as AiProfileRow | null;
 
-  if (!birthData || !profile?.chart_json) {
+  if (!birthData && !profile) {
     return emptyAccountState(
       "No Lumis chart has been created for this account yet."
     );
   }
 
-  const user = userResult.data as UserRow | null;
+  if (
+    !user ||
+    !birthData ||
+    !profile?.chart_json ||
+    birthData.active_chart_version !== profile.chart_version
+  ) {
+    throw new AccountRestoreError(
+      "ACCOUNT_DATA_INCOMPLETE",
+      "Your saved Lumis profile needs a safe reload. No chart or account data was changed."
+    );
+  }
+
   const balance = balanceResult.data as BalanceRow | null;
   const threads = (threadsResult.data ?? []) as ChatThreadRow[];
   const reflectionThreads = await Promise.all(
@@ -230,7 +281,10 @@ async function loadThreadTurns(threadId: string): Promise<RestoredChatTurn[]> {
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw new Error(error.message);
+    throw new AccountRestoreError(
+      "ACCOUNT_DATA_UNAVAILABLE",
+      "Lumis could not load your Past Reflections right now. Your saved conversations were not changed."
+    );
   }
 
   const messages = (data ?? []) as ChatMessageRow[];

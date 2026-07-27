@@ -8,6 +8,7 @@ const authScreen = readFileSync("apps/mobile/src/screens/LumisAuthScreen.tsx", "
 const profileScreen = readFileSync("apps/mobile/src/screens/LumisProfileScreen.tsx", "utf8");
 const authSystemKit = readFileSync("apps/mobile/src/components/AuthSystemKit.tsx", "utf8");
 const supabaseService = readFileSync("apps/mobile/src/services/supabase.ts", "utf8");
+const profileService = readFileSync("apps/mobile/src/services/profile.ts", "utf8");
 
 assert.match(authService, /import \* as Linking from "expo-linking"/);
 const emailRedirect = extractRange(
@@ -688,10 +689,17 @@ const signedInRestore = extractRange(
 );
 assert.match(
   signedInRestore,
-  /if \(status\.isConfigured && status\.user\) \{[\s\S]{0,120}clearVisibleAccountState\("Loading your Lumis profile\.\.\."\)/
+  /if \(status\.isConfigured && status\.user\) \{[\s\S]{0,180}setAccountLoadMessage\("Loading your Lumis profile\.\.\."\)/
 );
-assert.match(signedInRestore, /loadSupabaseAccountState\(\)/);
+assert.doesNotMatch(
+  signedInRestore,
+  /clearVisibleAccountState\("Loading your Lumis profile\.\.\."\)/,
+  "a temporary restore attempt cannot erase the last visible account state"
+);
+assert.match(signedInRestore, /loadSupabaseAccountState\(status\.user\.id\)/);
 assert.match(signedInRestore, /applySupabaseAccountState\(accountState\)/);
+assert.match(signedInRestore, /routeAfterSplash\("noChart"\)/);
+assert.match(signedInRestore, /routeAfterSplash\("restoringSpace"\)/);
 
 for (const restoredField of [
   "profileData",
@@ -706,7 +714,24 @@ for (const restoredField of [
 ]) {
   assert.match(accountState, new RegExp(`\\b${restoredField}\\b`));
 }
-assert.match(accountState, /const userId = authData\.user\?\.id/);
+assert.match(accountState, /authenticatedUserId\?: string/);
+assert.match(accountState, /let userId = authenticatedUserId/);
+assert.doesNotMatch(
+  accountState,
+  /auth\.getUser\(\)/,
+  "account restoration must not repeat a network identity check after PKCE already supplied the user"
+);
+assert.match(accountState, /if \(!birthData && !profile\)/);
+assert.match(
+  accountState,
+  /birthData\.active_chart_version !== profile\.chart_version/
+);
+assert.match(accountState, /"ACCOUNT_DATA_INCOMPLETE"/);
+assert.doesNotMatch(
+  accountState,
+  /throw new Error\((?:firstError|error)\.message\)/,
+  "raw Supabase query errors must not reach account-restoration UI"
+);
 assert.ok(
   (accountState.match(/\.eq\("(?:id|user_id)", userId\)/g) ?? []).length >= 5,
   "account reads must remain scoped to the authenticated Supabase user"
@@ -715,6 +740,32 @@ assert.doesNotMatch(
   accountState,
   /\.(?:insert|upsert|update)\(|complete_profile_onboarding|starter_onboarding/,
   "account restoration must be read-only and cannot create another Starter grant"
+);
+assert.match(profileService, /safeProfileSubmissionError\(error\)/);
+assert.match(profileService, /code === "PROFILE_ALREADY_EXISTS"/);
+assert.match(
+  extractRange(profileService, "export async function submitChartProfile", "export async function regenerateBirthDetails"),
+  /supabase\.auth\.getSession\(\)/
+);
+assert.doesNotMatch(
+  extractRange(profileService, "export async function submitChartProfile", "export async function regenerateBirthDetails"),
+  /supabase\.auth\.getUser\(\)|isEdgeFunctionTransportError|response\.chart \?\? buildFixtureChart|throw new Error\(error\.message\)/,
+  "a signed-in profile request cannot fall back to a fixture or expose a raw Edge Function error"
+);
+
+const restoreOutcomes = {
+  loaded: { destination: "chat", canCreateChart: false },
+  empty: { destination: "noChart", canCreateChart: true },
+  error: { destination: "restoringSpace", canCreateChart: false }
+};
+assert.deepEqual(
+  restoreOutcomes,
+  {
+    loaded: { destination: "chat", canCreateChart: false },
+    empty: { destination: "noChart", canCreateChart: true },
+    error: { destination: "restoringSpace", canCreateChart: false }
+  },
+  "only an authoritative empty result may expose chart onboarding"
 );
 
 const accounts = new Map([

@@ -205,9 +205,15 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
     };
   }
 
-  const { data: authData } = await supabase.auth.getUser();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-  if (!authData.user) {
+  if (sessionError) {
+    throw new Error(
+      "Lumis could not verify this session. Your account data was not changed. Please sign in again."
+    );
+  }
+
+  if (!sessionData.session?.user) {
     return {
       ...preparedRequest,
       mode: "local",
@@ -221,19 +227,16 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
   });
 
   if (error) {
-    if (isEdgeFunctionTransportError(error.message)) {
-      return {
-        ...preparedRequest,
-        mode: "local",
-        message: "Your chart is ready for this session, but it could not be saved. Please try again later.",
-        chart: buildFixtureChart(form)
-      };
-    }
-
-    throw new Error(error.message);
+    throw new Error(await safeProfileSubmissionError(error));
   }
 
   const response = data as ProfileFunctionResponse;
+
+  if (!response?.chart) {
+    throw new Error(
+      "Lumis could not safely confirm the saved chart. Your account data was not replaced. Please reload your account."
+    );
+  }
 
   return {
     mode: "supabase",
@@ -243,7 +246,7 @@ export async function submitChartProfile(form: BirthProfileForm): Promise<ChartP
       (response.status === "profile_persisted"
         ? "Your chart and Lumis profile have been saved."
         : "Your chart and Lumis profile are ready."),
-    chart: response.chart ?? buildFixtureChart(form),
+    chart: response.chart,
     data: response
   };
 }
@@ -344,8 +347,48 @@ function normalizeBirthTimeForApi(value: string): string {
   return `${String(hour).padStart(2, "0")}:${twelveHour[2]}`;
 }
 
-function isEdgeFunctionTransportError(message: string): boolean {
-  return /failed to send|fetch|network|cors/i.test(message);
+async function safeProfileSubmissionError(error: unknown): Promise<string> {
+  const code = await readSafeProfileErrorCode(error);
+
+  if (code === "PROFILE_ALREADY_EXISTS") {
+    return "This account already has a saved chart. Go back and reload your account instead of creating another chart.";
+  }
+
+  if (code === "PROFILE_AUTH_REQUIRED") {
+    return "Your secure session could not be confirmed. Please sign in again before creating a chart.";
+  }
+
+  if (code === "PROFILE_CONFIGURATION_REQUIRED") {
+    return "Secure chart creation is temporarily unavailable. Your account data was not changed.";
+  }
+
+  return "Lumis could not safely create or restore your chart. Your account data was not changed. Please go back and retry loading your account.";
+}
+
+async function readSafeProfileErrorCode(error: unknown): Promise<string | null> {
+  const context = (error as { context?: unknown } | null)?.context;
+
+  if (!context || typeof (context as { json?: unknown }).json !== "function") {
+    return null;
+  }
+
+  try {
+    const response = context as { clone?: () => unknown; json: () => Promise<unknown> };
+    const readable =
+      typeof response.clone === "function"
+        ? (response.clone() as { json: () => Promise<unknown> })
+        : response;
+    const payload = await readable.json();
+    const code =
+      payload && typeof payload === "object"
+        ? (payload as { error?: { code?: unknown }; code?: unknown }).error?.code ??
+          (payload as { code?: unknown }).code
+        : null;
+
+    return typeof code === "string" ? code : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function savePersonaStylePreference(
