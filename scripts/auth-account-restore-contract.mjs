@@ -41,7 +41,7 @@ assert.match(codeExchangePath, /await exchangeCodeOnce\(supabase, authCode\)/);
 const tokenExchangePath = extractRange(
   redirectHandler,
   "if (accessToken && refreshToken) {",
-  "return { handled: false }"
+  "// A Lumis callback without a PKCE code"
 );
 assert.match(tokenExchangePath, /await prepareNativeAuthExchange\(\)/);
 assert.match(
@@ -50,6 +50,11 @@ assert.match(
 );
 assert.match(redirectHandler, /successfulRedirect\(user\)/);
 assert.match(redirectHandler, /formatRedirectExchangeError\(error\)/);
+assert.match(
+  redirectHandler,
+  /throw new Error\(formatRedirectError\(\)\);/,
+  "a recognized callback without credentials must fail truthfully instead of leaving the inbox screen unchanged"
+);
 assert.doesNotMatch(
   redirectHandler,
   /console\.|setAuthStatus|setProfileData|starter_onboarding/,
@@ -143,6 +148,11 @@ assert.match(
   /import \{ createClient, processLock, type SupabaseClient \} from "@supabase\/supabase-js"/
 );
 assert.match(supabaseService, /lock: processLock/);
+assert.match(
+  supabaseService,
+  /flowType: "pkce"/,
+  "native magic links must use PKCE so Expo receives a query code instead of relying on a URL fragment"
+);
 assert.match(supabaseService, /global:\s*\{\s*fetch: authSafeFetch\s*\}/);
 const authConnectionProbe = extractRange(
   supabaseService,
@@ -294,6 +304,15 @@ for (const mobileCallback of [
   assert.equal(new URL(mobileCallback).hostname === "localhost", false);
 }
 assert.equal(isFixtureAuthCallback("http://localhost:8081"), false);
+assert.equal(
+  classifyFixtureCallback("exp://192.0.2.10:8081/--/auth/callback?code=redacted"),
+  "pkce_code"
+);
+assert.equal(
+  classifyFixtureCallback("lumis://auth/callback"),
+  "invalid_link",
+  "a recognized callback with no credential cannot silently leave the inbox state unchanged"
+);
 const invalidRedirectState = {
   authenticated: false,
   restored: false,
@@ -791,6 +810,17 @@ function resolveProfileAuthPresentation(status) {
 function isFixtureAuthCallback(value) {
   const url = new URL(value);
   return `${url.hostname}${url.pathname}`.replace(/\/+/g, "/").endsWith("auth/callback");
+}
+
+function classifyFixtureCallback(value) {
+  const url = new URL(value);
+  if (!isFixtureAuthCallback(value)) return "unhandled";
+  if (url.searchParams.get("code")) return "pkce_code";
+
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+  return hash.get("access_token") && hash.get("refresh_token")
+    ? "legacy_token_pair"
+    : "invalid_link";
 }
 
 async function simulateInvalidRedirect(state) {

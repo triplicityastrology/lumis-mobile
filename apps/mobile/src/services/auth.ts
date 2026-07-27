@@ -128,7 +128,10 @@ export async function handleAuthRedirectFromUrl(url?: string | null): Promise<Au
     }
   }
 
-  return { handled: false };
+  // A Lumis callback without a PKCE code or a complete legacy token pair
+  // cannot establish a real session. Treat it as invalid instead of silently
+  // leaving the user on the inbox screen.
+  throw new Error(formatRedirectError());
 }
 
 export async function sendMagicLink(email: string): Promise<MagicLinkResult> {
