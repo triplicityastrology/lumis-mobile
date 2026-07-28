@@ -5,7 +5,7 @@ import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput, View
+  AccessibilityInfo, Animated, AppState, BackHandler, Pressable, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
@@ -348,6 +348,16 @@ export function DiceRitualScreen({
     transition("IDLE");
   }, [cardAnim, dimAnim, transition]);
 
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (historyOpen) setHistoryOpen(false);
+      else if (phaseRef.current === "IDLE") onBack();
+      else rethrow();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [historyOpen, onBack, rethrow]);
+
   useMotionGestures(phase === "READY" || phase === "MIXING", {
     onMix: (energy) => {
       if (phaseRef.current === "READY") transition("MIXING");
@@ -509,6 +519,7 @@ export function DiceRitualScreen({
             <BlurView intensity={24} tint="dark" style={styles.questionCard}>
               <Text style={styles.questionLabel}>YOUR QUESTION</Text>
               <TextInput
+                accessibilityLabel="Dice question"
                 editable={phase === "IDLE"}
                 onChangeText={(text) => {
                   questionRef.current = text;

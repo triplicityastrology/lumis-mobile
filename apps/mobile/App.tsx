@@ -515,7 +515,8 @@ export default function App() {
       if (s === "reflections") { setScreen(reflectionsReturn); return true; }
       if (s === "auth") { setScreen(accountReturn); return true; }
       if (s === "persona") { setScreen(personaReturn); return true; }
-      if (s === "preview" || s === "noChart") { setScreen("home"); return true; }
+      if (s === "preview") { setScreen("profile"); return true; }
+      if (s === "noChart") { setScreen("home"); return true; }
       if (s === "restoringSpace") { return true; } // block back while restoring
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
         setScreen("home"); return true;

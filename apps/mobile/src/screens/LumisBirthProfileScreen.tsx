@@ -4,8 +4,8 @@ import Clock3 from "lucide-react-native/icons/clock-3";
 import LockKeyhole from "lucide-react-native/icons/lock-keyhole";
 import MapPin from "lucide-react-native/icons/map-pin";
 import Search from "lucide-react-native/icons/search";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { BackHandler, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { isValidBirthDate, runtimeTimeZone } from "@lumis/shared";
 
 import { FlowScreen, flowStyles } from "../components/FlowScreen";
@@ -45,6 +45,14 @@ export function LumisBirthProfileScreen({
       onBack();
     }
   }
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [step, onBack]);
 
   function continueFromDate() {
     if (!name.trim()) {
@@ -97,8 +105,12 @@ export function LumisBirthProfileScreen({
         <Field accessibilityLabel="Display name" label="DISPLAY NAME" value={name} onChangeText={setName} placeholder="Ruby" />
         <Field accessibilityLabel="Birth date, year month day" label="BIRTH DATE" value={birthDate} onChangeText={setBirthDate} placeholder="YYYY-MM-DD" />
       </View>
-      {error ? <View style={flowStyles.error}><Text style={flowStyles.errorText}>{error}</Text></View> : null}
-      <Pressable style={flowStyles.primaryButton} onPress={continueFromDate}>
+      {error ? (
+        <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={flowStyles.error}>
+          <Text style={flowStyles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+      <Pressable accessibilityRole="button" style={flowStyles.primaryButton} onPress={continueFromDate}>
         <Text style={flowStyles.primaryButtonText}>Continue</Text>
         <ChevronRight color={colors.navy950} size={19} />
       </Pressable>
@@ -115,7 +127,13 @@ export function LumisBirthProfileScreen({
     >
       <View style={styles.formCard}>
         <Field accessibilityLabel="Birth time, 24-hour hour and minute" label="BIRTH TIME" value={birthTime} onChangeText={setBirthTime} placeholder="HH:MM" editable={!timeUnknown} />
-        <Pressable style={[styles.toggle, timeUnknown && styles.toggleActive]} onPress={() => setTimeUnknown((value) => !value)}>
+        <Pressable
+          accessibilityLabel="I do not know my birth time"
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: timeUnknown }}
+          style={[styles.toggle, timeUnknown && styles.toggleActive]}
+          onPress={() => setTimeUnknown((value) => !value)}
+        >
           <View style={[styles.toggleBox, timeUnknown && styles.toggleBoxActive]}>
             {timeUnknown ? <Check color={colors.navy950} size={14} strokeWidth={3} /> : null}
           </View>
@@ -125,7 +143,11 @@ export function LumisBirthProfileScreen({
           </View>
         </Pressable>
       </View>
-      {error ? <View style={flowStyles.error}><Text style={flowStyles.errorText}>{error}</Text></View> : null}
+      {error ? (
+        <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={flowStyles.error}>
+          <Text style={flowStyles.errorText}>{error}</Text>
+        </View>
+      ) : null}
       <View style={flowStyles.note}>
         <Clock3 color={colors.gold} size={17} />
         <Text style={flowStyles.noteText}>
@@ -134,7 +156,7 @@ export function LumisBirthProfileScreen({
             : "Birth time is used to position the chart angles and houses accurately."}
         </Text>
       </View>
-      <Pressable style={flowStyles.primaryButton} onPress={continueFromTime}>
+      <Pressable accessibilityRole="button" style={flowStyles.primaryButton} onPress={continueFromTime}>
         <Text style={flowStyles.primaryButtonText}>Continue</Text>
         <ChevronRight color={colors.navy950} size={19} />
       </Pressable>
@@ -173,6 +195,8 @@ export function LumisBirthProfileScreen({
           return (
             <Pressable
               accessibilityLabel={`Choose ${place}`}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
               key={place}
               onPress={() => setBirthPlace(place)}
               style={[styles.placeRow, selected && styles.placeRowSelected]}
@@ -184,12 +208,18 @@ export function LumisBirthProfileScreen({
           );
         })}
       </View>
-      {error ? <View style={flowStyles.error}><Text style={flowStyles.errorText}>{error}</Text></View> : null}
+      {error ? (
+        <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={flowStyles.error}>
+          <Text style={flowStyles.errorText}>{error}</Text>
+        </View>
+      ) : null}
       <View style={flowStyles.note}>
         <LockKeyhole color={colors.gold} size={17} />
         <Text style={flowStyles.noteText}>Used only to calculate and save your Lumis chart profile.</Text>
       </View>
       <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !birthPlace.trim() }}
         disabled={!birthPlace.trim()}
         style={[flowStyles.primaryButton, !birthPlace.trim() && flowStyles.disabled]}
         onPress={continueToPreview}

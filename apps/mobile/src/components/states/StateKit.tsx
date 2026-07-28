@@ -76,7 +76,7 @@ export function ScreenHeader({
           <Path d="M15 5l-7 7 7 7" stroke={colors.ice} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       </Pressable>
-      <Text style={k.headerTitle}>{title}</Text>
+      <Text accessibilityRole="header" style={k.headerTitle}>{title}</Text>
       <View style={k.headerRight}>{right ?? <View style={k.iconBtnGhost} />}</View>
     </View>
   );

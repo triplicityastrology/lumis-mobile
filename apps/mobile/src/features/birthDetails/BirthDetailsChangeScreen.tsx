@@ -2,7 +2,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import {
-  Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
+  BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -110,6 +110,25 @@ export function BirthDetailsChangeScreen({
     setStep("edit");
   }
 
+  function handleBack() {
+    if (step === "regenerating") return;
+    if (step === "display") {
+      onBack();
+      return;
+    }
+    clearTimers();
+    requestIdRef.current = null;
+    setStep("display");
+  }
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [step, onBack]);
+
   const dirty = details
     ? draft.birthDate !== details.birthDate ||
       draft.birthTime !== details.birthTime ||
@@ -176,7 +195,7 @@ export function BirthDetailsChangeScreen({
       {step !== "regenerating" ? (
         <ScreenHeader
           title="Birth Details"
-          onBack={step === "display" ? onBack : () => { clearTimers(); requestIdRef.current = null; setStep("display"); }}
+          onBack={handleBack}
         />
       ) : null}
 
@@ -224,6 +243,9 @@ export function BirthDetailsChangeScreen({
             <View style={s.toggleRow}>
               <Text style={s.fieldLabel}>I don't know my birth time</Text>
               <Switch
+                accessibilityLabel="I don't know my birth time"
+                accessibilityRole="switch"
+                accessibilityState={{ checked: draft.timeUnknown }}
                 value={draft.timeUnknown}
                 onValueChange={(v) => updateDraft((current) => ({ ...current, timeUnknown: v }))}
                 trackColor={{ false: "rgba(255,255,255,0.12)", true: "rgba(215,185,120,0.6)" }}
@@ -234,7 +256,15 @@ export function BirthDetailsChangeScreen({
               <Text style={s.toggleNote}>Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements.</Text>
             ) : null}
             <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => updateDraft((current) => ({ ...current, birthPlace: v }))} placeholder="Search city, e.g. Hong Kong" />
-            {formError ? <Text style={s.formError}>{formError}</Text> : null}
+            {formError ? (
+              <Text
+                accessibilityLiveRegion="assertive"
+                accessibilityRole="alert"
+                style={s.formError}
+              >
+                {formError}
+              </Text>
+            ) : null}
 
             <BrandButton label="Review change" onPress={() => setStep("confirm")} disabled={!dirty || !valid} style={{ marginTop: 22 }} />
             {!dirty ? <Text style={s.hintNote}>Change a value to continue.</Text> : null}
@@ -244,7 +274,11 @@ export function BirthDetailsChangeScreen({
               Platform.OS === "ios" ? (
                 <Modal transparent animationType="slide" onRequestClose={() => setPicker(null)}>
                   <Pressable style={s.pickerScrim} onPress={() => setPicker(null)} />
-                  <View style={s.pickerSheet}>
+                  <View
+                    accessibilityLabel={picker === "date" ? "Birth date picker" : "Birth time picker"}
+                    accessibilityViewIsModal
+                    style={s.pickerSheet}
+                  >
                     <View style={s.pickerBar}>
                       <Text style={s.pickerTitle}>{picker === "date" ? "Birth date" : "Birth time"}</Text>
                       <Pressable onPress={() => setPicker(null)} hitSlop={8}><Text style={s.pickerDone}>Done</Text></Pressable>
@@ -309,7 +343,11 @@ export function BirthDetailsChangeScreen({
       {/* confirm modal */}
       <Modal transparent visible={step === "confirm"} animationType="fade" onRequestClose={() => setStep("edit")}>
         <View style={s.scrim}>
-          <View style={s.modal}>
+          <View
+            accessibilityLabel="Confirm birth details regeneration"
+            accessibilityViewIsModal
+            style={s.modal}
+          >
             <LineMotif name="wheel" size={48} />
             <Text style={s.modalTitle}>Regenerate your chart?</Text>
             <Text style={s.modalBody}>

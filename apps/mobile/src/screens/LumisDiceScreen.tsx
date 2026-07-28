@@ -6,7 +6,7 @@ import MessageCircle from "lucide-react-native/icons/message-circle";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, View
+  AccessibilityInfo, BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
 
@@ -47,7 +47,6 @@ export function LumisDiceScreen({
   onSelectTab: (tab: MainTab) => void;
   onBack?: () => void;
 }) {
-  void onBack;
   const { stackResultActions } = useDiceResultActionLayout();
   const [step, setStep] = useState<DiceStep>("ask");
   const [question, setQuestion] = useState("");
@@ -142,6 +141,16 @@ export function LumisDiceScreen({
     setQuestionError("");
   }
 
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (step === "ask") onBack?.();
+      else if (step === "result") reset();
+      else cancelRoll();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [step, onBack]);
+
   const resultTitle = result ? `${result[0].name} in ${result[1].name}, ${result[2].name}.` : "";
   const reflectionPrompt = result && activeQuestion
     ? `Help me reflect on my astrology dice roll. My question was: “${activeQuestion}” I rolled ${resultTitle}`
@@ -188,6 +197,7 @@ export function LumisDiceScreen({
               <Text style={styles.intro}>Three dice, planet, sign, and house, become a prompt to think with.</Text>
             </View>
             <TextInput
+              accessibilityLabel="Dice question"
               onChangeText={(value) => {
                 setQuestion(value);
                 if (questionError) setQuestionError("");
@@ -207,6 +217,7 @@ export function LumisDiceScreen({
               </Text>
             ) : null}
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 setQuestion(EXAMPLE_QUESTION);
                 setQuestionError("");
@@ -216,7 +227,7 @@ export function LumisDiceScreen({
               <Text style={styles.exampleText}>“{EXAMPLE_QUESTION}”</Text>
             </Pressable>
             <View style={styles.flexSpacer} />
-            <Pressable onPress={continueToRoll} style={styles.primaryButton}>
+            <Pressable accessibilityRole="button" onPress={continueToRoll} style={styles.primaryButton}>
               <Text style={styles.primaryText}>Next</Text>
               <ChevronLeft color={colors.navy950} size={20} style={styles.nextIcon} />
             </Pressable>
@@ -238,7 +249,13 @@ export function LumisDiceScreen({
               </View>
               {!rolling ? <Text style={styles.shakeHint}>Give your phone a shake, or tap the dice to roll.</Text> : null}
             </View>
-            <Pressable disabled={rolling} onPress={roll} style={[styles.primaryButton, rolling && styles.disabled]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ busy: rolling, disabled: rolling }}
+              disabled={rolling}
+              onPress={roll}
+              style={[styles.primaryButton, rolling && styles.disabled]}
+            >
               <Dices color={colors.navy950} size={20} />
               <Text style={styles.primaryText}>{rolling ? "Rolling..." : "Roll the dice"}</Text>
             </Pressable>
@@ -276,6 +293,7 @@ export function LumisDiceScreen({
             </View>
             <View style={[styles.resultActions, stackResultActions && styles.resultActionsStacked]}>
               <Pressable
+                accessibilityRole="button"
                 onPress={reset}
                 style={[styles.secondaryButton, stackResultActions && styles.resultActionStacked]}
               >
@@ -285,6 +303,7 @@ export function LumisDiceScreen({
                 </Text>
               </Pressable>
               <Pressable
+                accessibilityRole="button"
                 onPress={() => onReflect(reflectionPrompt)}
                 style={[styles.chatButton, stackResultActions && styles.resultActionStacked]}
               >

@@ -111,13 +111,18 @@ export function LumisAuthScreen({
           <View style={styles.emailField}>
             <Mail color={colors.muted} size={18} />
             <TextInput
+              accessibilityLabel="Email address"
               style={styles.emailInput}
               value={email}
               onChangeText={setEmail}
               placeholder="you@example.com"
               placeholderTextColor={colors.muted}
               autoCapitalize="none"
+              autoComplete="email"
               keyboardType="email-address"
+              onSubmitEditing={() => void sendLink()}
+              returnKeyType="send"
+              textContentType="emailAddress"
             />
           </View>
         </View>
@@ -129,7 +134,11 @@ export function LumisAuthScreen({
       </View>
 
       {authNotice || message ? (
-        <View style={flowStyles.success}>
+        <View
+          accessibilityLiveRegion="polite"
+          accessibilityRole="text"
+          style={flowStyles.success}
+        >
           <Text style={flowStyles.successTitle}>Account update</Text>
           <Text style={flowStyles.message}>{message || authNotice}</Text>
         </View>
@@ -157,11 +166,19 @@ export function LumisAuthScreen({
         {!authStatus?.user ? <ChevronRight color={colors.navy950} size={19} /> : null}
       </Pressable>
 
-      <Pressable style={flowStyles.secondaryButton} onPress={() => refreshAccount("Account reloaded.")}>
+      <Pressable
+        accessibilityRole="button"
+        style={flowStyles.secondaryButton}
+        onPress={() => refreshAccount("Account reloaded.")}
+      >
         <Text style={flowStyles.secondaryButtonText}>Reload account</Text>
       </Pressable>
       {!authStatus?.user ? (
-        <Pressable style={styles.textButton} onPress={onContinueLocal}>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.textButton}
+          onPress={onContinueLocal}
+        >
           <Text style={styles.textButtonText}>Continue without saving</Text>
         </Pressable>
       ) : null}
