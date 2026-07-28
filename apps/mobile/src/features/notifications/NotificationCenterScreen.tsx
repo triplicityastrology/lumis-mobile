@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import {
-  Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
+  Pressable, ScrollView, StyleSheet, Text, View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
@@ -122,7 +123,7 @@ export function NotificationCenterScreen({
   function deeplink(_item: NotifItem) {}
 
   return (
-    <SafeAreaView style={s.safe}>
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       <ScreenHeader
         title="Notifications"
         onBack={onBack}
@@ -147,7 +148,11 @@ export function NotificationCenterScreen({
         </View>
       ) : null}
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+      >
         {demo === "loading" ? (
           <View style={s.list}>{[0, 1, 2].map((i) => <SkeletonRow key={i} />)}</View>
         ) : demo === "error" ? (

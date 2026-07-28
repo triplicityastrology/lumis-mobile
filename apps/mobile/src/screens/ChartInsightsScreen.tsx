@@ -47,7 +47,11 @@ export function ChartInsightsScreen({
             <Bell color={colors.ice} size={19} />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          contentInsetAdjustmentBehavior="never"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.sectionLabel}>YOUR NATAL CHART</Text>
 
           {/* chart panel + continuous placements list share one rounded container */}

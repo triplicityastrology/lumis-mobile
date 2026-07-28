@@ -282,7 +282,7 @@ export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => vo
 
 function Shell({ title, onBack, emblem, children }: { title: string; onBack: () => void; emblem?: boolean; children: React.ReactNode }) {
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={s.safe}>
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       <ScreenHeader title={title} onBack={onBack} />
       {/* S1-C02-R1: Preview badge lives in the shared Shell so EVERY Care Circle
           route (home, QR, scan, confirm, empty/gate) shows it — early-return

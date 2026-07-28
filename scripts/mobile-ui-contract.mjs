@@ -52,6 +52,10 @@ const birthDetailsSource = await readFile(
   path.join(featuresPath, "birthDetails/BirthDetailsChangeScreen.tsx"),
   "utf8"
 );
+const notificationCenterSource = await readFile(
+  path.join(featuresPath, "notifications/NotificationCenterScreen.tsx"),
+  "utf8"
+);
 const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
 const screenFiles = (await readdir(screensPath))
   .filter((name) => name.endsWith(".tsx"))
@@ -121,7 +125,8 @@ assert.doesNotMatch(
 );
 assert.match(
   flowScreenSource,
-  /<SafeAreaView edges=\{\["top", "left", "right"\]\}/
+  /<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/,
+  "no-tab Auth and onboarding flows must own a stable bottom safe area"
 );
 assert.match(
   flowScreenSource,
@@ -251,7 +256,7 @@ for (const [name, source] of [
   ["Birth Details", birthDetailsSource]
 ]) {
   assert.match(source, /import \{ SafeAreaView \} from "react-native-safe-area-context"/);
-  assert.match(source, /<SafeAreaView edges=\{\["top", "left", "right"\]\}/);
+  assert.match(source, /<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/);
   assert.doesNotMatch(
     source,
     /import \{[^}]*SafeAreaView[^}]*\} from "react-native"/,
@@ -263,6 +268,57 @@ for (const [name, source] of [
     `${name} must preserve form interaction while the keyboard is open`
   );
 }
+assert.match(
+  homeScreenSource,
+  /function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/,
+  "signed-out Home must retain full safe-area ownership when entering Auth"
+);
+assert.match(
+  homeScreenSource,
+  /export function LumisHomeScreen[\s\S]*?<SafeAreaView edges=\{\["top", "left", "right"\]\}/,
+  "loaded Home must leave the bottom inset to the persistent main tab bar"
+);
+assert.doesNotMatch(
+  appSource,
+  /import \{[^}]*SafeAreaView[^}]*\} from "react-native"/,
+  "active App flows must not mix legacy and provider-backed safe-area geometry"
+);
+assert.match(appSource, /SafeAreaView as SafeAreaViewCtx/);
+assert.match(
+  appSource,
+  /function ChartPreviewScreen[\s\S]*?<SafeAreaViewCtx edges=\{\["top", "left", "right", "bottom"\]\}/
+);
+assert.match(
+  appSource,
+  /function PastReflectionsScreen[\s\S]*?<SafeAreaViewCtx edges=\{\["top", "left", "right", "bottom"\]\}/
+);
+assert.match(
+  notificationCenterSource,
+  /<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/
+);
+for (const [name, source] of [
+  ["loaded Home", homeScreenSource],
+  ["Insights", insightsSource],
+  ["active chart and conversation flows", appSource],
+  ["Notifications", notificationCenterSource]
+]) {
+  assert.match(
+    source,
+    /contentInsetAdjustmentBehavior="never"/,
+    `${name} must not accept a delayed automatic iOS content inset`
+  );
+}
+assert.doesNotMatch(
+  authScreen,
+  /useEffect\(\(\) => \{[\s\S]{0,180}setSentToEmail\(null\)/,
+  "an async auth error cannot replace the inbox shell one frame after it mounts"
+);
+assert.match(authScreen, /<MagicLinkSentScreen[\s\S]{0,180}errorMessage=\{authError\}/);
+assert.match(
+  authSystemKit,
+  /resendState === "error" \|\| errorMessage[\s\S]{0,240}accessibilityRole="alert"/,
+  "callback errors must settle accessibly inside the existing inbox shell"
+);
 assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
 const personaAvatarSource = await readFile(
   path.join(root, "apps/mobile/src/components/LumisPersonaAvatar.tsx"),

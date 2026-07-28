@@ -291,9 +291,14 @@ assert.doesNotMatch(
   "callback handling must restore only the session returned by Supabase"
 );
 
-assert.match(authScreen, /if \(authError\) \{\s*setSentToEmail\(null\)/);
-assert.match(
+assert.doesNotMatch(
   authScreen,
+  /useEffect\(\(\) => \{[\s\S]{0,180}setSentToEmail\(null\)/,
+  "an asynchronous callback error must not replace the inbox shell after mount"
+);
+assert.match(authScreen, /<MagicLinkSentScreen[\s\S]{0,180}errorMessage=\{authError\}/);
+assert.match(
+  authSystemKit,
   /accessibilityRole="alert"[\s\S]*accessibilityLiveRegion="assertive"/
 );
 
@@ -651,6 +656,8 @@ assert.match(magicLinkSentScreen, /setResendError\(/);
 assert.match(magicLinkSentScreen, /setResendState\("error"\)/);
 assert.match(magicLinkSentScreen, /accessibilityRole="alert"/);
 assert.match(magicLinkSentScreen, /accessibilityLiveRegion="assertive"/);
+assert.match(magicLinkSentScreen, /resendState === "error" \|\| errorMessage/);
+assert.match(magicLinkSentScreen, /resendError \|\| errorMessage/);
 assert.match(magicLinkSentScreen, /resendSucceeded \|\| resendSubmitting/);
 assert.match(magicLinkSentScreen, /<LinkButton label="Use a different email"/);
 assert.doesNotMatch(

@@ -172,7 +172,7 @@ export function BirthDetailsChangeScreen({
   }
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={s.safe}>
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       {step !== "regenerating" ? (
         <ScreenHeader
           title="Birth Details"

@@ -67,7 +67,11 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.homeContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.homeContent}
+          contentInsetAdjustmentBehavior="never"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.greetingBlock}>
             <Text style={styles.eyebrow}>YOUR INNER UNIVERSE</Text>
             <Text style={styles.greeting}>Welcome back, {props.name}.</Text>
@@ -165,7 +169,7 @@ function WelcomeState(props: LumisHomeScreenProps) {
       : props.onAccount;
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <View style={styles.appFrame}>
         <View style={styles.welcomeHeader}>
           <View style={styles.markRow}>

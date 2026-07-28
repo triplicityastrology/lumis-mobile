@@ -19,7 +19,7 @@ import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { BackHandler, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx } from "react-native-safe-area-context";
 
 import {
@@ -1009,9 +1009,14 @@ function AuthScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileTopBar}>
           <Pressable style={styles.backButton} onPress={onBack}>
             <Text style={styles.backButtonText}>Back</Text>
@@ -1102,7 +1107,7 @@ function AuthScreen({
           <Text style={styles.ghostButtonText}>Continue without saving</Text>
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 
@@ -1141,9 +1146,14 @@ function ProfileFormScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileTopBar}>
           <Pressable style={styles.backButton} onPress={onBack}>
             <Text style={styles.backButtonText}>Back</Text>
@@ -1222,7 +1232,7 @@ function ProfileFormScreen({
           <Text style={styles.fullPrimaryButtonText}>Continue to chart preview</Text>
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 
@@ -1298,9 +1308,13 @@ function ChartPreviewScreen({
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileTopBar}>
           <Pressable style={styles.backButton} onPress={onBack}>
             <Text style={styles.backButtonText}>Back</Text>
@@ -1358,17 +1372,17 @@ function ChartPreviewScreen({
           <Text style={styles.ghostButtonText}>Start over</Text>
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 
 function ChartGeneratingScreen({ activeStep, name }: { activeStep: number; name: string }) {
   return (
-    <SafeAreaView style={styles.generatingSafe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.generatingSafe}>
       <StatusBar style="light" />
       <GeneratingView activeStep={activeStep} name={name} />
       <Text style={styles.generatingPrivacy}>Your birth details stay linked to your private Lumis account.</Text>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 
@@ -1392,9 +1406,13 @@ function ChartRevealScreen({
   const ascendant = chart.precision === "full" ? chart.angles.ascendant : undefined;
 
   return (
-    <SafeAreaView style={styles.chartRevealSafe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.chartRevealSafe}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.chartRevealContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.chartRevealContent}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.chartRevealTopBar}>
           <Pressable accessibilityLabel="Back" onPress={onBack} style={styles.chartRevealIconButton}>
             <ArrowLeft color="#F7EBDD" size={20} />
@@ -1437,7 +1455,7 @@ function ChartRevealScreen({
           <ChevronRight color="#132238" size={19} strokeWidth={2.5} />
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 
@@ -1504,9 +1522,14 @@ function PersonaStyleScreen({
     const selectedAvatar = PERSONA_AVATARS.find((avatar) => avatar.key === avatarKey) ?? PERSONA_AVATARS[5];
 
     return (
-      <SafeAreaView style={styles.personaSafe}>
+      <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.personaSafe}>
         <StatusBar style="light" />
-        <ScrollView contentContainerStyle={styles.personaContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.personaContent}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.personaTopBar}>
             <Pressable accessibilityLabel="Back" style={styles.personaBackButton} onPress={() => setStep("style")}>
               <ArrowLeft color="#F7EBDD" size={20} />
@@ -1593,14 +1616,19 @@ function PersonaStyleScreen({
             <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
           </Pressable>
         </ScrollView>
-      </SafeAreaView>
+      </SafeAreaViewCtx>
     );
   }
 
   return (
-    <SafeAreaView style={styles.personaSafe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.personaSafe}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.personaContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.personaContent}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.personaTopBar}>
           <Pressable accessibilityLabel="Back" style={styles.personaBackButton} onPress={onBack}>
             <ArrowLeft color="#F7EBDD" size={20} />
@@ -1661,7 +1689,7 @@ function PersonaStyleScreen({
           <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 
@@ -1873,7 +1901,12 @@ function ChatShellScreen({
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.chatContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.chatContent}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.chatDayLabel}>TODAY</Text>
           <View style={styles.messageRowLumis}>
             <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
@@ -1956,6 +1989,7 @@ function ChatShellScreen({
               <Text style={styles.chatDisclaimerText}>Reflective guidance, not professional advice.</Text>
             </View>
             <ScrollView
+              contentInsetAdjustmentBehavior="never"
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chatPromptRow}
@@ -2057,7 +2091,7 @@ function PastReflectionsScreen({
     : visibleThreads;
 
   return (
-    <SafeAreaView style={styles.lumisDarkSafe}>
+    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
       <View style={styles.reflectionsShell}>
         <View style={styles.reflectionsHeader}>
@@ -2075,7 +2109,12 @@ function PastReflectionsScreen({
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.reflectionsContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.reflectionsContent}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {(hasLocalDemoSession || accountSource === "supabase") && profileData ? (
             visibleThreads.length > 0 ? (
               <>
@@ -2186,7 +2225,7 @@ function PastReflectionsScreen({
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </SafeAreaViewCtx>
   );
 }
 

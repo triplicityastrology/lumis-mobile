@@ -21,7 +21,7 @@ export function FlowScreen({
   title: string;
 }) {
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable style={styles.back} onPress={onBack} accessibilityLabel="Back">

@@ -166,10 +166,12 @@ function LinkButton({ label, onPress }: { label: string; onPress: () => void }) 
 // ---- AUTH-002 Magic link sent ----
 export function MagicLinkSentScreen({
   email,
+  errorMessage,
   onResend,
   onChangeEmail
 }: {
   email: string;
+  errorMessage?: string;
   onResend: () => Promise<void>;
   onChangeEmail: () => void;
 }) {
@@ -203,13 +205,13 @@ export function MagicLinkSentScreen({
         <Text style={styles.bodyStrong}>{email}</Text>
         <Text style={styles.small}>The link expires in 15 minutes and can only be used once. If you don't see it, check spam.</Text>
         <View style={styles.spacer} />
-        {resendState === "error" ? (
+        {resendState === "error" || errorMessage ? (
           <View
             style={styles.resendError}
             accessibilityRole="alert"
             accessibilityLiveRegion="assertive"
           >
-            <Text style={styles.resendErrorText}>{resendError}</Text>
+            <Text style={styles.resendErrorText}>{resendError || errorMessage}</Text>
           </View>
         ) : null}
         <SoftButton
