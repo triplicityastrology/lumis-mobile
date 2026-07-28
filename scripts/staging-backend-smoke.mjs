@@ -814,7 +814,26 @@ try {
     { method: "POST", body: { p_user_id: primary.id } }
   );
   assert(!crossUserPlanResponse.ok, "Authenticated user resolved another account's plan.");
+  const crossUserDeletionRequestResponse = await userRequest(
+    secondarySession.access_token,
+    `/rest/v1/account_deletion_requests?user_id=eq.${primary.id}&select=request_id`
+  );
+  assert(
+    !crossUserDeletionRequestResponse.ok &&
+      [401, 403].includes(crossUserDeletionRequestResponse.status),
+    "Authenticated user could read another account's deletion request."
+  );
+  const crossUserDeletionRpcResponse = await userRequest(
+    secondarySession.access_token,
+    "/rest/v1/rpc/enqueue_account_deletion_external_sync",
+    { method: "POST", body: { p_user_id: primary.id } }
+  );
+  assert(
+    !crossUserDeletionRpcResponse.ok,
+    "Authenticated user could invoke the backend-only deletion enqueue RPC."
+  );
   pass("RLS and grants block cross-user chart data, migration reports, and backend-only RPCs");
+  pass("Deletion boundary blocks cross-user request reads and direct enqueue attempts");
 
   await servicePatch("ai_profiles", `id=eq.${repairedAiProfile.id}`, { is_active: false });
   const noActiveProfileChat = await invokeFunction("chat-message", primarySession.access_token, {
@@ -879,6 +898,21 @@ try {
     `Deletion request returned HTTP ${deletionRequest.status}: ${safeError(deletionRequest.body)}.`
   );
   assert(lateCompletion.ok === true, "Late in-flight completion was not recorded.");
+  const accountBeforeInternalFinalizer = await serviceSelect(
+    "users",
+    `id=eq.${primary.id}&select=id`
+  );
+  assert(
+    accountBeforeInternalFinalizer.length === 1,
+    "External deletion request unexpectedly removed the application account."
+  );
+  const stillAuthenticatedAfterExternalRequest = await adminClient.auth.admin.getUserById(primary.id);
+  assert(
+    !stillAuthenticatedAfterExternalRequest.error &&
+      stillAuthenticatedAfterExternalRequest.data.user?.id === primary.id,
+    "External deletion request unexpectedly removed the Auth account."
+  );
+  pass("External cleanup request preserves the account until the disabled internal finalizer is approved");
 
   const deletionEvents = await serviceSelect(
     "external_sync_events",
@@ -916,6 +950,18 @@ try {
   pass("Deletion race captures late Case IDs, rediscovers deterministic Cases, and blocks new exports");
 
   const abandonedEventId = crypto.randomUUID();
+  const secondaryAccountSeed = await serviceRequestResult("/rest/v1/users", {
+    method: "POST",
+    prefer: "return=minimal",
+    body: {
+      id: secondary.id,
+      display_name: "Deletion Boundary QA"
+    }
+  });
+  assert(
+    secondaryAccountSeed.ok || secondaryAccountSeed.status === 409,
+    `Unable to prepare disposable deletion-boundary account (HTTP ${secondaryAccountSeed.status}).`
+  );
   await serviceRequest("/rest/v1/external_sync_events", {
     method: "POST",
     prefer: "return=minimal",
@@ -940,7 +986,10 @@ try {
     recentSecondarySession.access_token,
     { confirmation: "DELETE MY LUMIS ACCOUNT" }
   );
-  assert(abandonedDeletion.status === 202, "Abandoned-claim deletion request was rejected.");
+  assert(
+    abandonedDeletion.status === 202,
+    `Abandoned-claim deletion request returned HTTP ${abandonedDeletion.status}: ${safeError(abandonedDeletion.body)}.`
+  );
   await serviceRequest("/rest/v1/rpc/claim_external_sync_events", {
     method: "POST",
     body: { p_limit: 20 }
@@ -952,8 +1001,11 @@ try {
     `Abandoned claim remained ${recoveredAbandoned.status}.`
   );
   assert(
-    recoveredAbandoned.last_error === "DELETION_STALE_CLAIM_CANCELLED",
-    "Abandoned claim did not retain the bounded lease error."
+    [
+      "DELETION_STALE_CLAIM_CANCELLED",
+      "ACCOUNT_DELETION_CANCELLED_PENDING_DELIVERY"
+    ].includes(recoveredAbandoned.last_error),
+    `Abandoned claim retained unexpected safe code ${String(recoveredAbandoned.last_error ?? "NONE")}.`
   );
   const abandonedCleanupEvents = await serviceSelect(
     "external_sync_events",

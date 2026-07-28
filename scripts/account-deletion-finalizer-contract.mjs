@@ -10,6 +10,7 @@ const finalizer = readFileSync(
   "utf8"
 );
 const liveGolden = readFileSync("scripts/golden-chart-live.mjs", "utf8");
+const hostedProof = readFileSync("scripts/staging-backend-smoke.mjs", "utf8");
 
 assert.match(migration, /internal_deletion_processing/i);
 assert.doesNotMatch(migration, /end if;\s+end if;/i);
@@ -47,6 +48,12 @@ assert.match(finalizer, /authDeleteError\.status !== 404/);
 assert.match(finalizer, /complete_internal_account_deletion/);
 assert.match(finalizer, /fail_internal_account_deletion/);
 assert.doesNotMatch(finalizer, /error instanceof Error \? error\.message/);
+
+assert.match(hostedProof, /Deletion boundary blocks cross-user request reads and direct enqueue attempts/);
+assert.match(
+  hostedProof,
+  /External cleanup request preserves the account until the disabled internal finalizer is approved/
+);
 
 assert.match(liveGolden, /golden_unknown_time_contract/);
 assert.match(liveGolden, /precision !== "no_birth_time"/);
