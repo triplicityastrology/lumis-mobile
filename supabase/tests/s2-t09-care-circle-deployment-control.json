@@ -1,0 +1,77 @@
+{
+  "control": "S2-T09",
+  "environment": "staging",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "local_validation_only",
+  "minimum_safe_function_commit": "a2aaee6bc7515310acc78719736d7122b814f1f5",
+  "deployment_order": [
+    {
+      "name": "0032_care_circle_backend_foundation.sql",
+      "sha256": "00b2bbd3c7ff8c1515dc7efd525dc0eef396feaaf98c584119fc4606e85838e2"
+    },
+    {
+      "name": "0033_inactive_notification_foundation.sql",
+      "sha256": "0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d"
+    },
+    {
+      "name": "0034_reusable_care_pairing_operations.sql",
+      "sha256": "466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb"
+    },
+    {
+      "name": "care-circle Edge Function",
+      "sha256": "19dad48d318a442b75d3830eb3d2e5dcd9443453275c83d7001c5ece9bc64ce8"
+    }
+  ],
+  "required_gates": [
+    "exact_staging_ref",
+    "clean_reviewed_source",
+    "migration_checksum_match",
+    "legacy_revoked_count_zero",
+    "legacy_code_fingerprint_review",
+    "legacy_notification_privacy_count",
+    "staging_backup_evidence",
+    "dry_run_exact_order",
+    "pairing_secret_name_present",
+    "migration_parity",
+    "function_version_capture",
+    "unauthenticated_denial"
+  ],
+  "activation_forbidden": [
+    "notification_provider",
+    "device_token_ui",
+    "scheduler",
+    "notification_delivery",
+    "qr_ui",
+    "check_in",
+    "reminder",
+    "care_circle_app_activation"
+  ],
+  "recovery": {
+    "database": "forward_only_corrective_migration",
+    "function": "reviewed_commit_at_or_after_minimum_safe_function_commit",
+    "pre_s2_t07_function_allowed": false
+  },
+  "evidence": {
+    "allowed": [
+      "project_ref",
+      "source_commit",
+      "checksums",
+      "count_only_legacy_audit",
+      "backup_timestamp_and_status",
+      "migration_names_and_status",
+      "function_name_version_status",
+      "http_status",
+      "redacted_test_run_id_and_assertions"
+    ],
+    "forbidden": [
+      "credentials",
+      "access_tokens",
+      "pairing_codes",
+      "fingerprints",
+      "user_ids",
+      "emails",
+      "database_rows",
+      "private_payloads"
+    ]
+  }
+}
