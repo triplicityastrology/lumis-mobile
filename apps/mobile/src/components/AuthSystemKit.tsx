@@ -27,6 +27,8 @@ import { safeUserErrorMessage } from "../services/userFacingErrors";
  */
 
 const INK = "#3A2218";
+const RESEND_COOLDOWN_SECONDS = 30;
+const MAX_RESEND_ATTEMPTS = 3;
 const EMBLEM_TONES: Record<string, [string, string]> = {
   accent: ["#F0D592", "#C9A05A"],
   good: ["#AEE4C4", "#5DA97E"],
@@ -150,7 +152,13 @@ function PrimaryButton({ label, icon, onPress }: { label: string; icon?: ReactNo
 
 function SoftButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable style={[styles.softBtn, disabled && styles.dim]} onPress={onPress} disabled={disabled} accessibilityRole="button">
+    <Pressable
+      style={[styles.softBtn, disabled && styles.dim]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
+    >
       <Text style={styles.softBtnText}>{label}</Text>
     </Pressable>
   );
@@ -178,8 +186,24 @@ export function MagicLinkSentScreen({
 }) {
   const [resendState, setResendState] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [resendError, setResendError] = useState("");
+  const [resendAttempts, setResendAttempts] = useState(0);
+  const [cooldownSeconds, setCooldownSeconds] = useState(RESEND_COOLDOWN_SECONDS);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0 || resendAttempts >= MAX_RESEND_ATTEMPTS) return undefined;
+
+    const timer = setInterval(() => {
+      setCooldownSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds, resendAttempts]);
 
   async function resend() {
+    if (resendState === "submitting" || cooldownSeconds > 0 || resendAttempts >= MAX_RESEND_ATTEMPTS) return;
+
+    const nextAttempt = resendAttempts + 1;
+    setResendAttempts(nextAttempt);
+    setCooldownSeconds(RESEND_COOLDOWN_SECONDS);
     setResendState("submitting");
     setResendError("");
 
@@ -192,8 +216,17 @@ export function MagicLinkSentScreen({
     }
   }
 
-  const resendSucceeded = resendState === "success";
   const resendSubmitting = resendState === "submitting";
+  const resendLimitReached = resendAttempts >= MAX_RESEND_ATTEMPTS;
+  const resendCoolingDown = cooldownSeconds > 0;
+  const resendDisabled = resendSubmitting || resendCoolingDown || resendLimitReached;
+  const resendLabel = resendLimitReached
+    ? "Resend unavailable"
+    : resendSubmitting
+      ? "Resending..."
+      : resendCoolingDown
+        ? `Resend in ${cooldownSeconds}s`
+        : "Resend link";
 
   return (
     <AuthShell>
@@ -213,9 +246,20 @@ export function MagicLinkSentScreen({
             <Text style={styles.resendErrorText}>{resendError || errorMessage}</Text>
           </View>
         ) : null}
+        {resendState === "success" ? (
+          <Text style={styles.resendSuccess} accessibilityLiveRegion="polite">
+            Link resent.
+          </Text>
+        ) : null}
+        {resendLimitReached ? (
+          <View style={styles.resendGuidance} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+            <Text style={styles.resendGuidanceTitle}>Try again later.</Text>
+            <Text style={styles.resendGuidanceText}>Use a different email to start a new sign-in attempt.</Text>
+          </View>
+        ) : null}
         <SoftButton
-          label={resendSucceeded ? "Link resent" : resendSubmitting ? "Resending..." : "Resend link"}
-          disabled={resendSucceeded || resendSubmitting}
+          label={resendLabel}
+          disabled={resendDisabled}
           onPress={resend}
         />
         <LinkButton label="Use a different email" onPress={onChangeEmail} />
@@ -598,6 +642,10 @@ const styles = StyleSheet.create({
   softBtnText: { color: colors.ice, fontSize: 15, fontWeight: "600" },
   resendError: { alignSelf: "stretch", backgroundColor: "rgba(210,130,95,0.14)", borderColor: "rgba(210,130,95,0.42)", borderRadius: 12, borderWidth: 1, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 11 },
   resendErrorText: { color: "#F2C39C", fontSize: 12.5, lineHeight: 18, textAlign: "center" },
+  resendSuccess: { color: colors.good, fontSize: 12.5, lineHeight: 18, marginBottom: 10, textAlign: "center" },
+  resendGuidance: { alignSelf: "stretch", backgroundColor: "rgba(240,213,146,0.08)", borderColor: colors.line, borderRadius: 12, borderWidth: 1, marginBottom: 12, paddingHorizontal: 14, paddingVertical: 11 },
+  resendGuidanceTitle: { color: colors.ice, fontSize: 13, fontWeight: "700", textAlign: "center" },
+  resendGuidanceText: { color: colors.textSoft, fontSize: 12.5, lineHeight: 18, marginTop: 3, textAlign: "center" },
   dim: { opacity: 0.5 },
   linkBtn: { alignItems: "center", justifyContent: "center", minHeight: 40 },
   linkBtnText: { color: colors.textSoft, fontSize: 13.5, fontWeight: "600" },

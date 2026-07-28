@@ -658,7 +658,15 @@ assert.match(magicLinkSentScreen, /accessibilityRole="alert"/);
 assert.match(magicLinkSentScreen, /accessibilityLiveRegion="assertive"/);
 assert.match(magicLinkSentScreen, /resendState === "error" \|\| errorMessage/);
 assert.match(magicLinkSentScreen, /resendError \|\| errorMessage/);
-assert.match(magicLinkSentScreen, /resendSucceeded \|\| resendSubmitting/);
+assert.match(authSystemKit, /const RESEND_COOLDOWN_SECONDS = 30/);
+assert.match(authSystemKit, /const MAX_RESEND_ATTEMPTS = 3/);
+assert.match(magicLinkSentScreen, /setResendAttempts\(nextAttempt\)/);
+assert.match(magicLinkSentScreen, /setCooldownSeconds\(RESEND_COOLDOWN_SECONDS\)/);
+assert.match(magicLinkSentScreen, /resendSubmitting \|\| resendCoolingDown \|\| resendLimitReached/);
+assert.match(authSystemKit, /accessibilityState=\{\{ disabled: Boolean\(disabled\) \}\}/);
+assert.match(magicLinkSentScreen, /accessibilityLiveRegion="polite"/);
+assert.match(magicLinkSentScreen, /Try again later\./);
+assert.match(magicLinkSentScreen, /Use a different email to start a new sign-in attempt\./);
 assert.match(magicLinkSentScreen, /<LinkButton label="Use a different email"/);
 assert.doesNotMatch(
   authScreen,
@@ -669,6 +677,8 @@ assert.doesNotMatch(
 const resendState = {
   status: "idle",
   error: "",
+  attempts: 0,
+  cooldownSeconds: 0,
   canRetry: true,
   canChangeEmail: true
 };
@@ -683,10 +693,29 @@ assert.deepEqual(
   {
     status: "error",
     error: "Too many sign-in emails were requested.",
-    canRetry: true,
+    attempts: 1,
+    cooldownSeconds: 30,
+    canRetry: false,
     canChangeEmail: true
   },
-  "a rejected resend must show its truthful error and preserve both recovery actions"
+  "a rejected resend must show its truthful error, start cooldown, and preserve change-email recovery"
+);
+
+resendState.cooldownSeconds = 0;
+await simulateResend({ state: resendState, resendImpl: async () => undefined });
+resendState.cooldownSeconds = 0;
+await simulateResend({ state: resendState, resendImpl: async () => undefined });
+assert.deepEqual(
+  resendState,
+  {
+    status: "success",
+    error: "",
+    attempts: 3,
+    cooldownSeconds: 30,
+    canRetry: false,
+    canChangeEmail: true
+  },
+  "the third resend must permanently disable resend for this mounted sign-in attempt"
 );
 
 const signedInRestore = extractRange(
@@ -842,18 +871,21 @@ async function simulateAuthoritativeSignOut({ state, signOutImpl }) {
 }
 
 async function simulateResend({ state, resendImpl }) {
+  if (state.cooldownSeconds > 0 || state.attempts >= 3) return;
+
+  state.attempts += 1;
+  state.cooldownSeconds = 30;
   state.status = "submitting";
   state.error = "";
 
   try {
     await resendImpl();
     state.status = "success";
-    state.canRetry = false;
   } catch (caught) {
     state.status = "error";
     state.error = caught instanceof Error ? caught.message : "Unable to resend your secure link.";
-    state.canRetry = true;
   }
+  state.canRetry = state.cooldownSeconds === 0 && state.attempts < 3;
 }
 
 function resolveProfileAuthPresentation(status) {
