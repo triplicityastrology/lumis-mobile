@@ -1,6 +1,9 @@
-import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import {
+  runRedactedEvidenceMain,
+  safeCheck
+} from "./lib/redaction-safe-evidence.mjs";
 import {
   anonymousRequest,
   cleanupInterruptedRun,
@@ -21,6 +24,15 @@ import {
   verifyAdminAccess
 } from "./lib/staging-evidence-utils.mjs";
 
+let runId = "not-created";
+
+await runRedactedEvidenceMain(
+  {
+    getRunId: () => runId,
+    boundaryCheck: "notification_execute",
+    boundaryCode: "NOTIFICATION_EVIDENCE_INTERNAL_FAILURE"
+  },
+  async () => {
 const args = parseEvidenceArgs(
   process.argv.slice(2),
   "Notification foundation staging"
@@ -32,21 +44,32 @@ const plan = JSON.parse(
   )
 );
 
-assert.equal(plan.project_ref, STAGING_PROJECT_REF);
-assert.equal(plan.execution_default, "preflight_only");
-assert.deepEqual(plan.required_migrations, [
-  "0033_inactive_notification_foundation.sql"
-]);
+safeCheck(
+  plan.project_ref === STAGING_PROJECT_REF,
+  "plan_project_ref",
+  "NOTIFICATION_PLAN_PROJECT_REF_INVALID"
+);
+safeCheck(
+  plan.execution_default === "preflight_only",
+  "plan_default_mode",
+  "NOTIFICATION_PLAN_DEFAULT_MODE_INVALID"
+);
+safeCheck(
+  plan.required_migrations?.join("|")
+    === "0033_inactive_notification_foundation.sql",
+  "plan_migration_order",
+  "NOTIFICATION_PLAN_MIGRATION_ORDER_INVALID"
+);
 
 if (!args.execute) {
   assertPlanCoverage(plan);
   process.stdout.write(
     "Notification staging evidence preflight passed; no network or database command ran.\n"
   );
-  process.exit(0);
+  return;
 }
 
-const runId = args.runId || makeRunId();
+runId = args.runId || makeRunId();
 const context = await createStagingContext("s2notify", runId);
 await verifyAdminAccess(context);
 
@@ -54,13 +77,8 @@ if (args.cleanup) {
   const removed = await cleanupInterruptedRun(context);
   pass(context, `Interrupted-run cleanup removed ${removed} disposable account(s)`);
   printRedactedEvidence(context);
-  process.exit(0);
+  return;
 }
-
-process.stdout.write(`Notification redacted run ID: ${runId}\n`);
-process.stdout.write(
-  `Failure cleanup: pnpm evidence:s2-notification:secure -- --execute --cleanup ${runId}\n`
-);
 
 const password = makePassword();
 try {
@@ -87,16 +105,25 @@ try {
     notificationOperation(context, secondToken, raceBody),
     notificationOperation(context, secondToken, raceBody)
   ]);
-  assert(raceResults.every((result) => result.status === 200));
-  assert(
+  safeCheck(
+    raceResults.every((result) => result.status === 200),
+    "registration_race_status",
+    "NOTIFICATION_REGISTRATION_RACE_FAILED"
+  );
+  safeCheck(
     raceResults[0].body?.endpoint_id === raceResults[1].body?.endpoint_id,
-    "Concurrent registration returned different endpoint records."
+    "registration_race_endpoint",
+    "NOTIFICATION_REGISTRATION_RACE_MISMATCH"
   );
   const raceEndpoints = await serviceRequest(
     context,
     `/rest/v1/notification_device_endpoints?user_id=eq.${secondUser.id}&select=endpoint_id`
   );
-  assert.equal(raceEndpoints.length, 1);
+  safeCheck(
+    raceEndpoints.length === 1,
+    "registration_race_count",
+    "NOTIFICATION_REGISTRATION_RACE_DUPLICATE"
+  );
   await assertRemovalAction(
     context,
     secondToken,
@@ -121,22 +148,40 @@ try {
     device_locale: "en-HK"
   };
   const registered = await notificationOperation(context, ownerToken, registerBody);
-  assert.equal(registered.status, 200);
-  assert.equal(registered.body?.registered, true);
+  safeCheck(
+    registered.status === 200,
+    "device_register_status",
+    "NOTIFICATION_REGISTER_FAILED"
+  );
+  safeCheck(
+    registered.body?.registered === true,
+    "device_register_result",
+    "NOTIFICATION_REGISTER_RESULT_INVALID"
+  );
   const replay = await notificationOperation(context, ownerToken, registerBody);
-  assert.equal(replay.status, 200);
-  assert(
+  safeCheck(
+    replay.status === 200,
+    "registration_replay_status",
+    "NOTIFICATION_REPLAY_FAILED"
+  );
+  safeCheck(
     replay.body?.endpoint_id === registered.body?.endpoint_id,
-    "Registration replay returned a different endpoint record."
+    "registration_replay_endpoint",
+    "NOTIFICATION_REPLAY_MISMATCH"
   );
   const conflict = await notificationOperation(context, ownerToken, {
     ...registerBody,
     provider_token: makeDummyToken(runId, "changed")
   });
-  assert.equal(conflict.status, 409);
-  assert.equal(
-    conflict.body?.error?.code,
-    "NOTIFICATION_REQUEST_ID_CONFLICT"
+  safeCheck(
+    conflict.status === 409,
+    "registration_conflict_status",
+    "NOTIFICATION_CONFLICT_STATUS_INVALID"
+  );
+  safeCheck(
+    conflict.body?.error?.code === "NOTIFICATION_REQUEST_ID_CONFLICT",
+    "registration_conflict_code",
+    "NOTIFICATION_CONFLICT_CODE_INVALID"
   );
   pass(context, "Registration is idempotent and changed request reuse conflicts");
 
@@ -149,18 +194,31 @@ try {
     request_id: crypto.randomUUID(),
     provider_token: rotatedDummyToken
   });
-  assert.equal(rotated.status, 200);
+  safeCheck(
+    rotated.status === 200,
+    "installation_rotation_status",
+    "NOTIFICATION_ROTATION_FAILED"
+  );
   const endpointsAfterRotation = await serviceRequest(
     context,
     `/rest/v1/notification_device_endpoints?user_id=eq.${owner.id}&select=endpoint_id,token_fingerprint,token_ciphertext`
   );
-  assert.equal(endpointsAfterRotation.length, 1);
-  assert(
+  safeCheck(
+    endpointsAfterRotation.length === 1,
+    "installation_rotation_count",
+    "NOTIFICATION_ROTATION_DUPLICATE"
+  );
+  safeCheck(
     endpointsAfterRotation[0].token_fingerprint
       === await sha256(rotatedDummyToken),
-    "Rotated endpoint fingerprint did not match the dummy token digest."
+    "installation_rotation_fingerprint",
+    "NOTIFICATION_ROTATION_FINGERPRINT_MISMATCH"
   );
-  assert(!endpointsAfterRotation[0].token_ciphertext.includes(rotatedDummyToken));
+  safeCheck(
+    !endpointsAfterRotation[0].token_ciphertext.includes(rotatedDummyToken),
+    "installation_rotation_ciphertext",
+    "NOTIFICATION_ROTATION_CIPHERTEXT_EXPOSED"
+  );
   pass(context, "Installation rotation replaces the endpoint atomically");
 
   await assertRemovalAction(
@@ -232,7 +290,11 @@ try {
     context,
     `/rest/v1/notification_audit_events?user_id=eq.${owner.id}&select=event_id&limit=1`
   );
-  assert.equal(auditRows.length, 1);
+  safeCheck(
+    auditRows.length === 1,
+    "retention_audit_fixture",
+    "NOTIFICATION_RETENTION_AUDIT_MISSING"
+  );
   const controlledNow = Date.now();
   const oldAuditCreatedAt = new Date(
     controlledNow - 91 * 86_400_000
@@ -273,29 +335,59 @@ try {
     context,
     `/rest/v1/notification_audit_events?event_id=eq.${auditRows[0].event_id}&select=event_id`
   );
-  assert.equal(oldAudit.length, 0);
+  safeCheck(
+    oldAudit.length === 0,
+    "retention_audit_pruned",
+    "NOTIFICATION_AUDIT_NOT_PRUNED"
+  );
   const oldRequests = await serviceRequest(
     context,
     `/rest/v1/notification_registration_requests?user_id=eq.${owner.id}&created_at=lte.${encodeURIComponent(new Date(Date.now() - 90 * 86_400_000).toISOString())}&select=request_id`
   );
-  assert.equal(oldRequests.length, 0);
+  safeCheck(
+    oldRequests.length === 0,
+    "retention_request_pruned",
+    "NOTIFICATION_REQUEST_NOT_PRUNED"
+  );
   pass(context, "Controlled clock proves 90-day endpoint and metadata pruning");
 
   printRedactedEvidence(context);
 } finally {
   await cleanupRun(context);
 }
+  }
+);
 
 function assertPlanCoverage(value) {
-  assert.equal(value.actors.disposable_users, 2);
-  assert.equal(value.actors.existing_accounts_allowed, false);
-  assert.equal(value.actors.real_device_tokens_allowed, false);
-  assert.equal(value.boundaries.provider_delivery, false);
-  assert.equal(value.boundaries.permission_request, false);
-  assert.equal(value.boundaries.scheduler, false);
-  assert.equal(value.boundaries.notification_send, false);
-  assert.equal(value.boundaries.migration_apply, false);
-  assert.equal(value.boundaries.function_deploy, false);
+  safeCheck(
+    value.actors.disposable_users === 2,
+    "plan_disposable_users",
+    "NOTIFICATION_PLAN_ACTORS_INVALID"
+  );
+  safeCheck(
+    value.actors.existing_accounts_allowed === false,
+    "plan_existing_accounts",
+    "NOTIFICATION_PLAN_EXISTING_ACCOUNTS_ALLOWED"
+  );
+  safeCheck(
+    value.actors.real_device_tokens_allowed === false,
+    "plan_real_tokens",
+    "NOTIFICATION_PLAN_REAL_TOKENS_ALLOWED"
+  );
+  for (const [boundary, errorCode] of [
+    ["provider_delivery", "NOTIFICATION_PLAN_PROVIDER_ENABLED"],
+    ["permission_request", "NOTIFICATION_PLAN_PERMISSION_ENABLED"],
+    ["scheduler", "NOTIFICATION_PLAN_SCHEDULER_ENABLED"],
+    ["notification_send", "NOTIFICATION_PLAN_SEND_ENABLED"],
+    ["migration_apply", "NOTIFICATION_PLAN_MIGRATION_ENABLED"],
+    ["function_deploy", "NOTIFICATION_PLAN_DEPLOY_ENABLED"]
+  ]) {
+    safeCheck(
+      value.boundaries[boundary] === false,
+      "plan_inactive_boundary",
+      errorCode
+    );
+  }
   for (const required of [
     "owner_second_user_anonymous_rls",
     "concurrent_registration_race",
@@ -310,7 +402,11 @@ function assertPlanCoverage(value) {
     "controlled_clock_90_day_pruning",
     "run_scoped_cleanup"
   ]) {
-    assert(value.checks.includes(required), `Missing notification check ${required}`);
+    safeCheck(
+      value.checks.includes(required),
+      "plan_case_coverage",
+      "NOTIFICATION_PLAN_CASE_MISSING"
+    );
   }
 }
 
@@ -319,10 +415,15 @@ async function verifyRegistryAndRls(context, ownerToken, secondToken) {
     context,
     "/rest/v1/notification_type_registry?select=notification_type,enabled&order=notification_type.asc"
   );
-  assert.deepEqual(registry, [
-    { notification_type: "care_circle_check_in", enabled: false },
-    { notification_type: "care_circle_reminder", enabled: false }
-  ]);
+  safeCheck(
+    registry.length === 2
+      && registry[0]?.notification_type === "care_circle_check_in"
+      && registry[0]?.enabled === false
+      && registry[1]?.notification_type === "care_circle_reminder"
+      && registry[1]?.enabled === false,
+    "inactive_registry",
+    "NOTIFICATION_REGISTRY_INVALID"
+  );
 
   for (const path of [
     "/rest/v1/notification_device_endpoints?select=endpoint_id",
@@ -332,9 +433,21 @@ async function verifyRegistryAndRls(context, ownerToken, secondToken) {
     const ownerResult = await userRequest(context, ownerToken, path);
     const secondResult = await userRequest(context, secondToken, path);
     const anonymousResult = await anonymousRequest(context, path);
-    assert(!ownerResult.ok);
-    assert(!secondResult.ok);
-    assert(!anonymousResult.ok);
+    safeCheck(
+      !ownerResult.ok,
+      "owner_storage_denial",
+      "NOTIFICATION_OWNER_STORAGE_EXPOSED"
+    );
+    safeCheck(
+      !secondResult.ok,
+      "second_user_storage_denial",
+      "NOTIFICATION_SECOND_USER_STORAGE_EXPOSED"
+    );
+    safeCheck(
+      !anonymousResult.ok,
+      "anonymous_storage_denial",
+      "NOTIFICATION_ANONYMOUS_STORAGE_EXPOSED"
+    );
   }
 
   const rejectedType = await userRequest(
@@ -346,7 +459,11 @@ async function verifyRegistryAndRls(context, ownerToken, secondToken) {
       body: { p_notification_type: "marketing" }
     }
   );
-  assert(!rejectedType.ok);
+  safeCheck(
+    !rejectedType.ok,
+    "notification_type_rejection",
+    "NOTIFICATION_TYPE_REJECTION_FAILED"
+  );
 }
 
 async function notificationOperation(context, token, body) {
@@ -358,13 +475,26 @@ async function verifyEncryptedStorage(context, userId, dummyToken) {
     context,
     `/rest/v1/notification_device_endpoints?user_id=eq.${userId}&select=token_fingerprint,token_ciphertext`
   );
-  assert.equal(rows.length, 1);
-  assert(
-    rows[0].token_fingerprint === await sha256(dummyToken),
-    "Stored fingerprint did not match the dummy token digest."
+  safeCheck(
+    rows.length === 1,
+    "encrypted_storage_count",
+    "NOTIFICATION_ENCRYPTED_STORAGE_MISSING"
   );
-  assert.notEqual(rows[0].token_ciphertext, dummyToken);
-  assert(!rows[0].token_ciphertext.includes(dummyToken));
+  safeCheck(
+    rows[0].token_fingerprint === await sha256(dummyToken),
+    "encrypted_storage_fingerprint",
+    "NOTIFICATION_FINGERPRINT_MISMATCH"
+  );
+  safeCheck(
+    rows[0].token_ciphertext !== dummyToken,
+    "encrypted_storage_ciphertext",
+    "NOTIFICATION_CIPHERTEXT_RAW"
+  );
+  safeCheck(
+    !rows[0].token_ciphertext.includes(dummyToken),
+    "encrypted_storage_token_absent",
+    "NOTIFICATION_TOKEN_EXPOSED"
+  );
 }
 
 async function registerDummy(
@@ -385,7 +515,11 @@ async function registerDummy(
     app_version: "s2-evidence",
     device_locale: "en-HK"
   });
-  assert.equal(result.status, 200);
+  safeCheck(
+    result.status === 200,
+    "dummy_registration",
+    "NOTIFICATION_DUMMY_REGISTRATION_FAILED"
+  );
 }
 
 async function assertRemovalAction(
@@ -401,7 +535,11 @@ async function assertRemovalAction(
     request_id: crypto.randomUUID(),
     installation_id: installationId
   });
-  assert.equal(result.status, 200);
+  safeCheck(
+    result.status === 200,
+    "device_removal",
+    "NOTIFICATION_DEVICE_REMOVAL_FAILED"
+  );
   await assertNoEndpoints(context, userId);
   if (action !== "logout") {
     await registerDummy(context, ownerToken, installationId, runId, action);
@@ -439,7 +577,11 @@ async function assertNoEndpoints(context, userId) {
     context,
     `/rest/v1/notification_device_endpoints?user_id=eq.${userId}&select=endpoint_id`
   );
-  assert.equal(rows.length, 0);
+  safeCheck(
+    rows.length === 0,
+    "endpoint_removal",
+    "NOTIFICATION_ENDPOINT_REMAINS"
+  );
 }
 
 async function verifyMetadataAllowlist(context, userId) {
@@ -458,7 +600,11 @@ async function verifyMetadataAllowlist(context, userId) {
       }
     }
   );
-  assert(!result.ok);
+  safeCheck(
+    !result.ok,
+    "metadata_allowlist",
+    "NOTIFICATION_METADATA_ACCEPTED"
+  );
 }
 
 function makeDummyToken(runId, label) {

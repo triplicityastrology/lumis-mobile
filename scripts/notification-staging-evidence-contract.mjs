@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const harness = readFileSync(
@@ -39,7 +40,9 @@ assert.doesNotMatch(
   /echo .*(?:secret|publishable)|set -x|curl|supabase db push|functions deploy/i
 );
 assert.match(harness, /if \(!args\.execute\)/);
-assert.match(harness, /process\.exit\(0\)/);
+assert.match(harness, /runRedactedEvidenceMain/);
+assert.match(harness, /safeCheck/);
+assert.doesNotMatch(harness, /\bassert(?:\.|\()/);
 assert.match(harness, /S2_DUMMY_TOKEN_/);
 assert.match(utility, /S2_EVIDENCE_EXECUTE/);
 assert.match(utility, /args\.execute && process\.env\.S2_EVIDENCE_EXECUTE/);
@@ -76,6 +79,41 @@ for (const forbiddenOutput of [
   /assert\.equal\([^,\n]*(?:token_fingerprint|endpoint_id|dummyToken)/i
 ]) {
   assert.doesNotMatch(harness, forbiddenOutput);
+}
+
+const forcedFailure = spawnSync(
+  process.execPath,
+  ["scripts/fixtures/redaction-safe-failure-fixture.mjs", "notification"],
+  { encoding: "utf8" }
+);
+assert.equal(forcedFailure.status, 1);
+assert.equal(forcedFailure.stdout, "");
+const failureEvidence = JSON.parse(forcedFailure.stderr.trim());
+assert.deepEqual(Object.keys(failureEvidence).sort(), [
+  "check",
+  "error_code",
+  "run_id"
+]);
+assert.equal(failureEvidence.check, "notification_encryption");
+assert.equal(
+  failureEvidence.error_code,
+  "NOTIFICATION_ENCRYPTION_MISMATCH"
+);
+for (const forbidden of [
+  "S2_DUMMY_TOKEN_",
+  "ciphertext-private-77aa",
+  "fingerprint-private-44f9",
+  "82acfd0a-7e5b-4ccb-a8fb-d61152adc475",
+  "database-payload",
+  "actual",
+  "expected",
+  "AssertionError",
+  "at file:"
+]) {
+  assert.doesNotMatch(
+    `${forcedFailure.stdout}\n${forcedFailure.stderr}`,
+    new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
+  );
 }
 
 console.log("Notification staging evidence harness contracts passed");
