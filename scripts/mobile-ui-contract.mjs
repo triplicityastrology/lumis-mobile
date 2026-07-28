@@ -251,6 +251,10 @@ assert.match(homeScreenSource, /const restoreFailed = props\.isAuthenticated && 
 assert.match(homeScreenSource, /restoreFailed\s*\?\s*props\.onReload/);
 assert.match(authSystemKit, /<PrimaryButton label="Retry" onPress=\{onRetry\} \/>/);
 assert.match(authSystemKit, /<LinkButton label="Back to account" onPress=\{onBack\} \/>/);
+assert.match(
+  appSource,
+  /async function restoreSpace\(\)[\s\S]{0,180}setRestoreResult\("loading"\)[\s\S]{0,260}try \{[\s\S]{0,160}await refreshAuthStatus\(\)/
+);
 assert.match(appSource, /function routeAfterSplash[\s\S]{0,220}setScreen\(target\)/);
 assert.match(appSource, /accessibilityLabel="Past Reflections"/);
 assert.match(appSource, /placeholder="Search reflections"/);

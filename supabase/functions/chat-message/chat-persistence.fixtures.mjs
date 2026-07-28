@@ -142,8 +142,8 @@ assert.match(
 );
 assert.match(
   accountStateSource,
-  /thread\.status === "active" && thread\.chart_version === profile\.chart_version/,
-  "only active reflections for the current chart may continue"
+  /!threadUnavailable &&\s*thread\.status === "active" &&\s*thread\.chart_version === profile\.chart_version/,
+  "only available active reflections for the current chart may continue"
 );
 assert.match(
   mobileAppSource,

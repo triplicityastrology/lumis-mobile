@@ -78,6 +78,7 @@ export type SupabaseAccountState = {
   buddyAvatarKey: string;
   chatTurns: RestoredChatTurn[];
   reflectionThreads: RestoredReflectionThread[];
+  reflectionHistoryStatus: "loaded" | "unavailable";
   mainFocus: string | null;
   planTier: PlanTier;
   remainingCredits: number | null;
@@ -135,14 +136,7 @@ export async function loadSupabaseAccountState(
     );
   }
 
-  const [
-    userResult,
-    birthResult,
-    profileResult,
-    balanceResult,
-    threadsResult,
-    planResult
-  ] = await Promise.all([
+  const [userResult, birthResult, profileResult] = await Promise.all([
     supabase
       .from("users")
       .select("display_name, focus, persona_style, buddy_name, buddy_avatar_key")
@@ -161,26 +155,12 @@ export async function loadSupabaseAccountState(
       .order("chart_version", { ascending: false })
       .order("version", { ascending: false })
       .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("monthly_balance")
-      .select("remaining")
-      .eq("user_id", userId)
-      .order("period_start", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("chat_threads")
-      .select("id, persona_style, title, created_at, updated_at, chart_version, status")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(20),
-    supabase.rpc("resolve_active_plan_tier", { p_user_id: userId })
+      .maybeSingle()
   ]);
 
-  const firstError = userResult.error ?? birthResult.error ?? profileResult.error ?? balanceResult.error ?? threadsResult.error ?? planResult.error;
+  const requiredError = userResult.error ?? birthResult.error ?? profileResult.error;
 
-  if (firstError) {
+  if (requiredError) {
     throw new AccountRestoreError(
       "ACCOUNT_DATA_UNAVAILABLE",
       "Lumis could not load your saved account right now. Your data was not changed."
@@ -209,11 +189,40 @@ export async function loadSupabaseAccountState(
     );
   }
 
+  // These reads enrich an already-authoritative chart. A temporary history,
+  // balance, or plan failure must not turn a valid chart account into an empty
+  // account or chart-creation path.
+  const [balanceResult, threadsResult, planResult] = await Promise.all([
+    supabase
+      .from("monthly_balance")
+      .select("remaining")
+      .eq("user_id", userId)
+      .order("period_start", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("chat_threads")
+      .select("id, persona_style, title, created_at, updated_at, chart_version, status")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(20),
+    supabase.rpc("resolve_active_plan_tier", { p_user_id: userId })
+  ]);
+
   const balance = balanceResult.data as BalanceRow | null;
-  const threads = (threadsResult.data ?? []) as ChatThreadRow[];
+  const threads = threadsResult.error ? [] : (threadsResult.data ?? []) as ChatThreadRow[];
+  let reflectionHistoryUnavailable = Boolean(threadsResult.error);
   const reflectionThreads = await Promise.all(
     threads.map(async (thread) => {
-      const turns = await loadThreadTurns(thread.id);
+      let turns: RestoredChatTurn[] = [];
+      let threadUnavailable = false;
+
+      try {
+        turns = await loadThreadTurns(thread.id);
+      } catch {
+        threadUnavailable = true;
+        reflectionHistoryUnavailable = true;
+      }
 
       return {
         id: thread.id,
@@ -222,9 +231,14 @@ export async function loadSupabaseAccountState(
         chartVersion: thread.chart_version,
         createdAt: thread.created_at,
         updatedAt: thread.updated_at,
-        canContinue: thread.status === "active" && thread.chart_version === profile.chart_version,
+        canContinue:
+          !threadUnavailable &&
+          thread.status === "active" &&
+          thread.chart_version === profile.chart_version,
         unavailableReason:
-          thread.status !== "active"
+          threadUnavailable
+            ? "This reflection is temporarily unavailable and remains saved."
+            : thread.status !== "active"
             ? "This reflection is archived and available to read only."
             : thread.chart_version !== profile.chart_version
               ? "This reflection uses an earlier chart and is available to read only."
@@ -252,12 +266,15 @@ export async function loadSupabaseAccountState(
     buddyAvatarKey: user?.buddy_avatar_key?.trim() || "psyche",
     chatTurns,
     reflectionThreads,
+    reflectionHistoryStatus: reflectionHistoryUnavailable ? "unavailable" : "loaded",
     mainFocus: user?.focus?.trim() || null,
-    planTier: normalizePlanTier(planResult.data),
-    remainingCredits: balance?.remaining ?? null,
+    planTier: planResult.error ? "starter" : normalizePlanTier(planResult.data),
+    remainingCredits: balanceResult.error ? null : balance?.remaining ?? null,
     successfulBirthDetailChanges: birthData.successful_change_count,
     message:
-      reflectionThreads.length > 0
+      reflectionHistoryUnavailable
+        ? "Your chart is ready. Past Reflections could not be refreshed and remain unchanged."
+        : reflectionThreads.length > 0
         ? "Your chart and Past Reflections are ready."
         : "Your chart is ready. No Past Reflections have been saved yet."
   };
@@ -327,6 +344,7 @@ function emptyAccountState(message: string): SupabaseAccountState {
     buddyAvatarKey: "psyche",
     chatTurns: [],
     reflectionThreads: [],
+    reflectionHistoryStatus: "loaded",
     mainFocus: null,
     planTier: "starter",
     remainingCredits: null,

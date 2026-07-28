@@ -736,6 +736,27 @@ assert.match(signedInRestore, /loadSupabaseAccountState\(status\.user\.id\)/);
 assert.match(signedInRestore, /applySupabaseAccountState\(accountState\)/);
 assert.match(signedInRestore, /routeAfterSplash\("noChart"\)/);
 assert.match(signedInRestore, /routeAfterSplash\("restoringSpace"\)/);
+assert.match(
+  signedInRestore,
+  /else if \(!restored && routeLoadedAccount\)/,
+  "chart creation may be reached only from an authoritative empty account result"
+);
+
+const restoreSpace = extractRange(
+  app,
+  "async function restoreSpace",
+  "async function saveDemoSession"
+);
+assert.ok(
+  restoreSpace.indexOf('setRestoreResult("loading")') <
+    restoreSpace.indexOf("await refreshAuthStatus()"),
+  "Retry must visibly enter loading before rerunning authentication and account reads"
+);
+assert.match(
+  restoreSpace,
+  /try \{[\s\S]{0,220}await refreshAuthStatus\(\)[\s\S]{0,360}loadSupabaseAccountState\(status\.user\.id\)/
+);
+assert.match(restoreSpace, /catch \(error\)[\s\S]{0,180}setRestoreResult\("failed"\)/);
 
 for (const restoredField of [
   "profileData",
@@ -744,6 +765,7 @@ for (const restoredField of [
   "buddyName",
   "buddyAvatarKey",
   "reflectionThreads",
+  "reflectionHistoryStatus",
   "mainFocus",
   "planTier",
   "remainingCredits"
@@ -763,6 +785,22 @@ assert.match(
   /birthData\.active_chart_version !== profile\.chart_version/
 );
 assert.match(accountState, /"ACCOUNT_DATA_INCOMPLETE"/);
+assert.match(
+  accountState,
+  /const requiredError = userResult\.error \?\? birthResult\.error \?\? profileResult\.error/
+);
+assert.doesNotMatch(
+  accountState,
+  /requiredError[\s\S]{0,120}balanceResult|firstError/,
+  "optional enrichment cannot reject an otherwise authoritative chart"
+);
+assert.match(accountState, /threadsResult\.error \? \[\]/);
+assert.match(accountState, /reflectionHistoryStatus: reflectionHistoryUnavailable \? "unavailable" : "loaded"/);
+assert.match(
+  app,
+  /if \(accountState\.reflectionHistoryStatus === "loaded"\)[\s\S]{0,520}else \{[\s\S]{0,360}canContinue: false/,
+  "temporary history failure must preserve visible reflections as read-only"
+);
 assert.doesNotMatch(
   accountState,
   /throw new Error\((?:firstError|error)\.message\)/,

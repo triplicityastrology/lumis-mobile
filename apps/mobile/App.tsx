@@ -281,8 +281,23 @@ export default function App() {
       setPersonaStyle(accountState.personaStyle);
       setPersonaName(accountState.buddyName);
       setPersonaAvatarKey(accountState.buddyAvatarKey);
-      setChatTurns(accountState.chatTurns);
-      setReflectionThreads(accountState.reflectionThreads);
+      if (accountState.reflectionHistoryStatus === "loaded") {
+        setChatTurns(accountState.chatTurns);
+        setReflectionThreads(accountState.reflectionThreads);
+        setForceNewSupabaseThread(false);
+        setActiveSupabaseThreadId(
+          accountState.reflectionThreads.find((thread) => thread.canContinue)?.id ?? null
+        );
+      } else {
+        setReflectionThreads((threads) =>
+          threads.map((thread) => ({
+            ...thread,
+            canContinue: false,
+            unavailableReason: "This reflection is temporarily unavailable and remains saved."
+          }))
+        );
+        setActiveSupabaseThreadId(null);
+      }
       setMainFocus(accountState.mainFocus);
       setPlanTier(accountState.planTier);
       setRemainingCredits(accountState.remainingCredits ?? STARTER_CREDITS);
@@ -291,10 +306,6 @@ export default function App() {
       setAccountSource("supabase");
       setAccountLoadStatus("loaded");
       setAccountLoadMessage(accountState.message);
-      setForceNewSupabaseThread(false);
-      setActiveSupabaseThreadId(
-        accountState.reflectionThreads.find((thread) => thread.canContinue)?.id ?? null
-      );
       return true;
     }
 
@@ -362,15 +373,19 @@ export default function App() {
   // space" screen (large sky-wheel loader), then to Chat (found) / No chart found
   // (setup) / a retryable failure. Local (no account) reload stays on home.
   async function restoreSpace() {
-    const status = await refreshAuthStatus();
-    if (!(status.isConfigured && status.user)) {
-      await restoreAccountForStatus(status);
-      setScreen("home");
-      return;
-    }
     setScreen("restoringSpace");
     setRestoreResult("loading");
+    setAccountLoadStatus("loading");
+    setAccountLoadMessage("Loading your Lumis profile...");
+
     try {
+      const status = await refreshAuthStatus();
+      if (!(status.isConfigured && status.user)) {
+        await restoreAccountForStatus(status);
+        setScreen("home");
+        return;
+      }
+
       const accountState = await loadSupabaseAccountState(status.user.id);
       const restored = applySupabaseAccountState(accountState);
       setRestoreResult(restored ? "foundChart" : "noChart");

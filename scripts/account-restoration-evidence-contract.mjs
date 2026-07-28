@@ -26,9 +26,21 @@ assert.match(
 );
 assert.match(
   accountState,
-  /if \(firstError\) \{\s*throw new AccountRestoreError\(\s*"ACCOUNT_DATA_UNAVAILABLE"/,
-  "a temporary query failure cannot become an empty account"
+  /if \(requiredError\) \{\s*throw new AccountRestoreError\(\s*"ACCOUNT_DATA_UNAVAILABLE"/,
+  "a required chart query failure cannot become an empty account"
 );
+assert.match(
+  accountState,
+  /const requiredError = userResult\.error \?\? birthResult\.error \?\? profileResult\.error/,
+  "only user, birth, and active-profile reads may block authoritative chart restoration"
+);
+assert.match(
+  accountState,
+  /reflectionHistoryStatus: reflectionHistoryUnavailable \? "unavailable" : "loaded"/,
+  "recoverable history failure must be represented without erasing the chart account"
+);
+assert.match(accountState, /threadsResult\.error \? \[\]/);
+assert.doesNotMatch(accountState, /const firstError/);
 assert.match(
   accountState,
   /birthData\.active_chart_version !== profile\.chart_version/,
@@ -54,6 +66,7 @@ const signedInRestore = extractRange(
 assert.match(signedInRestore, /if \(status\.isConfigured && status\.user\)/);
 assert.match(signedInRestore, /loadSupabaseAccountState\(status\.user\.id\)/);
 assert.match(signedInRestore, /routeAfterSplash\("restoringSpace"\)/);
+assert.match(signedInRestore, /else if \(!restored && routeLoadedAccount\)/);
 assert.ok(
   signedInRestore.indexOf("return;") < signedInRestore.indexOf("loadLocalDemoSession()"),
   "a signed-in restore failure cannot fall through to local fixture/session state"
