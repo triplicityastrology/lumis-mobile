@@ -5,8 +5,7 @@ import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput,
-  useWindowDimensions, View
+  AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
@@ -29,6 +28,7 @@ import { cradleTick, landingThump, mixTick, releaseImpact, resultTap } from "./h
 import { saveDiceThrow } from "../../services/diceThrows";
 import { DiceHistorySheet, type SessionRoll } from "./DiceHistorySheet";
 import { beginNewDiceQuestion, normalizeDiceQuestion } from "./question";
+import { useDiceResultActionLayout } from "./useDiceResultActionLayout";
 import { useMotionGestures } from "./useMotionGestures";
 
 configureSecureRandom(getRandomValues);
@@ -126,8 +126,7 @@ export function DiceRitualScreen({
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
 }) {
-  const { fontScale, width } = useWindowDimensions();
-  const stackResultActions = width < 340 || fontScale >= 1.5;
+  const { stackResultActions } = useDiceResultActionLayout();
   const [question, setQuestion] = useState("");
   const [phase, setPhase] = useState<Phase>("IDLE");
   const [symbols, setSymbols] = useState<StageSymbols | null>(null);

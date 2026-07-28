@@ -6,13 +6,13 @@ import MessageCircle from "lucide-react-native/icons/message-circle";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput,
-  useWindowDimensions, View
+  AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
 
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { beginNewDiceQuestion, normalizeDiceQuestion } from "../features/dice/question";
+import { useDiceResultActionLayout } from "../features/dice/useDiceResultActionLayout";
 import { colors, radii, spacing } from "../theme/tokens";
 
 type DiceStep = "ask" | "shake" | "result";
@@ -48,8 +48,7 @@ export function LumisDiceScreen({
   onBack?: () => void;
 }) {
   void onBack;
-  const { fontScale, width } = useWindowDimensions();
-  const stackResultActions = width < 340 || fontScale >= 1.5;
+  const { stackResultActions } = useDiceResultActionLayout();
   const [step, setStep] = useState<DiceStep>("ask");
   const [question, setQuestion] = useState("");
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);

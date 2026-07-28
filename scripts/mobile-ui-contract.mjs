@@ -40,6 +40,10 @@ const diceRitualSource = await readFile(
   path.join(featuresPath, "dice/DiceRitualScreen.tsx"),
   "utf8"
 );
+const diceResultLayoutSource = await readFile(
+  path.join(featuresPath, "dice/useDiceResultActionLayout.ts"),
+  "utf8"
+);
 const diceHistorySource = await readFile(
   path.join(featuresPath, "dice/DiceHistorySheet.tsx"),
   "utf8"
@@ -337,8 +341,8 @@ for (const [name, source] of [
 ]) {
   assert.match(
     source,
-    /const stackResultActions = width < 340 \|\| fontScale >= 1\.5/,
-    `${name} must stack result actions for narrow screens or large Dynamic Type`
+    /const \{ stackResultActions \} = useDiceResultActionLayout\(\)/,
+    `${name} must use the shared live Dynamic Type result-action layout`
   );
   assert.match(
     source,
@@ -346,6 +350,23 @@ for (const [name, source] of [
     `${name} must keep normal-width labels on one line without clipping large text`
   );
 }
+assert.match(diceResultLayoutSource, /PixelRatio\.getFontScale\(\)/);
+assert.match(
+  diceResultLayoutSource,
+  /Dimensions\.addEventListener\("change"[\s\S]{0,220}readNativeFontScale\(window\.fontScale\)/,
+  "Dice result actions must react when native font-scale dimensions change"
+);
+assert.match(
+  diceResultLayoutSource,
+  /AppState\.addEventListener\("change"[\s\S]{0,180}state === "active"[\s\S]{0,180}readNativeFontScale/,
+  "Dice result actions must refresh native font scale after returning from iOS Settings"
+);
+assert.match(diceResultLayoutSource, /const LARGE_TEXT_RESULT_ACTION_SCALE = 1\.3/);
+assert.match(
+  diceResultLayoutSource,
+  /effectiveFontScale >= LARGE_TEXT_RESULT_ACTION_SCALE/,
+  "large accessibility text must stack actions before labels can clip"
+);
 assert.match(diceRitualSource, /sheetActionRoll: \{ flex: 1 \}/);
 assert.match(diceRitualSource, /sheetActionReflect: \{ flex: 1\.65 \}/);
 assert.match(diceSource, /secondaryButton:[\s\S]{0,220}flex: 1/);
