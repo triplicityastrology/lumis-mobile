@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "environment": "staging",
+  "execution_default": "preflight_only",
+  "required_migrations": [
+    "0032_care_circle_backend_foundation.sql",
+    "0034_reusable_care_pairing_operations.sql"
+  ],
+  "actors": {
+    "caree": 1,
+    "carers": 6,
+    "anonymous": 1,
+    "existing_accounts_allowed": false
+  },
+  "evidence_policy": {
+    "run_id_only": true,
+    "redacted_assertion_names_only": true,
+    "forbid_email": true,
+    "forbid_pairing_code": true,
+    "forbid_fingerprint": true,
+    "forbid_token": true,
+    "forbid_database_payload": true
+  },
+  "cases": [
+    { "id": "reusable-code", "expected": "one code can create multiple pending requests for one hour" },
+    { "id": "pending-requests", "expected": "six Carers create six distinct pending requests without access" },
+    { "id": "caree-consent", "expected": "Caree alone accepts or declines" },
+    { "id": "sixth-acceptance", "expected": "five concurrent accepts succeed and sixth returns 48012" },
+    { "id": "idempotency", "expected": "exact replay returns first result and changed request conflicts" },
+    { "id": "expiry-rotation-revocation", "expected": "later uses fail with 48004 and existing links remain" },
+    { "id": "pause-resume-remove", "expected": "Caree pause/resume and participant remove obey authority" },
+    { "id": "rls-safe-projection", "expected": "storage denied and projection content-safe" },
+    { "id": "legacy-rpc-denial", "expected": "authenticated direct mutation RPC is denied" },
+    { "id": "deletion-cleanup", "expected": "run-owned records cascade and unrelated rows remain" }
+  ]
+}
