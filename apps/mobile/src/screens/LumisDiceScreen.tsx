@@ -6,7 +6,6 @@ import MessageCircle from "lucide-react-native/icons/message-circle";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Polygon } from "react-native-svg";
 
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
@@ -155,7 +154,7 @@ export function LumisDiceScreen({
   }
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           {step === "ask" ? <View style={styles.headerSpace} /> : (
@@ -278,7 +277,7 @@ export function LumisDiceScreen({
 
         <MainTabBar active="dice" onSelect={onSelectTab} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

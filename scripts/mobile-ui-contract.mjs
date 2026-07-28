@@ -57,6 +57,7 @@ const notificationCenterSource = await readFile(
   "utf8"
 );
 const profileScreenSource = await readFile(path.join(screensPath, "LumisProfileScreen.tsx"), "utf8");
+const insightsSource = await readFile(path.join(screensPath, "ChartInsightsScreen.tsx"), "utf8");
 const screenFiles = (await readdir(screensPath))
   .filter((name) => name.endsWith(".tsx"))
   .map((name) => path.join(screensPath, name));
@@ -171,13 +172,56 @@ assert.equal(
 );
 assert.match(
   appSource,
-  /<View collapsable=\{false\} style=\{styles\.screenViewport\}>\s*\{renderScreen\(\)\}\s*<\/View>/,
+  /<View[\s\S]{0,180}collapsable=\{false\}[\s\S]{0,180}onLayout=\{recordScreenViewportLayout\}[\s\S]{0,180}style=\{\[styles\.screenViewport, mainTabViewportInsets\]\}[\s\S]{0,120}\{renderScreen\(\)\}/,
   "root navigation must swap content inside one persistent native viewport"
 );
 assert.match(
   appSource,
   /screenViewport:\s*\{\s*\.\.\.StyleSheet\.absoluteFillObject,\s*overflow:\s*"hidden"\s*\}/,
   "the persistent viewport must not participate in destination content measurement"
+);
+assert.match(
+  appSource,
+  /const stableSafeAreaInsets = useSafeAreaInsets\(\)/,
+  "the persistent app root must subscribe to safe-area geometry before tab screens mount"
+);
+assert.match(
+  appSource,
+  /const isMainTabScreen =[\s\S]{0,180}screen === "chat"[\s\S]{0,180}screen === "profileTab"/,
+  "all main tabs must share one persistent safe-area owner"
+);
+assert.match(
+  appSource,
+  /paddingTop: stableSafeAreaInsets\.top[\s\S]{0,120}paddingLeft: stableSafeAreaInsets\.left[\s\S]{0,120}paddingRight: stableSafeAreaInsets\.right/,
+  "main-tab top and side insets must be applied by the persistent viewport"
+);
+assert.match(
+  appSource,
+  /if \(__DEV__\)[\s\S]{0,220}event: "shell_layout"[\s\S]{0,220}route: screen[\s\S]{0,220}safeArea: stableSafeAreaInsets[\s\S]{0,220}shellHeight: height/,
+  "device geometry diagnostics must remain DEV-only and contain only layout state"
+);
+for (const [name, source] of [
+  ["Insights", insightsSource],
+  ["Profile", profileScreenSource],
+  ["default Dice ritual", diceRitualSource],
+  ["fallback Dice", diceSource]
+]) {
+  assert.doesNotMatch(
+    source,
+    /SafeAreaView/,
+    `${name} cannot remount a second main-tab safe-area subscriber`
+  );
+}
+const chatShellSource = extractRange(
+  appSource,
+  "function ChatShellScreen",
+  "function PastReflectionsScreen"
+);
+assert.match(chatShellSource, /return \(\s*<View style=\{styles\.lumisDarkSafe\}>/);
+assert.doesNotMatch(
+  chatShellSource,
+  /SafeAreaViewCtx/,
+  "Chat cannot remount a second main-tab safe-area subscriber"
 );
 assert.doesNotMatch(
   appSource,
@@ -231,7 +275,6 @@ assert.match(appSource, /<Bell[^>]+size=\{18\}/);
 await assertScreenUsesTab("ChartInsightsScreen.tsx", "insights");
 await assertScreenUsesTab("LumisDiceScreen.tsx", "dice");
 await assertScreenUsesTab("LumisProfileScreen.tsx", "profile");
-const insightsSource = await readFile(path.join(screensPath, "ChartInsightsScreen.tsx"), "utf8");
 assert.match(insightsSource, /accessibilityLabel="Notifications"/);
 assert.match(diceSource, /type DiceStep = "ask" \| "shake" \| "result"/);
 assert.match(diceSource, /Accelerometer\.addListener/);

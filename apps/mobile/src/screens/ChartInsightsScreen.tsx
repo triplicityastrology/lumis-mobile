@@ -3,7 +3,6 @@ import Bell from "lucide-react-native/icons/bell";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import Moon from "lucide-react-native/icons/moon";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
 
@@ -39,7 +38,7 @@ export function ChartInsightsScreen({
   const showHouses = chart.precision === "full";
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Sky</Text>
@@ -114,7 +113,7 @@ export function ChartInsightsScreen({
         </ScrollView>
         <MainTabBar active="insights" onSelect={onSelectTab} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

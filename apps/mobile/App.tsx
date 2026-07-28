@@ -19,8 +19,8 @@ import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView as SafeAreaViewCtx } from "react-native-safe-area-context";
+import { BackHandler, type LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView as SafeAreaViewCtx, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   PERSONA_STYLES,
@@ -144,6 +144,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 
 export default function App() {
   const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart">("splash");
+  const stableSafeAreaInsets = useSafeAreaInsets();
   const [restoreResult, setRestoreResult] = useState<"loading" | "foundChart" | "noChart" | "failed">("loading");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
@@ -175,7 +176,50 @@ export default function App() {
   const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
+  const isMainTabScreen =
+    screen === "chat" || screen === "insights" || screen === "dice" || screen === "profileTab";
+  const mainTabViewportInsets = isMainTabScreen
+    ? {
+        paddingTop: stableSafeAreaInsets.top,
+        paddingLeft: stableSafeAreaInsets.left,
+        paddingRight: stableSafeAreaInsets.right
+      }
+    : null;
+
+  function recordScreenViewportLayout(event: LayoutChangeEvent) {
+    const { height, width } = event.nativeEvent.layout;
+    screenViewportLayoutRef.current = { width, height };
+
+    if (__DEV__) {
+      console.debug("[LumisLayout]", {
+        event: "shell_layout",
+        route: screen,
+        viewport: { width, height },
+        safeArea: stableSafeAreaInsets,
+        shellHeight: height
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    console.debug("[LumisLayout]", {
+      event: "route",
+      route: screen,
+      viewport: screenViewportLayoutRef.current,
+      safeArea: stableSafeAreaInsets,
+      shellHeight: screenViewportLayoutRef.current.height
+    });
+  }, [
+    screen,
+    stableSafeAreaInsets.bottom,
+    stableSafeAreaInsets.left,
+    stableSafeAreaInsets.right,
+    stableSafeAreaInsets.top
+  ]);
 
   async function refreshAuthStatus() {
     const status = await getAuthStatus();
@@ -913,7 +957,11 @@ export default function App() {
   return (
     <View style={styles.appRoot}>
       <CelestialBackground variant={skyVariant} />
-      <View collapsable={false} style={styles.screenViewport}>
+      <View
+        collapsable={false}
+        onLayout={recordScreenViewportLayout}
+        style={[styles.screenViewport, mainTabViewportInsets]}
+      >
         {renderScreen()}
       </View>
       <LogoutDialog
@@ -1866,7 +1914,7 @@ function ChatShellScreen({
   }
 
   return (
-    <SafeAreaViewCtx edges={["top", "left", "right"]} style={styles.lumisDarkSafe}>
+    <View style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
       <View style={styles.chatShell}>
         <View style={styles.chatTopBar}>
@@ -2032,7 +2080,7 @@ function ChatShellScreen({
         )}
       </View>
       <MainTabBar active="chat" onSelect={onSelectTab} />
-    </SafeAreaViewCtx>
+    </View>
   );
 }
 

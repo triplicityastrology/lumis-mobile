@@ -12,7 +12,6 @@ import ShieldCheck from "lucide-react-native/icons/shield-check";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import UserRound from "lucide-react-native/icons/user-round";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { PersonaStyleKey } from "@lumis/shared";
 
@@ -63,7 +62,7 @@ export function LumisProfileScreen({
   const showPendingNotice = (label: string) => setNotice(`${label} will be connected after its security review is complete.`);
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
@@ -144,7 +143,7 @@ export function LumisProfileScreen({
         <MainTabBar active="profile" onSelect={onSelectTab} />
       </View>
 
-    </SafeAreaView>
+    </View>
   );
 }
 

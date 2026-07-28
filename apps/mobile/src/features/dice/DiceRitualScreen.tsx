@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput, View
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
 } from "react-native-svg";
@@ -428,7 +427,7 @@ export function DiceRitualScreen({
     : "";
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <View style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable
@@ -602,7 +601,7 @@ export function DiceRitualScreen({
 
         <MainTabBar active="dice" onSelect={onSelectTab} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
