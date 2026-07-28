@@ -37,7 +37,7 @@
     "test:s2-accessibility": "node scripts/s2-accessibility-device-readiness-contract.mjs",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
     "test:natal-scope": "node scripts/natal-chart-scope-contract.mjs",
-    "test:natal-facts": "tsc -p packages/astrology/tsconfig.natal-facts-test.json && node .tmp/natal-fact-tests/astrology/src/natal-facts.fixtures.js",
+    "test:natal-facts": "tsc -p packages/astrology/tsconfig.natal-facts-test.json && node .tmp/natal-fact-tests/astrology/src/natal-facts.fixtures.js && node .tmp/natal-fact-tests/astrology/src/natal-aspects.fixtures.js",
     "test:golden:refresh:secure": "bash scripts/run-golden-fixture-refresh.sh",
     "test:golden-live": "node scripts/golden-chart-live.mjs",
     "test:golden-live:secure": "bash scripts/run-golden-chart-live.sh",

@@ -34,5 +34,33 @@ unchanged.
 - It does not infer houses or angles from absent birth time.
 - It does not change the existing `chart_v2` provider contract.
 
-Part 2 will add deterministic natal-aspect calculation under the same metadata
-contract.
+## Part 2 implementation
+
+`packages/astrology/src/natal-aspects.ts` derives unordered natal pairs from
+canonical points and normalized circular longitude:
+
+| Aspect | Exact angle | Inclusive orb |
+|---|---:|---:|
+| Conjunction | 0 degrees | 8 degrees |
+| Sextile | 60 degrees | 4 degrees |
+| Square | 90 degrees | 8 degrees |
+| Trine | 120 degrees | 8 degrees |
+| Opposition | 180 degrees | 8 degrees |
+| Quincunx | 150 degrees | 2 degrees |
+
+Input aliases are canonicalized and duplicate aliases cannot create duplicate
+pairs. Pair order and fact keys are stable regardless of input order. Angle
+aspects require supplied birth time and are omitted otherwise.
+
+Aspect facts expose separation, exact angle, orb, source fields, rule version,
+capability requirement, derived/applicable flags, safe reason, and provenance.
+They do not infer applying/separating status, retrograde or station state, node
+motion conventions, a noon chart, Solar Return, transit/timing, Vertex, or Dice
+meaning.
+
+## Integration boundary
+
+The engine is not yet wired into provider normalization, persisted chart JSON,
+Chat context, Knowledge Bank retrieval, or mobile rendering. The existing
+`NatalWheel` display calculation remains unchanged; replacing that UI-local
+logic requires a separately authorised integration and visual regression pass.

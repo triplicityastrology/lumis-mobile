@@ -59,3 +59,11 @@ export {
   type NatalFactReason,
   type TimedNatalCapability,
 } from "./natal-facts";
+export {
+  NATAL_ASPECT_RULES,
+  circularAngularDistance,
+  deriveNatalAspects,
+  type NatalAspectPointInput,
+  type NatalAspectType,
+  type NatalAspectValue,
+} from "./natal-aspects";

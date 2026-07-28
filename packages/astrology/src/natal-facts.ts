@@ -64,6 +64,7 @@ export type NatalFactReason =
   | "available_moon_local_day_same_sign"
   | "suppressed_moon_local_day_boundary"
   | "suppressed_moon_local_day_endpoints_missing"
+  | "within_approved_natal_aspect_orb"
   | "unsupported_canonical_input";
 
 export type NatalDerivedFact<T> = {
