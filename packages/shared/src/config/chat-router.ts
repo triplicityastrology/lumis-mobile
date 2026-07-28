@@ -1,4 +1,8 @@
 import { ROUTE_CREDITS, type ChatRoute } from "./routes";
+import {
+  resolveFixedTemplateLanguage,
+  type AppLanguagePreference
+} from "./app-language";
 
 export type ChatRouteDecision = {
   route: ChatRoute;
@@ -14,6 +18,10 @@ export type ChatRouteFixture = {
 
 export const OUT_OF_SCOPE_SOLAR_RETURN_EN = "Solar Return is not part of Lumis.";
 export const OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT = "Solar Return 不屬於 Lumis 的服務範圍。";
+export const SAFETY_RESPONSE_EN =
+  "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
+export const SAFETY_RESPONSE_ZH_HANT =
+  "聽到你正承受這麼沉重的感受，我很難過。Lumis 無法單獨提供危機支援。請立即聯絡當地緊急服務，或你信任的人。";
 
 export type SolarReturnRouteFixture = ChatRouteFixture & {
   expectedResponse: typeof OUT_OF_SCOPE_SOLAR_RETURN_EN | typeof OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT;
@@ -110,11 +118,21 @@ export function isSolarReturnRequest(message: string): boolean {
 }
 
 export function getSolarReturnScopeResponse(
-  message: string
+  message: string,
+  appLanguagePreference?: AppLanguagePreference | null
 ): typeof OUT_OF_SCOPE_SOLAR_RETURN_EN | typeof OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT {
-  return /[\u3400-\u4dbf\u4e00-\u9fff]/u.test(message)
+  return resolveFixedTemplateLanguage(appLanguagePreference, message) === "zh-Hant"
     ? OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT
     : OUT_OF_SCOPE_SOLAR_RETURN_EN;
+}
+
+export function getSafetyResponse(
+  message: string,
+  appLanguagePreference?: AppLanguagePreference | null
+): typeof SAFETY_RESPONSE_EN | typeof SAFETY_RESPONSE_ZH_HANT {
+  return resolveFixedTemplateLanguage(appLanguagePreference, message) === "zh-Hant"
+    ? SAFETY_RESPONSE_ZH_HANT
+    : SAFETY_RESPONSE_EN;
 }
 
 export function classifyChatRoute(message: string): ChatRoute {

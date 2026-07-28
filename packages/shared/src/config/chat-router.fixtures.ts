@@ -2,9 +2,19 @@ import {
   CHAT_ROUTE_FIXTURES,
   classifyChatRoute,
   getChatRouteDecision,
+  getSafetyResponse,
   getSolarReturnScopeResponse,
+  OUT_OF_SCOPE_SOLAR_RETURN_EN,
+  OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT,
+  SAFETY_RESPONSE_EN,
+  SAFETY_RESPONSE_ZH_HANT,
   SOLAR_RETURN_ROUTE_FIXTURES
 } from "./chat-router";
+import {
+  APP_LANGUAGE_PREFERENCES,
+  isAppLanguagePreference,
+  resolveFixedTemplateLanguage
+} from "./app-language";
 import { ROUTE_PLAN_REQUIREMENTS, type PlanTier } from "./entitlements";
 import type { ChatRoute } from "./routes";
 
@@ -47,6 +57,41 @@ export function assertChatRouteFixtures(): void {
         `${fixture.name}: expected fixed response ${fixture.expectedResponse}, received ${actualResponse}`
       );
     }
+  }
+
+  if (
+    APP_LANGUAGE_PREFERENCES.length !== 2 ||
+    !isAppLanguagePreference("en") ||
+    !isAppLanguagePreference("zh-Hant") ||
+    isAppLanguagePreference("zh") ||
+    isAppLanguagePreference("en-US")
+  ) {
+    throw new Error("app language allowlist must contain exactly en and zh-Hant");
+  }
+
+  if (
+    resolveFixedTemplateLanguage(null, "可以解讀我的太陽回歸嗎？") !== "zh-Hant" ||
+    resolveFixedTemplateLanguage(undefined, "Can you interpret my Solar Return?") !== "en"
+  ) {
+    throw new Error("missing preference must use deterministic request-language fallback");
+  }
+
+  if (
+    getSolarReturnScopeResponse("Can you interpret my Solar Return?", "zh-Hant") !==
+      OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT ||
+    getSolarReturnScopeResponse("可以解讀我的太陽回歸嗎？", "en") !==
+      OUT_OF_SCOPE_SOLAR_RETURN_EN
+  ) {
+    throw new Error("persisted app language must override request language for Solar Return");
+  }
+
+  if (
+    getSafetyResponse("I want to hurt myself tonight.", "zh-Hant") !==
+      SAFETY_RESPONSE_ZH_HANT ||
+    getSafetyResponse("我想傷害自己。", "en") !== SAFETY_RESPONSE_EN ||
+    getSafetyResponse("我想傷害自己。", null) !== SAFETY_RESPONSE_ZH_HANT
+  ) {
+    throw new Error("safety responses must use one deterministic fixed-language template");
   }
 
   for (const [route, expectedCredits] of Object.entries(EXPECTED_CREDITS) as Array<[ChatRoute, number]>) {

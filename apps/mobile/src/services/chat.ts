@@ -1,8 +1,10 @@
 import {
   classifyChatRoute,
   getChatRouteDecision,
+  getSafetyResponse,
   getSolarReturnScopeResponse,
   isSolarReturnRequest,
+  type AppLanguagePreference,
   type ChartV2,
   type ChatRoute,
   type PersonaStyleKey
@@ -16,6 +18,7 @@ export type SendChatMessageInput = {
   clientMessageId?: string;
   personaStyle: PersonaStyleKey;
   chart: ChartV2 | null;
+  appLanguagePreference?: AppLanguagePreference | null;
   forceNewThread?: boolean;
   threadId?: string | null;
 };
@@ -95,7 +98,7 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
   const chartContext = buildSafeChatChartContext(input.chart);
   const route = classifyChatRoute(input.message);
   const solarReturnResponse = isSolarReturnRequest(input.message)
-    ? getSolarReturnScopeResponse(input.message)
+    ? getSolarReturnScopeResponse(input.message, input.appLanguagePreference)
     : null;
   const routeDecision = getChatRouteDecision(route);
   const chartPhrase =
@@ -109,7 +112,13 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
     creditsCost: routeDecision.credits,
     remainingCredits: 50,
     billingMode: "local_demo",
-    reply: buildLocalReplyText(route, chartPhrase, input.personaStyle, solarReturnResponse)
+    reply: buildLocalReplyText(
+      route,
+      chartPhrase,
+      input.personaStyle,
+      solarReturnResponse,
+      getSafetyResponse(input.message, input.appLanguagePreference)
+    )
   };
 }
 
@@ -117,7 +126,8 @@ function buildLocalReplyText(
   route: ChatRoute,
   chartPhrase: string,
   personaStyle: PersonaStyleKey,
-  solarReturnResponse: string | null
+  solarReturnResponse: string | null,
+  safetyResponse: string
 ): string {
   const stylePhrase =
     personaStyle === "spark"
@@ -127,7 +137,7 @@ function buildLocalReplyText(
         : " I will keep this gentle and grounding.";
 
   if (route === "safety") {
-    return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
+    return safetyResponse;
   }
 
   if (solarReturnResponse) {

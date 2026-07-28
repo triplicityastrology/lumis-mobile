@@ -1,4 +1,10 @@
-import type { ChartV2, PersonaStyleKey, PlanTier } from "@lumis/shared";
+import {
+  isAppLanguagePreference,
+  type AppLanguagePreference,
+  type ChartV2,
+  type PersonaStyleKey,
+  type PlanTier
+} from "@lumis/shared";
 import { sanitizeChartForClient } from "@lumis/astrology";
 
 import type { SendChatMessageResult } from "./chat";
@@ -10,6 +16,8 @@ type UserRow = {
   buddy_name: string;
   display_name: string | null;
   focus: string | null;
+  lang: string;
+  language_preference_set_at: string | null;
   persona_style: PersonaStyleKey | null;
 };
 
@@ -80,6 +88,7 @@ export type SupabaseAccountState = {
   chatTurns: RestoredChatTurn[];
   reflectionThreads: RestoredReflectionThread[];
   reflectionHistoryStatus: "loaded" | "unavailable";
+  appLanguagePreference: AppLanguagePreference | null;
   mainFocus: string | null;
   planTier: PlanTier;
   remainingCredits: number | null;
@@ -148,7 +157,7 @@ export async function loadSupabaseAccountState(
   const [userResult, birthResult, profileResult] = await Promise.all([
     supabase
       .from("users")
-      .select("display_name, focus, persona_style, buddy_name, buddy_avatar_key")
+      .select("display_name, focus, persona_style, buddy_name, buddy_avatar_key, lang, language_preference_set_at")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -278,6 +287,8 @@ export async function loadSupabaseAccountState(
     chatTurns,
     reflectionThreads,
     reflectionHistoryStatus: reflectionHistoryUnavailable ? "unavailable" : "loaded",
+    appLanguagePreference:
+      user.language_preference_set_at && isAppLanguagePreference(user.lang) ? user.lang : null,
     mainFocus: user?.focus?.trim() || null,
     planTier: planResult.error ? "starter" : normalizePlanTier(planResult.data),
     remainingCredits: balanceResult.error ? null : balance?.remaining ?? null,
@@ -382,6 +393,7 @@ function emptyAccountState(message: string): SupabaseAccountState {
     chatTurns: [],
     reflectionThreads: [],
     reflectionHistoryStatus: "loaded",
+    appLanguagePreference: null,
     mainFocus: null,
     planTier: "starter",
     remainingCredits: null,

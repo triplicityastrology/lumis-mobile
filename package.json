@@ -11,6 +11,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test:router": "tsc -p packages/shared/tsconfig.router-test.json && node .tmp/router-tests/config/chat-router.fixtures.js",
+    "test:app-language": "node scripts/app-language-preference-contract.mjs",
     "test:dice": "tsc -p apps/mobile/tsconfig.dice-test.json && node .tmp/dice-tests/features/dice/dice.fixtures.js",
     "test:birth-date": "tsc -p packages/shared/tsconfig.birth-date-test.json && node .tmp/birth-date-tests/config/birth-date.fixtures.js",
     "test:birth-location": "node scripts/birth-location-contract.mjs",
@@ -60,7 +61,7 @@
     "test:staging-auth-readiness": "node scripts/staging-auth-readiness-contract.mjs",
     "test:account-deletion-finalizer": "node scripts/account-deletion-finalizer-contract.mjs",
     "staging:auth-readiness": "node scripts/staging-auth-readiness.mjs",
-    "test:all-local": "pnpm test:router && pnpm test:dice && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:care-circle && pnpm test:care-circle-backend && pnpm test:care-circle-pairing-migration && pnpm test:care-circle-operations && pnpm test:notification-foundation && pnpm test:s2-care-circle-staging-evidence && pnpm test:s2-care-circle-staging-evidence-contract && pnpm test:s2-notification-staging-evidence && pnpm test:s2-notification-staging-evidence-contract && pnpm test:s2-care-circle-deployment-readiness && pnpm test:s2-care-circle-deployment-runbook && pnpm test:s2-accessibility && pnpm test:golden && pnpm test:natal-scope && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:navigation && pnpm test:mobile-errors && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:pii && pnpm test:birth-details-change && pnpm test:auth-account-restore && pnpm test:account-restoration-evidence && pnpm test:account-deletion-finalizer",
+    "test:all-local": "pnpm test:router && pnpm test:app-language && pnpm test:dice && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:care-circle && pnpm test:care-circle-backend && pnpm test:care-circle-pairing-migration && pnpm test:care-circle-operations && pnpm test:notification-foundation && pnpm test:s2-care-circle-staging-evidence && pnpm test:s2-care-circle-staging-evidence-contract && pnpm test:s2-notification-staging-evidence && pnpm test:s2-notification-staging-evidence-contract && pnpm test:s2-care-circle-deployment-readiness && pnpm test:s2-care-circle-deployment-runbook && pnpm test:s2-accessibility && pnpm test:golden && pnpm test:natal-scope && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:navigation && pnpm test:mobile-errors && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:pii && pnpm test:birth-details-change && pnpm test:auth-account-restore && pnpm test:account-restoration-evidence && pnpm test:account-deletion-finalizer",
     "external-sync:report": "node scripts/external-sync-admin.mjs report",
     "external-sync:replay": "node scripts/external-sync-admin.mjs replay",
     "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve"

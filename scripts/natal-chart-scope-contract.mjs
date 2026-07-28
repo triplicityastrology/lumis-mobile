@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 
 const [
   accountState,
+  appLanguage,
   chartSanitizer,
   chatFunction,
   chatRouter,
@@ -14,6 +15,7 @@ const [
   worker
 ] = await Promise.all([
   readFile("apps/mobile/src/services/accountState.ts", "utf8"),
+  readFile("packages/shared/src/config/app-language.ts", "utf8"),
   readFile("packages/astrology/src/chart-sanitizer.ts", "utf8"),
   readFile("supabase/functions/chat-message/index.ts", "utf8"),
   readFile("packages/shared/src/config/chat-router.ts", "utf8"),
@@ -104,8 +106,13 @@ assert.match(
 );
 assert.match(
   chatRouter,
-  /getSolarReturnScopeResponse[\s\S]*\\u3400-\\u4dbf\\u4e00-\\u9fff[\s\S]*OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT[\s\S]*OUT_OF_SCOPE_SOLAR_RETURN_EN/,
-  "Solar Return response language must be selected deterministically from request text"
+  /getSolarReturnScopeResponse[\s\S]*resolveFixedTemplateLanguage\(appLanguagePreference, message\)[\s\S]*OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT[\s\S]*OUT_OF_SCOPE_SOLAR_RETURN_EN/,
+  "Solar Return response language must prefer the persisted app language"
+);
+assert.match(
+  appLanguage,
+  /isAppLanguagePreference\(preference\) \? preference : detectRequestLanguage\(message\)/,
+  "request text must remain the deterministic fallback when no preference was explicitly set"
 );
 assert.match(
   chatRouter,

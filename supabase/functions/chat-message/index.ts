@@ -3,9 +3,14 @@ import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 import { buildSafeChatChartContext } from "../../../packages/astrology/src/chat-chart-context.ts";
 import {
   classifyChatRoute,
+  getSafetyResponse,
   getSolarReturnScopeResponse,
   isSolarReturnRequest
 } from "../../../packages/shared/src/config/chat-router.ts";
+import {
+  isAppLanguagePreference,
+  type AppLanguagePreference
+} from "../../../packages/shared/src/config/app-language.ts";
 import { ROUTE_CREDITS as SHARED_ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
 
@@ -53,6 +58,7 @@ type AiProfileRow = {
 };
 
 type AuthenticatedChatContext = {
+  appLanguagePreference: AppLanguagePreference | null;
   userId: string;
   serviceClient: ReturnType<typeof createClient>;
   profile: AiProfileRow | null;
@@ -144,7 +150,10 @@ Deno.serve(async (request) => {
 
   const chartContext =
     serverContext?.profile ? serverContext.chartContext : serverContext ? {} : body.chart_context;
-  const response = buildChatResponse({ ...body, chart_context: chartContext });
+  const response = buildChatResponse(
+    { ...body, chart_context: chartContext },
+    serverContext?.appLanguagePreference ?? null
+  );
   const persistence = serverContextResult.error
     ? { persisted: null, error: serverContextResult.error }
     : await safePersistScaffoldChatTurn(serverContext, body, response);
@@ -408,14 +417,37 @@ async function loadAuthenticatedChatContext(
   }
 
   const serviceClient = createClient(supabaseUrl, serviceRoleKey);
-  const profile = await loadActiveProfile(serviceClient, authData.user.id);
+  const [profile, appLanguagePreference] = await Promise.all([
+    loadActiveProfile(serviceClient, authData.user.id),
+    loadAppLanguagePreference(serviceClient, authData.user.id)
+  ]);
 
   return {
+    appLanguagePreference,
     userId: authData.user.id,
     serviceClient,
     profile,
     chartContext: buildSafeChatChartContext(profile?.chart_json ?? null)
   };
+}
+
+async function loadAppLanguagePreference(
+  serviceClient: ReturnType<typeof createClient>,
+  userId: string
+): Promise<AppLanguagePreference | null> {
+  const { data, error } = await serviceClient
+    .from("users")
+    .select("lang, language_preference_set_at")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.language_preference_set_at && isAppLanguagePreference(data.lang)
+    ? data.lang
+    : null;
 }
 
 async function loadActiveProfile(
@@ -450,12 +482,16 @@ function getSafePersistenceErrorCode(error: unknown): string {
   return SAFE_PERSISTENCE_ERROR_CODES.has(code) ? code : "CHAT_PERSISTENCE_FAILED";
 }
 
-function buildChatResponse(body: ChatMessageRequest) {
+function buildChatResponse(
+  body: ChatMessageRequest,
+  appLanguagePreference: AppLanguagePreference | null
+) {
   const message = body.message ?? "";
   const route = classifyChatRoute(message);
   const solarReturnResponse = isSolarReturnRequest(message)
-    ? getSolarReturnScopeResponse(message)
+    ? getSolarReturnScopeResponse(message, appLanguagePreference)
     : null;
+  const safetyResponse = getSafetyResponse(message, appLanguagePreference);
   const credits = ROUTE_CREDITS[route];
   const chartPhrase =
     body.chart_context?.sun && body.chart_context?.moon
@@ -475,7 +511,7 @@ function buildChatResponse(body: ChatMessageRequest) {
     estimated_credits_cost: credits,
     remaining_credits: null,
     billing_mode: "scaffold_no_charge",
-    reply: buildReplyText(route, chartPhrase, stylePhrase, solarReturnResponse)
+    reply: buildReplyText(route, chartPhrase, stylePhrase, solarReturnResponse, safetyResponse)
   };
 }
 
@@ -483,10 +519,11 @@ function buildReplyText(
   route: ChatRoute,
   chartPhrase: string,
   stylePhrase: string,
-  solarReturnResponse: string | null
+  solarReturnResponse: string | null,
+  safetyResponse: string
 ): string {
   if (route === "safety") {
-    return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
+    return safetyResponse;
   }
 
   if (solarReturnResponse) {

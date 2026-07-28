@@ -24,6 +24,7 @@ import { SafeAreaView as SafeAreaViewCtx, useSafeAreaInsets } from "react-native
 
 import {
   PERSONA_STYLES,
+  type AppLanguagePreference,
   type ChartV2,
   type PlanTier,
   type PersonaStyleKey
@@ -161,6 +162,8 @@ export default function App() {
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [reflectionThreads, setReflectionThreads] = useState<RestoredReflectionThread[]>([]);
   const [mainFocus, setMainFocus] = useState<string | null>(null);
+  const [appLanguagePreference, setAppLanguagePreference] =
+    useState<AppLanguagePreference | null>(null);
   const [planTier, setPlanTier] = useState<PlanTier>("starter");
   const [remainingCredits, setRemainingCredits] = useState(STARTER_CREDITS);
   const [birthDetailChanges, setBirthDetailChanges] = useState(0);
@@ -268,6 +271,7 @@ export default function App() {
     setChatTurns([]);
     setReflectionThreads([]);
     setMainFocus(null);
+    setAppLanguagePreference(null);
     setPlanTier("starter");
     setRemainingCredits(STARTER_CREDITS);
     setBirthDetailChanges(0);
@@ -322,6 +326,7 @@ export default function App() {
         setActiveSupabaseThreadId(null);
       }
       setMainFocus(accountState.mainFocus);
+      setAppLanguagePreference(accountState.appLanguagePreference);
       setPlanTier(accountState.planTier);
       setRemainingCredits(accountState.remainingCredits ?? STARTER_CREDITS);
       setBirthDetailChanges(accountState.successfulBirthDetailChanges);
@@ -743,6 +748,7 @@ export default function App() {
         chart={chartProfile}
         initialDraft={pendingChatDraft}
         selectedStyle={personaStyle}
+        appLanguagePreference={appLanguagePreference}
         chatTurns={chatTurns}
         remainingCredits={remainingCredits}
         forceNewSupabaseThread={forceNewSupabaseThread}
@@ -1868,6 +1874,7 @@ function ChatShellScreen({
   chart,
   initialDraft,
   selectedStyle,
+  appLanguagePreference,
   chatTurns,
   remainingCredits,
   forceNewSupabaseThread,
@@ -1888,6 +1895,7 @@ function ChatShellScreen({
   chart: ChartV2 | null;
   initialDraft: string | null;
   selectedStyle: PersonaStyleKey;
+  appLanguagePreference: AppLanguagePreference | null;
   chatTurns: ChatTurn[];
   remainingCredits: number;
   forceNewSupabaseThread: boolean;
@@ -1949,6 +1957,7 @@ function ChatShellScreen({
         message: nextMessage,
         clientMessageId,
         personaStyle: selectedStyle,
+        appLanguagePreference,
         chart,
         forceNewThread: forceNewSupabaseThread,
         threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId
