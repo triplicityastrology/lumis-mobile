@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "environment": "staging",
+  "migrations": [
+    "0032_care_circle_backend_foundation.sql",
+    "0033_inactive_notification_foundation.sql"
+  ],
+  "execution_policy": {
+    "disposable_users_only": true,
+    "transactional_fixture_cleanup": true,
+    "forbid_existing_user_ids": true,
+    "forbid_provider_calls": true,
+    "forbid_push_delivery": true,
+    "forbid_scheduler_changes": true,
+    "forbid_migration_apply": true
+  },
+  "legacy_preconditions": [
+    {
+      "id": "legacy-revoked-review",
+      "assertion": "care_relationships contains no status=revoked row before 0032"
+    },
+    {
+      "id": "legacy-code-fingerprint-only",
+      "assertion": "legacy invitation_token_hash values are fingerprints and no raw invitation code is present"
+    },
+    {
+      "id": "legacy-notification-row-audit",
+      "assertion": "legacy notifications rows are counted and privacy-reviewed before participant access is revoked"
+    },
+    {
+      "id": "migration-order",
+      "assertion": "0030 is the deployed predecessor, 0031 remains a draft, and 0032 then 0033 are applied only to staging"
+    }
+  ],
+  "cases": [
+    {
+      "id": "care-rls-owner-projection",
+      "actors": 2,
+      "parallelism": 1,
+      "assertions": [
+        "participant safe projection returns only the participant relationship",
+        "code hashes and event metadata are absent"
+      ]
+    },
+    {
+      "id": "care-cross-user-denial",
+      "actors": 3,
+      "parallelism": 1,
+      "assertions": [
+        "unrelated authenticated user cannot read relationship, event, code, round, request, or settings rows",
+        "anonymous user cannot read any Care Circle foundation row"
+      ]
+    },
+    {
+      "id": "caree-code-authority",
+      "actors": 2,
+      "parallelism": 1,
+      "assertions": [
+        "only backend service can create, consume, revoke, or inspect a code fingerprint",
+        "a code expires within one hour and is consumed once",
+        "Carer cannot accept on behalf of Caree"
+      ]
+    },
+    {
+      "id": "care-sixth-carer-race",
+      "actors": 7,
+      "parallelism": 6,
+      "assertions": [
+        "exactly five Caree relationships become active",
+        "the sixth concurrent acceptance returns 48012",
+        "no duplicate operation or relationship event is committed"
+      ]
+    },
+    {
+      "id": "care-operation-idempotency",
+      "actors": 2,
+      "parallelism": 2,
+      "assertions": [
+        "exact request replay returns the first response",
+        "same request ID with changed digest or resource is rejected",
+        "remove replay creates no second event"
+      ]
+    },
+    {
+      "id": "care-pause-grace-removal",
+      "actors": 3,
+      "parallelism": 1,
+      "assertions": [
+        "pause remains Caree-owned settings state",
+        "grace remains round state",
+        "removing one of two active Carers does not cancel the open round",
+        "removing the final active Carer cancels the open round"
+      ]
+    },
+    {
+      "id": "care-account-deletion",
+      "actors": 2,
+      "parallelism": 1,
+      "assertions": [
+        "deleting a disposable Caree removes owned settings, codes, rounds, requests, and relationships",
+        "deleting a disposable Carer removes participant relationships",
+        "no unrelated account row changes"
+      ]
+    },
+    {
+      "id": "notification-registry-closed",
+      "actors": 1,
+      "parallelism": 1,
+      "assertions": [
+        "only care_circle_check_in and care_circle_reminder exist",
+        "both registry rows and all preferences remain disabled",
+        "marketing, billing, AI, payment, emergency, urgent, generic, and acknowledgement types are rejected"
+      ]
+    },
+    {
+      "id": "notification-registration-race",
+      "actors": 1,
+      "parallelism": 4,
+      "assertions": [
+        "concurrent exact registration creates one endpoint and one idempotent result",
+        "changed digest with the same request ID is rejected",
+        "raw provider token is absent from all database and evidence fields"
+      ]
+    },
+    {
+      "id": "notification-token-rotation",
+      "actors": 2,
+      "parallelism": 2,
+      "assertions": [
+        "one installation retains only its latest encrypted token",
+        "one provider fingerprint belongs to one current account and installation",
+        "rotation records content-free audit metadata"
+      ]
+    },
+    {
+      "id": "notification-unregister-and-deletion",
+      "actors": 2,
+      "parallelism": 1,
+      "assertions": [
+        "logout, permission revocation, and provider invalidation remove the endpoint immediately",
+        "account deletion removes every endpoint for the disposable account",
+        "audit user reference becomes null and unrelated endpoints remain"
+      ]
+    },
+    {
+      "id": "notification-retention",
+      "actors": 1,
+      "parallelism": 1,
+      "assertions": [
+        "endpoint seen exactly before the 90-day cutoff is pruned",
+        "newer endpoint remains",
+        "expired audit metadata and registration requests are removed",
+        "audit metadata cannot contain body, message, email, birth, chart, or token content"
+      ]
+    }
+  ]
+}

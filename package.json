@@ -19,6 +19,7 @@
     "test:care-circle": "node scripts/care-circle-contract.mjs",
     "test:care-circle-backend": "node scripts/care-circle-backend-foundation-contract.mjs",
     "test:notification-foundation": "node scripts/notification-foundation-contract.mjs",
+    "test:s2-foundation-preflight": "node scripts/s2-foundation-preflight.mjs --project-ref bmqhwofmdgebpcihjlnb",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
     "test:natal-scope": "node scripts/natal-chart-scope-contract.mjs",
     "test:golden:refresh:secure": "bash scripts/run-golden-fixture-refresh.sh",
