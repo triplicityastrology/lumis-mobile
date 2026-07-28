@@ -164,6 +164,9 @@ export default function App() {
   const [notificationsReturn, setNotificationsReturn] = useState<
     "home" | "chat" | "insights" | "dice" | "profileTab"
   >("home");
+  const [reflectionsReturn, setReflectionsReturn] = useState<"home" | "chat">("home");
+  const [accountReturn, setAccountReturn] = useState<"home" | "profileTab">("home");
+  const [personaReturn, setPersonaReturn] = useState<"preview" | "profileTab">("preview");
   const screenRef = useRef(screen);
   screenRef.current = screen;
   const authRedirectInFlightRef = useRef(false);
@@ -228,8 +231,19 @@ export default function App() {
   }
 
   function openAccountEntry() {
+    setAccountReturn(screenRef.current === "profileTab" ? "profileTab" : "home");
     setAuthError("");
     setScreen("auth");
+  }
+
+  function openPastReflections(origin: "home" | "chat") {
+    setReflectionsReturn(origin);
+    setScreen("reflections");
+  }
+
+  function openPersona(origin: "preview" | "profileTab") {
+    setPersonaReturn(origin);
+    setScreen("persona");
   }
 
   function requestAuthoritativeLogout() {
@@ -483,7 +497,10 @@ export default function App() {
       const s = screenRef.current;
       if (s === "notifications") { setScreen(notificationsReturn); return true; }
       if (s === "care" || s === "birthDetails" || s === "chartUpdated") { setScreen("profileTab"); return true; }
-      if (s === "auth" || s === "persona" || s === "preview" || s === "reflections" || s === "noChart") { setScreen("home"); return true; }
+      if (s === "reflections") { setScreen(reflectionsReturn); return true; }
+      if (s === "auth") { setScreen(accountReturn); return true; }
+      if (s === "persona") { setScreen(personaReturn); return true; }
+      if (s === "preview" || s === "noChart") { setScreen("home"); return true; }
       if (s === "restoringSpace") { return true; } // block back while restoring
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
         setScreen("home"); return true;
@@ -492,7 +509,7 @@ export default function App() {
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onHardwareBack);
     return () => sub.remove();
-  }, [notificationsReturn]);
+  }, [accountReturn, notificationsReturn, personaReturn, reflectionsReturn]);
 
   useEffect(() => {
     let isMounted = true;
@@ -609,7 +626,7 @@ export default function App() {
     return (
       <LumisAuthScreen
         authStatus={authStatus}
-        onBack={() => setScreen("home")}
+        onBack={() => setScreen(accountReturn)}
         onContinueLocal={() => setScreen("profile")}
         onAccountStatusRefreshed={applyRefreshedAuthStatus}
         onRequestLogout={requestAuthoritativeLogout}
@@ -656,7 +673,7 @@ export default function App() {
             void saveDemoSession(profileData, result.chart, personaStyle, [], STARTER_CREDITS);
           }
 
-          setScreen("persona");
+          openPersona("preview");
         }}
       />
     );
@@ -673,7 +690,7 @@ export default function App() {
         }}
         selectedStyle={personaStyle}
         onSelectStyle={setPersonaStyle}
-        onBack={() => setScreen("preview")}
+        onBack={() => setScreen(personaReturn)}
         onEnterChat={async (identity) => {
           await savePersonaStylePreference(personaStyle, identity);
           setPersonaName(identity.buddyName);
@@ -732,7 +749,7 @@ export default function App() {
           setForceNewSupabaseThread(false);
           setActiveSupabaseThreadId(threadId);
         }}
-        onPastReflections={() => setScreen("reflections")}
+        onPastReflections={() => openPastReflections("chat")}
         onNotifications={openNotifications}
         onStartNewTopic={() => void startNewTopic()}
         onSelectTab={openMainTab}
@@ -750,7 +767,7 @@ export default function App() {
         selectedStyle={personaStyle}
         chatTurns={chatTurns}
         reflectionThreads={reflectionThreads}
-        onBack={() => setScreen("home")}
+        onBack={() => setScreen(reflectionsReturn)}
         onContinueReflection={(thread) => {
           if (thread) {
             setChatTurns(thread.turns);
@@ -811,11 +828,11 @@ export default function App() {
         mainFocus={mainFocus}
         personaStyle={personaStyle}
         timeUnknown={profileData.timeUnknown}
-        onAccount={() => setScreen("auth")}
+        onAccount={openAccountEntry}
         onBirthDetails={() => setScreen("birthDetails")}
         onCareCircle={() => setScreen("care")}
         onNotifications={openNotifications}
-        onPersona={() => setScreen("persona")}
+        onPersona={() => openPersona("profileTab")}
         onSelectTab={openMainTab}
         onRequestLogout={requestAuthoritativeLogout}
       />
@@ -945,6 +962,7 @@ export default function App() {
         onOpenChat={() => setScreen(hasVisibleProfile ? "chat" : "profile")}
         onOpenProfile={() => openMainTab("profile")}
         onPastReflections={async () => {
+          setReflectionsReturn("home");
           if (authStatus?.isConfigured && authStatus.user) {
             setAccountLoadStatus("loading");
             setAccountLoadMessage("Refreshing Past Reflections...");
