@@ -1,9 +1,9 @@
 # S2-T11 Credit Expiry Backend Readiness Audit
 
-**Version:** 0.1  
-**Date:** 2026-07-28  
-**Status:** source/design readiness only; not approved for migration or activation  
-**Authority:** founder credit-expiry policy dated 2026-07-28  
+**Version:** 0.1
+**Date:** 2026-07-28
+**Status:** source/design readiness only; not approved for migration or activation
+**Authority:** founder credit-expiry policy dated 2026-07-28
 **Audience:** Founder, PM, Technical, Finance, Privacy, and QA
 
 ## Executive Verdict

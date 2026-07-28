@@ -1,9 +1,9 @@
 # S2-T12 Language-Aware Chat Staging Deployment Readiness
 
-**Version:** 0.2  
-**Date:** 2026-07-28  
-**Environment:** staging only  
-**Required project ref:** `bmqhwofmdgebpcihjlnb`  
+**Version:** 0.2
+**Date:** 2026-07-28
+**Environment:** staging only
+**Required project ref:** `bmqhwofmdgebpcihjlnb`
 **Status:** preparation only; this document does not authorise or execute deployment
 
 ## Authority and supersession

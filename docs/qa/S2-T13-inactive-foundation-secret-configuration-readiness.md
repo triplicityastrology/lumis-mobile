@@ -1,9 +1,9 @@
 # S2-T13 Inactive Foundation Secret and Configuration Readiness
 
-**Version:** 0.1  
-**Date:** 2026-07-28  
-**Environment:** staging-readiness only  
-**Required project ref:** `bmqhwofmdgebpcihjlnb`  
+**Version:** 0.1
+**Date:** 2026-07-28
+**Environment:** staging-readiness only
+**Required project ref:** `bmqhwofmdgebpcihjlnb`
 **Status:** local, inert, names-only control
 
 ## Purpose
