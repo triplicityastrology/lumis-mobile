@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const harness = readFileSync(
@@ -34,7 +35,9 @@ assert.match(wrapper, /read -r -s publishable_key/);
 assert.doesNotMatch(wrapper, /echo .*(?:secret|publishable)|set -x|curl|supabase db push|functions deploy/i);
 assert.match(harness, /parseEvidenceArgs/);
 assert.match(harness, /if \(!args\.execute\)/);
-assert.match(harness, /process\.exit\(0\)/);
+assert.match(harness, /runRedactedEvidenceMain/);
+assert.match(harness, /safeCheck/);
+assert.doesNotMatch(harness, /\bassert(?:\.|\()/);
 assert.match(utility, /S2_EVIDENCE_EXECUTE/);
 assert.match(utility, /args\.execute && process\.env\.S2_EVIDENCE_EXECUTE/);
 assert.doesNotMatch(
@@ -60,6 +63,42 @@ for (const forbiddenOutput of [
   /assert\.equal\([^,\n]*(?:pairing_code|pairingCode|code_hash)/i
 ]) {
   assert.doesNotMatch(harness, forbiddenOutput);
+}
+
+const forcedFailure = spawnSync(
+  process.execPath,
+  ["scripts/fixtures/redaction-safe-failure-fixture.mjs", "care"],
+  { encoding: "utf8" }
+);
+assert.equal(forcedFailure.status, 1);
+assert.equal(forcedFailure.stdout, "");
+const failureEvidence = JSON.parse(forcedFailure.stderr.trim());
+assert.deepEqual(Object.keys(failureEvidence).sort(), [
+  "check",
+  "error_code",
+  "run_id"
+]);
+assert.equal(failureEvidence.check, "pairing_code_replay");
+assert.equal(
+  failureEvidence.error_code,
+  "CARE_PAIRING_CODE_MISMATCH"
+);
+for (const forbidden of [
+  "PAIR-RAW-7X9Q",
+  "fingerprint-private-44f9",
+  "82acfd0a-7e5b-4ccb-a8fb-d61152adc475",
+  "fixture-private@example.invalid",
+  "token-private-7dce",
+  "database-payload",
+  "actual",
+  "expected",
+  "AssertionError",
+  "at file:"
+]) {
+  assert.doesNotMatch(
+    `${forcedFailure.stdout}\n${forcedFailure.stderr}`,
+    new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
+  );
 }
 
 console.log("Care Circle staging evidence harness contracts passed");

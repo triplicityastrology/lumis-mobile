@@ -1,6 +1,9 @@
-import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+import {
+  runRedactedEvidenceMain,
+  safeCheck
+} from "./lib/redaction-safe-evidence.mjs";
 import {
   anonymousRequest,
   cleanupInterruptedRun,
@@ -20,6 +23,15 @@ import {
   verifyAdminAccess
 } from "./lib/staging-evidence-utils.mjs";
 
+let runId = "not-created";
+
+await runRedactedEvidenceMain(
+  {
+    getRunId: () => runId,
+    boundaryCheck: "care_circle_execute",
+    boundaryCode: "CARE_EVIDENCE_INTERNAL_FAILURE"
+  },
+  async () => {
 const args = parseEvidenceArgs(
   process.argv.slice(2),
   "Care Circle staging"
@@ -28,22 +40,35 @@ const plan = JSON.parse(
   readFileSync("supabase/tests/s2-care-circle-staging-evidence-plan.json", "utf8")
 );
 
-assert.equal(plan.project_ref, STAGING_PROJECT_REF);
-assert.equal(plan.execution_default, "preflight_only");
-assert.deepEqual(plan.required_migrations, [
-  "0032_care_circle_backend_foundation.sql",
-  "0034_reusable_care_pairing_operations.sql"
-]);
+safeCheck(
+  plan.project_ref === STAGING_PROJECT_REF,
+  "plan_project_ref",
+  "CARE_PLAN_PROJECT_REF_INVALID"
+);
+safeCheck(
+  plan.execution_default === "preflight_only",
+  "plan_default_mode",
+  "CARE_PLAN_DEFAULT_MODE_INVALID"
+);
+safeCheck(
+  plan.required_migrations?.join("|")
+    === [
+      "0032_care_circle_backend_foundation.sql",
+      "0034_reusable_care_pairing_operations.sql"
+    ].join("|"),
+  "plan_migration_order",
+  "CARE_PLAN_MIGRATION_ORDER_INVALID"
+);
 
 if (!args.execute) {
   assertPlanCoverage(plan);
   process.stdout.write(
     "Care Circle staging evidence preflight passed; no network or database command ran.\n"
   );
-  process.exit(0);
+  return;
 }
 
-const runId = args.runId || makeRunId();
+runId = args.runId || makeRunId();
 const context = await createStagingContext("s2care", runId);
 await verifyAdminAccess(context);
 
@@ -51,13 +76,8 @@ if (args.cleanup) {
   const removed = await cleanupInterruptedRun(context);
   pass(context, `Interrupted-run cleanup removed ${removed} disposable account(s)`);
   printRedactedEvidence(context);
-  process.exit(0);
+  return;
 }
-
-process.stdout.write(`Care Circle redacted run ID: ${runId}\n`);
-process.stdout.write(
-  `Failure cleanup: pnpm evidence:s2-care-circle:secure -- --execute --cleanup ${runId}\n`
-);
 
 const password = makePassword();
 try {
@@ -88,12 +108,17 @@ try {
     action: "pairing_code_create",
     client_request_id: createRequestId
   });
-  assert.equal(created.status, 200);
-  assert(
+  safeCheck(
+    created.status === 200,
+    "pairing_code_create",
+    "CARE_PAIRING_CREATE_FAILED"
+  );
+  safeCheck(
     /^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){2}$/.test(
       created.body?.pairing_code ?? ""
     ),
-    "Pairing code did not use the approved redacted shape."
+    "pairing_code_shape",
+    "CARE_PAIRING_CODE_SHAPE_INVALID"
   );
   const pairingCode = created.body.pairing_code;
   const firstCodeId = created.body.code_id;
@@ -102,14 +127,20 @@ try {
     action: "pairing_code_create",
     client_request_id: createRequestId
   });
-  assert.equal(replay.status, 200);
-  assert(
-    replay.body.code_id === firstCodeId,
-    "Pairing-code replay returned a different code record."
+  safeCheck(
+    replay.status === 200,
+    "pairing_code_replay_status",
+    "CARE_PAIRING_REPLAY_FAILED"
   );
-  assert(
+  safeCheck(
+    replay.body.code_id === firstCodeId,
+    "pairing_code_replay_record",
+    "CARE_PAIRING_REPLAY_RECORD_MISMATCH"
+  );
+  safeCheck(
     replay.body.pairing_code === pairingCode,
-    "Pairing-code replay returned different one-time output."
+    "pairing_code_replay",
+    "CARE_PAIRING_CODE_MISMATCH"
   );
   pass(context, "Stable request replay returns one reusable one-hour pairing code");
 
@@ -122,9 +153,15 @@ try {
       })
     )
   );
-  assert(pending.every((result) => result.status === 200));
-  assert(
-    new Set(pending.map((result) => result.body.relationship_id)).size === 6
+  safeCheck(
+    pending.every((result) => result.status === 200),
+    "pending_request_status",
+    "CARE_PENDING_REQUEST_FAILED"
+  );
+  safeCheck(
+    new Set(pending.map((result) => result.body.relationship_id)).size === 6,
+    "pending_request_distinct",
+    "CARE_PENDING_REQUEST_DUPLICATE"
   );
   pass(context, "One active pairing code creates six distinct pending requests");
 
@@ -141,13 +178,21 @@ try {
     client_request_id: crypto.randomUUID(),
     relationship_id: pending[0].body.relationship_id
   });
-  assert.equal(carerAccept.body?.error?.code, "48007");
+  safeCheck(
+    carerAccept.body?.error?.code === "48007",
+    "carer_accept_denial",
+    "CARE_CARER_ACCEPT_DENIAL_FAILED"
+  );
   const carerDecline = await careOperation(context, carerTokens[0], {
     action: "relationship_decline",
     client_request_id: crypto.randomUUID(),
     relationship_id: pending[0].body.relationship_id
   });
-  assert.equal(carerDecline.body?.error?.code, "48007");
+  safeCheck(
+    carerDecline.body?.error?.code === "48007",
+    "carer_decline_denial",
+    "CARE_CARER_DECLINE_DENIAL_FAILED"
+  );
   pass(context, "Carer cannot accept or decline the Caree-owned request");
 
   const conflict = await careOperation(context, careeToken, {
@@ -155,7 +200,11 @@ try {
     client_request_id: createRequestId,
     code_id: firstCodeId
   });
-  assert.equal(conflict.body?.error?.code, "48012");
+  safeCheck(
+    conflict.body?.error?.code === "48012",
+    "request_id_conflict",
+    "CARE_REQUEST_CONFLICT_FAILED"
+  );
   pass(context, "Changed operation with the same request ID is rejected safely");
 
   const acceptance = await Promise.all(
@@ -167,9 +216,17 @@ try {
       })
     )
   );
-  assert.equal(acceptance.filter((item) => item.status === 200).length, 5);
+  safeCheck(
+    acceptance.filter((item) => item.status === 200).length === 5,
+    "fifth_carer_limit",
+    "CARE_FIFTH_CARER_LIMIT_FAILED"
+  );
   const rejected = acceptance.find((item) => item.status !== 200);
-  assert.equal(rejected?.body?.error?.code, "48012");
+  safeCheck(
+    rejected?.body?.error?.code === "48012",
+    "sixth_carer_denial",
+    "CARE_SIXTH_CARER_DENIAL_FAILED"
+  );
   pass(context, "Concurrent sixth acceptance is rejected and five become active");
 
   const rejectedIndex = acceptance.indexOf(rejected);
@@ -178,32 +235,52 @@ try {
     client_request_id: crypto.randomUUID(),
     relationship_id: pending[rejectedIndex].body.relationship_id
   });
-  assert.equal(declined.body?.status, "declined");
+  safeCheck(
+    declined.body?.status === "declined",
+    "caree_decline",
+    "CARE_DECLINE_FAILED"
+  );
   pass(context, "Caree alone declines a pending request");
 
   const rotated = await careOperation(context, careeToken, {
     action: "pairing_code_create",
     client_request_id: crypto.randomUUID()
   });
-  assert.equal(rotated.status, 200);
+  safeCheck(
+    rotated.status === 200,
+    "pairing_code_rotation",
+    "CARE_PAIRING_ROTATION_FAILED"
+  );
   const rotatedOldUse = await careOperation(context, carerTokens[0], {
     action: "pairing_code_submit",
     client_request_id: crypto.randomUUID(),
     pairing_code: pairingCode
   });
-  assert.equal(rotatedOldUse.body?.error?.code, "48004");
+  safeCheck(
+    rotatedOldUse.body?.error?.code === "48004",
+    "rotated_code_denial",
+    "CARE_ROTATED_CODE_DENIAL_FAILED"
+  );
   const revoked = await careOperation(context, careeToken, {
     action: "pairing_code_revoke",
     client_request_id: crypto.randomUUID(),
     code_id: rotated.body.code_id
   });
-  assert.equal(revoked.body?.status, "revoked");
+  safeCheck(
+    revoked.body?.status === "revoked",
+    "pairing_code_revoke",
+    "CARE_PAIRING_REVOKE_FAILED"
+  );
   const revokedUse = await careOperation(context, carerTokens[0], {
     action: "pairing_code_submit",
     client_request_id: crypto.randomUUID(),
     pairing_code: rotated.body.pairing_code
   });
-  assert.equal(revokedUse.body?.error?.code, "48004");
+  safeCheck(
+    revokedUse.body?.error?.code === "48004",
+    "revoked_code_denial",
+    "CARE_REVOKED_CODE_DENIAL_FAILED"
+  );
 
   const expiring = await careOperation(context, careeToken, {
     action: "pairing_code_create",
@@ -226,7 +303,11 @@ try {
     client_request_id: crypto.randomUUID(),
     pairing_code: expiring.body.pairing_code
   });
-  assert.equal(expiredUse.body?.error?.code, "48004");
+  safeCheck(
+    expiredUse.body?.error?.code === "48004",
+    "expired_code_denial",
+    "CARE_EXPIRED_CODE_DENIAL_FAILED"
+  );
   pass(context, "Rotation, revocation, and expiry block later pairing attempts");
 
   const pause = await careOperation(context, careeToken, {
@@ -234,30 +315,50 @@ try {
     client_request_id: crypto.randomUUID(),
     paused_until: new Date(Date.now() + 86_400_000).toISOString()
   });
-  assert.equal(pause.body?.status, "paused");
+  safeCheck(
+    pause.body?.status === "paused",
+    "care_pause",
+    "CARE_PAUSE_FAILED"
+  );
   const resume = await careOperation(context, careeToken, {
     action: "care_resume",
     client_request_id: crypto.randomUUID()
   });
-  assert.equal(resume.body?.status, "active");
+  safeCheck(
+    resume.body?.status === "active",
+    "care_resume",
+    "CARE_RESUME_FAILED"
+  );
   const remove = await careOperation(context, carerTokens[0], {
     action: "relationship_remove",
     client_request_id: crypto.randomUUID(),
     relationship_id: pending[0].body.relationship_id
   });
-  assert.match(remove.body?.status ?? "", /^removed_by_/);
+  safeCheck(
+    /^removed_by_/.test(remove.body?.status ?? ""),
+    "relationship_remove",
+    "CARE_RELATIONSHIP_REMOVE_FAILED"
+  );
   pass(context, "Caree pause/resume and participant removal use backend authority");
 
   const rawStorage = await serviceRequest(
     context,
     `/rest/v1/care_link_codes?caree_user_id=eq.${caree.id}&select=code_hash`
   );
-  assert(rawStorage.every((row) => row.code_hash !== pairingCode));
+  safeCheck(
+    rawStorage.every((row) => row.code_hash !== pairingCode),
+    "pairing_storage_redaction",
+    "CARE_PAIRING_STORAGE_REDACTION_FAILED"
+  );
   const audit = await serviceRequest(
     context,
     `/rest/v1/care_pairing_code_events?caree_user_id=eq.${caree.id}&select=event_type`
   );
-  assert(audit.length >= 4);
+  safeCheck(
+    audit.length >= 4,
+    "pairing_audit_evidence",
+    "CARE_PAIRING_AUDIT_INCOMPLETE"
+  );
   pass(context, "Sensitive storage and audit contain no raw pairing material");
 
   await context.adminClient.auth.admin.deleteUser(carers[5].id);
@@ -266,18 +367,28 @@ try {
     context,
     `/rest/v1/care_relationships?carer_user_id=eq.${carers[5].id}&select=id`
   );
-  assert.equal(deletedRows.length, 0);
+  safeCheck(
+    deletedRows.length === 0,
+    "participant_deletion_cleanup",
+    "CARE_DELETION_CLEANUP_FAILED"
+  );
   const unrelatedRelationship = await serviceRequest(
     context,
     `/rest/v1/care_relationships?carer_user_id=eq.${carers[0].id}&select=id`
   );
-  assert(unrelatedRelationship.length >= 1);
+  safeCheck(
+    unrelatedRelationship.length >= 1,
+    "unrelated_relationship_preserved",
+    "CARE_UNRELATED_RELATIONSHIP_CHANGED"
+  );
   pass(context, "Disposable participant deletion cascades without unrelated changes");
 
   printRedactedEvidence(context);
 } finally {
   await cleanupRun(context);
 }
+  }
+);
 
 function assertPlanCoverage(definition) {
   for (const id of [
@@ -292,7 +403,11 @@ function assertPlanCoverage(definition) {
     "legacy-rpc-denial",
     "deletion-cleanup"
   ]) {
-    assert(definition.cases.some((item) => item.id === id), `Missing ${id}`);
+    safeCheck(
+      definition.cases.some((item) => item.id === id),
+      "plan_case_coverage",
+      "CARE_PLAN_CASE_MISSING"
+    );
   }
 }
 
@@ -355,14 +470,22 @@ async function verifyCareRls(
       careeToken,
       `/rest/v1/${table}?select=*`
     );
-    assert(!owner.ok);
+    safeCheck(
+      !owner.ok,
+      "owner_storage_denial",
+      "CARE_OWNER_STORAGE_EXPOSED"
+    );
     if (participantToken) {
       const participant = await userRequest(
         context,
         participantToken,
         `/rest/v1/${table}?select=*`
       );
-      assert(!participant.ok);
+      safeCheck(
+        !participant.ok,
+        "participant_storage_denial",
+        "CARE_PARTICIPANT_STORAGE_EXPOSED"
+      );
     }
     if (unrelatedToken) {
       const unrelated = await userRequest(
@@ -370,13 +493,21 @@ async function verifyCareRls(
         unrelatedToken,
         `/rest/v1/${table}?select=*`
       );
-      assert(!unrelated.ok);
+      safeCheck(
+        !unrelated.ok,
+        "unrelated_storage_denial",
+        "CARE_UNRELATED_STORAGE_EXPOSED"
+      );
     }
     const anonymous = await anonymousRequest(
       context,
       `/rest/v1/${table}?select=*`
     );
-    assert(!anonymous.ok);
+    safeCheck(
+      !anonymous.ok,
+      "anonymous_storage_denial",
+      "CARE_ANONYMOUS_STORAGE_EXPOSED"
+    );
   }
 
   const projectionToken = participantToken ?? unrelatedToken;
@@ -387,15 +518,27 @@ async function verifyCareRls(
       "/rest/v1/rpc/list_care_relationships",
       { method: "POST", body: {} }
     );
-    assert(safeProjection.ok);
-    if (unrelatedToken) assert.equal(safeProjection.body.length, 0);
-    assert(
+    safeCheck(
+      safeProjection.ok,
+      "safe_projection_access",
+      "CARE_SAFE_PROJECTION_FAILED"
+    );
+    if (unrelatedToken) {
+      safeCheck(
+        safeProjection.body.length === 0,
+        "unrelated_projection_empty",
+        "CARE_UNRELATED_PROJECTION_EXPOSED"
+      );
+    }
+    safeCheck(
       safeProjection.body.every(
         (item) =>
           !Object.keys(item).some((key) =>
             /code|hash|metadata|birth|chart|credit|billing/i.test(key)
           )
-      )
+      ),
+      "safe_projection_fields",
+      "CARE_SAFE_PROJECTION_FIELD_EXPOSED"
     );
   }
 
@@ -412,5 +555,9 @@ async function verifyCareRls(
       }
     }
   );
-  assert(!legacyBypass.ok);
+  safeCheck(
+    !legacyBypass.ok,
+    "legacy_rpc_denial",
+    "CARE_LEGACY_RPC_EXPOSED"
+  );
 }
