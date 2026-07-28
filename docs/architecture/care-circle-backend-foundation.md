@@ -10,8 +10,11 @@ Status: inactive source foundation only.
 3. `0032_care_circle_backend_foundation.sql` corrects consent direction,
    protects relationship storage, and adds inactive code, settings, round,
    capability, idempotency, limit, and deletion foundations.
-4. The inactive notification foundation follows in a later migration.
-5. No Care Circle caller, scheduler, delivery path, or UI may be activated
+4. `0033_inactive_notification_foundation.sql` adds inactive registration
+   storage without delivery.
+5. `0034_reusable_care_pairing_operations.sql` adds service-only atomic
+   operations for the reusable one-hour Caree pairing-code model.
+6. No Care Circle caller, scheduler, delivery path, or UI may be activated
    until hosted database and device acceptance passes.
 
 ## Forward-Only Recovery
@@ -36,7 +39,16 @@ before migration.
 ## Source-Level Guarantees
 
 - The Caree owns code material; only keyed fingerprints are stored.
-- Codes have a one-hour validity ceiling and 90-day backend retention marker.
+- Product and API language uses **pairing code**. The physical
+  `care_link_codes` name remains only for forward schema compatibility.
+- A pairing code has a one-hour validity ceiling, may create separate pending
+  requests for multiple Carers, and remains reusable until expiry, rotation,
+  or revocation.
+- Pairing-code use never grants access. Only the Caree's transactional
+  acceptance activates a relationship.
+- Expiry, rotation, or revocation blocks later uses without changing existing
+  pending or active relationships.
+- Pairing-code rows have a 90-day backend retention marker.
 - Sensitive relationship, code, round, idempotency, event, and error tables
   are server-only.
 - Authenticated users receive relationship data only through a safe projection.
@@ -47,6 +59,9 @@ before migration.
 - Account-owned operational rows use cascading user foreign keys.
 - Removing one Carer does not close a Caree round while another active Carer
   remains.
+- `0034` revokes authenticated access to the older direct acceptance/removal
+  RPCs. Its mutation RPCs are service-only and intended solely for the inactive
+  authenticated Edge boundary.
 
 ## Verification Boundary
 
