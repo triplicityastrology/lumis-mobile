@@ -90,6 +90,7 @@ export type SupabaseAccountState = {
 export type AccountRestoreErrorCode =
   | "ACCOUNT_CONFIGURATION_REQUIRED"
   | "ACCOUNT_AUTH_REQUIRED"
+  | "ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE"
   | "ACCOUNT_DATA_UNAVAILABLE"
   | "ACCOUNT_DATA_INCOMPLETE";
 
@@ -101,6 +102,13 @@ export class AccountRestoreError extends Error {
     super(message);
     this.name = "AccountRestoreError";
   }
+}
+
+export function isTransientAccountRestoreError(error: unknown): boolean {
+  return (
+    error instanceof AccountRestoreError &&
+    error.code === "ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE"
+  );
 }
 
 export async function loadSupabaseAccountState(
@@ -163,7 +171,9 @@ export async function loadSupabaseAccountState(
 
   if (requiredError) {
     throw new AccountRestoreError(
-      "ACCOUNT_DATA_UNAVAILABLE",
+      isTransientRequiredReadError(requiredError)
+        ? "ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE"
+        : "ACCOUNT_DATA_UNAVAILABLE",
       "Lumis could not load your saved account right now. Your data was not changed."
     );
   }
@@ -279,6 +289,32 @@ export async function loadSupabaseAccountState(
         ? "Your chart and Past Reflections are ready."
         : "Your chart is ready. No Past Reflections have been saved yet."
   };
+}
+
+function isTransientRequiredReadError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as {
+    code?: unknown;
+    details?: unknown;
+    message?: unknown;
+    status?: unknown;
+  };
+  const status = typeof candidate.status === "number" ? candidate.status : null;
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const safeDiagnostic = [candidate.message, candidate.details]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+
+  return (
+    (status !== null && (status === 408 || status === 429 || status >= 500)) ||
+    /^(?:PGRST00[0-3]|53300|57014|57P0[123])$/.test(code) ||
+    /network request failed|failed to fetch|networkerror|load failed|timed? out|connection (?:closed|reset|refused|interrupted)/i.test(
+      safeDiagnostic
+    )
+  );
 }
 
 function normalizePlanTier(value: unknown): PlanTier {

@@ -26,7 +26,7 @@ assert.match(
 );
 assert.match(
   accountState,
-  /if \(requiredError\) \{\s*throw new AccountRestoreError\(\s*"ACCOUNT_DATA_UNAVAILABLE"/,
+  /if \(requiredError\) \{\s*throw new AccountRestoreError\(\s*isTransientRequiredReadError\(requiredError\)[\s\S]{0,120}"ACCOUNT_DATA_UNAVAILABLE"/,
   "a required chart query failure cannot become an empty account"
 );
 assert.match(
@@ -65,11 +65,23 @@ const signedInRestore = extractRange(
 );
 assert.match(signedInRestore, /if \(status\.isConfigured && status\.user\)/);
 assert.match(signedInRestore, /loadSupabaseAccountState\(status\.user\.id\)/);
+assert.match(signedInRestore, /loadStartupAccountState\(status\.user\.id\)/);
 assert.match(signedInRestore, /routeAfterSplash\("restoringSpace"\)/);
 assert.match(signedInRestore, /else if \(!restored && routeLoadedAccount\)/);
 assert.ok(
   signedInRestore.indexOf("return;") < signedInRestore.indexOf("loadLocalDemoSession()"),
   "a signed-in restore failure cannot fall through to local fixture/session state"
+);
+assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 1/);
+assert.match(
+  app,
+  /async function loadStartupAccountState[\s\S]*isTransientAccountRestoreError\(error\)[\s\S]*retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/,
+  "cold-start recovery must retry only explicit transient failures and remain bounded"
+);
+assert.match(
+  app,
+  /async function restoreExistingAuthSession[\s\S]{0,260}restoreAccountForStatus\(status, true, true\)/,
+  "only initial existing-session restoration opts into the bounded transient retry"
 );
 
 assert.match(profileFunction, /PROFILE_ALREADY_EXISTS/);

@@ -41,6 +41,7 @@ import {
 } from "./src/services/profile";
 import {
   AccountRestoreError,
+  isTransientAccountRestoreError,
   loadSupabaseAccountState,
   type RestoredReflectionThread,
   type SupabaseAccountState
@@ -102,6 +103,8 @@ type CareCircleItem = {
 
 const STARTER_CREDITS = 50;
 const BIRTH_DETAIL_CHANGE_LIMIT = 3;
+const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 1;
+const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600;
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
   "Help me understand one repeating pattern.",
@@ -334,13 +337,19 @@ export default function App() {
     return false;
   }
 
-  async function restoreAccountForStatus(status: AuthStatus, routeLoadedAccount = false) {
+  async function restoreAccountForStatus(
+    status: AuthStatus,
+    routeLoadedAccount = false,
+    retryTransientStartupFailure = false
+  ) {
     if (status.isConfigured && status.user) {
       setAccountLoadStatus("loading");
       setAccountLoadMessage("Loading your Lumis profile...");
 
       try {
-        const accountState = await loadSupabaseAccountState(status.user.id);
+        const accountState = retryTransientStartupFailure
+          ? await loadStartupAccountState(status.user.id)
+          : await loadSupabaseAccountState(status.user.id);
         const restored = applySupabaseAccountState(accountState);
         if (restored && routeLoadedAccount) {
           routeAfterSplash("chat");
@@ -522,7 +531,9 @@ export default function App() {
 
     async function restoreExistingAuthSession() {
       try {
-        await applyRefreshedAuthStatus(await getAuthStatus());
+        const status = await getAuthStatus();
+        setAuthStatus(status);
+        await restoreAccountForStatus(status, true, true);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -1326,6 +1337,28 @@ function safeAccountRestoreMessage(error: unknown): string {
   return error instanceof AccountRestoreError
     ? error.message
     : "Lumis could not load your saved account right now. Your data was not changed.";
+}
+
+async function loadStartupAccountState(userId: string): Promise<SupabaseAccountState> {
+  let retryCount = 0;
+
+  while (true) {
+    try {
+      return await loadSupabaseAccountState(userId);
+    } catch (error) {
+      if (
+        !isTransientAccountRestoreError(error) ||
+        retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES
+      ) {
+        throw error;
+      }
+
+      retryCount += 1;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS);
+      });
+    }
+  }
 }
 
 function ChartPreviewScreen({

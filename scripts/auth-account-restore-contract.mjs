@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+class AccountRestoreSimulationError extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
+
 const app = readFileSync("apps/mobile/App.tsx", "utf8");
 const authService = readFileSync("apps/mobile/src/services/auth.ts", "utf8");
 const accountState = readFileSync("apps/mobile/src/services/accountState.ts", "utf8");
@@ -785,6 +792,32 @@ assert.match(
   /birthData\.active_chart_version !== profile\.chart_version/
 );
 assert.match(accountState, /"ACCOUNT_DATA_INCOMPLETE"/);
+assert.match(accountState, /"ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE"/);
+assert.match(
+  accountState,
+  /export function isTransientAccountRestoreError[\s\S]{0,220}error\.code === "ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE"/,
+  "only the explicit transient account-data code may enter startup recovery"
+);
+assert.match(
+  accountState,
+  /status === 408 \|\| status === 429 \|\| status >= 500/,
+  "temporary required-read status codes must be classified without exposing diagnostics"
+);
+assert.match(
+  accountState,
+  /if \(sessionError\) \{\s*throw new AccountRestoreError\(\s*"ACCOUNT_AUTH_REQUIRED"/,
+  "session verification failure must remain an authentication error"
+);
+assert.match(
+  accountState,
+  /if \(!userId\) \{\s*throw new AccountRestoreError\(\s*"ACCOUNT_AUTH_REQUIRED"/,
+  "a missing authenticated user must remain an authentication error"
+);
+assert.match(
+  accountState,
+  /if \(requiredError\) \{\s*throw new AccountRestoreError\(\s*isTransientRequiredReadError\(requiredError\)/,
+  "transient classification must be limited to required account reads"
+);
 assert.match(
   accountState,
   /const requiredError = userResult\.error \?\? birthResult\.error \?\? profileResult\.error/
@@ -794,6 +827,79 @@ assert.doesNotMatch(
   /requiredError[\s\S]{0,120}balanceResult|firstError/,
   "optional enrichment cannot reject an otherwise authoritative chart"
 );
+assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 1/);
+assert.match(app, /const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600/);
+const startupLoader = extractRange(
+  app,
+  "async function loadStartupAccountState",
+  "function ChartPreviewScreen"
+);
+assert.match(startupLoader, /return await loadSupabaseAccountState\(userId\)/);
+assert.match(startupLoader, /isTransientAccountRestoreError\(error\)/);
+assert.match(
+  startupLoader,
+  /retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/,
+  "startup restoration must stop after one bounded retry"
+);
+assert.match(
+  startupLoader,
+  /setTimeout\(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS\)/,
+  "the one retry must remain inside the loading state while native networking settles"
+);
+assert.doesNotMatch(
+  startupLoader,
+  /loadLocalDemoSession|setScreen\("profile"\)|noChart|clearVisibleAccountState/,
+  "startup retry cannot create local state or route an existing account to chart creation"
+);
+const startupRestore = extractRange(
+  app,
+  "async function restoreExistingAuthSession",
+  "async function restoreAfterAuthRedirect"
+);
+assert.match(startupRestore, /restoreAccountForStatus\(status, true, true\)/);
+assert.match(
+  signedInRestore,
+  /retryTransientStartupFailure[\s\S]{0,260}loadStartupAccountState\(status\.user\.id\)/,
+  "the bounded retry must be opt-in for cold-start restoration only"
+);
+assert.doesNotMatch(
+  restoreSpace,
+  /loadStartupAccountState/,
+  "manual Retry must remain one visible authoritative reload rather than nesting automatic retries"
+);
+
+let transientAttempts = 0;
+const recoveredStartupAccount = await simulateBoundedStartupRestore(async () => {
+  transientAttempts += 1;
+  if (transientAttempts === 1) {
+    throw new AccountRestoreSimulationError("ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE");
+  }
+  return { status: "loaded", chartVersion: 2 };
+});
+assert.deepEqual(recoveredStartupAccount, { status: "loaded", chartVersion: 2 });
+assert.equal(transientAttempts, 2, "one transient cold-start failure must retry exactly once");
+
+let terminalAttempts = 0;
+await assert.rejects(
+  () =>
+    simulateBoundedStartupRestore(async () => {
+      terminalAttempts += 1;
+      throw new AccountRestoreSimulationError("ACCOUNT_DATA_INCOMPLETE");
+    }),
+  /ACCOUNT_DATA_INCOMPLETE/
+);
+assert.equal(terminalAttempts, 1, "incomplete or mismatched account data must not retry");
+
+let exhaustedAttempts = 0;
+await assert.rejects(
+  () =>
+    simulateBoundedStartupRestore(async () => {
+      exhaustedAttempts += 1;
+      throw new AccountRestoreSimulationError("ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE");
+    }),
+  /ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE/
+);
+assert.equal(exhaustedAttempts, 2, "transient startup recovery must stop after one retry");
 assert.match(accountState, /threadsResult\.error \? \[\]/);
 assert.match(accountState, /reflectionHistoryStatus: reflectionHistoryUnavailable \? "unavailable" : "loaded"/);
 assert.match(
@@ -906,6 +1012,25 @@ async function simulateAuthoritativeSignOut({ state, signOutImpl }) {
   await signOutImpl();
   state.localSession = "cleared";
   state.visibleAccount = "cleared";
+}
+
+async function simulateBoundedStartupRestore(load) {
+  let retryCount = 0;
+
+  while (true) {
+    try {
+      return await load();
+    } catch (error) {
+      if (
+        !(error instanceof AccountRestoreSimulationError) ||
+        error.code !== "ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE" ||
+        retryCount >= 1
+      ) {
+        throw error;
+      }
+      retryCount += 1;
+    }
+  }
 }
 
 async function simulateResend({ state, resendImpl }) {
