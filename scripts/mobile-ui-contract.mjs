@@ -319,6 +319,16 @@ for (const [name, source] of [
 }
 assert.match(diceRitualSource, /activeQuestionRef\.current = normalizedQuestion/);
 assert.match(diceSource, /const normalizedQuestion = normalizeDiceQuestion\(question\)/);
+assert.match(
+  diceRitualSource,
+  /const rethrow = useCallback\(\(\) => \{[\s\S]{0,900}questionRef\.current = nextQuestion\.draft[\s\S]{0,240}activeQuestionRef\.current = nextQuestion\.activeQuestion[\s\S]{0,240}setQuestion\(nextQuestion\.draft\)[\s\S]{0,240}transition\("IDLE"\)/,
+  "Physics Dice must clear both draft and submitted question state before another throw"
+);
+assert.match(
+  diceSource,
+  /function reset\(\) \{[\s\S]{0,260}setQuestion\(nextQuestion\.draft\)[\s\S]{0,160}setActiveQuestion\(nextQuestion\.activeQuestion\)/,
+  "fallback Dice must require a new question after Roll again"
+);
 assert.match(diceHistorySource, /const QUESTION_UNAVAILABLE = "Question unavailable"/);
 for (const [name, source] of [
   ["Profile", profileScreenSource],

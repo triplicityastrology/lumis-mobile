@@ -27,7 +27,7 @@ import { configureSecureRandom, secureRandom, seededRandom } from "./rng";
 import { cradleTick, landingThump, mixTick, releaseImpact, resultTap } from "./haptics";
 import { saveDiceThrow } from "../../services/diceThrows";
 import { DiceHistorySheet, type SessionRoll } from "./DiceHistorySheet";
-import { normalizeDiceQuestion } from "./question";
+import { beginNewDiceQuestion, normalizeDiceQuestion } from "./question";
 import { useMotionGestures } from "./useMotionGestures";
 
 configureSecureRandom(getRandomValues);
@@ -311,6 +311,7 @@ export function DiceRitualScreen({
   );
 
   const rethrow = useCallback(() => {
+    const nextQuestion = beginNewDiceQuestion();
     setSaveError(false);
     dimAnim.setValue(0);
     cardAnim.setValue(0);
@@ -322,7 +323,9 @@ export function DiceRitualScreen({
     glowRef.current = 0;
     setSymbols(null);
     setShowTapThrow(false);
-    activeQuestionRef.current = null;
+    questionRef.current = nextQuestion.draft;
+    activeQuestionRef.current = nextQuestion.activeQuestion;
+    setQuestion(nextQuestion.draft);
     transition("IDLE");
   }, [cardAnim, dimAnim, transition]);
 

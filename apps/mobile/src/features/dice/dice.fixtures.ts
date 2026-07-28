@@ -17,6 +17,7 @@ import {
   createWorld, groundDie, launch, resolveSettledFaces, stepWorld, FIXED_STEP
 } from "./physics";
 import {
+  beginNewDiceQuestion,
   DICE_QUESTION_REQUIRED,
   normalizeDiceQuestion,
   requireDiceQuestion
@@ -45,6 +46,11 @@ check(
   normalizeDiceQuestion("  Should   I go?  ") === "Should I go?"
 );
 check("empty question normalizes to empty", normalizeDiceQuestion(" \n\t ") === "");
+const nextQuestion = beginNewDiceQuestion();
+check(
+  "new throw cannot inherit the previous submitted question",
+  nextQuestion.draft === "" && nextQuestion.activeQuestion === null
+);
 let emptyQuestionRejected = false;
 try {
   requireDiceQuestion("   ");

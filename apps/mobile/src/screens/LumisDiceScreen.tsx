@@ -9,7 +9,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import Svg, { Polygon } from "react-native-svg";
 
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
-import { normalizeDiceQuestion } from "../features/dice/question";
+import { beginNewDiceQuestion, normalizeDiceQuestion } from "../features/dice/question";
 import { colors, radii, spacing } from "../theme/tokens";
 
 type DiceStep = "ask" | "shake" | "result";
@@ -131,7 +131,11 @@ export function LumisDiceScreen({
   }
 
   function reset() {
+    const nextQuestion = beginNewDiceQuestion();
     cancelRoll();
+    setQuestion(nextQuestion.draft);
+    setActiveQuestion(nextQuestion.activeQuestion);
+    setQuestionError("");
   }
 
   const resultTitle = result ? `${result[0].name} in ${result[1].name}, ${result[2].name}.` : "";
