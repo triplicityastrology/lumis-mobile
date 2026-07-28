@@ -36,3 +36,26 @@ export {
   type SafeChatChartContext
 } from "./chat-chart-context";
 export { allowsFixtureFallbackForEnvironment } from "./chart-worker-config";
+export {
+  NATAL_FACT_RULE_VERSION,
+  canonicalizeNatalPointKey,
+  canonicalizeZodiacSign,
+  deriveMoonSignFromLocalDayEndpoints,
+  deriveTimedNatalFact,
+  deriveTraditionalChartRuler,
+  deriveTraditionalHouseRuler,
+  isCanonicalNatalAngleKey,
+  resolveBirthTimeAvailability,
+  resolveBirthTimeCapabilities,
+  traditionalRulerForSign,
+  type BirthTimeAvailability,
+  type BirthTimeCapabilities,
+  type CanonicalNatalAngleKey,
+  type CanonicalNatalBodyKey,
+  type CanonicalNatalPointKey,
+  type CanonicalZodiacSign,
+  type NatalDerivedFact,
+  type NatalFactCapabilityRequirement,
+  type NatalFactReason,
+  type TimedNatalCapability,
+} from "./natal-facts";
