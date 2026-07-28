@@ -183,7 +183,13 @@ export default function App() {
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
   const isMainTabScreen =
     screen === "chat" || screen === "insights" || screen === "dice" || screen === "profileTab";
-  const mainTabViewportInsets = isMainTabScreen
+  const usesPersistentNavigationInsets =
+    isMainTabScreen ||
+    screen === "home" ||
+    screen === "auth" ||
+    screen === "persona" ||
+    screen === "reflections";
+  const persistentNavigationInsets = usesPersistentNavigationInsets
     ? {
         paddingTop: stableSafeAreaInsets.top,
         paddingLeft: stableSafeAreaInsets.left,
@@ -993,7 +999,7 @@ export default function App() {
       <View
         collapsable={false}
         onLayout={recordScreenViewportLayout}
-        style={[styles.screenViewport, mainTabViewportInsets]}
+        style={[styles.screenViewport, persistentNavigationInsets]}
       >
         {renderScreen()}
       </View>
@@ -1602,7 +1608,7 @@ function PersonaStyleScreen({
     const selectedAvatar = PERSONA_AVATARS.find((avatar) => avatar.key === avatarKey) ?? PERSONA_AVATARS[5];
 
     return (
-      <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.personaSafe}>
+      <SafeAreaViewCtx edges={["bottom"]} style={styles.personaSafe}>
         <StatusBar style="light" />
         <ScrollView
           contentContainerStyle={styles.personaContent}
@@ -1701,7 +1707,7 @@ function PersonaStyleScreen({
   }
 
   return (
-    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.personaSafe}>
+    <SafeAreaViewCtx edges={["bottom"]} style={styles.personaSafe}>
       <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.personaContent}
@@ -2171,7 +2177,7 @@ function PastReflectionsScreen({
     : visibleThreads;
 
   return (
-    <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.lumisDarkSafe}>
+    <SafeAreaViewCtx edges={["bottom"]} style={styles.lumisDarkSafe}>
       <StatusBar style="light" />
       <View style={styles.reflectionsShell}>
         <View style={styles.reflectionsHeader}>

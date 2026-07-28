@@ -48,7 +48,7 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
   const rising = findPoint(props.chart, "ascendant");
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView edges={[]} style={styles.safe}>
       <View style={styles.appFrame}>
         <View style={styles.header}>
           <View style={styles.identityRow}>
@@ -169,7 +169,7 @@ function WelcomeState(props: LumisHomeScreenProps) {
       : props.onAccount;
 
   return (
-    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
+    <SafeAreaView edges={["bottom"]} style={styles.safe}>
       <View style={styles.appFrame}>
         <View style={styles.welcomeHeader}>
           <View style={styles.markRow}>

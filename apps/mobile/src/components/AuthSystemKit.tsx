@@ -134,7 +134,7 @@ export function SkyWheelLoader({ label }: { label?: string }) {
 // ---- Sky-backed shell for full-screen system states ----
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.shell}>
+    <SafeAreaView edges={["bottom"]} style={styles.shell}>
       <StatusBar style="light" />
       <View style={styles.shellBody}>{children}</View>
     </SafeAreaView>

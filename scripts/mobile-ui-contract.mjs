@@ -172,7 +172,7 @@ assert.equal(
 );
 assert.match(
   appSource,
-  /<View[\s\S]{0,180}collapsable=\{false\}[\s\S]{0,180}onLayout=\{recordScreenViewportLayout\}[\s\S]{0,180}style=\{\[styles\.screenViewport, mainTabViewportInsets\]\}[\s\S]{0,120}\{renderScreen\(\)\}/,
+  /<View[\s\S]{0,180}collapsable=\{false\}[\s\S]{0,180}onLayout=\{recordScreenViewportLayout\}[\s\S]{0,180}style=\{\[styles\.screenViewport, persistentNavigationInsets\]\}[\s\S]{0,120}\{renderScreen\(\)\}/,
   "root navigation must swap content inside one persistent native viewport"
 );
 assert.match(
@@ -194,6 +194,26 @@ assert.match(
   appSource,
   /paddingTop: stableSafeAreaInsets\.top[\s\S]{0,120}paddingLeft: stableSafeAreaInsets\.left[\s\S]{0,120}paddingRight: stableSafeAreaInsets\.right/,
   "main-tab top and side insets must be applied by the persistent viewport"
+);
+assert.match(
+  appSource,
+  /const usesPersistentNavigationInsets =[\s\S]{0,360}isMainTabScreen[\s\S]{0,360}screen === "home"[\s\S]{0,360}screen === "auth"[\s\S]{0,360}screen === "persona"[\s\S]{0,360}screen === "reflections"/,
+  "Back-context sources and destinations must retain one persistent top/side safe-area owner"
+);
+assert.match(
+  appSource,
+  /function PersonaStyleScreen[\s\S]*?<SafeAreaViewCtx edges=\{\["bottom"\]\}[\s\S]*?function PastReflectionsScreen[\s\S]*?<SafeAreaViewCtx edges=\{\["bottom"\]\}/,
+  "Persona and Past Reflections cannot remount a native top inset during contextual Back"
+);
+assert.match(
+  authSystemKit,
+  /export function AuthShell[\s\S]{0,180}<SafeAreaView edges=\{\["bottom"\]\}/,
+  "Manage sign-in must leave top/side safe-area ownership on the persistent viewport"
+);
+assert.match(
+  homeScreenSource,
+  /export function LumisHomeScreen[\s\S]*?<SafeAreaView edges=\{\[\]\}[\s\S]*?function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["bottom"\]\}/,
+  "Home cannot remount a native top inset when contextual Back restores it"
 );
 assert.match(
   appSource,
@@ -332,13 +352,13 @@ for (const [name, source] of [
 }
 assert.match(
   homeScreenSource,
-  /function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/,
-  "signed-out Home must retain full safe-area ownership when entering Auth"
+  /function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["bottom"\]\}/,
+  "signed-out Home must retain stable bottom ownership while the root owns top and side insets"
 );
 assert.match(
   homeScreenSource,
-  /export function LumisHomeScreen[\s\S]*?<SafeAreaView edges=\{\["top", "left", "right"\]\}/,
-  "loaded Home must leave the bottom inset to the persistent main tab bar"
+  /export function LumisHomeScreen[\s\S]*?<SafeAreaView edges=\{\[\]\}/,
+  "loaded Home must leave safe-area ownership to the persistent viewport and main tab bar"
 );
 assert.doesNotMatch(
   appSource,
@@ -352,7 +372,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function PastReflectionsScreen[\s\S]*?<SafeAreaViewCtx edges=\{\["top", "left", "right", "bottom"\]\}/
+  /function PastReflectionsScreen[\s\S]*?<SafeAreaViewCtx edges=\{\["bottom"\]\}/
 );
 assert.match(
   notificationCenterSource,
