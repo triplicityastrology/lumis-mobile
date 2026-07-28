@@ -1,6 +1,7 @@
 import {
   classifyChatRoute,
   getChatRouteDecision,
+  isSolarReturnRequest,
   type ChartV2,
   type ChatRoute,
   type PersonaStyleKey
@@ -92,6 +93,7 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
 function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult {
   const chartContext = buildSafeChatChartContext(input.chart);
   const route = classifyChatRoute(input.message);
+  const solarReturnRequest = isSolarReturnRequest(input.message);
   const routeDecision = getChatRouteDecision(route);
   const chartPhrase =
     chartContext.sun && chartContext.moon
@@ -104,11 +106,16 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
     creditsCost: routeDecision.credits,
     remainingCredits: 50,
     billingMode: "local_demo",
-    reply: buildLocalReplyText(route, chartPhrase, input.personaStyle)
+    reply: buildLocalReplyText(route, chartPhrase, input.personaStyle, solarReturnRequest)
   };
 }
 
-function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle: PersonaStyleKey): string {
+function buildLocalReplyText(
+  route: ChatRoute,
+  chartPhrase: string,
+  personaStyle: PersonaStyleKey,
+  solarReturnRequest: boolean
+): string {
   const stylePhrase =
     personaStyle === "spark"
       ? " I will keep this exploratory and a little provocative."
@@ -118,6 +125,10 @@ function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle
 
   if (route === "safety") {
     return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
+  }
+
+  if (solarReturnRequest) {
+    return "Solar Return is not part of Lumis.";
   }
 
   if (route === "out_of_scope") {

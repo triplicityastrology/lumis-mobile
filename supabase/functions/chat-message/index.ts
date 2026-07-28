@@ -1,6 +1,10 @@
 import { corsHeaders, handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 import { buildSafeChatChartContext } from "../../../packages/astrology/src/chat-chart-context.ts";
+import {
+  classifyChatRoute,
+  isSolarReturnRequest
+} from "../../../packages/shared/src/config/chat-router.ts";
 import { ROUTE_CREDITS as SHARED_ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
 
@@ -446,7 +450,9 @@ function getSafePersistenceErrorCode(error: unknown): string {
 }
 
 function buildChatResponse(body: ChatMessageRequest) {
-  const route = classifyChatRoute(body.message ?? "");
+  const message = body.message ?? "";
+  const route = classifyChatRoute(message);
+  const solarReturnRequest = isSolarReturnRequest(message);
   const credits = ROUTE_CREDITS[route];
   const chartPhrase =
     body.chart_context?.sun && body.chart_context?.moon
@@ -466,47 +472,22 @@ function buildChatResponse(body: ChatMessageRequest) {
     estimated_credits_cost: credits,
     remaining_credits: null,
     billing_mode: "scaffold_no_charge",
-    reply: buildReplyText(route, chartPhrase, stylePhrase)
+    reply: buildReplyText(route, chartPhrase, stylePhrase, solarReturnRequest)
   };
 }
 
-function classifyChatRoute(message: string): ChatRoute {
-  const normalized = message.toLowerCase();
-
-  if (/(self harm|suicide|kill myself|hurt myself|危險|自殺|傷害自己)/i.test(normalized)) {
-    return "safety";
-  }
-
-  if (/(medical|legal|tax|investment|diagnose|醫療|法律|投資|診斷)/i.test(normalized)) {
-    return "out_of_scope";
-  }
-
-  if (/(solar return|solar_return|太陽回歸|太陽返照)/i.test(normalized)) {
-    return "out_of_scope";
-  }
-
-  if (/(dice|roll|骰|骰子)/i.test(normalized)) {
-    return "dice";
-  }
-
-  if (/(transit|timing|this month|this week|forecast|今年|本月|流年|時機|運勢)/i.test(normalized)) {
-    return "astro_timing";
-  }
-
-  if (/(deep|chart|birth chart|natal|pattern|moon|sun|rising|house|aspect|深入|星盤|模式|上升)/i.test(normalized)) {
-    return "astro_deep";
-  }
-
-  if (/(what is|explain|meaning|astrology|planet|zodiac|venus|mars|意思|解釋|占星)/i.test(normalized)) {
-    return "knowledge";
-  }
-
-  return "casual";
-}
-
-function buildReplyText(route: ChatRoute, chartPhrase: string, stylePhrase: string): string {
+function buildReplyText(
+  route: ChatRoute,
+  chartPhrase: string,
+  stylePhrase: string,
+  solarReturnRequest: boolean
+): string {
   if (route === "safety") {
     return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
+  }
+
+  if (solarReturnRequest) {
+    return "Solar Return is not part of Lumis.";
   }
 
   if (route === "out_of_scope") {

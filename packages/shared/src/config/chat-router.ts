@@ -12,6 +12,39 @@ export type ChatRouteFixture = {
   expectedRoute: ChatRoute;
 };
 
+export const SOLAR_RETURN_ROUTE_FIXTURES: ChatRouteFixture[] = [
+  {
+    name: "solar return abbreviated interpretation excluded",
+    message: "Can you interpret my SR?",
+    expectedRoute: "out_of_scope"
+  },
+  {
+    name: "solar return full name excluded",
+    message: "Can you interpret my Solar Return?",
+    expectedRoute: "out_of_scope"
+  },
+  {
+    name: "annual theme excluded",
+    message: "What is my annual theme?",
+    expectedRoute: "out_of_scope"
+  },
+  {
+    name: "traditional Chinese solar return excluded",
+    message: "可以解讀我的太陽回歸嗎？",
+    expectedRoute: "out_of_scope"
+  },
+  {
+    name: "traditional Chinese annual theme excluded",
+    message: "我的年度主題是甚麼？",
+    expectedRoute: "out_of_scope"
+  },
+  {
+    name: "ordinary honorific sr is not solar return",
+    message: "I spoke with Sr. Alvarez today.",
+    expectedRoute: "casual"
+  }
+];
+
 export const CHAT_ROUTE_FIXTURES: ChatRouteFixture[] = [
   {
     name: "casual reflection",
@@ -33,11 +66,7 @@ export const CHAT_ROUTE_FIXTURES: ChatRouteFixture[] = [
     message: "What should I pay attention to this week with transits?",
     expectedRoute: "astro_timing"
   },
-  {
-    name: "solar return excluded",
-    message: "Can you interpret my Solar Return chart?",
-    expectedRoute: "out_of_scope"
-  },
+  ...SOLAR_RETURN_ROUTE_FIXTURES,
   {
     name: "deep natal pattern",
     message: "Can you read the deeper pattern in my Moon and rising?",
@@ -55,6 +84,19 @@ export const CHAT_ROUTE_FIXTURES: ChatRouteFixture[] = [
   }
 ];
 
+export function isSolarReturnRequest(message: string): boolean {
+  const normalized = message.toLowerCase();
+  const namesSolarReturn =
+    /(solar[\s_-]*return|annual theme|太陽回歸|太陽返照|年度主題)/i.test(normalized);
+  const usesContextualAbbreviation =
+    /\bsr\b/i.test(message) &&
+    /(interpret|reading|read|chart|astrolog|meaning|theme|解讀|詮釋|星盤|占星|意義|主題)/i.test(
+      normalized
+    );
+
+  return namesSolarReturn || usesContextualAbbreviation;
+}
+
 export function classifyChatRoute(message: string): ChatRoute {
   const normalized = message.toLowerCase();
 
@@ -66,7 +108,7 @@ export function classifyChatRoute(message: string): ChatRoute {
     return "out_of_scope";
   }
 
-  if (/(solar return|solar_return|太陽回歸|太陽返照)/i.test(normalized)) {
+  if (isSolarReturnRequest(message)) {
     return "out_of_scope";
   }
 

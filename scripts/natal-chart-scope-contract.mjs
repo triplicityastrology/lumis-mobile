@@ -62,17 +62,62 @@ for (const [name, source] of [
   ["shared router", chatRouter],
   ["Edge chat router", chatFunction]
 ]) {
-  const exclusion = source.indexOf("solar return|solar_return");
-  const timing = source.indexOf("transit|timing|this month");
-  assert.ok(exclusion >= 0 && timing > exclusion, `${name} must reject Solar Return before timing routing`);
+  assert.doesNotMatch(
+    source,
+    /Solar Return is temporarily unavailable|timing analysis/i,
+    `${name} cannot describe Solar Return as temporary or offer a timing reading`
+  );
 }
 
 assert.match(
   chatRouter,
-  /name: "solar return excluded"[\s\S]{0,180}expectedRoute: "out_of_scope"/
+  /export function isSolarReturnRequest[\s\S]*solar\[\\s_-\]\*return[\s\S]*annual theme[\s\S]*年度主題/
+);
+assert.match(
+  chatRouter,
+  /\\bsr\\b[\s\S]*interpret\|reading\|read\|chart\|astrolog\|meaning\|theme/,
+  "standalone SR must require chart or interpretation context"
+);
+for (const fixtureName of [
+  "solar return abbreviated interpretation excluded",
+  "solar return full name excluded",
+  "annual theme excluded",
+  "traditional Chinese solar return excluded",
+  "traditional Chinese annual theme excluded"
+]) {
+  const fixtureStart = chatRouter.indexOf(`name: "${fixtureName}"`);
+  assert.ok(
+    fixtureStart >= 0 &&
+      chatRouter.slice(fixtureStart, fixtureStart + 180).includes('expectedRoute: "out_of_scope"'),
+    `${fixtureName} must be covered by the shared route fixtures`
+  );
+}
+assert.match(
+  chatRouter,
+  /name: "ordinary honorific sr is not solar return"[\s\S]{0,180}expectedRoute: "casual"/,
+  "ordinary uses of Sr. cannot be classified as Solar Return"
+);
+assert.match(
+  chatFunction,
+  /classifyChatRoute,[\s\S]*isSolarReturnRequest[\s\S]*packages\/shared\/src\/config\/chat-router\.ts/,
+  "the Edge chat route must use the shared Solar Return classifier"
+);
+for (const [name, source] of [
+  ["Edge chat", chatFunction],
+  ["local chat", localChat]
+]) {
+  assert.match(
+    source,
+    /if \(solarReturnRequest\) \{\s*return "Solar Return is not part of Lumis\.";/,
+    `${name} must use the approved Solar Return product boundary`
+  );
+}
+assert.doesNotMatch(
+  `${chatFunction}\n${localChat}`,
+  /Solar Return is temporarily unavailable|timing analysis/i,
+  "Solar Return handling cannot describe the feature as temporary or offer timing analysis"
 );
 assert.doesNotMatch(routes, /solar return/i);
 assert.doesNotMatch(entitlements, /solar return/i);
-assert.doesNotMatch(localChat, /solar return/i);
 
 console.log("natal-only chart, storage, client, and AI-context scope checks passed");

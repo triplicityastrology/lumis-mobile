@@ -105,6 +105,16 @@ assert.match(
   /ROUTE_CREDITS as SHARED_ROUTE_CREDITS[\s\S]*SHARED_ROUTE_CREDITS\.map/,
   "Edge Function must derive estimated route costs from the shared route table"
 );
+assert.match(
+  edgeSource,
+  /classifyChatRoute,[\s\S]*isSolarReturnRequest[\s\S]*config\/chat-router\.ts/,
+  "Edge Function must use the shared router for Solar Return exclusion"
+);
+assert.match(
+  edgeSource,
+  /if \(solarReturnRequest\) \{\s*return "Solar Return is not part of Lumis\.";/,
+  "Edge Function must return the approved Solar Return boundary without offering a reading"
+);
 assert.doesNotMatch(
   edgeSource,
   /const ROUTE_CREDITS[^=]*=\s*\{[\s\S]*casual:\s*1/,
