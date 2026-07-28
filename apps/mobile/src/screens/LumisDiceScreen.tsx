@@ -5,7 +5,10 @@ import Dices from "lucide-react-native/icons/dices";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, TextInput,
+  useWindowDimensions, View
+} from "react-native";
 import Svg, { Polygon } from "react-native-svg";
 
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
@@ -45,6 +48,8 @@ export function LumisDiceScreen({
   onBack?: () => void;
 }) {
   void onBack;
+  const { fontScale, width } = useWindowDimensions();
+  const stackResultActions = width < 340 || fontScale >= 1.5;
   const [step, setStep] = useState<DiceStep>("ask");
   const [question, setQuestion] = useState("");
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
@@ -270,11 +275,27 @@ export function LumisDiceScreen({
               <Text style={styles.reflectLabel}>A QUESTION TO SIT WITH</Text>
               <Text style={styles.reflectQuestion}>What would become clearer if you treated this roll as a new angle rather than an answer?</Text>
             </View>
-            <View style={styles.resultActions}>
-              <Pressable onPress={reset} style={styles.secondaryButton}><Dices color={colors.ice} size={18} /><Text style={styles.secondaryText}>Roll again</Text></Pressable>
-              <Pressable onPress={() => onReflect(reflectionPrompt)} style={styles.chatButton}><MessageCircle color={colors.gold} size={18} /><Text style={styles.chatText}>Save this reflection</Text></Pressable>
+            <View style={[styles.resultActions, stackResultActions && styles.resultActionsStacked]}>
+              <Pressable
+                onPress={reset}
+                style={[styles.secondaryButton, stackResultActions && styles.resultActionStacked]}
+              >
+                <Dices color={colors.ice} size={18} />
+                <Text numberOfLines={stackResultActions ? undefined : 1} style={styles.secondaryText}>
+                  Roll again
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => onReflect(reflectionPrompt)}
+                style={[styles.chatButton, stackResultActions && styles.resultActionStacked]}
+              >
+                <MessageCircle color={colors.gold} size={18} />
+                <Text numberOfLines={stackResultActions ? undefined : 1} style={styles.chatText}>
+                  Reflect in Chat
+                </Text>
+              </Pressable>
             </View>
-            <Text style={styles.previewNotice}>Preview — no credits charged</Text>
+            <Text style={styles.previewNotice}>Dice reading preview.</Text>
             <Text style={styles.note}>Dice are a mirror for reflection, not a verdict.</Text>
           </ScrollView>
         ) : null}
@@ -354,10 +375,12 @@ const styles = StyleSheet.create({
   reflectLabel: { color: colors.gold, fontSize: 8.5, fontWeight: "700", letterSpacing: 1.1 },
   reflectQuestion: { color: colors.ice, fontFamily: "Georgia", fontSize: 16, lineHeight: 23, marginTop: 7 },
   resultActions: { flexDirection: "row", gap: 9, marginTop: 18 },
+  resultActionsStacked: { flexDirection: "column" },
   secondaryButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, flex: 1, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 50 },
   secondaryText: { color: colors.ice, fontSize: 12, fontWeight: "700" },
-  chatButton: { alignItems: "center", borderColor: colors.gold, borderRadius: radii.md, borderWidth: 1, flex: 1.25, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 50 },
+  chatButton: { alignItems: "center", borderColor: colors.gold, borderRadius: radii.md, borderWidth: 1, flex: 1.65, flexDirection: "row", gap: 7, justifyContent: "center", minHeight: 50 },
   chatText: { color: colors.gold, fontSize: 11.5, fontWeight: "700" },
+  resultActionStacked: { flex: 0, width: "100%" },
   octa: { alignItems: "center", justifyContent: "center" },
   octaGlyph: { color: colors.goldLight, fontFamily: "Georgia", fontWeight: "700", position: "absolute", textAlign: "center", width: "70%" }
 });

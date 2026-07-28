@@ -86,14 +86,16 @@ assert.doesNotMatch(profileScreenSource, /Credit balance|onPlans|planTier|remain
 assert.doesNotMatch(profileScreenSource, /Export my data|Data export/);
 assert.match(
   diceSource,
-  /Preview — no credits charged/,
-  "the fallback Dice preview must disclose its no-charge state"
+  /Dice reading preview\./,
+  "the fallback Dice result must use neutral preview wording"
 );
 assert.match(
   diceRitualSource,
-  /Preview — no credits charged/,
-  "the default Dice preview must disclose its no-charge state"
+  /Dice reading preview\./,
+  "the default Dice result must use neutral preview wording"
 );
+assert.doesNotMatch(diceSource, /credits charged|price|payment|top-up|purchase/i);
+assert.doesNotMatch(diceRitualSource, /credits charged|price|payment|top-up|purchase/i);
 assert.doesNotMatch(appSource, /accessibilityLabel="Credit estimate"/i);
 assert.doesNotMatch(appSource, /test mode:\s*no charge/i);
 assert.match(mainTabBarSource, /label: "Talk"/);
@@ -303,7 +305,7 @@ assert.match(insightsSource, /accessibilityLabel="Notifications"/);
 assert.match(diceSource, /type DiceStep = "ask" \| "shake" \| "result"/);
 assert.match(diceSource, /Accelerometer\.addListener/);
 assert.match(diceSource, /<OctaDie/);
-assert.match(diceSource, /Save this reflection/);
+assert.match(diceSource, /Reflect in Chat/);
 assert.match(diceSource, /function cancelRoll\(\)[\s\S]{0,160}clearRollTimers\(\)/);
 assert.match(diceSource, /onPress=\{step === "result" \? reset : cancelRoll\}/);
 for (const [name, source] of [
@@ -329,6 +331,25 @@ assert.match(
   /function reset\(\) \{[\s\S]{0,260}setQuestion\(nextQuestion\.draft\)[\s\S]{0,160}setActiveQuestion\(nextQuestion\.activeQuestion\)/,
   "fallback Dice must require a new question after Roll again"
 );
+for (const [name, source] of [
+  ["default Dice ritual", diceRitualSource],
+  ["fallback Dice screen", diceSource]
+]) {
+  assert.match(
+    source,
+    /const stackResultActions = width < 340 \|\| fontScale >= 1\.5/,
+    `${name} must stack result actions for narrow screens or large Dynamic Type`
+  );
+  assert.match(
+    source,
+    /numberOfLines=\{(?:singleLine \? 1 : undefined|stackResultActions \? undefined : 1)\}/,
+    `${name} must keep normal-width labels on one line without clipping large text`
+  );
+}
+assert.match(diceRitualSource, /sheetActionRoll: \{ flex: 1 \}/);
+assert.match(diceRitualSource, /sheetActionReflect: \{ flex: 1\.65 \}/);
+assert.match(diceSource, /secondaryButton:[\s\S]{0,220}flex: 1/);
+assert.match(diceSource, /chatButton:[\s\S]{0,220}flex: 1\.65/);
 assert.match(diceHistorySource, /const QUESTION_UNAVAILABLE = "Question unavailable"/);
 for (const [name, source] of [
   ["Profile", profileScreenSource],
@@ -578,11 +599,7 @@ async function listTsxFiles(directory) {
 }
 
 function assertNoVisibleBilling(source, surface) {
-  const sourceWithoutApprovedDiceDisclosure = source.replace(
-    /Preview — no credits charged/g,
-    "Preview"
-  );
-  const visibleBillingStrings = [...sourceWithoutApprovedDiceDisclosure.matchAll(
+  const visibleBillingStrings = [...source.matchAll(
     /["'`]([^"'`\n]*(?:\bcredits?\b|\bunits?\b|\bbilling\b|\bpaywall\b|\btop[- ]?up\b|\bpurchase\b|\bpayment\b|\binsufficient[- ]?credit\b|HK\$|\bcharged\b|\bcharging\b|\bcharge amount\b|\bprice\b|\bpricing\b|\bplans?\b|\bsubscriptions?\b|\bupgrade\b|\bspen(?:d|ding|t)\b)[^"'`\n]*)["'`]/gi
   )].map((match) => match[1]);
 

@@ -5,7 +5,8 @@ import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput, View
+  AccessibilityInfo, Animated, AppState, Pressable, StyleSheet, Text, TextInput,
+  useWindowDimensions, View
 } from "react-native";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
@@ -68,8 +69,14 @@ function cameraPose(zoom: number) {
 const SUNRISE = ["#E5C06B", "#E9B083", "#E89B92"] as const;
 
 function BrandButton({
-  label, onPress, style, disabled
-}: { label: string; onPress: () => void; style?: object; disabled?: boolean }) {
+  label, onPress, style, disabled, singleLine = false
+}: {
+  label: string;
+  onPress: () => void;
+  style?: object;
+  disabled?: boolean;
+  singleLine?: boolean;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -83,16 +90,27 @@ function BrandButton({
         end={{ x: 1, y: 0.35 }}
         style={styles.brandButtonGrad}
       >
-        <Text style={styles.brandButtonText}>{label}</Text>
+        <Text numberOfLines={singleLine ? 1 : undefined} style={styles.brandButtonText}>
+          {label}
+        </Text>
       </LinearGradient>
     </Pressable>
   );
 }
 
-function SoftButton({ label, onPress, style }: { label: string; onPress: () => void; style?: object }) {
+function SoftButton({
+  label, onPress, style, singleLine = false
+}: {
+  label: string;
+  onPress: () => void;
+  style?: object;
+  singleLine?: boolean;
+}) {
   return (
     <Pressable onPress={onPress} style={[styles.softButton, style]}>
-      <Text style={styles.softButtonText}>{label}</Text>
+      <Text numberOfLines={singleLine ? 1 : undefined} style={styles.softButtonText}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -108,6 +126,8 @@ export function DiceRitualScreen({
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
 }) {
+  const { fontScale, width } = useWindowDimensions();
+  const stackResultActions = width < 340 || fontScale >= 1.5;
   const [question, setQuestion] = useState("");
   const [phase, setPhase] = useState<Phase>("IDLE");
   const [symbols, setSymbols] = useState<StageSymbols | null>(null);
@@ -583,14 +603,22 @@ export function DiceRitualScreen({
             ) : null}
             {phase === "INTERPRET" ? (
               <>
-                <View style={styles.sheetActions}>
-                  <SoftButton label="Roll again" onPress={rethrow} style={styles.sheetAction} />
-                  <BrandButton label="Reflect in chat" onPress={() => onReflect(reflectionPrompt)} style={styles.sheetAction} />
+                <View style={[styles.sheetActions, stackResultActions && styles.sheetActionsStacked]}>
+                  <SoftButton
+                    label="Roll again"
+                    onPress={rethrow}
+                    singleLine={!stackResultActions}
+                    style={[styles.sheetActionRoll, stackResultActions && styles.sheetActionStacked]}
+                  />
+                  <BrandButton
+                    label="Reflect in Chat"
+                    onPress={() => onReflect(reflectionPrompt)}
+                    singleLine={!stackResultActions}
+                    style={[styles.sheetActionReflect, stackResultActions && styles.sheetActionStacked]}
+                  />
                 </View>
-                {/* The full Lumis dice interpretation (paid route) is not wired yet;
-                    "Reflect in chat" opens a free reflection and charges nothing. */}
                 <View style={styles.interpretPreviewRow}>
-                  <Text style={styles.interpretPreviewText}>Lumis dice reading · Preview — no credits charged</Text>
+                  <Text style={styles.interpretPreviewText}>Dice reading preview.</Text>
                 </View>
               </>
             ) : null}
@@ -1028,5 +1056,8 @@ const styles = StyleSheet.create({
   interpretPreviewRow: { alignItems: "center", marginTop: 10 },
   interpretPreviewText: { color: colors.muted, fontSize: 10.5, fontWeight: "600", letterSpacing: 0.3 },
   sheetActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 14 },
-  sheetAction: { flex: 1 }
+  sheetActionsStacked: { flexDirection: "column" },
+  sheetActionRoll: { flex: 1 },
+  sheetActionReflect: { flex: 1.65 },
+  sheetActionStacked: { flex: 0, width: "100%" }
 });
