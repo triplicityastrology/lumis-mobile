@@ -41,7 +41,7 @@ export const FEATURE_LABELS: Record<EntitlementFeatureKey, string> = {
   dice: "Astrology dice",
   knowledge_bank: "Triplicity knowledge",
   natal_chat: "Natal chart chat",
-  personal_transits: "Personal transits and Solar Return",
+  personal_transits: "Personal transits",
   push_notifications: "Push notifications"
 };
 

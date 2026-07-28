@@ -481,11 +481,15 @@ function classifyChatRoute(message: string): ChatRoute {
     return "out_of_scope";
   }
 
+  if (/(solar return|solar_return|太陽回歸|太陽返照)/i.test(normalized)) {
+    return "out_of_scope";
+  }
+
   if (/(dice|roll|骰|骰子)/i.test(normalized)) {
     return "dice";
   }
 
-  if (/(transit|timing|solar return|this month|this week|forecast|今年|本月|流年|時機|運勢)/i.test(normalized)) {
+  if (/(transit|timing|this month|this week|forecast|今年|本月|流年|時機|運勢)/i.test(normalized)) {
     return "astro_timing";
   }
 

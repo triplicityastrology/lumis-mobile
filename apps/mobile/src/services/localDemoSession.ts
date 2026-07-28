@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
+import { sanitizeChartForClient } from "@lumis/astrology";
 import type { ChartV2, PersonaStyleKey } from "@lumis/shared";
 
 import type { SendChatMessageResult } from "./chat";
@@ -36,7 +37,15 @@ export async function loadLocalDemoSession(): Promise<LocalDemoSession | null> {
   }
 
   try {
-    return JSON.parse(rawSession) as LocalDemoSession;
+    const session = JSON.parse(rawSession) as LocalDemoSession;
+
+    return {
+      ...session,
+      chartProfile: sanitizeChartForClient(
+        session.chartProfile,
+        session.profileData.timeUnknown
+      )
+    };
   } catch {
     await clearLocalDemoSession();
     return null;
@@ -47,6 +56,10 @@ export async function saveLocalDemoSession(session: Omit<LocalDemoSession, "upda
   await writeLocalDemoSession(
     JSON.stringify({
       ...session,
+      chartProfile: sanitizeChartForClient(
+        session.chartProfile,
+        session.profileData.timeUnknown
+      ),
       updatedAt: new Date().toISOString()
     })
   );

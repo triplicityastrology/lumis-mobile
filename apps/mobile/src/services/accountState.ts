@@ -1,4 +1,5 @@
 import type { ChartV2, PersonaStyleKey, PlanTier } from "@lumis/shared";
+import { sanitizeChartForClient } from "@lumis/astrology";
 
 import type { SendChatMessageResult } from "./chat";
 import { getSupabaseClient } from "./supabase";
@@ -260,7 +261,7 @@ export async function loadSupabaseAccountState(
       timeUnknown: birthData.time_unknown,
       birthPlace: birthData.place_name
     },
-    chartProfile: profile.chart_json,
+    chartProfile: sanitizeChartForClient(profile.chart_json, birthData.time_unknown),
     personaStyle,
     buddyName: user?.buddy_name?.trim() || "Lumis",
     buddyAvatarKey: user?.buddy_avatar_key?.trim() || "psyche",

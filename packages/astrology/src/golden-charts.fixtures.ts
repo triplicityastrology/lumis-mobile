@@ -100,7 +100,7 @@ function chartFromExpectedCase(goldenCase: (typeof GOLDEN_CHART_CASES)[number]):
 }
 
 function assertUnknownTimeAiContextGuard(): void {
-  const unsafeChart: ChartV2 = {
+  const unsafeChart = {
     version: "chart_v2",
     precision: "no_birth_time",
     source: "fixture",
@@ -114,8 +114,14 @@ function assertUnknownTimeAiContextGuard(): void {
     angles: {
       ascendant: { key: "ascendant", label: "Ascendant", sign: "Leo", degree: 1 },
       mediumCoeli: { key: "medium_coeli", label: "MC", sign: "Taurus", degree: 1 }
+    },
+    solar_return: {
+      annual_theme: "must not enter AI context"
+    },
+    derived: {
+      auspicious_score: 10
     }
-  };
+  } as ChartV2;
   const safeContext = buildSafeAiChartContext(unsafeChart);
   const chatContext = buildSafeChatChartContext(unsafeChart);
 
@@ -131,6 +137,10 @@ function assertUnknownTimeAiContextGuard(): void {
 
   if (chatContext.rising != null || chatContext.precision !== "no_birth_time") {
     throw new Error("Unknown-time production chat context must not expose a rising sign.");
+  }
+
+  if (/solar_return|annual_theme|auspicious/i.test(JSON.stringify(safeContext))) {
+    throw new Error("AI chart context must exclude Solar Return and annual-scoring fields.");
   }
 }
 

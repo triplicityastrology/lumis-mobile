@@ -129,7 +129,7 @@ function buildLocalReplyText(route: ChatRoute, chartPhrase: string, personaStyle
   }
 
   if (route === "astro_timing") {
-    return `${chartPhrase} Start by naming the window you care about, then we can explore its transits, Solar Return themes, and the question underneath the timing.${stylePhrase}`;
+    return `${chartPhrase} Timing guidance is not active in this preview. We can keep the reflection grounded in your natal chart and the question underneath it.${stylePhrase}`;
   }
 
   if (route === "astro_deep") {

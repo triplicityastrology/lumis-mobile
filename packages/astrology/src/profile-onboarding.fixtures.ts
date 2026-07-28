@@ -278,17 +278,39 @@ function assertChartSanitizer(): void {
     }
   };
 
-  const fullTimeChart = sanitizeChartForClient(chart, false);
+  const contaminatedChart = {
+    ...chart,
+    solar_return: {
+      annual_theme: "must not survive"
+    },
+    annualReport: "must not survive",
+    planets: chart.planets.map((planet, index) =>
+      index === 0
+        ? { ...planet, solar_return_degree: 19, annual_score: "auspicious" }
+        : planet
+    ),
+    houses: chart.houses.map((house) => ({
+      ...house,
+      sr_cusp_degree: 22
+    }))
+  } as ChartV2;
+  const fullTimeChart = sanitizeChartForClient(contaminatedChart, false);
 
   if ("rawProviderResponse" in fullTimeChart) {
     throw new Error("Full-time client chart must not expose rawProviderResponse.");
+  }
+
+  const serializedFullTimeChart = JSON.stringify(fullTimeChart);
+
+  if (/solar_return|annual_theme|annualReport|annual_score|auspicious|sr_cusp/i.test(serializedFullTimeChart)) {
+    throw new Error("Client chart must contain natal allowlisted fields only.");
   }
 
   if (!fullTimeChart.planets.some((planet) => planet.key === "ascendant")) {
     throw new Error("Full-time client chart should retain Ascendant.");
   }
 
-  const unknownTimeChart = sanitizeChartForClient(chart, true);
+  const unknownTimeChart = sanitizeChartForClient(contaminatedChart, true);
 
   if ("rawProviderResponse" in unknownTimeChart) {
     throw new Error("Unknown-time client chart must not expose rawProviderResponse.");

@@ -18,6 +18,7 @@
     "test:billing-entitlement": "node scripts/billing-entitlement-contract.mjs",
     "test:care-circle": "node scripts/care-circle-contract.mjs",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
+    "test:natal-scope": "node scripts/natal-chart-scope-contract.mjs",
     "test:golden:refresh:secure": "bash scripts/run-golden-fixture-refresh.sh",
     "test:golden-live": "node scripts/golden-chart-live.mjs",
     "test:golden-live:secure": "bash scripts/run-golden-chart-live.sh",
@@ -45,7 +46,7 @@
     "test:staging-auth-readiness": "node scripts/staging-auth-readiness-contract.mjs",
     "test:account-deletion-finalizer": "node scripts/account-deletion-finalizer-contract.mjs",
     "staging:auth-readiness": "node scripts/staging-auth-readiness.mjs",
-    "test:all-local": "pnpm test:router && pnpm test:dice && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:care-circle && pnpm test:golden && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:navigation && pnpm test:mobile-errors && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:pii && pnpm test:birth-details-change && pnpm test:auth-account-restore && pnpm test:account-restoration-evidence && pnpm test:account-deletion-finalizer",
+    "test:all-local": "pnpm test:router && pnpm test:dice && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:care-circle && pnpm test:golden && pnpm test:natal-scope && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:navigation && pnpm test:mobile-errors && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:pii && pnpm test:birth-details-change && pnpm test:auth-account-restore && pnpm test:account-restoration-evidence && pnpm test:account-deletion-finalizer",
     "external-sync:report": "node scripts/external-sync-admin.mjs report",
     "external-sync:replay": "node scripts/external-sync-admin.mjs replay",
     "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve"
