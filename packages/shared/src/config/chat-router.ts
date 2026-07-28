@@ -12,36 +12,43 @@ export type ChatRouteFixture = {
   expectedRoute: ChatRoute;
 };
 
-export const SOLAR_RETURN_ROUTE_FIXTURES: ChatRouteFixture[] = [
+export const OUT_OF_SCOPE_SOLAR_RETURN_EN = "Solar Return is not part of Lumis.";
+export const OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT = "Solar Return 不屬於 Lumis 的服務範圍。";
+
+export type SolarReturnRouteFixture = ChatRouteFixture & {
+  expectedResponse: typeof OUT_OF_SCOPE_SOLAR_RETURN_EN | typeof OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT;
+};
+
+export const SOLAR_RETURN_ROUTE_FIXTURES: SolarReturnRouteFixture[] = [
   {
     name: "solar return abbreviated interpretation excluded",
     message: "Can you interpret my SR?",
-    expectedRoute: "out_of_scope"
+    expectedRoute: "out_of_scope",
+    expectedResponse: OUT_OF_SCOPE_SOLAR_RETURN_EN
   },
   {
     name: "solar return full name excluded",
     message: "Can you interpret my Solar Return?",
-    expectedRoute: "out_of_scope"
+    expectedRoute: "out_of_scope",
+    expectedResponse: OUT_OF_SCOPE_SOLAR_RETURN_EN
   },
   {
     name: "annual theme excluded",
     message: "What is my annual theme?",
-    expectedRoute: "out_of_scope"
+    expectedRoute: "out_of_scope",
+    expectedResponse: OUT_OF_SCOPE_SOLAR_RETURN_EN
   },
   {
     name: "traditional Chinese solar return excluded",
     message: "可以解讀我的太陽回歸嗎？",
-    expectedRoute: "out_of_scope"
+    expectedRoute: "out_of_scope",
+    expectedResponse: OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT
   },
   {
     name: "traditional Chinese annual theme excluded",
     message: "我的年度主題是甚麼？",
-    expectedRoute: "out_of_scope"
-  },
-  {
-    name: "ordinary honorific sr is not solar return",
-    message: "I spoke with Sr. Alvarez today.",
-    expectedRoute: "casual"
+    expectedRoute: "out_of_scope",
+    expectedResponse: OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT
   }
 ];
 
@@ -67,6 +74,11 @@ export const CHAT_ROUTE_FIXTURES: ChatRouteFixture[] = [
     expectedRoute: "astro_timing"
   },
   ...SOLAR_RETURN_ROUTE_FIXTURES,
+  {
+    name: "ordinary honorific sr is not solar return",
+    message: "I spoke with Sr. Alvarez today.",
+    expectedRoute: "casual"
+  },
   {
     name: "deep natal pattern",
     message: "Can you read the deeper pattern in my Moon and rising?",
@@ -95,6 +107,14 @@ export function isSolarReturnRequest(message: string): boolean {
     );
 
   return namesSolarReturn || usesContextualAbbreviation;
+}
+
+export function getSolarReturnScopeResponse(
+  message: string
+): typeof OUT_OF_SCOPE_SOLAR_RETURN_EN | typeof OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT {
+  return /[\u3400-\u4dbf\u4e00-\u9fff]/u.test(message)
+    ? OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT
+    : OUT_OF_SCOPE_SOLAR_RETURN_EN;
 }
 
 export function classifyChatRoute(message: string): ChatRoute {

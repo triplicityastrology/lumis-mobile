@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 const [
   accountState,
@@ -94,13 +94,28 @@ for (const fixtureName of [
 }
 assert.match(
   chatRouter,
+  /OUT_OF_SCOPE_SOLAR_RETURN_EN = "Solar Return is not part of Lumis\."/,
+  "shared chat templates must include the fixed English Solar Return boundary"
+);
+assert.match(
+  chatRouter,
+  /OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT = "Solar Return 不屬於 Lumis 的服務範圍。"/,
+  "shared chat templates must include the fixed Traditional Chinese Solar Return boundary"
+);
+assert.match(
+  chatRouter,
+  /getSolarReturnScopeResponse[\s\S]*\\u3400-\\u4dbf\\u4e00-\\u9fff[\s\S]*OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT[\s\S]*OUT_OF_SCOPE_SOLAR_RETURN_EN/,
+  "Solar Return response language must be selected deterministically from request text"
+);
+assert.match(
+  chatRouter,
   /name: "ordinary honorific sr is not solar return"[\s\S]{0,180}expectedRoute: "casual"/,
   "ordinary uses of Sr. cannot be classified as Solar Return"
 );
 assert.match(
   chatFunction,
-  /classifyChatRoute,[\s\S]*isSolarReturnRequest[\s\S]*packages\/shared\/src\/config\/chat-router\.ts/,
-  "the Edge chat route must use the shared Solar Return classifier"
+  /classifyChatRoute,[\s\S]*getSolarReturnScopeResponse,[\s\S]*isSolarReturnRequest[\s\S]*packages\/shared\/src\/config\/chat-router\.ts/,
+  "the Edge chat route must use the shared Solar Return classifier and templates"
 );
 for (const [name, source] of [
   ["Edge chat", chatFunction],
@@ -108,8 +123,13 @@ for (const [name, source] of [
 ]) {
   assert.match(
     source,
-    /if \(solarReturnRequest\) \{\s*return "Solar Return is not part of Lumis\.";/,
-    `${name} must use the approved Solar Return product boundary`
+    /getSolarReturnScopeResponse\([\s\S]*if \(solarReturnResponse\) \{\s*return solarReturnResponse;/,
+    `${name} must use the shared language-correct Solar Return product boundary`
+  );
+  assert.doesNotMatch(
+    source,
+    /return "Solar Return is not part of Lumis\.";/,
+    `${name} cannot retain an English-only hard-coded Solar Return response`
   );
 }
 assert.doesNotMatch(
@@ -119,5 +139,21 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(routes, /solar return/i);
 assert.doesNotMatch(entitlements, /solar return/i);
+
+const webBundleDirectory = "apps/mobile/dist-qa/_expo/static/js/web";
+const webBundleNames = (await readdir(webBundleDirectory)).filter((name) => name.endsWith(".js"));
+assert.equal(webBundleNames.length, 1, "tracked QA export must contain exactly one web bundle");
+const webBundle = await readFile(`${webBundleDirectory}/${webBundleNames[0]}`, "utf8");
+const decodedWebBundle = webBundle.replace(
+  /\\u([0-9a-f]{4})/gi,
+  (_match, codePoint) => String.fromCharCode(Number.parseInt(codePoint, 16))
+);
+assert.match(decodedWebBundle, /Solar Return is not part of Lumis\./);
+assert.match(decodedWebBundle, /Solar Return 不屬於 Lumis 的服務範圍。/);
+assert.doesNotMatch(
+  webBundle,
+  /solarReturnRequest\W+return "Solar Return is not part of Lumis\."/,
+  "tracked QA export cannot retain the stale English-only Solar Return branch"
+);
 
 console.log("natal-only chart, storage, client, and AI-context scope checks passed");

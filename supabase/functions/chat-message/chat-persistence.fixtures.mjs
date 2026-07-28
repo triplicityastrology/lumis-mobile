@@ -107,13 +107,18 @@ assert.match(
 );
 assert.match(
   edgeSource,
-  /classifyChatRoute,[\s\S]*isSolarReturnRequest[\s\S]*config\/chat-router\.ts/,
-  "Edge Function must use the shared router for Solar Return exclusion"
+  /classifyChatRoute,[\s\S]*getSolarReturnScopeResponse,[\s\S]*isSolarReturnRequest[\s\S]*config\/chat-router\.ts/,
+  "Edge Function must use the shared router and fixed templates for Solar Return exclusion"
 );
 assert.match(
   edgeSource,
-  /if \(solarReturnRequest\) \{\s*return "Solar Return is not part of Lumis\.";/,
-  "Edge Function must return the approved Solar Return boundary without offering a reading"
+  /if \(solarReturnResponse\) \{\s*return solarReturnResponse;/,
+  "Edge Function must return the selected fixed Solar Return template without offering a reading"
+);
+assert.doesNotMatch(
+  edgeSource,
+  /return "Solar Return is not part of Lumis\.";/,
+  "Edge Function cannot retain a hard-coded English-only Solar Return response"
 );
 assert.doesNotMatch(
   edgeSource,

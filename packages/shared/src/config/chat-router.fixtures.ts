@@ -1,7 +1,9 @@
 import {
   CHAT_ROUTE_FIXTURES,
   classifyChatRoute,
-  getChatRouteDecision
+  getChatRouteDecision,
+  getSolarReturnScopeResponse,
+  SOLAR_RETURN_ROUTE_FIXTURES
 } from "./chat-router";
 import { ROUTE_PLAN_REQUIREMENTS, type PlanTier } from "./entitlements";
 import type { ChatRoute } from "./routes";
@@ -33,6 +35,16 @@ export function assertChatRouteFixtures(): void {
     if (actualRoute !== fixture.expectedRoute) {
       throw new Error(
         `${fixture.name}: expected ${fixture.expectedRoute}, received ${actualRoute}`
+      );
+    }
+  }
+
+  for (const fixture of SOLAR_RETURN_ROUTE_FIXTURES) {
+    const actualResponse = getSolarReturnScopeResponse(fixture.message);
+
+    if (actualResponse !== fixture.expectedResponse) {
+      throw new Error(
+        `${fixture.name}: expected fixed response ${fixture.expectedResponse}, received ${actualResponse}`
       );
     }
   }

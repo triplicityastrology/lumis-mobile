@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 import { buildSafeChatChartContext } from "../../../packages/astrology/src/chat-chart-context.ts";
 import {
   classifyChatRoute,
+  getSolarReturnScopeResponse,
   isSolarReturnRequest
 } from "../../../packages/shared/src/config/chat-router.ts";
 import { ROUTE_CREDITS as SHARED_ROUTE_CREDITS } from "../../../packages/shared/src/config/routes.ts";
@@ -452,7 +453,9 @@ function getSafePersistenceErrorCode(error: unknown): string {
 function buildChatResponse(body: ChatMessageRequest) {
   const message = body.message ?? "";
   const route = classifyChatRoute(message);
-  const solarReturnRequest = isSolarReturnRequest(message);
+  const solarReturnResponse = isSolarReturnRequest(message)
+    ? getSolarReturnScopeResponse(message)
+    : null;
   const credits = ROUTE_CREDITS[route];
   const chartPhrase =
     body.chart_context?.sun && body.chart_context?.moon
@@ -472,7 +475,7 @@ function buildChatResponse(body: ChatMessageRequest) {
     estimated_credits_cost: credits,
     remaining_credits: null,
     billing_mode: "scaffold_no_charge",
-    reply: buildReplyText(route, chartPhrase, stylePhrase, solarReturnRequest)
+    reply: buildReplyText(route, chartPhrase, stylePhrase, solarReturnResponse)
   };
 }
 
@@ -480,14 +483,14 @@ function buildReplyText(
   route: ChatRoute,
   chartPhrase: string,
   stylePhrase: string,
-  solarReturnRequest: boolean
+  solarReturnResponse: string | null
 ): string {
   if (route === "safety") {
     return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
   }
 
-  if (solarReturnRequest) {
-    return "Solar Return is not part of Lumis.";
+  if (solarReturnResponse) {
+    return solarReturnResponse;
   }
 
   if (route === "out_of_scope") {

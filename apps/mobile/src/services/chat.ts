@@ -1,6 +1,7 @@
 import {
   classifyChatRoute,
   getChatRouteDecision,
+  getSolarReturnScopeResponse,
   isSolarReturnRequest,
   type ChartV2,
   type ChatRoute,
@@ -93,7 +94,9 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
 function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult {
   const chartContext = buildSafeChatChartContext(input.chart);
   const route = classifyChatRoute(input.message);
-  const solarReturnRequest = isSolarReturnRequest(input.message);
+  const solarReturnResponse = isSolarReturnRequest(input.message)
+    ? getSolarReturnScopeResponse(input.message)
+    : null;
   const routeDecision = getChatRouteDecision(route);
   const chartPhrase =
     chartContext.sun && chartContext.moon
@@ -106,7 +109,7 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
     creditsCost: routeDecision.credits,
     remainingCredits: 50,
     billingMode: "local_demo",
-    reply: buildLocalReplyText(route, chartPhrase, input.personaStyle, solarReturnRequest)
+    reply: buildLocalReplyText(route, chartPhrase, input.personaStyle, solarReturnResponse)
   };
 }
 
@@ -114,7 +117,7 @@ function buildLocalReplyText(
   route: ChatRoute,
   chartPhrase: string,
   personaStyle: PersonaStyleKey,
-  solarReturnRequest: boolean
+  solarReturnResponse: string | null
 ): string {
   const stylePhrase =
     personaStyle === "spark"
@@ -127,8 +130,8 @@ function buildLocalReplyText(
     return "I am really sorry this feels so heavy. Lumis cannot handle crisis support alone. Please contact local emergency services or someone you trust right now.";
   }
 
-  if (solarReturnRequest) {
-    return "Solar Return is not part of Lumis.";
+  if (solarReturnResponse) {
+    return solarReturnResponse;
   }
 
   if (route === "out_of_scope") {
