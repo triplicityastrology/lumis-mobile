@@ -916,7 +916,9 @@ export default function App() {
   return (
     <View style={styles.appRoot}>
       <CelestialBackground variant={skyVariant} />
-      {renderScreen()}
+      <View collapsable={false} style={styles.screenViewport}>
+        {renderScreen()}
+      </View>
       <LogoutDialog
         visible={logoutDialogOpen}
         onCancel={() => setLogoutDialogOpen(false)}
@@ -2382,6 +2384,10 @@ const styles = StyleSheet.create({
   appRoot: {
     flex: 1,
     backgroundColor: "#06101C"
+  },
+  screenViewport: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden"
   },
   safe: {
     flex: 1,

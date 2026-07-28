@@ -170,6 +170,21 @@ assert.equal(
   "the app must retain one shared root celestial background"
 );
 assert.match(
+  appSource,
+  /<View collapsable=\{false\} style=\{styles\.screenViewport\}>\s*\{renderScreen\(\)\}\s*<\/View>/,
+  "root navigation must swap content inside one persistent native viewport"
+);
+assert.match(
+  appSource,
+  /screenViewport:\s*\{\s*\.\.\.StyleSheet\.absoluteFillObject,\s*overflow:\s*"hidden"\s*\}/,
+  "the persistent viewport must not participate in destination content measurement"
+);
+assert.doesNotMatch(
+  appSource,
+  /<CelestialBackground variant=\{skyVariant\} \/>\s*\{renderScreen\(\)\}/,
+  "screen components cannot remain direct layout children of the root sky"
+);
+assert.match(
   authScreen,
   /<TextInput[\s\S]{0,420}value=\{email\}[\s\S]{0,420}onChangeText=\{setEmail\}/,
   "the account entry email field must remain interactive"
