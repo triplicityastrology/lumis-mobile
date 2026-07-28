@@ -89,7 +89,12 @@ try {
     client_request_id: createRequestId
   });
   assert.equal(created.status, 200);
-  assert.match(created.body?.pairing_code ?? "", /^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){2}$/);
+  assert(
+    /^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){2}$/.test(
+      created.body?.pairing_code ?? ""
+    ),
+    "Pairing code did not use the approved redacted shape."
+  );
   const pairingCode = created.body.pairing_code;
   const firstCodeId = created.body.code_id;
 
@@ -98,8 +103,14 @@ try {
     client_request_id: createRequestId
   });
   assert.equal(replay.status, 200);
-  assert.equal(replay.body.code_id, firstCodeId);
-  assert.equal(replay.body.pairing_code, pairingCode);
+  assert(
+    replay.body.code_id === firstCodeId,
+    "Pairing-code replay returned a different code record."
+  );
+  assert(
+    replay.body.pairing_code === pairingCode,
+    "Pairing-code replay returned different one-time output."
+  );
   pass(context, "Stable request replay returns one reusable one-hour pairing code");
 
   const pending = await Promise.all(

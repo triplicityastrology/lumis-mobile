@@ -1,0 +1,53 @@
+{
+  "suite": "s2_notification_foundation",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "preflight_only",
+  "required_migrations": [
+    "0033_inactive_notification_foundation.sql"
+  ],
+  "actors": {
+    "disposable_users": 2,
+    "existing_accounts_allowed": false,
+    "real_device_tokens_allowed": false
+  },
+  "boundaries": {
+    "provider_delivery": false,
+    "permission_request": false,
+    "scheduler": false,
+    "notification_send": false,
+    "migration_apply": false,
+    "function_deploy": false
+  },
+  "checks": [
+    "owner_second_user_anonymous_rls",
+    "inactive_registry_allowlist",
+    "concurrent_registration_race",
+    "idempotent_registration",
+    "request_id_conflict",
+    "installation_token_rotation",
+    "logout_removal",
+    "permission_revocation_removal",
+    "provider_invalid_removal",
+    "account_deletion_removal",
+    "encrypted_storage_without_raw_token",
+    "audit_metadata_allowlist",
+    "controlled_clock_90_day_pruning",
+    "run_scoped_cleanup"
+  ],
+  "evidence": {
+    "allowed": [
+      "suite",
+      "run_id",
+      "assertion_names"
+    ],
+    "forbidden": [
+      "credentials",
+      "access_tokens",
+      "device_tokens",
+      "token_fingerprints",
+      "user_ids",
+      "emails",
+      "database_payloads"
+    ]
+  }
+}
