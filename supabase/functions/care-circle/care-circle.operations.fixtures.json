@@ -1,0 +1,83 @@
+{
+  "cases": [
+    {
+      "id": "anonymous_rejected",
+      "action": "pairing_code_create",
+      "actor": "anonymous",
+      "expected": "AUTH_REQUIRED"
+    },
+    {
+      "id": "caree_owner_creates_reusable_pairing_code",
+      "action": "pairing_code_create",
+      "actor": "caree",
+      "expected": "active"
+    },
+    {
+      "id": "same_request_replays",
+      "action": "pairing_code_create",
+      "actor": "caree",
+      "expected": "idempotent"
+    },
+    {
+      "id": "changed_payload_same_request_conflicts",
+      "action": "relationship_accept",
+      "actor": "caree",
+      "expected": "48012"
+    },
+    {
+      "id": "carer_creates_pending_request",
+      "action": "pairing_code_submit",
+      "actor": "carer",
+      "expected": "pending_caree_acceptance"
+    },
+    {
+      "id": "unrelated_user_cannot_manage_relationship",
+      "action": "relationship_remove",
+      "actor": "unrelated",
+      "expected": "48007"
+    },
+    {
+      "id": "expired_pairing_code_rejected",
+      "action": "pairing_code_submit",
+      "actor": "carer",
+      "expected": "48004"
+    },
+    {
+      "id": "revoked_pairing_code_rejected",
+      "action": "pairing_code_submit",
+      "actor": "carer",
+      "expected": "48004"
+    },
+    {
+      "id": "sixth_concurrent_acceptance_rejected",
+      "action": "relationship_accept",
+      "actor": "caree",
+      "active_carers": 5,
+      "expected": "48012"
+    },
+    {
+      "id": "caree_declines_pending_request",
+      "action": "relationship_decline",
+      "actor": "caree",
+      "expected": "declined"
+    },
+    {
+      "id": "caree_pauses_and_resumes",
+      "action": "care_pause",
+      "actor": "caree",
+      "expected": "paused"
+    },
+    {
+      "id": "participant_removes_relationship",
+      "action": "relationship_remove",
+      "actor": "participant",
+      "expected": "removed"
+    },
+    {
+      "id": "account_deletion_cascades_sensitive_rows",
+      "action": "account_deleted",
+      "actor": "caree",
+      "expected": "cascade"
+    }
+  ]
+}
