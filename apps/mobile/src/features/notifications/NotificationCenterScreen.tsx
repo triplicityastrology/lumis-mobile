@@ -11,10 +11,9 @@ import {
 } from "../../components/states/StateKit";
 
 /**
- * Notification Center (AC-UX-10). Real, interactive states: loading → error →
- * empty → populated; carer requests with accept/decline/resolved lifecycle;
- * read-only Care Circle notices; system rows; mark-all-read; grouping.
- * Backend later wires real delivery/read/resolved; UI ships on mock data.
+ * Release notification boundary. Care Circle delivery and actions are not
+ * active; the interactive notification prototype below remains unexported for
+ * future implementation work.
  */
 
 export type NotifType =
@@ -102,6 +101,32 @@ function Row({
 }
 
 export function NotificationCenterScreen({
+  onBack
+}: { onBack: () => void }) {
+  return (
+    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
+      <ScreenHeader title="Notifications" onBack={onBack} />
+      <View style={s.previewBar}>
+        <PreviewBadge label="Preview · notifications are not active" />
+      </View>
+      <ScrollView
+        contentContainerStyle={s.content}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+      >
+        <QuietEmptyState
+          motif="bell"
+          title="Notifications are a preview."
+          sub="Account and Care Circle notices are not active in this build."
+        />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// Preserved prototype only. It is intentionally not exported or rendered by
+// release navigation while notification delivery and Care Circle are inactive.
+function NotificationCenterPrototypeScreen({
   onBack
 }: { onBack: () => void }) {
   const [demo, setDemo] = useState<DemoMode>("populated");

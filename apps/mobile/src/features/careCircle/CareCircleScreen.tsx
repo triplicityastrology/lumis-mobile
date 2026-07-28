@@ -46,7 +46,9 @@ export function CareCirclePreviewScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-export function CareCircleScreen({ onBack, eligible = true }: { onBack: () => void; eligible?: boolean }) {
+// Preserved prototype only. This is intentionally not exported: release
+// navigation may reach CareCirclePreviewScreen and nothing interactive.
+function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => void; eligible?: boolean }) {
   const [view, setView] = useState<View_>({ v: "home" });
   const [carers, setCarers] = useState<Carer[]>([
     { id: "c1", name: "Mei (sister)", status: "Active" }

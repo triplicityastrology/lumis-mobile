@@ -405,7 +405,7 @@ assert.doesNotMatch(appSource, /<CareCircleFlowScreen|<CareCircleScreen|eligible
 const careCirclePreview = extractRange(
   careCircleSource,
   "export function CareCirclePreviewScreen",
-  "export function CareCircleScreen"
+  "// Preserved prototype only."
 );
 assert.match(
   careCirclePreview,
@@ -415,6 +415,22 @@ assert.doesNotMatch(
   careCirclePreview,
   /onCta|setView|simulateScan|sendRequest|setPaused|setCheckinOpen|setRemoveTarget/,
   "the reachable Care Circle preview cannot expose active relationship or check-in actions"
+);
+assert.doesNotMatch(
+  careCircleSource,
+  /export function CareCircle(?:Prototype)?Screen/,
+  "the interactive Care Circle prototype must not be importable by release navigation"
+);
+const releaseNotifications = extractRange(
+  notificationCenterSource,
+  "export function NotificationCenterScreen",
+  "// Preserved prototype only."
+);
+assert.match(releaseNotifications, /Preview · notifications are not active/);
+assert.doesNotMatch(
+  releaseNotifications,
+  /Accept|Decline|carer_request|missed_checkin|resolve\(|deeplink/,
+  "release notifications cannot expose Care Circle delivery or relationship actions"
 );
 // S1-C03 preview-safety: no Emergency contact row in the Profile Care Circle group.
 assert.doesNotMatch(profileScreenSource, /Emergency contact/);
