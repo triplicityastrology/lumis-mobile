@@ -53,6 +53,7 @@ import {
   type AuthStatus
 } from "./src/services/auth";
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
+import { safeUserErrorMessage } from "./src/services/userFacingErrors";
 import {
   clearLocalDemoSession,
   type LocalDemoChatTurn,
@@ -446,9 +447,7 @@ export default function App() {
         }
 
         setAuthError(
-          error instanceof Error
-            ? error.message
-            : "Lumis could not securely check your account. Check your connection and try again."
+          safeUserErrorMessage(error, "auth_restore")
         );
       }
     }
@@ -484,9 +483,7 @@ export default function App() {
 
         setAuthNotice("");
         setAuthError(
-          error instanceof Error
-            ? error.message
-            : "Lumis could not finish secure sign-in. Check your connection and request a new sign-in link."
+          safeUserErrorMessage(error, "auth_restore")
         );
         setScreen("auth");
       } finally {
@@ -973,7 +970,7 @@ function AuthScreen({
       const status = await onRefreshAuthStatus();
       await onAccountStatusRefreshed(status);
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to send magic link.");
+      setError(safeUserErrorMessage(authError, "auth_send"));
     } finally {
       setIsSubmitting(false);
     }
@@ -988,7 +985,7 @@ function AuthScreen({
       await onAuthoritativeSignOut();
       setMessage("Signed out.");
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to sign out.");
+      setError(safeUserErrorMessage(authError, "auth_logout"));
     } finally {
       setIsSubmitting(false);
     }
@@ -1004,7 +1001,7 @@ function AuthScreen({
       await onAccountStatusRefreshed(status);
       setMessage("Account status refreshed.");
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Unable to refresh account status.");
+      setError(safeUserErrorMessage(authError, "auth_restore"));
     } finally {
       setIsSubmitting(false);
     }
@@ -1288,7 +1285,7 @@ function ChartPreviewScreen({
       const result = await submitChartProfile(profileData);
       setChartResult(result);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Unable to prepare chart request.");
+      setSubmitError(safeUserErrorMessage(error, "chart_create"));
     } finally {
       setIsSubmitting(false);
     }
@@ -1513,7 +1510,7 @@ function PersonaStyleScreen({
         mainFocus: focus
       });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to save Lumis Persona.");
+      setSaveError(safeUserErrorMessage(error, "persona_save"));
     } finally {
       setIsSaving(false);
     }
@@ -1857,7 +1854,7 @@ function ChatShellScreen({
           turn.id === turnId
             ? {
                 ...turn,
-                error: error instanceof Error ? error.message : "Unable to send message."
+                error: safeUserErrorMessage(error, "chat_send")
               }
             : turn
         ),

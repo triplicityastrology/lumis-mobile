@@ -9,6 +9,7 @@ import { MagicLinkSentScreen } from "../components/AuthSystemKit";
 import { FlowScreen, flowStyles } from "../components/FlowScreen";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { getAuthStatus, sendMagicLink, type AuthStatus } from "../services/auth";
+import { safeUserErrorMessage } from "../services/userFacingErrors";
 import { colors, radii } from "../theme/tokens";
 
 export function LumisAuthScreen({
@@ -58,7 +59,7 @@ export function LumisAuthScreen({
       await sendMagicLink(cleanedEmail);
       setSentToEmail(cleanedEmail);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to send your secure link.");
+      setError(safeUserErrorMessage(caught, "auth_send"));
     } finally {
       setIsSubmitting(false);
     }

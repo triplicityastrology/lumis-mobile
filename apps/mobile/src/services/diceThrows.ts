@@ -48,7 +48,12 @@ export async function saveDiceThrow(input: SaveDiceThrowInput): Promise<SaveDice
     .select("id")
     .single();
 
-  if (error) return { mode: "error", message: error.message };
+  if (error) {
+    return {
+      mode: "error",
+      message: "This throw could not be saved. Your Dice result is still available on this screen."
+    };
+  }
   return { mode: "supabase", id: data.id as string };
 }
 

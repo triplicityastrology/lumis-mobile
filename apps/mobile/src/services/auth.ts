@@ -183,7 +183,7 @@ function formatAuthErrorMessage(message: string): string {
     return "Too many sign-in emails were requested. Please wait about 1 hour before trying again.";
   }
 
-  return message;
+  return "Lumis could not send your secure sign-in link. Please try again.";
 }
 
 function getBrowserUrl(): string | null {

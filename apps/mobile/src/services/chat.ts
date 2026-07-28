@@ -69,7 +69,7 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error("CHAT_REQUEST_FAILED");
   }
 
   const response = data as ChatFunctionResponse;

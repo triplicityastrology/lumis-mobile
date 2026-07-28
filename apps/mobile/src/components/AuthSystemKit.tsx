@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Line, RadialGradient, Stop } from "react-native-svg";
 
 import { colors } from "../theme/tokens";
+import { safeUserErrorMessage } from "../services/userFacingErrors";
 
 /**
  * Auth & System States kit (AC-UX-13 / handoff 2026-07-23): shared building
@@ -186,9 +187,7 @@ export function MagicLinkSentScreen({
       await onResend();
       setResendState("success");
     } catch (caught) {
-      setResendError(
-        caught instanceof Error ? caught.message : "Unable to resend your secure link."
-      );
+      setResendError(safeUserErrorMessage(caught, "auth_send"));
       setResendState("error");
     }
   }
@@ -510,7 +509,7 @@ export function LogoutDialog({
       // in case this dialog is still mounted when it happens.
       setPhase("success");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "We couldn't log you out. Please try again.");
+      setError(safeUserErrorMessage(caught, "auth_logout"));
       setPhase("error");
     }
   }

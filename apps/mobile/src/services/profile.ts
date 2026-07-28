@@ -309,7 +309,7 @@ export async function regenerateBirthDetails(
 
   if (!response.ok) {
     throw new BirthDetailsChangeError(
-      data.error?.message ?? "Your previous chart is still active. Please try again.",
+      safeBirthDetailsChangeMessage(data.error?.code),
       data.error?.code ?? "49003",
       data.successful_change_count,
       data.remaining_changes
@@ -416,10 +416,30 @@ export async function savePersonaStylePreference(
   });
 
   if (error) {
-    throw new Error(error.message);
+    throw new Error("PERSONA_SAVE_FAILED");
   }
 
   return { mode: "supabase", status: "saved" };
+}
+
+function safeBirthDetailsChangeMessage(code?: string): string {
+  if (code === "49001") {
+    return "You have used all three birth-detail changes. Your current chart remains active.";
+  }
+
+  if (code === "49002") {
+    return "Please check your birth date, time, and birthplace before trying again.";
+  }
+
+  if (code === "PROFILE_AUTH_REQUIRED") {
+    return "Please sign in again before changing your birth details.";
+  }
+
+  if (code === "PROFILE_CONFIGURATION_REQUIRED") {
+    return "Secure chart regeneration is temporarily unavailable. Your current chart remains active.";
+  }
+
+  return "Your previous chart is still active. Please retry this same request.";
 }
 
 function buildFixtureChart(form: BirthProfileForm): ChartV2 {
