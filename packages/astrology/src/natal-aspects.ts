@@ -112,8 +112,8 @@ export function deriveNatalAspects(input: {
 }
 
 export function circularAngularDistance(left: number, right: number): number {
-  const normalizedLeft = normalizeLongitude(left);
-  const normalizedRight = normalizeLongitude(right);
+  const normalizedLeft = normalizeNatalLongitude(left);
+  const normalizedRight = normalizeNatalLongitude(right);
 
   if (normalizedLeft == null || normalizedRight == null) {
     return Number.NaN;
@@ -130,7 +130,7 @@ function canonicalizeAspectPoints(
   const canonicalCandidates = points
     .map((point): CanonicalAspectPoint | null => {
       const key = canonicalizeNatalPointKey(point.key);
-      const longitude = normalizeLongitude(point.longitude);
+      const longitude = normalizeNatalLongitude(point.longitude);
 
       if (
         !key ||
@@ -165,7 +165,7 @@ function canonicalizeAspectPoints(
   return [...uniqueByKey.values()];
 }
 
-function normalizeLongitude(longitude: number): number | null {
+export function normalizeNatalLongitude(longitude: number): number | null {
   if (!Number.isFinite(longitude)) {
     return null;
   }

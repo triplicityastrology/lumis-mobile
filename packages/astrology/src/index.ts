@@ -63,7 +63,20 @@ export {
   NATAL_ASPECT_RULES,
   circularAngularDistance,
   deriveNatalAspects,
+  normalizeNatalLongitude,
   type NatalAspectPointInput,
   type NatalAspectType,
   type NatalAspectValue,
 } from "./natal-aspects";
+export {
+  NATAL_INPUT_CONTRACT_VERSION,
+  validateNatalEngineInput,
+  type CanonicalNatalEngineInput,
+  type CanonicalNatalInputHouse,
+  type CanonicalNatalInputPoint,
+  type NatalInputBoundaryResult,
+  type NatalInputFailure,
+  type NatalInputFailureCode,
+  type NatalInputFailureLocation,
+  type NatalInputFailureReason,
+} from "./natal-input-boundary";

@@ -64,3 +64,26 @@ The engine is not yet wired into provider normalization, persisted chart JSON,
 Chat context, Knowledge Bank retrieval, or mobile rendering. The existing
 `NatalWheel` display calculation remains unchanged; replacing that UI-local
 logic requires a separately authorised integration and visual regression pass.
+
+## Provider-normalised natal input boundary
+
+`packages/astrology/src/natal-input-boundary.ts` is the closed, inactive adapter
+in front of the deterministic engines. It accepts only
+`natal_engine_input_v1` with:
+
+- `chartType: natal`;
+- `precision: full | no_birth_time`;
+- explicit point aliases and absolute longitudes;
+- an explicit house list;
+- optional Moon local-day endpoint longitudes.
+
+It rejects unknown fields, malformed values, duplicate canonical aliases,
+timed data in a no-birth-time chart, and any Solar Return, transit, timing,
+Vertex, `SR`, return-chart, or annual-theme scope. Rejections expose only a
+stable code, controlled reason, and bounded location. They never echo input.
+
+Successful output contains canonical point keys, normalized longitudes,
+resolved birth-time capabilities, deterministic source-field provenance, and
+no interpretation. This boundary is not wired to a provider, persistence,
+mobile UI, Chat, AI retrieval, or Dice. It has no credentials, network call,
+database operation, migration, or deployment path.

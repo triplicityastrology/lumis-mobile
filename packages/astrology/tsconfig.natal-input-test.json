@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/natal-input-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/index.ts",
+    "src/natal-aspects.ts",
+    "src/natal-facts.ts",
+    "src/natal-input-boundary.ts",
+    "src/natal-input-boundary.fixtures.ts",
+    "../shared/src/types/chart.ts"
+  ]
+}
