@@ -257,8 +257,8 @@ export function deriveMoonSignFromLocalDayEndpoints(input: {
     "moon.local_day_start_longitude",
     "moon.local_day_end_longitude",
   ];
-  const startSign = zodiacSignForLongitude(input.startLongitude);
-  const endSign = zodiacSignForLongitude(input.endLongitude);
+  const startSign = zodiacSignForNatalLongitude(input.startLongitude);
+  const endSign = zodiacSignForNatalLongitude(input.endLongitude);
 
   if (!startSign || !endSign) {
     return createFact<CanonicalZodiacSign>({
@@ -404,7 +404,7 @@ function capabilityAvailable(
   return capabilityMap[capability];
 }
 
-function zodiacSignForLongitude(
+export function zodiacSignForNatalLongitude(
   longitude: number | null | undefined
 ): CanonicalZodiacSign | null {
   if (typeof longitude !== "number" || !Number.isFinite(longitude)) {

@@ -48,6 +48,7 @@ export {
   resolveBirthTimeAvailability,
   resolveBirthTimeCapabilities,
   traditionalRulerForSign,
+  zodiacSignForNatalLongitude,
   type BirthTimeAvailability,
   type BirthTimeCapabilities,
   type CanonicalNatalAngleKey,
@@ -80,3 +81,10 @@ export {
   type NatalInputFailureLocation,
   type NatalInputFailureReason,
 } from "./natal-input-boundary";
+export {
+  NATAL_ENGINE_OUTPUT_VERSION,
+  composeNatalEngineOutput,
+  type NatalEngineCanonicalFact,
+  type NatalEngineCompositionResult,
+  type NatalEngineOutput,
+} from "./natal-engine-composer";

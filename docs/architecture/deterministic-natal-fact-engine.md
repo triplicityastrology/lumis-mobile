@@ -87,3 +87,25 @@ resolved birth-time capabilities, deterministic source-field provenance, and
 no interpretation. This boundary is not wired to a provider, persistence,
 mobile UI, Chat, AI retrieval, or Dice. It has no credentials, network call,
 database operation, migration, or deployment path.
+
+## Deterministic natal engine composer
+
+`packages/astrology/src/natal-engine-composer.ts` is the inactive composition
+boundary for the three accepted deterministic layers. It validates the closed
+`natal_engine_input_v1` contract before deriving anything, then returns only a
+versioned `natal_engine_output_v1` envelope containing:
+
+- validated input provenance;
+- resolved birth-time capabilities;
+- canonical Moon/ruler facts supported by the accepted fact engine;
+- approved natal aspects supported by the accepted aspect engine.
+
+Facts and aspects use stable canonical-key ordering. Invalid and prohibited
+input returns the input boundary's bounded, non-echoing error unchanged. Solar
+Return, transit, timing, Vertex, annual-theme, and unknown fields cannot enter
+composition.
+
+This output is inactive technical infrastructure and is not exposed to users.
+It performs no Knowledge Bank retrieval, interpretation, Chat or AI context,
+provider request, persistence, mobile/UI integration, migration, deployment,
+billing, or Dice integration.
