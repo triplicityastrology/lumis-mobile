@@ -822,6 +822,25 @@ assert.match(
   accountState,
   /const requiredError = userResult\.error \?\? birthResult\.error \?\? profileResult\.error/
 );
+assert.match(
+  accountState,
+  /\.select\("display_name, focus, persona_style, buddy_name, buddy_avatar_key"\)/,
+  "required account restoration must not depend on optional language columns"
+);
+assert.match(
+  accountState,
+  /\.select\("lang, language_preference_set_at"\)[\s\S]{0,160}\.maybeSingle\(\)/
+);
+assert.match(
+  accountState,
+  /const languagePreference = languageResult\.error\s*\? null/,
+  "an unavailable language migration must not block an existing chart"
+);
+assert.match(
+  accountState,
+  /appLanguagePreference:[\s\S]{0,220}languagePreference\?\.language_preference_set_at/,
+  "saved language is restored only when optional enrichment succeeds"
+);
 assert.doesNotMatch(
   accountState,
   /requiredError[\s\S]{0,120}balanceResult|firstError/,
@@ -867,6 +886,21 @@ assert.doesNotMatch(
   /loadStartupAccountState/,
   "manual Retry must remain one visible authoritative reload rather than nesting automatic retries"
 );
+assert.match(
+  app,
+  /function openAccountRecovery\(\)[\s\S]{0,300}setScreen\("auth"\)/,
+  "failed restoration must provide explicit signed-in account controls"
+);
+assert.match(
+  app,
+  /onRetry=\{restoreSpace\}[\s\S]{0,100}onBack=\{openAccountRecovery\}/,
+  "Retry and account recovery must remain distinct usable actions"
+);
+assert.doesNotMatch(
+  extractRange(app, "function openAccountRecovery", "function applySupabaseAccountState"),
+  /clearVisibleAccountState|loadLocalDemoSession|setScreen\("profile"\)|noChart/,
+  "account recovery cannot clear state, enter demo mode, or offer chart creation"
+);
 
 let transientAttempts = 0;
 const recoveredStartupAccount = await simulateBoundedStartupRestore(async () => {
@@ -900,6 +934,19 @@ await assert.rejects(
   /ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE/
 );
 assert.equal(exhaustedAttempts, 2, "transient startup recovery must stop after one retry");
+const optionalLanguageUnavailable = simulateOptionalLanguageEnrichment({
+  requiredAccount: { status: "loaded", chartVersion: 3 },
+  languageResult: { error: true }
+});
+assert.deepEqual(
+  optionalLanguageUnavailable,
+  {
+    status: "loaded",
+    chartVersion: 3,
+    appLanguagePreference: null
+  },
+  "missing language columns cannot turn an existing chart into a failed restore"
+);
 assert.match(accountState, /threadsResult\.error \? \[\]/);
 assert.match(accountState, /reflectionHistoryStatus: reflectionHistoryUnavailable \? "unavailable" : "loaded"/);
 assert.match(
@@ -1031,6 +1078,17 @@ async function simulateBoundedStartupRestore(load) {
       retryCount += 1;
     }
   }
+}
+
+function simulateOptionalLanguageEnrichment({
+  requiredAccount,
+  languageResult
+}) {
+  return {
+    ...requiredAccount,
+    appLanguagePreference:
+      languageResult.error ? null : languageResult.language ?? null
+  };
 }
 
 async function simulateResend({ state, resendImpl }) {

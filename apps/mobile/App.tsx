@@ -301,6 +301,15 @@ export default function App() {
     setScreen("home");
   }
 
+  function openAccountRecovery() {
+    setAccountReturn("home");
+    setAuthNotice("");
+    setAuthError(
+      "Your account is still signed in. Retry loading it here, or log out safely."
+    );
+    setScreen("auth");
+  }
+
   function applySupabaseAccountState(accountState: SupabaseAccountState) {
     if (accountState.status === "loaded" && accountState.profileData && accountState.chartProfile) {
       setProfileData(accountState.profileData);
@@ -631,7 +640,7 @@ export default function App() {
         onGoChat={() => setScreen(chartProfile ? "chat" : "home")}
         onGoOnboarding={() => setScreen("noChart")}
         onRetry={restoreSpace}
-        onBack={() => setScreen("auth")}
+        onBack={openAccountRecovery}
       />
     );
   }

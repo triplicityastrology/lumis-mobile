@@ -67,7 +67,16 @@ assert.match(
 );
 assert.match(
   app,
-  /<RestoringSpaceScreen[\s\S]{0,260}onBack=\{\(\) => setScreen\("auth"\)\}/
+  /<RestoringSpaceScreen[\s\S]{0,260}onBack=\{openAccountRecovery\}/
+);
+assert.match(
+  app,
+  /function openAccountRecovery\(\)[\s\S]{0,300}setScreen\("auth"\)/
+);
+assert.doesNotMatch(
+  app.match(/function openAccountRecovery\(\)[\s\S]*?function applySupabaseAccountState/)?.[0] ?? "",
+  /clearVisibleAccountState|loadLocalDemoSession|setScreen\("noChart"\)/,
+  "failed restore Back must preserve the signed-in account and avoid demo/onboarding routes"
 );
 
 assert.match(dice, /setHistoryOpen\(true\)/);

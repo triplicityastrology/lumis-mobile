@@ -531,8 +531,10 @@ assert.doesNotMatch(profileScreenSource, /value="Personal growth"/);
 assert.doesNotMatch(profileScreenSource, />Starter member</);
 assert.match(
   accountStateSource,
-  /select\("display_name, focus, persona_style, buddy_name, buddy_avatar_key, lang, language_preference_set_at"\)/
+  /select\("display_name, focus, persona_style, buddy_name, buddy_avatar_key"\)/
 );
+assert.match(accountStateSource, /select\("lang, language_preference_set_at"\)/);
+assert.match(accountStateSource, /languageResult\.error\s*\?\s*null/);
 assert.match(accountStateSource, /rpc\("resolve_active_plan_tier", \{ p_user_id: userId \}\)/);
 assert.doesNotMatch(accountStateSource, /derivePlanTier|allocated, remaining/);
 assert.match(profileScreenSource, /accessibilityLabel=\{value \? `\$\{label\}: \$\{value\}` : label\}/);

@@ -39,10 +39,15 @@ assert.match(
   migration,
   /grant execute on function public\.update_app_language_preference\(text\)[\s\S]*to authenticated/i
 );
-assert.match(accountState, /buddy_avatar_key, lang, language_preference_set_at/);
 assert.match(
   accountState,
-  /user\.language_preference_set_at && isAppLanguagePreference\(user\.lang\) \? user\.lang : null/
+  /\.select\("display_name, focus, persona_style, buddy_name, buddy_avatar_key"\)/
+);
+assert.match(accountState, /\.select\("lang, language_preference_set_at"\)/);
+assert.match(accountState, /languageResult\.error\s*\?\s*null/);
+assert.match(
+  accountState,
+  /languagePreference\?\.language_preference_set_at[\s\S]*isAppLanguagePreference\(languagePreference\.lang\)/
 );
 assert.match(mobileApp, /setAppLanguagePreference\(accountState\.appLanguagePreference\)/);
 assert.match(

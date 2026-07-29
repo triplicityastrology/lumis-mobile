@@ -16,9 +16,12 @@ type UserRow = {
   buddy_name: string;
   display_name: string | null;
   focus: string | null;
+  persona_style: PersonaStyleKey | null;
+};
+
+type LanguagePreferenceRow = {
   lang: string;
   language_preference_set_at: string | null;
-  persona_style: PersonaStyleKey | null;
 };
 
 type BirthDataRow = {
@@ -157,7 +160,7 @@ export async function loadSupabaseAccountState(
   const [userResult, birthResult, profileResult] = await Promise.all([
     supabase
       .from("users")
-      .select("display_name, focus, persona_style, buddy_name, buddy_avatar_key, lang, language_preference_set_at")
+      .select("display_name, focus, persona_style, buddy_name, buddy_avatar_key")
       .eq("id", userId)
       .maybeSingle(),
     supabase
@@ -212,24 +215,33 @@ export async function loadSupabaseAccountState(
   // These reads enrich an already-authoritative chart. A temporary history,
   // balance, or plan failure must not turn a valid chart account into an empty
   // account or chart-creation path.
-  const [balanceResult, threadsResult, planResult] = await Promise.all([
-    supabase
-      .from("monthly_balance")
-      .select("remaining")
-      .eq("user_id", userId)
-      .order("period_start", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("chat_threads")
-      .select("id, persona_style, title, created_at, updated_at, chart_version, status")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(20),
-    supabase.rpc("resolve_active_plan_tier", { p_user_id: userId })
-  ]);
+  const [balanceResult, threadsResult, planResult, languageResult] =
+    await Promise.all([
+      supabase
+        .from("monthly_balance")
+        .select("remaining")
+        .eq("user_id", userId)
+        .order("period_start", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("chat_threads")
+        .select("id, persona_style, title, created_at, updated_at, chart_version, status")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+        .limit(20),
+      supabase.rpc("resolve_active_plan_tier", { p_user_id: userId }),
+      supabase
+        .from("users")
+        .select("lang, language_preference_set_at")
+        .eq("id", userId)
+        .maybeSingle()
+    ]);
 
   const balance = balanceResult.data as BalanceRow | null;
+  const languagePreference = languageResult.error
+    ? null
+    : languageResult.data as LanguagePreferenceRow | null;
   const threads = threadsResult.error ? [] : (threadsResult.data ?? []) as ChatThreadRow[];
   let reflectionHistoryUnavailable = Boolean(threadsResult.error);
   const reflectionThreads = await Promise.all(
@@ -288,7 +300,10 @@ export async function loadSupabaseAccountState(
     reflectionThreads,
     reflectionHistoryStatus: reflectionHistoryUnavailable ? "unavailable" : "loaded",
     appLanguagePreference:
-      user.language_preference_set_at && isAppLanguagePreference(user.lang) ? user.lang : null,
+      languagePreference?.language_preference_set_at &&
+      isAppLanguagePreference(languagePreference.lang)
+        ? languagePreference.lang
+        : null,
     mainFocus: user?.focus?.trim() || null,
     planTier: planResult.error ? "starter" : normalizePlanTier(planResult.data),
     remainingCredits: balanceResult.error ? null : balance?.remaining ?? null,

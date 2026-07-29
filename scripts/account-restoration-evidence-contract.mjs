@@ -36,6 +36,16 @@ assert.match(
 );
 assert.match(
   accountState,
+  /\.select\("display_name, focus, persona_style, buddy_name, buddy_avatar_key"\)/,
+  "required chart restoration must remain compatible before language migration 0035"
+);
+assert.match(
+  accountState,
+  /const languagePreference = languageResult\.error\s*\? null/,
+  "optional language preference failure cannot erase a valid chart account"
+);
+assert.match(
+  accountState,
   /reflectionHistoryStatus: reflectionHistoryUnavailable \? "unavailable" : "loaded"/,
   "recoverable history failure must be represented without erasing the chart account"
 );
@@ -83,6 +93,12 @@ assert.match(
   /async function restoreExistingAuthSession[\s\S]{0,260}restoreAccountForStatus\(status, true, true\)/,
   "only initial existing-session restoration opts into the bounded transient retry"
 );
+assert.match(
+  app,
+  /function openAccountRecovery\(\)[\s\S]{0,300}setScreen\("auth"\)/,
+  "a failed restore must expose signed-in account and logout controls"
+);
+assert.match(app, /onBack=\{openAccountRecovery\}/);
 
 assert.match(profileFunction, /PROFILE_ALREADY_EXISTS/);
 assert.match(hostedProof, /Repeat onboarding is rejected before chart generation/);
