@@ -133,3 +133,26 @@ and location fields and never echo rejected values.
 The adapter makes no provider or network call and has no credentials,
 persistence, mobile/UI, Chat/AI, Knowledge Bank retrieval, migration,
 deployment, billing, or Dice integration. It is not exposed to users.
+
+## Safe natal context projector
+
+`packages/astrology/src/safe-natal-context.ts` is inactive technical
+infrastructure after `natal_engine_output_v1`. It accepts only the closed,
+runtime-validated engine output and returns `natal_context_v1` with:
+
+- deterministic engine/input/fact version provenance;
+- the birth-time capability matrix;
+- approved canonical Moon and traditional-ruler facts;
+- approved natal aspects in stable canonical-key order.
+
+The projector preserves approved aspects involving Chiron and the North and
+South Nodes for future Lumis Chat context. It does not create standalone
+placements or infer additional facts. It rejects every unknown field and
+excludes raw birth data, account identifiers, coordinates, raw provider
+responses, internal errors, Solar Return, transit, timing, annual-theme,
+Vertex, billing/entitlements, and Dice data.
+
+This module performs no AI/provider call, Chat integration, Knowledge Bank
+retrieval, persistence, logging, mobile/UI work, migration, or deployment. It
+is not imported by Dice, is not exposed to users, and cannot produce a
+user-visible interpretation.

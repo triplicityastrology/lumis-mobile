@@ -99,3 +99,10 @@ export {
   type ProviderNatalAdapterValue,
   type ProviderNeutralNatalEngineInput,
 } from "./provider-neutral-natal-adapter";
+export {
+  NATAL_CONTEXT_VERSION,
+  projectSafeNatalContext,
+  type NatalContextFailure,
+  type SafeNatalContext,
+  type SafeNatalContextResult,
+} from "./safe-natal-context";
