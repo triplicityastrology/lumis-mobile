@@ -109,3 +109,27 @@ This output is inactive technical infrastructure and is not exposed to users.
 It performs no Knowledge Bank retrieval, interpretation, Chat or AI context,
 provider request, persistence, mobile/UI integration, migration, deployment,
 billing, or Dice integration.
+
+## Provider-neutral natal adapter
+
+`packages/astrology/src/provider-neutral-natal-adapter.ts` is inactive technical
+infrastructure before `natal_engine_input_v1`. It accepts only the closed
+`provider_neutral_natal_v1` payload:
+
+- `chartType: natal`;
+- `precision: full | no_birth_time`;
+- bounded safe source and calculation identifiers;
+- approved natal point names and finite longitudes;
+- numbered house cusps;
+- optional Moon local-day endpoints.
+
+The adapter rejects unknown fields, duplicate canonical aliases, non-natal chart
+types, Solar Return or contextual `SR`, transit, timing, annual-theme, Vertex,
+and timed data in a no-birth-time payload. A successful result contains only the
+mapped `natal_engine_input_v1` object and bounded adapter provenance. It carries
+no raw provider payload downstream. Failures contain only stable code, reason,
+and location fields and never echo rejected values.
+
+The adapter makes no provider or network call and has no credentials,
+persistence, mobile/UI, Chat/AI, Knowledge Bank retrieval, migration,
+deployment, billing, or Dice integration. It is not exposed to users.

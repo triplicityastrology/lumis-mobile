@@ -71,6 +71,7 @@ export {
 } from "./natal-aspects";
 export {
   NATAL_INPUT_CONTRACT_VERSION,
+  isProhibitedNatalScopeIdentifier,
   validateNatalEngineInput,
   type CanonicalNatalEngineInput,
   type CanonicalNatalInputHouse,
@@ -88,3 +89,13 @@ export {
   type NatalEngineCompositionResult,
   type NatalEngineOutput,
 } from "./natal-engine-composer";
+export {
+  PROVIDER_NATAL_ADAPTER_VERSION,
+  PROVIDER_NEUTRAL_NATAL_VERSION,
+  adaptProviderNeutralNatalPayload,
+  type ProviderNatalAdapterFailure,
+  type ProviderNatalAdapterFailureCode,
+  type ProviderNatalAdapterResult,
+  type ProviderNatalAdapterValue,
+  type ProviderNeutralNatalEngineInput,
+} from "./provider-neutral-natal-adapter";

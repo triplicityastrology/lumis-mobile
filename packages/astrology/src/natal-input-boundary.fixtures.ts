@@ -167,6 +167,7 @@ for (const pointKey of [
   "Transit Moon",
   "Timing Point",
   "SR",
+  "SR Sun",
 ]) {
   expectFailure(
     {

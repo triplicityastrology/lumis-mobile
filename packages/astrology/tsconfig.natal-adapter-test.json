@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/natal-adapter-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/index.ts",
+    "src/natal-aspects.ts",
+    "src/natal-facts.ts",
+    "src/natal-input-boundary.ts",
+    "src/natal-engine-composer.ts",
+    "src/provider-neutral-natal-adapter.ts",
+    "src/provider-neutral-natal-adapter.fixtures.ts",
+    "../shared/src/types/chart.ts"
+  ]
+}

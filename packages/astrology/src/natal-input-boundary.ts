@@ -155,8 +155,7 @@ export function validateNatalEngineInput(
   }
   if (
     typeof input.chartType === "string" &&
-    (containsProhibitedScope(input.chartType) ||
-      normalizeToken(input.chartType) === "sr")
+    isProhibitedNatalScopeIdentifier(input.chartType)
   ) {
     return failure(
       "NATAL_INPUT_OUT_OF_SCOPE",
@@ -279,8 +278,7 @@ function canonicalizePoints(
       );
     }
     if (
-      containsProhibitedScope(point.key) ||
-      normalizeToken(point.key) === "sr"
+      isProhibitedNatalScopeIdentifier(point.key)
     ) {
       return failure(
         "NATAL_INPUT_OUT_OF_SCOPE",
@@ -477,7 +475,7 @@ function validateClosedFields(
     if (allowedFields.has(field)) {
       continue;
     }
-    if (containsProhibitedScope(field) || normalizeToken(field) === "sr") {
+    if (isProhibitedNatalScopeIdentifier(field)) {
       return failure(
         "NATAL_INPUT_OUT_OF_SCOPE",
         "prohibited_non_natal_scope",
@@ -489,9 +487,17 @@ function validateClosedFields(
   return null;
 }
 
-function containsProhibitedScope(value: string): boolean {
+export function isProhibitedNatalScopeIdentifier(value: string): boolean {
   const normalized = normalizeToken(value);
-  return PROHIBITED_SCOPE_TOKENS.some((token) => normalized.includes(token));
+  const identifierTokens = value
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  return (
+    identifierTokens.includes("sr") ||
+    PROHIBITED_SCOPE_TOKENS.some((token) => normalized.includes(token))
+  );
 }
 
 function normalizeToken(value: string): string {
