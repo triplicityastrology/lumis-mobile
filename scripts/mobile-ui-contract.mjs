@@ -107,7 +107,7 @@ assert.match(mainTabBarSource, /label: "Insights"/);
 assert.match(mainTabBarSource, /label: "Dice"/);
 assert.match(mainTabBarSource, /label: "You"/);
 assert.match(appSource, /<MainTabBar active="chat"/);
-assert.match(appSource, /restoreAccountForStatus\(status, true\)/);
+assert.match(appSource, /restoreAccountForStatus\(status, true, true\)/);
 const accountEntryHandler = extractRange(
   appSource,
   "function openAccountEntry",

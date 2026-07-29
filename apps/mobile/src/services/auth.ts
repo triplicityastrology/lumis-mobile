@@ -36,6 +36,20 @@ export type AuthRedirectResult = {
   status?: AuthStatus;
 };
 
+export class AuthStatusCheckError extends Error {
+  constructor(readonly code: "AUTH_STATUS_TEMPORARILY_UNAVAILABLE") {
+    super(code);
+    this.name = "AuthStatusCheckError";
+  }
+}
+
+export function isTransientAuthStatusError(error: unknown): boolean {
+  return (
+    error instanceof AuthStatusCheckError &&
+    error.code === "AUTH_STATUS_TEMPORARILY_UNAVAILABLE"
+  );
+}
+
 export async function getAuthStatus(): Promise<AuthStatus> {
   const config = getSupabaseConfig();
 
@@ -49,10 +63,28 @@ export async function getAuthStatus(): Promise<AuthStatus> {
     return { isConfigured: false, user: null };
   }
 
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    if (isNetworkFailure(sessionError)) {
+      throw new AuthStatusCheckError("AUTH_STATUS_TEMPORARILY_UNAVAILABLE");
+    }
+
+    return { isConfigured: true, user: null };
+  }
+
+  if (!sessionData.session) {
+    return { isConfigured: true, user: null };
+  }
+
   const { data, error } = await supabase.auth.getUser();
 
   if (error) {
-    throw new Error(formatSessionNetworkError(error));
+    if (isNetworkFailure(error)) {
+      throw new AuthStatusCheckError("AUTH_STATUS_TEMPORARILY_UNAVAILABLE");
+    }
+
+    return { isConfigured: true, user: null };
   }
 
   return {

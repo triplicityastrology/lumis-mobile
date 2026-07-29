@@ -231,15 +231,17 @@ export async function loadSupabaseAccountState(
         .order("updated_at", { ascending: false })
         .limit(20),
       supabase.rpc("resolve_active_plan_tier", { p_user_id: userId }),
-      supabase
-        .from("users")
-        .select("lang, language_preference_set_at")
-        .eq("id", userId)
-        .maybeSingle()
+      settleOptionalQuery(
+        supabase
+          .from("users")
+          .select("lang, language_preference_set_at")
+          .eq("id", userId)
+          .maybeSingle()
+      )
     ]);
 
   const balance = balanceResult.data as BalanceRow | null;
-  const languagePreference = languageResult.error
+  const languagePreference = !languageResult || languageResult.error
     ? null
     : languageResult.data as LanguagePreferenceRow | null;
   const threads = threadsResult.error ? [] : (threadsResult.data ?? []) as ChatThreadRow[];
@@ -341,6 +343,14 @@ function isTransientRequiredReadError(error: unknown): boolean {
       safeDiagnostic
     )
   );
+}
+
+async function settleOptionalQuery<T>(query: PromiseLike<T>): Promise<T | null> {
+  try {
+    return await query;
+  } catch {
+    return null;
+  }
 }
 
 function normalizePlanTier(value: unknown): PlanTier {

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const accountState = await readFile("apps/mobile/src/services/accountState.ts", "utf8");
 const app = await readFile("apps/mobile/App.tsx", "utf8");
+const authService = await readFile("apps/mobile/src/services/auth.ts", "utf8");
 const profileFunction = await readFile("supabase/functions/profile/index.ts", "utf8");
 const hostedProof = await readFile("scripts/staging-backend-smoke.mjs", "utf8");
 const secureRunner = await readFile("scripts/run-staging-backend-test.sh", "utf8");
@@ -41,8 +42,14 @@ assert.match(
 );
 assert.match(
   accountState,
-  /const languagePreference = languageResult\.error\s*\? null/,
+  /const languagePreference = !languageResult \|\| languageResult\.error\s*\? null/,
   "optional language preference failure cannot erase a valid chart account"
+);
+assert.match(accountState, /settleOptionalQuery\([\s\S]*select\("lang, language_preference_set_at"\)/);
+assert.match(
+  accountState,
+  /async function settleOptionalQuery<T>[\s\S]*catch \{[\s\S]*return null/,
+  "optional future schema requests must fail independently of required chart reads"
 );
 assert.match(
   accountState,
@@ -90,8 +97,23 @@ assert.match(
 );
 assert.match(
   app,
-  /async function restoreExistingAuthSession[\s\S]{0,260}restoreAccountForStatus\(status, true, true\)/,
-  "only initial existing-session restoration opts into the bounded transient retry"
+  /async function restoreExistingAuthSession[\s\S]{0,260}loadStartupAuthStatus\(\)[\s\S]{0,180}restoreAccountForStatus\(status, true, true\)/,
+  "initial persisted-session restoration must validate and retry only transient startup failures"
+);
+assert.match(
+  app,
+  /async function restoreExistingAuthSession[\s\S]*?catch \(error\)[\s\S]*?setRestoreResult\("failed"\)[\s\S]*?routeAfterSplash\("restoringSpace"\)/,
+  "exhausted session hydration cannot be presented as a signed-out account"
+);
+assert.match(
+  app,
+  /async function applyRefreshedAuthStatus[\s\S]{0,300}routeAfterSplash\("restoringSpace"\)[\s\S]{0,180}restoreAccountForStatus\(status, true, true\)/,
+  "post-callback restoration must remain loading through the bounded account-read retry"
+);
+assert.match(
+  authService,
+  /getSession\(\)[\s\S]{0,500}if \(!sessionData\.session\)[\s\S]{0,220}getUser\(\)/,
+  "startup must hydrate persisted Supabase state before authoritative user validation"
 );
 assert.match(
   app,

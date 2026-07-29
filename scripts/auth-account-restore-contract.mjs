@@ -31,6 +31,30 @@ assert.doesNotMatch(
   "mobile magic links must not use the browser localhost origin"
 );
 
+const authStatusLoader = extractRange(
+  authService,
+  "export async function getAuthStatus",
+  "export async function handleAuthRedirectFromUrl"
+);
+assert.match(authStatusLoader, /supabase\.auth\.getSession\(\)/);
+assert.match(authStatusLoader, /if \(!sessionData\.session\)/);
+assert.match(authStatusLoader, /supabase\.auth\.getUser\(\)/);
+assert.ok(
+  authStatusLoader.indexOf("supabase.auth.getSession()") <
+    authStatusLoader.indexOf("supabase.auth.getUser()"),
+  "native startup must hydrate persisted Supabase state before server validation"
+);
+assert.match(
+  authStatusLoader,
+  /isNetworkFailure\([\s\S]*AuthStatusCheckError\("AUTH_STATUS_TEMPORARILY_UNAVAILABLE"\)/
+);
+assert.match(
+  authStatusLoader,
+  /return \{ isConfigured: true, user: null \}/,
+  "a genuinely absent or invalid session must remain signed out"
+);
+assert.doesNotMatch(authStatusLoader, /console\.|error\.message|setAuthStatus/);
+
 const redirectHandler = extractRange(
   authService,
   "export async function handleAuthRedirectFromUrl",
@@ -140,7 +164,7 @@ assert.match(
 const safeRedirectFailure = extractRange(
   authService,
   "function formatRedirectExchangeError",
-  "function formatSessionNetworkError"
+  "function isNetworkFailure"
 );
 assert.match(safeRedirectFailure, /isNetworkFailure\(error\)/);
 assert.match(safeRedirectFailure, /connection was interrupted/);
@@ -287,10 +311,15 @@ const redirectFailureCatch = extractRange(
 );
 assert.match(redirectFailureCatch, /setAuthError\(/);
 assert.match(redirectFailureCatch, /setScreen\("auth"\)/);
+assert.match(
+  redirectFailureCatch,
+  /loadStartupAuthStatus\(\)[\s\S]*persistedStatus\.isConfigured && persistedStatus\.user[\s\S]*applyRefreshedAuthStatus\(persistedStatus\)/,
+  "a stale or consumed callback may recover only a separately validated persisted session"
+);
 assert.doesNotMatch(
   redirectFailureCatch,
-  /applyRefreshedAuthStatus|getAuthStatus|console\./,
-  "a failed exchange cannot restore or manufacture account state"
+  /setAuthStatus\(\s*\{|loadLocalDemoSession|console\./,
+  "callback recovery cannot manufacture account state or expose diagnostics"
 );
 assert.doesNotMatch(
   authLinkLifecycle,
@@ -615,10 +644,11 @@ const refreshedAuthStatus = extractRange(
   "// AUTH-005"
 );
 assert.match(refreshedAuthStatus, /setAuthStatus\(status\)/);
-assert.match(refreshedAuthStatus, /await restoreAccountForStatus\(status, true\)/);
+assert.match(refreshedAuthStatus, /routeAfterSplash\("restoringSpace"\)/);
+assert.match(refreshedAuthStatus, /await restoreAccountForStatus\(status, true, true\)/);
 assert.ok(
   refreshedAuthStatus.indexOf("setAuthStatus(status)") <
-    refreshedAuthStatus.indexOf("await restoreAccountForStatus(status, true)"),
+    refreshedAuthStatus.indexOf("await restoreAccountForStatus(status, true, true)"),
   "a refreshed real session must be visible before its account route is restored"
 );
 assert.match(
@@ -833,8 +863,13 @@ assert.match(
 );
 assert.match(
   accountState,
-  /const languagePreference = languageResult\.error\s*\? null/,
+  /const languagePreference = !languageResult \|\| languageResult\.error\s*\? null/,
   "an unavailable language migration must not block an existing chart"
+);
+assert.match(
+  accountState,
+  /async function settleOptionalQuery<T>[\s\S]*catch \{[\s\S]*return null/,
+  "a rejected optional schema query must settle without rejecting core restoration"
 );
 assert.match(
   accountState,
@@ -851,7 +886,7 @@ assert.match(app, /const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600/);
 const startupLoader = extractRange(
   app,
   "async function loadStartupAccountState",
-  "function ChartPreviewScreen"
+  "async function loadStartupAuthStatus"
 );
 assert.match(startupLoader, /return await loadSupabaseAccountState\(userId\)/);
 assert.match(startupLoader, /isTransientAccountRestoreError\(error\)/);
@@ -870,12 +905,36 @@ assert.doesNotMatch(
   /loadLocalDemoSession|setScreen\("profile"\)|noChart|clearVisibleAccountState/,
   "startup retry cannot create local state or route an existing account to chart creation"
 );
+const startupAuthLoader = extractRange(
+  app,
+  "async function loadStartupAuthStatus",
+  "function ChartPreviewScreen"
+);
+assert.match(startupAuthLoader, /return await getAuthStatus\(\)/);
+assert.match(startupAuthLoader, /isTransientAuthStatusError\(error\)/);
+assert.match(startupAuthLoader, /retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/);
+assert.doesNotMatch(
+  startupAuthLoader,
+  /loadLocalDemoSession|setAuthStatus\(\s*\{|setScreen\("noChart"\)/,
+  "session hydration retry cannot manufacture authentication or enter onboarding"
+);
 const startupRestore = extractRange(
   app,
   "async function restoreExistingAuthSession",
   "async function restoreAfterAuthRedirect"
 );
+assert.match(startupRestore, /const status = await loadStartupAuthStatus\(\)/);
 assert.match(startupRestore, /restoreAccountForStatus\(status, true, true\)/);
+assert.match(
+  startupRestore,
+  /catch \(error\)[\s\S]*setRestoreResult\("failed"\)[\s\S]*routeAfterSplash\("restoringSpace"\)/,
+  "exhausted session hydration must remain a retryable restoration failure, not appear signed out"
+);
+assert.doesNotMatch(
+  startupRestore,
+  /catch \(error\)[\s\S]*setScreen\("auth"\)|catch \(error\)[\s\S]*clearVisibleAccountState/,
+  "startup validation failure cannot clear the account or manufacture sign-out"
+);
 assert.match(
   signedInRestore,
   /retryTransientStartupFailure[\s\S]{0,260}loadStartupAccountState\(status\.user\.id\)/,
@@ -936,7 +995,7 @@ await assert.rejects(
 assert.equal(exhaustedAttempts, 2, "transient startup recovery must stop after one retry");
 const optionalLanguageUnavailable = simulateOptionalLanguageEnrichment({
   requiredAccount: { status: "loaded", chartVersion: 3 },
-  languageResult: { error: true }
+  languageResult: { error: true, data: null }
 });
 assert.deepEqual(
   optionalLanguageUnavailable,
@@ -946,6 +1005,61 @@ assert.deepEqual(
     appLanguagePreference: null
   },
   "missing language columns cannot turn an existing chart into a failed restore"
+);
+const optionalLanguageRequestRejected = simulateOptionalLanguageEnrichment({
+  requiredAccount: { status: "loaded", chartVersion: 3 },
+  languageResult: null
+});
+assert.deepEqual(
+  optionalLanguageRequestRejected,
+  optionalLanguageUnavailable,
+  "a rejected optional language request cannot block core chart restoration"
+);
+const optionalLanguageUnset = simulateOptionalLanguageEnrichment({
+  requiredAccount: { status: "loaded", chartVersion: 3 },
+  languageResult: {
+    error: false,
+    data: { lang: "en", languagePreferenceSetAt: null }
+  }
+});
+assert.equal(
+  optionalLanguageUnset.appLanguagePreference,
+  null,
+  "present-but-unset language columns must preserve fallback behavior"
+);
+for (const language of ["en", "zh-Hant"]) {
+  const optionalLanguageSaved = simulateOptionalLanguageEnrichment({
+    requiredAccount: { status: "loaded", chartVersion: 3 },
+    languageResult: {
+      error: false,
+      data: { lang: language, languagePreferenceSetAt: "fixture-set" }
+    }
+  });
+  assert.equal(
+    optionalLanguageSaved.appLanguagePreference,
+    language,
+    `valid saved ${language} preference must enrich the restored account`
+  );
+}
+
+let postCallbackAccountAttempts = 0;
+const postCallbackAccount = await simulatePostCallbackRestore(async () => {
+  postCallbackAccountAttempts += 1;
+  if (postCallbackAccountAttempts === 1) {
+    throw new AccountRestoreSimulationError("ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE");
+  }
+  return { status: "loaded", chartVersion: 4 };
+});
+assert.deepEqual(postCallbackAccount, { status: "loaded", chartVersion: 4 });
+assert.equal(
+  postCallbackAccountAttempts,
+  2,
+  "a real callback session must remain loading through one bounded account-read retry"
+);
+assert.deepEqual(
+  simulateStartupSessionOutcome({ isConfigured: true, user: null }),
+  { route: "signed_out_entry", authenticated: false },
+  "a genuinely signed-out or expired session must remain on the real authentication entry path"
 );
 assert.match(accountState, /threadsResult\.error \? \[\]/);
 assert.match(accountState, /reflectionHistoryStatus: reflectionHistoryUnavailable \? "unavailable" : "loaded"/);
@@ -1084,11 +1198,28 @@ function simulateOptionalLanguageEnrichment({
   requiredAccount,
   languageResult
 }) {
+  const preference =
+    languageResult &&
+    !languageResult.error &&
+    languageResult.data?.languagePreferenceSetAt &&
+    ["en", "zh-Hant"].includes(languageResult.data.lang)
+      ? languageResult.data.lang
+      : null;
+
   return {
     ...requiredAccount,
-    appLanguagePreference:
-      languageResult.error ? null : languageResult.language ?? null
+    appLanguagePreference: preference
   };
+}
+
+async function simulatePostCallbackRestore(load) {
+  return simulateBoundedStartupRestore(load);
+}
+
+function simulateStartupSessionOutcome(status) {
+  return status.isConfigured && status.user
+    ? { route: "restore", authenticated: true }
+    : { route: "signed_out_entry", authenticated: false };
 }
 
 async function simulateResend({ state, resendImpl }) {

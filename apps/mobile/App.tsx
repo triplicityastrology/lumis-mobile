@@ -50,6 +50,7 @@ import {
 import {
   getAuthStatus,
   handleAuthRedirectFromUrl,
+  isTransientAuthStatusError,
   sendMagicLink,
   signOut,
   type AuthStatus
@@ -409,7 +410,11 @@ export default function App() {
 
   async function applyRefreshedAuthStatus(status: AuthStatus) {
     setAuthStatus(status);
-    await restoreAccountForStatus(status, true);
+    if (status.isConfigured && status.user) {
+      setRestoreResult("loading");
+      routeAfterSplash("restoringSpace");
+    }
+    await restoreAccountForStatus(status, true, true);
   }
 
   // AUTH-005 / AUTH-006: signed-in reload routes through the "Restoring your Lumis
@@ -546,7 +551,7 @@ export default function App() {
 
     async function restoreExistingAuthSession() {
       try {
-        const status = await getAuthStatus();
+        const status = await loadStartupAuthStatus();
         setAuthStatus(status);
         await restoreAccountForStatus(status, true, true);
       } catch (error) {
@@ -554,9 +559,12 @@ export default function App() {
           return;
         }
 
-        setAuthError(
-          safeUserErrorMessage(error, "auth_restore")
-        );
+        const message = safeUserErrorMessage(error, "auth_restore");
+        setAuthError(message);
+        setAccountLoadStatus("error");
+        setAccountLoadMessage(message);
+        setRestoreResult("failed");
+        routeAfterSplash("restoringSpace");
       }
     }
 
@@ -587,6 +595,17 @@ export default function App() {
       } catch (error) {
         if (!isMounted) {
           return;
+        }
+
+        try {
+          const persistedStatus = await loadStartupAuthStatus();
+          if (persistedStatus.isConfigured && persistedStatus.user) {
+            setAuthError("");
+            await applyRefreshedAuthStatus(persistedStatus);
+            return;
+          }
+        } catch {
+          // The original safe callback error remains the truthful result.
         }
 
         setAuthNotice("");
@@ -1364,6 +1383,28 @@ async function loadStartupAccountState(userId: string): Promise<SupabaseAccountS
     } catch (error) {
       if (
         !isTransientAccountRestoreError(error) ||
+        retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES
+      ) {
+        throw error;
+      }
+
+      retryCount += 1;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS);
+      });
+    }
+  }
+}
+
+async function loadStartupAuthStatus(): Promise<AuthStatus> {
+  let retryCount = 0;
+
+  while (true) {
+    try {
+      return await getAuthStatus();
+    } catch (error) {
+      if (
+        !isTransientAuthStatusError(error) ||
         retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES
       ) {
         throw error;
