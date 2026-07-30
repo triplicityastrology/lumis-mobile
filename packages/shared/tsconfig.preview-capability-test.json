@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/preview-capability-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/config/preview-capability-boundary.ts",
+    "src/config/preview-capability-boundary.fixtures.ts"
+  ]
+}

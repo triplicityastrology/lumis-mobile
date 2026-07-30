@@ -66,8 +66,9 @@ decision and source repair. Until then, the safe choices are:
    a calculated result; or
 3. preserve it as internal fixture/test data only.
 
-This audit recommends hiding AS-01 through AS-05 for the smallest unambiguous
-natal-only preview. It does not implement that recommendation.
+This audit originally recommended hiding AS-01 through AS-05. That
+recommendation is superseded by the founder correction below; the
+technical/release-boundary warning remains valid.
 
 The natal chart displays in AS-12 and the permanent Solar Return exclusion in
 AS-10 are aligned with current scope. No transit, timing, date ranking, weekly
@@ -83,3 +84,19 @@ activation approval. A disclaimer alone is not an activation gate.
 No provider/model call, Chat/AI integration, Knowledge Bank retrieval,
 migration, deployment, billing change, Dice change, translation, or UI redesign
 was performed for this audit.
+
+## Founder Correction - 2026-07-30
+
+The implementation/release-boundary finding remains valid. It does **not**
+authorise a weekly-sky, transit, timing, or AI capability, and none of AS-01
+through AS-07 may be represented in QA, release claims, or capability registers
+as live functionality.
+
+The recommendation to hide AS-01 through AS-05 is superseded. Those
+founder-review astrology surfaces remain reachable as clearly controlled
+preview/design-reference states, using the same
+presentation-versus-capability principle as Care Circle and Notifications.
+Their underlying calculation, routing, data, AI, entitlement, persistence,
+deployment, and release gates remain inactive and separately required. AS-06
+and AS-07 remain internal routing/scaffold implementation warnings, not
+activation approval.

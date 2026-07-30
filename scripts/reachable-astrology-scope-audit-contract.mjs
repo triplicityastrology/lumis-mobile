@@ -67,8 +67,19 @@ for (const safeOption of [
   assert.ok(audit.includes(safeOption), `${safeOption} must remain an allowed recommendation`);
 }
 
-assert.match(audit, /This audit recommends hiding AS-01 through AS-05/);
-assert.match(audit, /It does not implement that recommendation/);
+assert.match(audit, /## Founder Correction - 2026-07-30/);
+assert.match(
+  audit,
+  /recommendation to hide AS-01 through AS-05 is superseded/
+);
+assert.match(
+  audit,
+  /surfaces remain reachable as clearly controlled[\s\S]*preview\/design-reference states/
+);
+assert.match(
+  audit,
+  /none of AS-01[\s\S]*through AS-07 may be represented[\s\S]*as live functionality/
+);
 assert.match(audit, /Natal Moon[\s\S]*Birth-chart Moon data, not current-sky transit data/);
 assert.match(audit, /Dice[\s\S]*Preserve untouched/);
 assert.doesNotMatch(
