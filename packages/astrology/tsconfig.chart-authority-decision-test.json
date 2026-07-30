@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chart-authority-decision-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/chart-data-authority-decision-gate.ts",
+    "src/chart-data-authority-decision.fixtures.ts"
+  ]
+}
