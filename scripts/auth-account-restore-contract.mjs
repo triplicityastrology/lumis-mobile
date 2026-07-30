@@ -203,6 +203,11 @@ const safeAuthFetch = extractRange(
   "const authSafeFetch",
   "function createAuthStorage"
 );
+assert.match(
+  safeAuthFetch,
+  /const fetchInput = input instanceof URL \? input\.toString\(\) : input;/
+);
+assert.match(safeAuthFetch, /globalThis\.fetch\(fetchInput, init\)/);
 assert.match(safeAuthFetch, /isConfiguredSupabaseAuthRequest\(input\)/);
 assert.match(safeAuthFetch, /isTransportFailure\(error\)/);
 assert.match(safeAuthFetch, /const config = getSupabaseConfig\(\)/);
@@ -225,6 +230,47 @@ assert.match(
 );
 assert.match(authService, /AUTH_NETWORK_INTERRUPTED/);
 
+const fetchInputs = [
+  {
+    expected: "https://fixture.supabase.co/auth/v1/token",
+    input: "https://fixture.supabase.co/auth/v1/token",
+    name: "string"
+  },
+  {
+    expected: "https://fixture.supabase.co/auth/v1/token",
+    input: new URL("https://fixture.supabase.co/auth/v1/token"),
+    name: "URL"
+  },
+  {
+    expected: null,
+    input: new Request("https://fixture.supabase.co/auth/v1/token"),
+    name: "Request"
+  }
+];
+
+for (const fixture of fetchInputs) {
+  let dispatchedInput;
+  const response = await simulateAuthSafeFetch(
+    "https://fixture.supabase.co",
+    fixture.input,
+    async (normalizedInput) => {
+      dispatchedInput = normalizedInput;
+      return new Response(null, { status: 204 });
+    }
+  );
+
+  assert.equal(response.status, 204);
+  if (fixture.name === "Request") {
+    assert.equal(
+      dispatchedInput,
+      fixture.input,
+      "Request inputs must retain their runtime identity"
+    );
+  } else {
+    assert.equal(dispatchedInput, fixture.expected);
+  }
+}
+
 const containedAuthNetworkResponse = await simulateAuthSafeFetch(
   "https://fixture.supabase.co",
   "https://fixture.supabase.co/auth/v1/token",
@@ -236,6 +282,44 @@ assert.equal(containedAuthNetworkResponse.status, 503);
 assert.deepEqual(await containedAuthNetworkResponse.json(), {
   message: "AUTH_NETWORK_INTERRUPTED"
 });
+
+for (const input of [
+  new URL("https://fixture.supabase.co/auth/v1/token"),
+  new Request("https://fixture.supabase.co/auth/v1/token")
+]) {
+  const response = await simulateAuthSafeFetch(
+    "https://fixture.supabase.co",
+    input,
+    async () => {
+      throw new TypeError("Network request failed");
+    }
+  );
+  assert.equal(response.status, 503);
+}
+
+await assert.rejects(
+  simulateAuthSafeFetch(
+    undefined,
+    "https://fixture.supabase.co/auth/v1/token",
+    async () => {
+      throw new TypeError("Network request failed");
+    }
+  ),
+  /Network request failed/,
+  "an unconfigured runtime cannot contain a transport failure"
+);
+
+await assert.rejects(
+  simulateAuthSafeFetch(
+    "https://fixture.supabase.co",
+    "https://fixture.supabase.co/auth/v1/token",
+    async () => {
+      throw new Error("Fixture invariant failure");
+    }
+  ),
+  /Fixture invariant failure/,
+  "non-transport failures must remain visible to developers"
+);
 
 const invalidLinkResponse = await simulateAuthSafeFetch(
   "https://fixture.supabase.co",
@@ -1337,12 +1421,19 @@ async function simulateDeduplicatedCallback(url, processedUrls, exchange) {
 
 async function simulateAuthSafeFetch(configuredUrl, input, request) {
   try {
-    return await request();
+    const fetchInput = input instanceof URL ? input.toString() : input;
+    return await request(fetchInput);
   } catch (caught) {
     let isAuthRequest = false;
     try {
       const configuredOrigin = new URL(configuredUrl).origin;
-      const requestUrl = new URL(input);
+      const inputValue =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      const requestUrl = new URL(inputValue);
       isAuthRequest =
         requestUrl.origin === configuredOrigin &&
         (requestUrl.pathname === "/auth/v1" ||

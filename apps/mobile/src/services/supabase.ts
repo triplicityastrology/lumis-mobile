@@ -66,7 +66,8 @@ export async function probeSupabaseAuthConnection(): Promise<boolean> {
 
 const authSafeFetch: typeof globalThis.fetch = async (input, init) => {
   try {
-    return await globalThis.fetch(input, init);
+    const fetchInput = input instanceof URL ? input.toString() : input;
+    return await globalThis.fetch(fetchInput, init);
   } catch (error) {
     if (!isConfiguredSupabaseAuthRequest(input) || !isTransportFailure(error)) {
       throw error;
