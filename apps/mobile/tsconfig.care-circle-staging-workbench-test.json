@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/care-circle-staging-workbench-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "test-workbenches/care-circle-staging/**/*.ts",
+    "test-workbenches/care-circle-staging/**/*.tsx"
+  ]
+}

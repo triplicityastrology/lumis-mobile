@@ -1,0 +1,6 @@
+{
+  "name": "@lumis/care-circle-staging-workbench",
+  "private": true,
+  "version": "0.0.0",
+  "main": "index.tsx"
+}

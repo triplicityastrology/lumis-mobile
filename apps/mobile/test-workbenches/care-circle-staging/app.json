@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Lumis Care Circle Staging Workbench",
+    "slug": "lumis-mobile",
+    "scheme": "lumis",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B1930"
+      }
+    }
+  }
+}
