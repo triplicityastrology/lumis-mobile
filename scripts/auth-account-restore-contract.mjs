@@ -209,6 +209,18 @@ assert.match(
 );
 assert.match(safeAuthFetch, /globalThis\.fetch\(fetchInput, init\)/);
 assert.match(safeAuthFetch, /isConfiguredSupabaseAuthRequest\(input\)/);
+assert.match(
+  safeAuthFetch,
+  /type CrossPlatformFetchInput = string \| URL \| Request;/
+);
+assert.match(
+  safeAuthFetch,
+  /input: CrossPlatformFetchInput/
+);
+assert.doesNotMatch(
+  safeAuthFetch,
+  /Parameters<typeof globalThis\.fetch>\[0\]/
+);
 assert.match(safeAuthFetch, /isTransportFailure\(error\)/);
 assert.match(safeAuthFetch, /const config = getSupabaseConfig\(\)/);
 assert.match(safeAuthFetch, /new URL\(config\.url\)\.origin/);

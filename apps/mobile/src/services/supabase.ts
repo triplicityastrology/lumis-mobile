@@ -83,8 +83,10 @@ const authSafeFetch: typeof globalThis.fetch = async (input, init) => {
   }
 };
 
+type CrossPlatformFetchInput = string | URL | Request;
+
 function isConfiguredSupabaseAuthRequest(
-  input: Parameters<typeof globalThis.fetch>[0]
+  input: CrossPlatformFetchInput
 ): boolean {
   const config = getSupabaseConfig();
 
