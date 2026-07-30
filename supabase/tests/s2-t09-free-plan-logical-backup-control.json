@@ -8,6 +8,8 @@
     "approved_on": "2026-07-30",
     "project_use": "staging_test_only",
     "real_members_present": false,
+    "auth_relational_data_decision": "excluded",
+    "auth_exclusion_approved_by_founder_security_on": "2026-07-30",
     "pm_acceptance": "pending",
     "qa_acceptance": "pending"
   },
@@ -37,11 +39,15 @@
   ],
   "backup_scope": {
     "roles_and_grants": true,
-    "application_schema": "complete_user_managed_schema",
+    "application_schema": "complete_application_owned_public_schema",
     "application_data": "complete_required_relational_data",
+    "relational_schema_allowlist": [
+      "public",
+      "supabase_migrations"
+    ],
     "migration_history": true,
-    "auth_schema_definition": "excluded_managed_schema",
-    "auth_data": "conditional_security_approval_and_restore_proof",
+    "auth_schema_definition": "excluded",
+    "auth_relational_data": "excluded",
     "storage_metadata": "database_metadata_only_when_emitted_by_supported_dump",
     "storage_object_binaries": false,
     "edge_function_secrets": false,
@@ -59,6 +65,8 @@
     "migration_history",
     "table_count_relationships",
     "foreign_key_integrity",
+    "application_owned_public_data_only",
+    "auth_relational_data_excluded",
     "migration_0032_0033_0034_disposable_only"
   ],
   "stop_conditions": [
@@ -70,7 +78,7 @@
     "encryption_not_aes_256",
     "plaintext_outside_mounted_encrypted_volume",
     "dump_or_checksum_failure",
-    "auth_data_not_approved",
+    "auth_scope_inclusion_detected",
     "restore_validation_failure",
     "unexpected_migration",
     "legacy_audit_blocker",

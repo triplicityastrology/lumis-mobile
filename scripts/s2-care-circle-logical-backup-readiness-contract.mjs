@@ -59,6 +59,8 @@ assert.deepEqual(control.classification, {
   approved_on: "2026-07-30",
   project_use: "staging_test_only",
   real_members_present: false,
+  auth_relational_data_decision: "excluded",
+  auth_exclusion_approved_by_founder_security_on: "2026-07-30",
   pm_acceptance: "pending",
   qa_acceptance: "pending",
 });
@@ -68,6 +70,16 @@ assert.equal(
 );
 assert.equal(control.backup_scope.storage_object_binaries, false);
 assert.equal(control.backup_scope.edge_function_secrets, false);
+assert.equal(control.backup_scope.auth_schema_definition, "excluded");
+assert.equal(control.backup_scope.auth_relational_data, "excluded");
+assert.equal(
+  control.backup_scope.application_schema,
+  "complete_application_owned_public_schema"
+);
+assert.deepEqual(control.backup_scope.relational_schema_allowlist, [
+  "public",
+  "supabase_migrations",
+]);
 
 assert.doesNotMatch(
   checker,
@@ -148,8 +160,11 @@ for (const phrase of [
   );
 }
 
-assert.match(runbook, /Auth data may be included only/i);
-assert.match(runbook, /generic PostgreSQL database[^]*not sufficient/i);
+assert.match(
+  runbook,
+  /Supabase Auth\s+relational data is unconditionally excluded/i
+);
+assert.match(runbook, /does not provide Auth identity or session recovery/i);
 assert.match(runbook, /SUPABASE_DB_PASSWORD/);
 assert.doesNotMatch(runbook, /--password\s+["'$]/);
 assert.doesNotMatch(runbook, /echo\s+.*(?:PASSWORD|TOKEN|SECRET)/i);
@@ -159,6 +174,23 @@ assert.doesNotMatch(runbook, /tee\s+.*(?:roles|schema|data)\.sql/i);
 const codeBlocks = [...runbook.matchAll(/```zsh\n([\s\S]*?)```/g)]
   .map((match) => match[1])
   .join("\n");
+const dumpSequence = extractSection(
+  runbook,
+  "## Future Hidden-Credential Dump Sequence",
+  "## Metadata-Only Manifest"
+);
+assertDumpScopeExcludesAuth(dumpSequence);
+for (const unsafeDump of [
+  "supabase db dump --linked --data-only --schema public,auth",
+  "supabase db dump --linked --data-only --schema auth",
+  "supabase db dump --linked --data-only",
+  "supabase db dump --linked --data-only --schema public,supabase_migrations --exclude 'storage.*'",
+]) {
+  assert.throws(
+    () => assertDumpScopeExcludesAuth(unsafeDump),
+    /AUTH_RELATIONAL_SCOPE_FORBIDDEN/
+  );
+}
 for (const forbidden of [
   "/lumis-mobile/",
   "/GoogleDrive/",
@@ -182,6 +214,30 @@ assert.match(codeBlocks, /BACKUP_PARENT="\/Users\/rubyku\/Library\/Application S
 assert.match(codeBlocks, /MOUNT_POINT="\/Volumes\/\$VOLUME_NAME"/);
 assert.match(codeBlocks, /--project-ref|EXPECTED_REF="bmqhwofmdgebpcihjlnb"/);
 assert.match(runbook, /No command in this document has been executed/i);
-assert.match(runbook, /impossible to execute through the package command/i);
+assert.match(runbook, /impossible to execute\s+through the package command/i);
 
 console.log("free-plan logical backup readiness contracts passed");
+
+function assertDumpScopeExcludesAuth(value) {
+  const dataCommand =
+    value.match(/(?:^|\n)"?\$PNPM"?[\s\S]*?--data-only[\s\S]*?--file[^\n]*/)?.[0] ??
+    value;
+  const schemaMatch = dataCommand.match(/--schema\s+([^\s\\]+)/);
+  const schemas = schemaMatch?.[1]?.replaceAll(/["']/g, "").split(",") ?? [];
+  const hasExactAllowlist =
+    schemas.length === 2 &&
+    schemas[0] === "public" &&
+    schemas[1] === "supabase_migrations";
+  const excludesAuth = /--exclude\s+['"]auth\.\*['"]/.test(dataCommand);
+
+  if (!hasExactAllowlist || schemas.includes("auth") || !excludesAuth) {
+    throw new Error("AUTH_RELATIONAL_SCOPE_FORBIDDEN");
+  }
+}
+
+function extractSection(source, start, end) {
+  const startIndex = source.indexOf(start);
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  assert(startIndex >= 0 && endIndex > startIndex);
+  return source.slice(startIndex, endIndex);
+}

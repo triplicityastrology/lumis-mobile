@@ -25,6 +25,8 @@ assert.deepEqual(control.classification, {
   approved_on: "2026-07-30",
   project_use: "staging_test_only",
   real_members_present: false,
+  auth_relational_data_decision: "excluded",
+  auth_exclusion_approved_by_founder_security_on: "2026-07-30",
   pm_acceptance: "pending",
   qa_acceptance: "pending",
 });
@@ -37,6 +39,17 @@ assert.equal(control.mount_parent, "/Volumes");
 assert.equal(control.backup_scope.storage_object_binaries, false);
 assert.equal(control.backup_scope.edge_function_secrets, false);
 assert.equal(control.backup_scope.provider_secrets, false);
+assert.equal(control.backup_scope.auth_schema_definition, "excluded");
+assert.equal(control.backup_scope.auth_relational_data, "excluded");
+assert.equal(
+  control.backup_scope.application_schema,
+  "complete_application_owned_public_schema"
+);
+assert.deepEqual(control.backup_scope.relational_schema_allowlist, [
+  "public",
+  "supabase_migrations",
+]);
+assert(!control.backup_scope.relational_schema_allowlist.includes("auth"));
 
 const linkedRefPath = path.resolve("supabase/.temp/project-ref");
 if (existsSync(linkedRefPath)) {
@@ -74,6 +87,8 @@ for (const check of [
   "migration_history",
   "table_count_relationships",
   "foreign_key_integrity",
+  "application_owned_public_data_only",
+  "auth_relational_data_excluded",
   "migration_0032_0033_0034_disposable_only",
 ]) {
   assert(control.required_restore_checks.includes(check));

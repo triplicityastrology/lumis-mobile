@@ -1,9 +1,10 @@
 # S2-T09 Free-Plan Encrypted Logical Backup Readiness
 
-Status: source-only, Founder-approved, PM/QA classification acceptance pending,
-and impossible to execute through the package command. This document prepares
-a possible substitute for unavailable Supabase scheduled backup/PITR. It does
-not weaken the existing Gate 2 stop.
+Status: source-only, Founder/data-owner and security Auth-exclusion decision
+approved on 2026-07-30, PM/QA acceptance pending, and impossible to execute
+through the package command. This document prepares a possible substitute for
+unavailable Supabase scheduled backup/PITR. It does not weaken the existing
+Gate 2 stop.
 
 Approved project: `bmqhwofmdgebpcihjlnb`.
 
@@ -28,10 +29,11 @@ last-resort operation.
 Capture:
 
 - roles and application grants;
-- complete user-managed schema, functions, policies, indexes, and comments;
+- complete application-owned `public` schema, functions, policies, indexes, and
+  comments;
 - complete relational data required to restore application-owned `public`
-  state, including users, entitlements, chart history, Care Circle legacy rows,
-  notifications, and migration history;
+  state, including application-owned public users, entitlements, chart history,
+  Care Circle legacy rows, notifications, and migration history;
 - metadata-only source commit, CLI version, PostgreSQL major version, UTC
   timestamp, file names, byte sizes, and SHA-256 values.
 
@@ -42,29 +44,26 @@ alter existing `users`, `care_relationships`, `care_relationship_events`, and
 Explicit exclusions:
 
 - Storage object binaries;
+- Supabase Auth schema definitions and all Auth relational data;
 - Edge Function secrets;
 - provider credentials and secrets;
 - raw terminal output, connection strings, and database URLs.
 
-## Auth Schema With CLI 2.109.1
+## Supabase Auth Is Excluded
 
-The pinned CLI's normal schema dump excludes Supabase-managed schemas,
-including `auth` and `storage`. The supported `--data-only` mode can emit
-managed relational data needed for migration/restore workflows, but Auth data
-contains password hashes and identity metadata and is highly sensitive.
+Founder/data-owner and security decided on 2026-07-30 that Supabase Auth
+relational data is unconditionally excluded from this Care Circle migration
+backup. The backup must not capture `auth.*` schema definitions or rows.
 
-Auth data may be included only when all of the following are true:
+The pinned CLI's normal schema dump excludes Supabase-managed schemas. The
+future commands below additionally restrict both application schema and data
+capture to `public,supabase_migrations`; the data command also rejects
+`auth.*` explicitly. Removing either guard is a stop condition.
 
-1. security/privacy and Founder/data-owner explicitly approve it;
-2. plaintext exists only inside the mounted AES-256 volume;
-3. the isolated target is a compatible Supabase environment that already owns
-   the managed Auth schema and matching PostgreSQL major version;
-4. the data-only dump dry-run proves the expected managed-data scope without
-   displaying row contents;
-5. isolated restore proves public/Auth referential integrity.
-
-If any condition fails, stop. A generic PostgreSQL database without compatible
-Supabase managed schemas is not sufficient restoration evidence.
+This logical snapshot does not provide Auth identity or session recovery. It
+does not claim full account recovery. If application-owned public data cannot
+be restored and validated without source Auth rows, the restore test fails and
+Gate 2 remains blocked; no Auth data may be added as a workaround.
 
 ## Future Secure Local Destination
 
@@ -216,12 +215,15 @@ export SUPABASE_DB_PASSWORD
 
 "$PNPM" dlx "supabase@$PINNED_CLI_VERSION" db dump \
   --linked \
+  --schema public,supabase_migrations \
   --file "$MOUNT_POINT/schema.sql"
 
 "$PNPM" dlx "supabase@$PINNED_CLI_VERSION" db dump \
   --linked \
   --data-only \
   --use-copy \
+  --schema public,supabase_migrations \
+  --exclude 'auth.*' \
   --exclude storage.buckets_vectors \
   --exclude storage.vector_indexes \
   --file "$MOUNT_POINT/data.sql"
@@ -274,21 +276,26 @@ Future validation order:
 
 1. verify `manifest.sha256` before reading any dump;
 2. restore roles;
-3. initialize compatible Supabase-managed schemas;
+3. initialize the disposable target's own compatible managed schema
+   definitions without importing any source Auth rows;
 4. restore application schema;
 5. restore data;
 6. verify required extensions and PostgreSQL major version;
 7. verify roles, grants, policies, RLS enabled state, function signatures, and
    migration history;
-8. verify foreign keys and table-count relationships using counts/status only;
-9. verify public/Auth referential integrity when Auth data was approved;
-10. run `0032`, `0033`, and `0034` only in the disposable restore;
-11. run Care Circle schema/RLS/concurrency contracts there;
-12. retain only check names and pass/fail status;
-13. destroy the disposable database immediately.
+8. verify application-owned `public` and `supabase_migrations` data, foreign
+   keys, and table-count relationships using counts/status only;
+9. verify the captured scope contains no Supabase Auth relational data;
+10. record explicitly that Auth identity/session recovery was not tested and is
+    not provided by this snapshot;
+11. run `0032`, `0033`, and `0034` only in the disposable restore;
+12. run Care Circle schema/RLS/concurrency contracts there;
+13. retain only check names and pass/fail status;
+14. destroy the disposable database immediately.
 
 Any restore error, unexpected migration, missing function/policy, orphaned row,
-count inconsistency, Auth mismatch, or raw-data output blocks Gate 2.
+count inconsistency, dependency on absent Auth rows, Auth-scope inclusion, or
+raw-data output blocks Gate 2.
 
 ## Future Secure Unmount And Retention
 
