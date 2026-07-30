@@ -19,7 +19,15 @@ if (args.projectRef !== APPROVED_REF) {
 const control = JSON.parse(readFileSync(CONTROL_PATH, "utf8"));
 assert.equal(control.project_ref, APPROVED_REF);
 assert.equal(control.environment, "staging");
-assert.equal(control.status, "readiness_only_unapproved");
+assert.equal(control.status, "founder_approved_pm_qa_pending");
+assert.deepEqual(control.classification, {
+  approved_by_founder_data_owner: true,
+  approved_on: "2026-07-30",
+  project_use: "staging_test_only",
+  real_members_present: false,
+  pm_acceptance: "pending",
+  qa_acceptance: "pending",
+});
 assert.equal(control.execution_default, "local_validation_only");
 assert.equal(control.execution_available, false);
 assert.equal(control.supabase_cli_version, "2.109.1");

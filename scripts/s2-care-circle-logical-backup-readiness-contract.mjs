@@ -53,6 +53,15 @@ assert.match(execute.stderr, /LOGICAL_BACKUP_EXECUTION_FORBIDDEN/);
 
 assert.equal(control.execution_available, false);
 assert.equal(control.maximum_retention_days, 7);
+assert.equal(control.status, "founder_approved_pm_qa_pending");
+assert.deepEqual(control.classification, {
+  approved_by_founder_data_owner: true,
+  approved_on: "2026-07-30",
+  project_use: "staging_test_only",
+  real_members_present: false,
+  pm_acceptance: "pending",
+  qa_acceptance: "pending",
+});
 assert.equal(
   control.backup_parent,
   "/Users/rubyku/Library/Application Support/LumisSecureBackups"

@@ -1,8 +1,16 @@
 {
   "control": "S2-T09-FREE-PLAN-LOGICAL-BACKUP",
-  "status": "readiness_only_unapproved",
+  "status": "founder_approved_pm_qa_pending",
   "environment": "staging",
   "project_ref": "bmqhwofmdgebpcihjlnb",
+  "classification": {
+    "approved_by_founder_data_owner": true,
+    "approved_on": "2026-07-30",
+    "project_use": "staging_test_only",
+    "real_members_present": false,
+    "pm_acceptance": "pending",
+    "qa_acceptance": "pending"
+  },
   "supabase_cli_version": "2.109.1",
   "execution_default": "local_validation_only",
   "execution_available": false,
