@@ -1,5 +1,6 @@
 import {
   CARE_CIRCLE_STAGING_PROJECT_REF,
+  CARE_CIRCLE_STAGING_SUPABASE_ORIGIN,
   resolveCareCircleWorkbenchBoundary,
 } from "./stagingWorkbenchBoundary";
 
@@ -13,6 +14,7 @@ equal(
     flag: "0",
     isDevelopment: true,
     projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
+    supabaseUrl: CARE_CIRCLE_STAGING_SUPABASE_ORIGIN,
   }).enabled,
   false,
   "zero flag is disabled"
@@ -22,6 +24,7 @@ equal(
     flag: "1",
     isDevelopment: false,
     projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
+    supabaseUrl: CARE_CIRCLE_STAGING_SUPABASE_ORIGIN,
   }).enabled,
   false,
   "production mode is disabled"
@@ -35,11 +38,39 @@ equal(
   false,
   "unknown project is disabled"
 );
+equal(
+  resolveCareCircleWorkbenchBoundary({
+    flag: "1",
+    isDevelopment: true,
+    projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
+    supabaseUrl: "https://another-project.supabase.co",
+  }).enabled,
+  false,
+  "staging ref with a non-staging URL is disabled"
+);
+for (const invalidUrl of [
+  "not-a-url",
+  "http://bmqhwofmdgebpcihjlnb.supabase.co",
+  "https://bmqhwofmdgebpcihjlnb.supabase.co.evil.invalid",
+  "https://bmqhwofmdgebpcihjlnb.supabase.co/rest/v1",
+]) {
+  equal(
+    resolveCareCircleWorkbenchBoundary({
+      flag: "1",
+      isDevelopment: true,
+      projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
+      supabaseUrl: invalidUrl,
+    }).enabled,
+    false,
+    "malformed, non-HTTPS, or non-origin URL is disabled"
+  );
+}
 
 const enabled = resolveCareCircleWorkbenchBoundary({
   flag: "1",
   isDevelopment: true,
   projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
+  supabaseUrl: CARE_CIRCLE_STAGING_SUPABASE_ORIGIN,
 });
 equal(enabled.enabled, true, "explicit staging development build is enabled");
 equal(

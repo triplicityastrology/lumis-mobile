@@ -17,6 +17,7 @@ import { createStagingWorkbenchPorts } from "./stagingWorkbenchPort";
 const boundary = resolveCareCircleWorkbenchBoundary({
   flag: process.env.EXPO_PUBLIC_CARE_CIRCLE_STAGING_WORKBENCH,
   projectRef: process.env.EXPO_PUBLIC_SUPABASE_PROJECT_REF,
+  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
   isDevelopment: __DEV__,
 });
 const supabase = boundary.enabled ? getSupabaseClient() : null;

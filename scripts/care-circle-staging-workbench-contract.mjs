@@ -46,6 +46,13 @@ for (const operation of [
   assert.match(screen, new RegExp(`"${operation}"`));
 }
 assert.match(entry, /createInactiveCareCircleClient\(ports\.operationPort\)/);
+assert.match(entry, /supabaseUrl: process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
+assert.match(boundary, /CARE_CIRCLE_STAGING_SUPABASE_ORIGIN/);
+assert.match(boundary, /parsed\.protocol === "https:"/);
+assert.match(boundary, /parsed\.hostname ===/);
+assert.match(boundary, /parsed\.pathname === "\/"/);
+assert.match(fixture, /staging ref with a non-staging URL is disabled/);
+assert.match(fixture, /malformed, non-HTTPS, or non-origin URL is disabled/);
 assert.match(entry, /CareCircleStagingSessionGate/);
 assert.match(entry, /sessionPort=\{ports\.sessionPort\}/);
 assert.match(port, /list_care_relationships/);
