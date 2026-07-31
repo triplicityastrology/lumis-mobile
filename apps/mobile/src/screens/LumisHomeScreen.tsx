@@ -46,7 +46,9 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
 
   const sun = findPoint(props.chart, "sun");
   const moon = findPoint(props.chart, "moon");
-  const rising = findPoint(props.chart, "ascendant");
+  // Rising is shown ONLY for a full-precision (timed) chart. A no_birth_time
+  // chart with stale/malformed Ascendant data must still show Sun + Moon only.
+  const rising = props.chart.precision === "full" ? findPoint(props.chart, "ascendant") : undefined;
 
   return (
     <SafeAreaView edges={[]} style={styles.safe}>

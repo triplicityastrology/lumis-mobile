@@ -1048,7 +1048,7 @@ assert.match(
 );
 assert.match(
   app,
-  /onRetry=\{restoreSpace\}[\s\S]{0,100}onBack=\{openAccountRecovery\}/,
+  /onRetry=\{\(\) => restoreSpace\("retry"\)\}[\s\S]{0,120}onBack=\{openAccountRecovery\}/,
   "Retry and account recovery must remain distinct usable actions"
 );
 assert.doesNotMatch(

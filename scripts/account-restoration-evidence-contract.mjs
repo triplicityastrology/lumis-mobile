@@ -131,6 +131,15 @@ assert.match(secureRunner, /read -r -s secret_key/);
 assert.doesNotMatch(secureRunner, /echo ["']?\$secret_key/);
 assert.doesNotMatch(hostedProof, /console\.log\([^)]*(?:email|birth_date|access_token)/i);
 
+// AUTH-005 restoration origin: only a deliberate "reload" shows the restored-
+// account confirmation card; the failure Retry ("retry") continues directly to
+// Chat (like automatic cold-start restoration), never the card.
+assert.match(app, /async function restoreSpace\(origin: "reload" \| "retry" = "reload"\)/);
+assert.match(app, /if \(origin === "retry"\) \{[\s\S]{0,160}setScreen\("chat"\)/);
+assert.match(app, /Deliberate reload[\s\S]{0,140}setRestoreResult\("foundChart"\)/);
+assert.match(app, /onRetry=\{\(\) => restoreSpace\("retry"\)\}/);
+assert.match(app, /onReload=\{\(\) => restoreSpace\("reload"\)\}/);
+
 console.log("account restoration evidence contract checks passed");
 
 function extractRange(source, start, end) {

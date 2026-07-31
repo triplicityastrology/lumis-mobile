@@ -286,11 +286,14 @@ assert.match(
 assert.match(homeScreenSource, /const canCreateChart = props\.isAuthenticated && props\.accountLoadStatus === "empty"/);
 assert.match(homeScreenSource, /const restoreFailed = props\.isAuthenticated && props\.accountLoadStatus === "error"/);
 assert.match(homeScreenSource, /restoreFailed\s*\?\s*props\.onReload/);
+// HOME-002 (rule C): Rising is gated on full precision — a no_birth_time chart
+// with stale/malformed Ascendant data must still show Sun + Moon only.
+assert.match(homeScreenSource, /const rising = props\.chart\.precision === "full" \? findPoint\(props\.chart, "ascendant"\) : undefined/);
 assert.match(authSystemKit, /<PrimaryButton label="Retry" onPress=\{onRetry\} \/>/);
 assert.match(authSystemKit, /<LinkButton label="Back to account" onPress=\{onBack\} \/>/);
 assert.match(
   appSource,
-  /async function restoreSpace\(\)[\s\S]{0,180}setRestoreResult\("loading"\)[\s\S]{0,260}try \{[\s\S]{0,160}await refreshAuthStatus\(\)/
+  /async function restoreSpace\(origin: "reload" \| "retry" = "reload"\)[\s\S]{0,180}setRestoreResult\("loading"\)[\s\S]{0,260}try \{[\s\S]{0,160}await refreshAuthStatus\(\)/
 );
 assert.match(appSource, /function routeAfterSplash[\s\S]{0,220}setScreen\(target\)/);
 assert.match(appSource, /accessibilityLabel="Past Reflections"/);

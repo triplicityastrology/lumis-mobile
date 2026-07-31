@@ -420,7 +420,12 @@ export default function App() {
   // AUTH-005 / AUTH-006: signed-in reload routes through the "Restoring your Lumis
   // space" screen (large sky-wheel loader), then to Chat (found) / No chart found
   // (setup) / a retryable failure. Local (no account) reload stays on home.
-  async function restoreSpace() {
+  //
+  // AUTH-005 restoration origin: only a deliberate Profile/Home "Reload Account"
+  // ("reload") shows the restored-account confirmation card. Recovery from the
+  // "Couldn't load your space" Retry ("retry") continues directly to Chat, like
+  // automatic cold-start restoration — no confirmation card after a failure retry.
+  async function restoreSpace(origin: "reload" | "retry" = "reload") {
     setScreen("restoringSpace");
     setRestoreResult("loading");
     setAccountLoadStatus("loading");
@@ -436,7 +441,17 @@ export default function App() {
 
       const accountState = await loadSupabaseAccountState(status.user.id);
       const restored = applySupabaseAccountState(accountState);
-      setRestoreResult(restored ? "foundChart" : "noChart");
+      if (!restored) {
+        setRestoreResult("noChart");
+        return;
+      }
+      if (origin === "retry") {
+        // Successful recovery from a transient load failure → straight to Chat.
+        setScreen("chat");
+        return;
+      }
+      // Deliberate reload → show the AUTH-005 restored-account confirmation card.
+      setRestoreResult("foundChart");
     } catch (error) {
       setAccountLoadStatus("error");
       setAccountLoadMessage(safeAccountRestoreMessage(error));
@@ -659,7 +674,7 @@ export default function App() {
         chart={chartProfile}
         onGoChat={() => setScreen(chartProfile ? "chat" : "home")}
         onGoOnboarding={() => setScreen("noChart")}
-        onRetry={restoreSpace}
+        onRetry={() => restoreSpace("retry")}
         onBack={openAccountRecovery}
         onLogout={requestAuthoritativeLogout}
       />
@@ -1031,7 +1046,7 @@ export default function App() {
           }
           setScreen("reflections");
         }}
-        onReload={restoreSpace}
+        onReload={() => restoreSpace("reload")}
       />
     </>
   );
