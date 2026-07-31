@@ -12,7 +12,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { wheelPoint } from "./wheelMath";
+import { resolveShowHouses, wheelPoint } from "./wheelMath";
 
 let failures = 0;
 function check(label: string, cond: boolean) {
@@ -50,11 +50,21 @@ check("+270° from ASC (MC direction) is at the top", topY < C - R + EPS && Math
 // 3. Regression guard: the OLD clockwise formula would have put +90° at the top.
 check("not the old clockwise orientation (+90° must NOT be at top)", !(botY < C));
 
-// 4. Source contract: NatalWheel gates ASC/MC labels and house cusps on `show`
-//    (unknown-time charts hide ASC/MC/houses — birth-time capability rule C).
+// 4. NON-bypassable unknown-time suppression (deterministic, runtime).
+//    A caller passing showHouses=true must never reveal houses/ASC/MC for a
+//    no_birth_time chart (birth-time capability rule C).
+check("full + default → houses shown", resolveShowHouses("full", undefined) === true);
+check("full + showHouses=false → hidden (caller may hide)", resolveShowHouses("full", false) === false);
+check("no_birth_time + showHouses=true → STILL hidden (no bypass)", resolveShowHouses("no_birth_time", true) === false);
+check("no_birth_time + default → hidden", resolveShowHouses("no_birth_time", undefined) === false);
+check("no_birth_time + showHouses=false → hidden", resolveShowHouses("no_birth_time", false) === false);
+
+// 5. Source contract: NatalWheel gates ASC/MC labels and house cusps on `show`,
+//    derived from the non-bypassable resolver (not the old nullish override).
 // Compiled fixture runs from .tmp/ with cwd = repo root (matching test:dice).
 const wheelSrc = readFileSync(join(process.cwd(), "apps/mobile/src/components/NatalWheel.tsx"), "utf8");
-check("NatalWheel derives show from full precision", /const show = showHouses \?\? chart\.precision === "full"/.test(wheelSrc));
+check("NatalWheel uses resolveShowHouses (non-bypassable)", /const show = resolveShowHouses\(chart\.precision, showHouses\)/.test(wheelSrc));
+check("NatalWheel no longer uses the bypassable nullish override", !/showHouses \?\? chart\.precision/.test(wheelSrc));
 check("ASC/MC labels gated on show", /\{show[\s\S]{0,80}\["ASC", asc\]/.test(wheelSrc));
 check("house cusps gated on show", /const houseCusps = show/.test(wheelSrc));
 check("uses the corrected wheelPoint projection", /wheelPoint\(lon, asc, r, C\)/.test(wheelSrc));

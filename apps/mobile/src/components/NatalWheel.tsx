@@ -2,11 +2,11 @@ import Svg, { Circle, Defs, G, Line, RadialGradient, Stop, Text as SvgText } fro
 
 import type { ChartV2 } from "@lumis/shared";
 
-import { wheelPoint } from "./wheelMath";
+import { resolveShowHouses, wheelPoint } from "./wheelMath";
 
 /**
  * Data-driven natal chart wheel ported from the design handoff (ac-chartwheel.jsx):
- * ASC pinned to the left (9 o'clock), zodiac increasing clockwise; element-colored
+ * ASC pinned to the left (9 o'clock), zodiac increasing counter-clockwise; element-colored
  * sign glyphs on the rim; house cusps + numbers; ASC/MC labels; major aspect lines
  * behind planet discs with tick lines; hub sparkle. Pure react-native-svg.
  */
@@ -65,7 +65,10 @@ export function NatalWheel({
   size?: number;
   showHouses?: boolean;
 }) {
-  const show = showHouses ?? chart.precision === "full";
+  // Unknown-time suppression is NON-bypassable: houses/ASC/MC render only for a
+  // full-precision (timed) chart. A caller may hide them with showHouses=false,
+  // but passing showHouses=true can never reveal them for a no_birth_time chart.
+  const show = resolveShowHouses(chart.precision, showHouses);
   const C = size / 2;
   const R_out = size * 0.475;
   const R_sign = size * 0.4;

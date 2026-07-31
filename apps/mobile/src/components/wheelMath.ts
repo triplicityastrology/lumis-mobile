@@ -15,6 +15,18 @@
  * astrology data authority are untouched — this is a rendering-orientation fix.
  */
 
+/**
+ * Whether houses / ASC / MC may be shown. NON-bypassable: they render only for a
+ * full-precision (timed) chart. A caller can hide them with showHouses=false, but
+ * passing showHouses=true can never reveal them for a no_birth_time chart.
+ */
+export function resolveShowHouses(
+  precision: "full" | "no_birth_time",
+  showHouses?: boolean
+): boolean {
+  return precision === "full" && showHouses !== false;
+}
+
 /** Screen-space angle (radians) for an ecliptic longitude, ASC pinned left. */
 export function wheelAngleRad(longitude: number, ascLongitude: number): number {
   return ((180 + (longitude - ascLongitude)) * Math.PI) / 180;
