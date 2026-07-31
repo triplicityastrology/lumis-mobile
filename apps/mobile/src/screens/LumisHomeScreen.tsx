@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { MainTabBar } from "../components/MainTabBar";
 import { MiniChartWheel } from "../components/MiniChartWheel";
+import { NatalWheel } from "../components/NatalWheel";
 import { colors, radii, spacing } from "../theme/tokens";
 
 type LumisHomeScreenProps = {
@@ -80,7 +81,8 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
 
           <Pressable style={styles.chartCard} onPress={props.onInsights}>
             <View style={styles.chartWheelWrap}>
-              <MiniChartWheel size={92} />
+              {/* HOME-002: real data-driven wheel (not the decorative placeholder). */}
+              <NatalWheel chart={props.chart} size={92} />
             </View>
             <View style={styles.chartCardBody}>
               <Text style={styles.chartLabel}>YOUR BIRTH CHART</Text>

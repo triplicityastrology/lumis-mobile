@@ -4,6 +4,7 @@ import Bell from "lucide-react-native/icons/bell";
 import Camera from "lucide-react-native/icons/camera";
 import Check from "lucide-react-native/icons/check";
 import Dices from "lucide-react-native/icons/dices";
+import Lock from "lucide-react-native/icons/lock";
 import LogOut from "lucide-react-native/icons/log-out";
 import Mail from "lucide-react-native/icons/mail";
 import RefreshCw from "lucide-react-native/icons/refresh-cw";
@@ -15,8 +16,11 @@ import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Modal, Pressabl
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Line, RadialGradient, Stop } from "react-native-svg";
 
+import type { ChartV2 } from "@lumis/shared";
+
 import { colors } from "../theme/tokens";
 import { safeUserErrorMessage } from "../services/userFacingErrors";
+import { NatalWheel } from "./NatalWheel";
 
 /**
  * Auth & System States kit (AC-UX-13 / handoff 2026-07-23): shared building
@@ -349,28 +353,59 @@ export function AuthFailureScreen({
 // ---- AUTH-005 Restoring Lumis space (post-auth routing) ----
 export function RestoringSpaceScreen({
   result,
+  chart,
   onGoChat,
   onGoOnboarding,
   onRetry,
-  onBack
+  onBack,
+  onLogout
 }: {
   result: "loading" | "foundChart" | "noChart" | "failed";
+  chart?: ChartV2 | null;
   onGoChat: () => void;
   onGoOnboarding: () => void;
   onRetry: () => void;
   onBack: () => void;
+  onLogout?: () => void;
 }) {
   useEffect(() => {
-    if (result === "foundChart") {
-      const id = setTimeout(onGoChat, 900);
-      return () => clearTimeout(id);
-    }
+    // "No chart" still auto-advances to setup. "foundChart" now presents the
+    // AUTH-005 confirmation (below) — this state is only reached from an explicit
+    // account reload, never on cold start (which restores directly to Chat), so
+    // it never becomes a compulsory cold-start interstitial.
     if (result === "noChart") {
       const id = setTimeout(onGoOnboarding, 900);
       return () => clearTimeout(id);
     }
     return undefined;
-  }, [result, onGoChat, onGoOnboarding]);
+  }, [result, onGoOnboarding]);
+
+  // AUTH-005 — Restored account found (explicit reload result).
+  if (result === "foundChart") {
+    return (
+      <AuthShell>
+        <View style={styles.restoredWrap}>
+          <View style={styles.restoredEyebrowRow}>
+            <SkyEmblem tone="good" size={40}><Check color={INK} size={20} strokeWidth={3} /></SkyEmblem>
+          </View>
+          <Text style={styles.h2}>Welcome back.</Text>
+          <Text style={styles.body}>Your chart and reflections are ready.</Text>
+          {chart ? (
+            <View style={styles.restoredCard}>
+              <NatalWheel chart={chart} size={200} />
+            </View>
+          ) : null}
+          <View style={styles.restoredLockRow}>
+            <Lock color={colors.gold} size={14} />
+            <Text style={styles.restoredLockText}>Your chart and conversations stay private to your account.</Text>
+          </View>
+          <View style={styles.gap} />
+          <PrimaryButton label="Continue to Lumis" onPress={onGoChat} />
+          {onLogout ? <LinkButton label="Log out" onPress={onLogout} /> : null}
+        </View>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell>
@@ -627,6 +662,11 @@ const styles = StyleSheet.create({
   shellBody: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center" },
   center: { alignItems: "center", flex: 1, paddingHorizontal: 26, paddingTop: 30 },
   centerMiddle: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },
+  restoredWrap: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },
+  restoredEyebrowRow: { marginBottom: 6 },
+  restoredCard: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.24)", borderColor: colors.line, borderRadius: 20, borderWidth: 1, marginTop: 18, padding: 14 },
+  restoredLockRow: { alignItems: "center", flexDirection: "row", gap: 7, marginTop: 16, maxWidth: 320 },
+  restoredLockText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 17 },
   flex: { flex: 1 },
   spacer: { flex: 1 },
   gap: { height: 26 },

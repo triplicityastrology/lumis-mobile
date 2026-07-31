@@ -656,10 +656,12 @@ export default function App() {
     return (
       <RestoringSpaceScreen
         result={restoreResult}
+        chart={chartProfile}
         onGoChat={() => setScreen(chartProfile ? "chat" : "home")}
         onGoOnboarding={() => setScreen("noChart")}
         onRetry={restoreSpace}
         onBack={openAccountRecovery}
+        onLogout={requestAuthoritativeLogout}
       />
     );
   }
