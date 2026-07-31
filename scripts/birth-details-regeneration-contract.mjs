@@ -7,6 +7,7 @@ const profile = readFileSync("supabase/functions/profile/index.ts", "utf8");
 const mobileProfile = readFileSync("apps/mobile/src/services/profile.ts", "utf8");
 const mobileApp = readFileSync("apps/mobile/App.tsx", "utf8");
 const birthDetailsScreen = readFileSync("apps/mobile/src/features/birthDetails/BirthDetailsChangeScreen.tsx", "utf8");
+const birthTimePicker = readFileSync("apps/mobile/src/features/birthDetails/birthTimePicker.ts", "utf8");
 const accountState = readFileSync("apps/mobile/src/services/accountState.ts", "utf8");
 
 const diagnostics = ts.transpileModule(profile, {
@@ -73,6 +74,12 @@ assert.match(birthDetailsScreen, /outcome\.code === "49001"[\s\S]*setStep\("disp
 assert.match(birthDetailsScreen, /setFailureMessage\(outcome\.message\)[\s\S]*setStep\("failure"\)/);
 assert.match(birthDetailsScreen, /sub=\{failureMessage \?\?/);
 assert.match(birthDetailsScreen, /ASC, MC, houses, or planet-house placements/);
+assert.match(birthDetailsScreen, /const \[pickerValue, setPickerValue\] = useState<Date \| null>\(null\)/);
+assert.match(birthDetailsScreen, /setPickerValue\(new Date\(selected\.getTime\(\)\)\)/);
+assert.match(birthDetailsScreen, /onRequestClose=\{closePicker\}/);
+assert.match(birthDetailsScreen, /onPress=\{commitPicker\}/);
+assert.doesNotMatch(birthDetailsScreen, /onChange=\{\([^)]*, d\?: Date\)[\s\S]{0,240}setDraft/);
+assert.match(birthTimePicker, /accepted:[\s\S]*formatBirthTimePickerValue/);
 assert.equal(
   (mobileApp.match(/<CelestialBackground(?:\s[^>]*)?\/>/g) ?? []).length,
   1,

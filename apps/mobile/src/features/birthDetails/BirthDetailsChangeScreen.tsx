@@ -14,6 +14,11 @@ import { NatalWheel } from "../../components/NatalWheel";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
+import {
+  formatBirthTimePickerValue,
+  parseBirthTimePickerValue,
+  resolveBirthTimePickerCommit,
+} from "./birthTimePicker";
 
 /** Big-three summary for the Birth Details display. Rising is included ONLY when
  *  an authoritative timed chart exists (precision "full" + Ascendant) — never
@@ -53,26 +58,6 @@ function displayDate(iso: string): string {
   const d = parseDate(iso);
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
-function parseTime(t: string): Date {
-  const now = new Date(2000, 0, 1, 12, 0);
-  const ampm = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(t);
-  if (ampm) {
-    let h = Number(ampm[1]) % 12;
-    if (/pm/i.test(ampm[3])) h += 12;
-    now.setHours(h, Number(ampm[2]));
-    return now;
-  }
-  const h24 = /(\d{1,2}):(\d{2})/.exec(t);
-  if (h24) now.setHours(Number(h24[1]), Number(h24[2]));
-  return now;
-}
-function formatTime(d: Date): string {
-  let h = d.getHours();
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${h}:${String(d.getMinutes()).padStart(2, "0")} ${ampm}`;
-}
-
 /**
  * Birth Details change flow (AC-UX-13). Display → edit → confirm (with diff) →
  * regenerating → success | failure. Copy is verbatim from AC-UX-06. The change
@@ -104,6 +89,7 @@ export function BirthDetailsChangeScreen({
     details ?? { birthDate: "", birthTime: "", birthPlace: "", timeUnknown: false }
   );
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
+  const [pickerValue, setPickerValue] = useState<Date | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -128,6 +114,41 @@ export function BirthDetailsChangeScreen({
     setFailureMessage(null);
     setDraft(details ?? draft);
     setStep("edit");
+  }
+
+  function openPicker(nextPicker: "date" | "time") {
+    setPickerValue(
+      nextPicker === "date"
+        ? parseDate(draft.birthDate)
+        : parseBirthTimePickerValue(draft.birthTime)
+    );
+    setPicker(nextPicker);
+  }
+
+  function closePicker() {
+    setPicker(null);
+    setPickerValue(null);
+  }
+
+  function commitPicker() {
+    if (!picker || !pickerValue) {
+      closePicker();
+      return;
+    }
+
+    if (picker === "date") {
+      updateDraft((current) => ({ ...current, birthDate: formatDate(pickerValue) }));
+    } else {
+      updateDraft((current) => ({
+        ...current,
+        birthTime: resolveBirthTimePickerCommit({
+          currentValue: current.birthTime,
+          stagedValue: pickerValue,
+          accepted: true,
+        }),
+      }));
+    }
+    closePicker();
   }
 
   function handleBack() {
@@ -275,9 +296,9 @@ export function BirthDetailsChangeScreen({
             <Text style={s.editTitle}>Your birth details</Text>
             <Text style={s.editSub}>{remaining} of {LIMIT} lifetime changes remaining.</Text>
 
-            <PickerRow label="Birth date" value={draft.birthDate ? displayDate(draft.birthDate) : "Choose date"} onPress={() => setPicker("date")} />
+            <PickerRow label="Birth date" value={draft.birthDate ? displayDate(draft.birthDate) : "Choose date"} onPress={() => openPicker("date")} />
             {!draft.timeUnknown ? (
-              <PickerRow label="Birth time" value={draft.birthTime || "Choose time"} onPress={() => setPicker("time")} />
+              <PickerRow label="Birth time" value={draft.birthTime || "Choose time"} onPress={() => openPicker("time")} />
             ) : null}
             <View style={s.toggleRow}>
               <Text style={s.fieldLabel}>I don't know my birth time</Text>
@@ -311,8 +332,8 @@ export function BirthDetailsChangeScreen({
             {/* Native iOS calendar (date) + wheel (time) with built-in validation. */}
             {picker ? (
               Platform.OS === "ios" ? (
-                <Modal transparent animationType="slide" onRequestClose={() => setPicker(null)}>
-                  <Pressable style={s.pickerScrim} onPress={() => setPicker(null)} />
+                <Modal transparent animationType="slide" onRequestClose={closePicker}>
+                  <Pressable accessibilityLabel="Cancel picker" style={s.pickerScrim} onPress={closePicker} />
                   <View
                     accessibilityLabel={picker === "date" ? "Birth date picker" : "Birth time picker"}
                     accessibilityViewIsModal
@@ -320,33 +341,32 @@ export function BirthDetailsChangeScreen({
                   >
                     <View style={s.pickerBar}>
                       <Text style={s.pickerTitle}>{picker === "date" ? "Birth date" : "Birth time"}</Text>
-                      <Pressable onPress={() => setPicker(null)} hitSlop={8}><Text style={s.pickerDone}>Done</Text></Pressable>
+                      <Pressable accessibilityRole="button" onPress={commitPicker} hitSlop={8}><Text style={s.pickerDone}>Done</Text></Pressable>
                     </View>
                     <DateTimePicker
-                      value={picker === "date" ? parseDate(draft.birthDate) : parseTime(draft.birthTime)}
+                      value={pickerValue ?? (picker === "date" ? parseDate(draft.birthDate) : parseBirthTimePickerValue(draft.birthTime))}
                       mode={picker}
                       display={picker === "date" ? "inline" : "spinner"}
                       maximumDate={picker === "date" ? new Date() : undefined}
                       themeVariant="dark"
-                      onChange={(_e: DateTimePickerEvent, d?: Date) => {
-                        if (!d) return;
-                        if (picker === "date") updateDraft((current) => ({ ...current, birthDate: formatDate(d) }));
-                        else updateDraft((current) => ({ ...current, birthTime: formatTime(d) }));
+                      onChange={(event: DateTimePickerEvent, selected?: Date) => {
+                        if (event.type === "dismissed" || !selected) return;
+                        setPickerValue(new Date(selected.getTime()));
                       }}
                     />
                   </View>
                 </Modal>
               ) : (
                 <DateTimePicker
-                  value={picker === "date" ? parseDate(draft.birthDate) : parseTime(draft.birthTime)}
+                  value={pickerValue ?? (picker === "date" ? parseDate(draft.birthDate) : parseBirthTimePickerValue(draft.birthTime))}
                   mode={picker}
                   display={picker === "date" ? "calendar" : "clock"}
                   maximumDate={picker === "date" ? new Date() : undefined}
                   onChange={(e: DateTimePickerEvent, d?: Date) => {
-                    setPicker(null);
+                    closePicker();
                     if (e.type !== "set" || !d) return;
                     if (picker === "date") updateDraft((current) => ({ ...current, birthDate: formatDate(d) }));
-                    else updateDraft((current) => ({ ...current, birthTime: formatTime(d) }));
+                    else updateDraft((current) => ({ ...current, birthTime: formatBirthTimePickerValue(d) }));
                   }}
                 />
               )

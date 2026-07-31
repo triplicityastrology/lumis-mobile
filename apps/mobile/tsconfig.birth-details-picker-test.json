@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/birth-details-picker-tests",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": [
+    "src/features/birthDetails/birthTimePicker.ts",
+    "src/features/birthDetails/birthTimePicker.fixtures.ts"
+  ]
+}

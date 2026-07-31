@@ -80,7 +80,7 @@
     "test:backend-guardrails": "node scripts/backend-guardrails-contract.mjs",
     "test:route-credits": "node scripts/route-credit-drift.mjs",
     "test:pii": "node scripts/repository-pii-scan.mjs",
-    "test:birth-details-change": "node scripts/birth-details-regeneration-contract.mjs",
+    "test:birth-details-change": "tsc -p apps/mobile/tsconfig.birth-details-picker-test.json && node .tmp/birth-details-picker-tests/features/birthDetails/birthTimePicker.fixtures.js && node scripts/birth-details-regeneration-contract.mjs",
     "test:auth-account-restore": "node scripts/auth-account-restore-contract.mjs",
     "test:account-restoration-evidence": "node scripts/account-restoration-evidence-contract.mjs",
     "test:staging-auth-readiness": "node scripts/staging-auth-readiness-contract.mjs",
