@@ -1,6 +1,16 @@
 # S2-T23 Current Chart-Data Authority Matrix
 
-Status: inactive, source-grounded technical audit only.
+Status: founder decisions reconciled; source-grounded technical authority.
+
+Authority reconciled on 2026-08-01 from:
+
+- `S2-T23_Chart_Integration_Founder_Decisions_2026-07-30.md`;
+- its founder-annotated decision card;
+- `AC-AI-00_AI_Routing_Founder_Decisions_v1_5.md`.
+
+All seven S2-T23 chart-integration choices are closed. This document records
+their technical consequences; it does not authorise deployment, provider
+access, Chat/AI, Knowledge Bank retrieval, billing, timing, Dice, or staging.
 
 This document audits the current live natal-chart lifecycle against the
 accepted inactive deterministic chain:
@@ -42,20 +52,20 @@ chain, not general display usefulness.
 | Chart type | Worker endpoint and signed request are natal-only; `chart_v2` itself has no explicit `chartType` | Medium | Endpoint/request establish natal intent, but persisted chart lacks a closed chart-type field | Both | Adapter may set `chartType: "natal"` only from the signed natal endpoint contract | No, if endpoint authority is accepted as sufficient |
 | Precision | Worker derives `full` or `no_birth_time` from signed `time_unknown`; persisted in `chart_v2` and profile | High | Source is implicit in signed request and chart field; no per-field provenance object | Both; drives all capability gates | Direct map after equality check against authoritative birth data | No |
 | Planet/body key | Worker `POINT_KEY_MAP` maps a fixed provider-name list to `ChartPlanetKey` | Medium-high for mapped names | No original provider field/name is retained downstream | Both, excluding angles for no-time | Map approved keys through the closed provider-neutral alias boundary | No, but unmapped provider names must fail/omit under an approved policy |
-| Absolute planet longitude | `normalizeProviderPoint` reads `absoluteLongitude`, `absolute_longitude`, or `full_degree`; `ChartPlanet.absoluteLongitude` is optional | Conditional | Only the normalized value survives; source field and calculation identity are absent | Planet longitudes suit both when present; angle longitudes timed only | Map only finite present values; never reconstruct from display degree alone | Yes: decide whether a chart missing any required absolute longitude fails closed or may remain display-only |
+| Absolute planet longitude | `normalizeProviderPoint` reads `absoluteLongitude`, `absolute_longitude`, or `full_degree`; `ChartPlanet.absoluteLongitude` is optional | Conditional until strict validation | Only the normalized value survives; source field and calculation identity are absent | Planet longitudes suit both when present; angle longitudes timed only | The designated chart API is the sole authority. Require a finite normalized `0 <= longitude < 360` for every admitted body; never reconstruct from display degree | `CI-01` closed 2026-07-30 |
 | Display sign/degree | Worker normalizes sign and accepts several degree fields, including fallback zero | Low for deterministic calculation | Provider source field is not retained; degree semantics may be sign-relative or absolute depending on source | Both for display; insufficient for aspects without a trusted reconstruction rule | Do not use as a substitute for missing absolute longitude | No mapping until chart-source semantics are approved |
-| House number on planet | Provider point `house` becomes optional `ChartPlanet.house` | Conditional | No provider source field or validation evidence | Timed only; removed for no-time | Not needed by current accepted Part 1 composer; future occupancy facts require closed validation | Yes before occupancy/stellium integration |
+| House number on planet | Provider point `house` becomes optional `ChartPlanet.house` | Conditional | No provider source field or validation evidence | Timed only; removed for no-time | Accept only with supplied time and a validated declared house system/cusp set; never expose for no-time | `CI-02` closed 2026-07-30 |
 | House number on cusp | Worker reads provider number/house or falls back to array index plus one | Medium-low | Fallback origin is not recorded; uniqueness/range are not enforced in `chart_v2` sanitizer | Timed only; houses empty for no-time | Map only after enforcing integer, unique `1..12`, complete-set rules | No founder choice if strict validation is accepted; malformed/fallback policy still needs technical approval |
-| House cusp absolute longitude | Current `ChartHouse` stores normalized sign plus `cuspDegree`; it has no `cuspLongitude` | Not currently authoritative | Original provider cusp field and whether it was absolute or sign-relative are not retained | Timed only | No direct safe mapping to `cuspLongitude` | Yes: preserve an authoritative provider absolute cusp, or approve deterministic sign-plus-degree reconstruction with a named rule |
-| Ascendant | Worker may normalize it as a planet and duplicate it under `angles.ascendant` | Conditional timed authority | Original source is not retained; duplicate representations have no equality assertion | Timed only; stripped for no-time | Use one validated absolute-longitude source after duplicate equality checks | Yes: designate the canonical angle representation and mismatch policy |
-| Medium Coeli | Worker may normalize it as a planet and duplicate it under `angles.mediumCoeli` | Conditional timed authority | Same limitation as Ascendant | Timed only; stripped for no-time | Same as Ascendant | Same angle-authority decision |
-| Moon local-day start/end longitudes | Not present in `chart_v2`, Worker response, profile persistence, or restoration | Missing | None | Needed only for the approved no-time Moon local-day endpoint rule | Cannot map | Yes: approve a chart-source/calculation contract for both endpoints, or keep the derived no-time Moon-sign fact unavailable |
+| House cusp absolute longitude | Current `ChartHouse` stores normalized sign plus `cuspDegree`; it has no `cuspLongitude` | Not yet sufficient for deterministic mapping | Original provider cusp field and whether it was absolute or sign-relative are not retained | Timed only | Future provider normalization must retain the designated chart API's ordered absolute cusp array and declared house system; no-time charts have no cusps | `CI-02` closed 2026-07-30; current field shape still requires additive source work |
+| Ascendant | Worker may normalize it as a planet and duplicate it under `angles.ascendant` | Conditional timed authority | Original source is not retained; duplicate representations have no equality assertion | Timed only; stripped for no-time | Canonical structured angle fact from the designated source; duplicates must agree or fail closed | `CI-03` closed 2026-07-30 |
+| Medium Coeli | Worker may normalize it as a planet and duplicate it under `angles.mediumCoeli` | Conditional timed authority | Same limitation as Ascendant | Timed only; stripped for no-time | Same as Ascendant; DSC and IC follow the same structured-angle policy when supplied | `CI-03` closed 2026-07-30 |
+| Moon local-day start/end longitudes | Not present in `chart_v2`, Worker response, profile persistence, or restoration | Missing | None | Needed only for the approved no-time Moon local-day endpoint rule | Use one named, versioned ephemeris/service method; if endpoints are unavailable, the no-time Moon-sign fact is unavailable; never use noon | `CI-04` closed 2026-07-30; source integration remains required |
 | Canonical aliases | Worker has provider-specific aliases; the inactive adapter/fact engine has a broader closed canonicalizer | Medium | Alias rule versions exist only in inactive modules, not persisted chart provenance | Both, with angle suppression for no-time | Re-canonicalize at the future adapter boundary and reject duplicates | No; use the accepted closed allow-list |
 | Calculation timestamp | `chart_v2.calculatedAt` is created by the Worker after normalization | Medium as an operational timestamp | Does not identify provider ephemeris version, request contract, or calculation revision | Both | May be retained as bounded operational provenance, not as calculation identity | Yes only if founder requires a specific auditable chart-source/version commitment |
-| Chart source | `chart_v2.source` currently permits Worker, provider, or fixture values; live Worker emits `triplicity_cloudflare_worker` | Medium | Identifies transport/source family, not provider version or normalizer revision | Both | Accept only the reviewed live Worker source in a future integration | Yes: approve the authoritative chart source and version evidence required for deterministic signoff |
+| Chart source | `chart_v2.source` currently permits Worker, provider, or fixture values; live Worker emits `triplicity_cloudflare_worker` | Medium | Identifies transport/source family, not provider version or normalizer revision | Both | Persist immutable source/version, calculator/worker version, input fingerprint, precision, generation time, and snapshot identity; source/version changes never rewrite history | `CI-05` closed 2026-07-30; current provenance must be extended additively |
 | Chart version | `birth_data.active_chart_version`, `ai_profiles.chart_version`, and `birth_data_history.chart_version` | High | Transactional DB version links active and historical chart snapshots | Both | Bind every deterministic output/context to exact `user_id + chart_version + source chart digest/version` | No |
-| Worker request/calculation ID | Signed request has stable `request_id`; Worker cache and provider telemetry use it, but `chart_v2` does not carry a bounded provenance object | Medium operationally | Available around generation; not consistently part of restored client chart | Both | Future adapter provenance may carry a non-PII bounded calculation ID after storage design approval | Yes: decide retention and whether this ID is required in persisted deterministic provenance |
-| Moon/Chiron/Nodes | Worker active points include Moon, Chiron, True Node; South Node is mapped if provider supplies it | Conditional by returned point and longitude | Same missing per-field provenance as other points | Both; no house placement for no-time | Map only present canonical points with finite absolute longitudes; Chiron/Nodes remain Chat-safe context only | Yes if South Node must be provider-supplied versus deterministically derived |
+| Worker request/calculation ID | Signed request has stable `request_id`; Worker cache and provider telemetry use it, but `chart_v2` does not carry a bounded provenance object | Medium operationally | Available around generation; not consistently part of restored client chart | Both | Retain only a bounded non-PII calculation/snapshot identity within immutable provenance; never expose it in mobile summary | `CI-05` closed 2026-07-30 |
+| Moon/Chiron/Nodes | Worker active points include Moon, Chiron, True Node; South Node is mapped if provider supplies it | Conditional by returned point and longitude | Same missing per-field provenance as other points | Both; no house placement for no-time | Derive South Node as the exact 180-degree opposite of authoritative North Node and mark it derived; a provider South Node must validate against it. Chiron/Nodes remain excluded from Dice | `CI-06` and AC-AI-00 v1.5 G4 closed |
 
 ## Validation Order for Any Future Integration
 
@@ -91,27 +101,29 @@ birth data, account identifier, or source value belongs in user-visible errors.
 - Past Reflections must remain bound to their historical chart version.
 - Raw provider data and exact birth data must not enter `natal_context_v1`.
 
-## Founder-Decision Appendix
+## Reconciled Founder Decisions
 
-Only these choices currently block controlled integration:
+1. **Absolute longitudes (`CI-01`):** one designated chart API is the sole
+   authority. Missing or malformed required longitudes fail closed; display
+   degree is not a substitute.
+2. **House cusps (`CI-02`):** use the declared house system and ordered cusp
+   array only with supplied time. No birth time means no cusps.
+3. **Angles (`CI-03`):** ASC, DSC, MC, and IC are structured timed facts. No
+   birth time means no angles. Duplicate representations must agree.
+4. **Moon no-time endpoints (`CI-04`):** use one named, versioned endpoint
+   method. If it is unavailable, the no-time Moon-sign fact is unavailable;
+   never substitute noon.
+5. **Provenance/history (`CI-05`):** preserve an immutable snapshot with source
+   and calculation versions, input fingerprint, precision, and generation
+   identity. Source changes never rewrite historical charts without explicit
+   founder-initiated regeneration.
+6. **South Node (`CI-06`):** derive it as North Node plus 180 degrees and mark it
+   derived; validate any supplied provider value against the derivation.
+7. **Derived output (`CI-07`):** recompute versioned deterministic facts from
+   the preserved normalized snapshot. Any cache is non-authoritative.
 
-1. **Missing absolute longitudes:** fail the deterministic chain when any
-   required body longitude is absent, or permit a separately approved
-   reconstruction rule.
-2. **House cusp authority:** preserve provider-supplied absolute cusp
-   longitudes, or approve sign-plus-degree reconstruction as authoritative.
-3. **Angle authority:** choose the canonical persisted angle representation and
-   define fail-closed behavior when duplicated angle values disagree.
-4. **Moon no-time endpoints:** approve a source/calculation contract for local
-   day start/end Moon longitudes, or keep that derived fact unavailable.
-5. **Chart-source provenance:** approve the chart source/version identifiers
-   and retention needed for deterministic accuracy signoff.
-6. **South Node authority:** require an explicit provider longitude or approve
-   derivation from the North Node.
-7. **Derived persistence:** decide whether engine output is recomputed from an
-   immutable chart snapshot or stored as a separately versioned artifact.
-
-No decision is made by this audit.
+These decisions are closed. Remaining work is implementation and evidence, not
+Founder policy selection.
 
 ## Acceptance Matrix
 
@@ -130,7 +142,8 @@ No decision is made by this audit.
 
 ## Audit Verdict
 
-The transactional chart/version lifecycle is suitable as a future authority
-anchor. Direct integration is not ready because absolute-longitude completeness,
-absolute house cusps, angle authority, Moon endpoints, chart-source provenance,
-South Node authority, and derived persistence policy are not all resolved.
+The transactional chart/version lifecycle is suitable as the authority anchor,
+and all seven Founder choices are resolved. Controlled source integration may
+proceed fail-closed. Current data-shape gaps remain for absolute cusp longitude,
+Moon local-day endpoints, and complete immutable provenance; those are
+implementation gaps governed by the decisions above, not open product policy.
