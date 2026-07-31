@@ -4,6 +4,8 @@
     "jsx": "react-jsx",
     "noEmit": true
   },
-  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx"],
+  "//": "chart-wheel.fixtures.ts is a Node test compiled by tsconfig.chart-wheel-test.json (uses node fs/cwd).",
+  "exclude": ["src/components/chart-wheel.fixtures.ts"]
 }
 

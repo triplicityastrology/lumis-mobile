@@ -2,6 +2,8 @@ import Svg, { Circle, Defs, G, Line, RadialGradient, Stop, Text as SvgText } fro
 
 import type { ChartV2 } from "@lumis/shared";
 
+import { wheelPoint } from "./wheelMath";
+
 /**
  * Data-driven natal chart wheel ported from the design handoff (ac-chartwheel.jsx):
  * ASC pinned to the left (9 o'clock), zodiac increasing clockwise; element-colored
@@ -75,12 +77,10 @@ export function NatalWheel({
   const asc = ascPlanet ? lonOf(ascPlanet) : 0;
   const mc = chart.angles.mediumCoeli ? lonOf(chart.angles.mediumCoeli) : null;
 
-  // ASC pinned to the left; zodiac increases clockwise.
-  const ang = (lon: number) => ((180 - (lon - asc)) * Math.PI) / 180;
-  const pt = (lon: number, r: number): [number, number] => [
-    C + r * Math.cos(ang(lon)),
-    C - r * Math.sin(ang(lon))
-  ];
+  // ASC pinned to the left; zodiac increases counter-clockwise (Western tropical
+  // convention). Projection math lives in wheelMath.ts and is proven by
+  // chart-wheel.fixtures.ts (INS-001 orientation fix).
+  const pt = (lon: number, r: number): [number, number] => wheelPoint(lon, asc, r, C);
   // SVG text has no reliable central baseline in react-native-svg; nudge y down.
   const baseline = (fontSize: number) => fontSize * 0.34;
 

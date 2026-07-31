@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chart-wheel-tests",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": [
+    "src/components/wheelMath.ts",
+    "src/components/chart-wheel.fixtures.ts"
+  ]
+}
