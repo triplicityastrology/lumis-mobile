@@ -67,8 +67,8 @@ export function GhostButton({ label, onPress, style }: { label: string; onPress:
 /* ---------- sky-screen header (circular glass back button + serif title) ---------- */
 
 export function ScreenHeader({
-  title, onBack, right
-}: { title: string; onBack: () => void; right?: React.ReactNode }) {
+  title, onBack, right, titleIcon
+}: { title: string; onBack: () => void; right?: React.ReactNode; titleIcon?: React.ReactNode }) {
   return (
     <View style={k.header}>
       <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={k.iconBtn} hitSlop={8}>
@@ -76,9 +76,26 @@ export function ScreenHeader({
           <Path d="M15 5l-7 7 7 7" stroke={colors.ice} strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       </Pressable>
-      <Text accessibilityRole="header" style={k.headerTitle}>{title}</Text>
+      {titleIcon ? (
+        <View style={k.headerTitleRow}>
+          {titleIcon}
+          <Text accessibilityRole="header" style={k.headerTitleInline}>{title}</Text>
+        </View>
+      ) : (
+        <Text accessibilityRole="header" style={k.headerTitle}>{title}</Text>
+      )}
       <View style={k.headerRight}>{right ?? <View style={k.iconBtnGhost} />}</View>
     </View>
+  );
+}
+
+/** Small gold line-art bell (NOTIF-001 header). */
+export function BellGlyph({ size = 16 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no">
+      <Path d="M7 10a5 5 0 0 1 10 0c0 4 1.5 5 2 6H5c.5-1 2-2 2-6Z" stroke={colors.gold} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M10.5 19a1.6 1.6 0 0 0 3 0" stroke={colors.gold} strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
   );
 }
 
@@ -240,5 +257,7 @@ const k = StyleSheet.create({
   iconBtn: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: 19, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
   iconBtnGhost: { height: 38, width: 38 },
   headerTitle: { color: colors.ice, flex: 1, fontFamily: "Georgia", fontSize: 19, textAlign: "center" },
+  headerTitleRow: { alignItems: "center", flex: 1, flexDirection: "row", gap: 7, justifyContent: "center" },
+  headerTitleInline: { color: colors.ice, fontFamily: "Georgia", fontSize: 19 },
   headerRight: { alignItems: "flex-end", minWidth: 38 }
 });

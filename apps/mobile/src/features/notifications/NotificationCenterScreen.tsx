@@ -3,11 +3,11 @@ import {
   Pressable, ScrollView, StyleSheet, Text, View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Defs, Path, RadialGradient, Stop } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import {
-  GhostButton, PreviewBadge, QuietEmptyState, RetryCard, ScreenHeader, SkeletonRow, SoftButton
+  BellGlyph, GhostButton, PreviewBadge, QuietEmptyState, RetryCard, ScreenHeader, SkeletonRow, SoftButton
 } from "../../components/states/StateKit";
 
 /**
@@ -46,9 +46,9 @@ const MOCK: NotifItem[] = [
 
 type DemoMode = "loading" | "error" | "empty" | "populated";
 
-function NotifIcon({ type, size = 16 }: { type: NotifType; size?: number }) {
+function NotifIcon({ type, size = 16, strokeColor }: { type: NotifType; size?: number; strokeColor?: string }) {
   const warm = type === "need_help" || type === "missed_checkin";
-  const stroke = warm ? "#E9B083" : colors.gold;
+  const stroke = strokeColor ?? (warm ? "#E9B083" : colors.gold);
   const c = { stroke, strokeWidth: 1.5, fill: "none", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   const glyph: Record<NotifType, React.ReactNode> = {
     carer_request: <Path d="M4 13c1-1.6 3-2 4.5-1M4 13c0 2.4 2.4 4 4.8 4M20 13c-1-1.6-3-2-4.5-1M20 13c0 2.4-2.4 4-4.8 4" {...c} />,
@@ -78,8 +78,18 @@ function Row({
       style={[s.row, item.unread && s.rowUnread]}
     >
       {item.unread ? <View style={s.unreadDot} /> : null}
-      <View style={[s.iconChip, warm && s.iconChipWarm]}>
-        <NotifIcon type={item.type} />
+      {/* NOTIF-001: warm gold radial-gradient row icon with a soft glow. */}
+      <View style={s.iconChip}>
+        <Svg width={32} height={32} viewBox="0 0 32 32" style={StyleSheet.absoluteFill} accessibilityElementsHidden importantForAccessibility="no">
+          <Defs>
+            <RadialGradient id={warm ? "notifWarm" : "notifGold"} cx="38%" cy="30%" r="80%">
+              <Stop offset="0%" stopColor={warm ? "#F2C39C" : "#F0D592"} />
+              <Stop offset="100%" stopColor={warm ? "#D2825F" : "#C9A05A"} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={16} cy={16} r={16} fill={`url(#${warm ? "notifWarm" : "notifGold"})`} />
+        </Svg>
+        <NotifIcon type={item.type} strokeColor="#3A2218" />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={s.rowTitle}>{item.title}</Text>
@@ -105,7 +115,7 @@ export function NotificationCenterScreen({
 }: { onBack: () => void }) {
   return (
     <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
-      <ScreenHeader title="Notifications" onBack={onBack} />
+      <ScreenHeader title="Notifications" titleIcon={<BellGlyph />} onBack={onBack} />
       <View style={s.previewBar}>
         <PreviewBadge label="Preview · notifications are not active" />
       </View>
@@ -151,6 +161,7 @@ function NotificationCenterPrototypeScreen({
     <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       <ScreenHeader
         title="Notifications"
+        titleIcon={<BellGlyph />}
         onBack={onBack}
         right={unreadCount > 0 ? <View style={s.badge}><Text style={s.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text></View> : undefined}
       />
@@ -241,8 +252,7 @@ const s = StyleSheet.create({
   row: { alignItems: "flex-start", flexDirection: "row", gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
   rowUnread: { backgroundColor: "rgba(215,185,120,0.05)" },
   unreadDot: { backgroundColor: colors.gold, borderRadius: 2, height: 32, left: 0, position: "absolute", top: 14, width: 3 },
-  iconChip: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.12)", borderRadius: 16, height: 32, justifyContent: "center", width: 32 },
-  iconChipWarm: { backgroundColor: "rgba(233,176,131,0.14)" },
+  iconChip: { alignItems: "center", borderRadius: 16, elevation: 4, height: 32, justifyContent: "center", overflow: "visible", shadowColor: "#E9B083", shadowOffset: { height: 2, width: 0 }, shadowOpacity: 0.55, shadowRadius: 6, width: 32 },
   rowTitle: { color: colors.ice, fontSize: 13.5, lineHeight: 19 },
   rowCtx: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
   rowTime: { color: colors.muted, fontSize: 10.5, marginTop: 5 },
