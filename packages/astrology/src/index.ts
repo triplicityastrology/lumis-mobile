@@ -106,3 +106,14 @@ export {
   type SafeNatalContext,
   type SafeNatalContextResult,
 } from "./safe-natal-context";
+export {
+  NATAL_CHART_PROJECTION_VERSION,
+  NATAL_CHART_SOURCE_ID,
+  attachNatalChartProjection,
+  readNatalChartProjection,
+  type NatalChartLifecycleFailure,
+  type NatalChartLifecycleFailureCode,
+  type NatalChartLifecycleResult,
+  type NatalChartProjection,
+  type NatalChartProjectionPlacement,
+} from "./natal-chart-lifecycle";

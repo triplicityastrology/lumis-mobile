@@ -1,23 +1,25 @@
 # S2-T34 Chart Data Integration Decision Fixture Pack
 
-Status: pure, synthetic, inactive decision-readiness infrastructure.
+Status: retained pure, synthetic, inactive pre-decision regression corpus.
 
-This pack exercises the seven open S2-T23 chart-data authority choices without
-selecting any policy. Every valid probe represents unresolved or ambiguous
-synthetic natal evidence and fails closed with a stable non-echoing code. There
-is intentionally no success path.
+This pack was created before the seven S2-T23 decisions were recorded on
+2026-07-30. Those decisions are now closed and reconciled in
+`S2-T23-current-chart-data-authority-matrix.md`. The fixtures remain useful as
+negative tests: ambiguous input that violates a settled authority rule still
+fails closed with its original stable non-echoing code. There is intentionally
+no success path in this historical probe module.
 
 ## Decision Matrix
 
-| Open founder choice | Synthetic ambiguity exercised | Stable failure code | Decision that later unblocks integration |
+| Settled founder choice | Synthetic ambiguity exercised | Stable legacy failure code | Current authority |
 | --- | --- | --- | --- |
-| Absolute-longitude completeness | A required body has no authoritative absolute longitude; display degree cannot substitute | `CHART_AUTHORITY_ABSOLUTE_LONGITUDE_DECISION_REQUIRED` | Decide whether deterministic integration requires every approved body longitude or permits a separately approved reconstruction/fallback policy |
-| House-cusp authority | Provider absolute cusps and sign/degree reconstruction are both plausible but neither is designated | `CHART_AUTHORITY_HOUSE_CUSP_DECISION_REQUIRED` | Choose the authoritative absolute cusp source or approve one named reconstruction rule |
-| Canonical angle source | Planet-list and angle-object Ascendant values disagree | `CHART_AUTHORITY_ANGLE_SOURCE_DECISION_REQUIRED` | Designate the canonical angle representation and mismatch behavior |
-| Moon no-time endpoint source | Local-day Moon endpoints are absent and their calculator/source is unapproved | `CHART_AUTHORITY_MOON_ENDPOINT_DECISION_REQUIRED` | Approve an endpoint source/calculation contract or keep the no-time Moon fact unavailable |
-| Chart source/version provenance | A synthetic source ID exists but the authoritative calculation version is missing | `CHART_AUTHORITY_PROVENANCE_DECISION_REQUIRED` | Approve required source/version identifiers and retention |
-| South Node source | A supplied value and opposite-point derivation agree, but neither source policy is authoritative | `CHART_AUTHORITY_SOUTH_NODE_DECISION_REQUIRED` | Require a supplied South Node or approve deterministic derivation from the North Node |
-| Recomputed versus persisted output | Synthetic recomputed and persisted derived outputs have no designated authority | `CHART_AUTHORITY_DERIVED_OUTPUT_DECISION_REQUIRED` | Choose recomputation from immutable input or separately versioned persistence, including mismatch recovery |
+| Absolute-longitude completeness | A required body has no authoritative absolute longitude; display degree cannot substitute | `CHART_AUTHORITY_ABSOLUTE_LONGITUDE_DECISION_REQUIRED` | Designated API absolute longitude is required; fail closed |
+| House-cusp authority | Cusp source is ambiguous | `CHART_AUTHORITY_HOUSE_CUSP_DECISION_REQUIRED` | Declared timed house system and ordered cusp array; none without time |
+| Canonical angle source | Planet-list and angle-object Ascendant values disagree | `CHART_AUTHORITY_ANGLE_SOURCE_DECISION_REQUIRED` | Structured timed angles; duplicate values must agree |
+| Moon no-time endpoint source | Local-day Moon endpoints are absent | `CHART_AUTHORITY_MOON_ENDPOINT_DECISION_REQUIRED` | Named versioned endpoint method or Moon fact unavailable; never noon |
+| Chart source/version provenance | Calculation version is missing | `CHART_AUTHORITY_PROVENANCE_DECISION_REQUIRED` | Immutable source/version snapshot provenance |
+| South Node source | Supplied and derived values disagree | `CHART_AUTHORITY_SOUTH_NODE_DECISION_REQUIRED` | North Node plus 180 degrees, marked derived |
+| Recomputed versus persisted output | Persisted output claims authority over its source snapshot | `CHART_AUTHORITY_DERIVED_OUTPUT_DECISION_REQUIRED` | Recompute from immutable snapshot; cache is non-authoritative |
 
 ## Safety Boundary
 
@@ -38,6 +40,6 @@ persistence, mobile/UI, Chat/AI, Knowledge Bank retrieval, Dice, billing,
 migration, deployment, staging, or logging integration. It does not authorize
 chart-data wiring or user-visible derived facts.
 
-Later integration remains blocked until the founder resolves all seven choices
-and Technical adds the corresponding source contract, migration/persistence
-decision where applicable, privacy review, and hosted/device evidence.
+The Founder choices are resolved. Integration remains subject to source
+contracts, privacy review, and hosted/device evidence; this negative fixture
+pack does not itself authorise or implement integration.

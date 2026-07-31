@@ -6,6 +6,8 @@ import type {
   ChartV2
 } from "@lumis/shared";
 
+import { readNatalChartProjection } from "./natal-chart-lifecycle";
+
 const PLANET_LABELS: Record<ChartPlanetKey, string> = {
   sun: "Sun",
   moon: "Moon",
@@ -49,6 +51,7 @@ export function sanitizeChartForClient(chart: ChartV2, timeUnknown: boolean): Ch
     : CHART_PRECISIONS.has(input.precision as ChartPrecision)
       ? input.precision as ChartPrecision
       : "full";
+  const natalProjection = readNatalChartProjection(input.natalProjection, precision);
   const natalChart: ChartV2 = {
     version: "chart_v2",
     precision,
@@ -63,7 +66,10 @@ export function sanitizeChartForClient(chart: ChartV2, timeUnknown: boolean): Ch
     angles: {
       ...(ascendant?.key === "ascendant" ? { ascendant } : {}),
       ...(mediumCoeli?.key === "medium_coeli" ? { mediumCoeli } : {})
-    }
+    },
+    ...(natalProjection
+      ? { natalProjection }
+      : {})
   };
 
   if (!timeUnknown) {

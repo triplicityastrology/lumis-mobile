@@ -4,10 +4,11 @@ import MessageCircle from "lucide-react-native/icons/message-circle";
 import Moon from "lucide-react-native/icons/moon";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import type { ChartV2 } from "@lumis/shared";
+import type { ChartPlanetKey, ChartV2 } from "@lumis/shared";
 
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
 import { NatalWheel } from "../components/NatalWheel";
+import { buildMobileNatalChartSummary } from "../services/natalChartSummary";
 import { colors, radii, spacing } from "../theme/tokens";
 
 const SUNRISE = ["#E5C06B", "#E9B083", "#E89B92"] as const;
@@ -15,7 +16,13 @@ const SUNRISE = ["#E5C06B", "#E9B083", "#E89B92"] as const;
 const PLANET_GLYPHS: Record<string, string> = {
   sun: "\u2609", moon: "\u263D", mercury: "\u263F", venus: "\u2640", mars: "\u2642", jupiter: "\u2643",
   saturn: "\u2644", uranus: "\u2645", neptune: "\u2646", pluto: "\u2647", chiron: "\u26B7",
-  true_node: "\u260A", south_node: "\u260B", ascendant: "ASC", medium_coeli: "MC"
+  true_node: "\u260A", north_node: "\u260A", south_node: "\u260B", ascendant: "ASC", medium_coeli: "MC"
+};
+
+const PLANET_LABELS: Record<string, string> = {
+  sun: "Sun", moon: "Moon", mercury: "Mercury", venus: "Venus", mars: "Mars", jupiter: "Jupiter",
+  saturn: "Saturn", uranus: "Uranus", neptune: "Neptune", pluto: "Pluto", chiron: "Chiron",
+  north_node: "True Node", south_node: "South Node", ascendant: "Ascendant", medium_coeli: "MC"
 };
 
 export function ChartInsightsScreen({
@@ -32,7 +39,31 @@ export function ChartInsightsScreen({
   onNotifications: () => void;
   onSelectTab: (tab: MainTab) => void;
 }) {
-  const placements = chart.planets.filter(
+  const structuralSummary = buildMobileNatalChartSummary(chart);
+  const structuralPlanets = structuralSummary?.placements.flatMap((planet) => {
+    const key = chartKeyForCanonical(planet.key);
+    return key
+      ? [{
+          key,
+          label: PLANET_LABELS[planet.key] ?? planet.key,
+          sign: titleCase(planet.sign),
+          degree: planet.degree,
+          absoluteLongitude: planet.absoluteLongitude,
+        }]
+      : [];
+  });
+  const displayedChart: ChartV2 = structuralPlanets
+    ? {
+        ...chart,
+        planets: structuralPlanets,
+        houses: structuralSummary?.precision === "full" ? chart.houses : [],
+        angles: {
+          ascendant: structuralPlanets.find((planet) => planet.key === "ascendant"),
+          mediumCoeli: structuralPlanets.find((planet) => planet.key === "medium_coeli"),
+        },
+      }
+    : chart;
+  const placements = displayedChart.planets.filter(
     (planet) => planet.key !== "ascendant" && planet.key !== "medium_coeli"
   );
   const showHouses = chart.precision === "full";
@@ -56,9 +87,14 @@ export function ChartInsightsScreen({
           {/* chart panel + continuous placements list share one rounded container */}
           <View style={styles.chartPanel}>
             <View style={styles.chartWheelWrap}>
-              <NatalWheel chart={chart} size={232} />
+              <NatalWheel chart={displayedChart} size={232} />
             </View>
             <Text style={styles.chartCaption}>{name.toUpperCase()} · NATAL CHART</Text>
+            {structuralSummary ? (
+              <Text accessibilityLabel="Validated natal chart structure" style={styles.structureCaption}>
+                Validated natal structure · {structuralSummary.placements.length} placements · {structuralSummary.aspectCount} aspects
+              </Text>
+            ) : null}
 
             <View style={styles.placementList}>
               {placements.map((planet) => (
@@ -121,6 +157,16 @@ function formatDegree(value: number) {
   return `${Number(value).toFixed(0)}°`;
 }
 
+function chartKeyForCanonical(key: string): ChartPlanetKey | null {
+  if (key === "north_node") return "true_node";
+  if (key === "descendant" || key === "imum_coeli") return null;
+  return key as ChartPlanetKey;
+}
+
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "transparent" },
   frame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
@@ -132,6 +178,7 @@ const styles = StyleSheet.create({
   chartPanel: { backgroundColor: "rgba(58,80,118,0.24)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, overflow: "hidden", paddingTop: 18 },
   chartWheelWrap: { alignItems: "center" },
   chartCaption: { color: colors.textSoft, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7, marginTop: 12, marginBottom: 14, textAlign: "center" },
+  structureCaption: { color: colors.muted, fontSize: 10.5, lineHeight: 16, marginBottom: 12, paddingHorizontal: 16, textAlign: "center" },
   placementList: { borderTopWidth: 1, borderTopColor: colors.lineSoft },
   placementRow: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: colors.lineSoft },
   planetBadge: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: colors.goldFill },

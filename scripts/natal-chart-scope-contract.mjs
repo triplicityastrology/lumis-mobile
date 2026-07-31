@@ -48,8 +48,8 @@ assert.ok(
 );
 assert.match(
   profileFunction,
-  /chart: sanitizeChartForClient\(chart, input\.chartRequest\.birth_data\.time_unknown\)/,
-  "live Worker output must be sanitized before onboarding or regeneration persistence"
+  /const projectedChart = await attachNatalChartProjection\([\s\S]*?chart,[\s\S]*?time_unknown[\s\S]*?chart: sanitizeChartForClient\([\s\S]*?projectedChart\.value/,
+  "live Worker output must pass the natal lifecycle and sanitizer before persistence"
 );
 assert.match(
   profileFunction,

@@ -44,6 +44,7 @@ export type ChartV2 = {
     ascendant?: ChartPlanet;
     mediumCoeli?: ChartPlanet;
   };
+  /** Validated by @lumis/astrology before use; never trust persisted JSON directly. */
+  natalProjection?: unknown;
   rawProviderResponse?: unknown;
 };
-

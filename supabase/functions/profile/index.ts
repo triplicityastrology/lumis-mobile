@@ -4,6 +4,7 @@ import {
 } from "../../../packages/astrology/src/chart-worker-contract.ts";
 import { allowsFixtureFallbackForEnvironment } from "../../../packages/astrology/src/chart-worker-config.ts";
 import { sanitizeChartForClient } from "../../../packages/astrology/src/chart-sanitizer.ts";
+import { attachNatalChartProjection } from "../../../packages/astrology/src/natal-chart-lifecycle.ts";
 import { decideProfilePreflight } from "../../../packages/astrology/src/profile-preflight.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 import type { ChartV2 } from "../../../packages/shared/src/types/chart.ts";
@@ -1409,9 +1410,20 @@ async function generateChart(input: {
 
     const workerResponse = JSON.parse(responseText) as Record<string, unknown>;
     const chart = extractChartV2(workerResponse);
+    const projectedChart = await attachNatalChartProjection(
+      chart,
+      input.chartRequest.birth_data.time_unknown
+    );
+
+    if (!projectedChart.ok) {
+      throw new Error(projectedChart.error.code);
+    }
 
     return {
-      chart: sanitizeChartForClient(chart, input.chartRequest.birth_data.time_unknown),
+      chart: sanitizeChartForClient(
+        projectedChart.value,
+        input.chartRequest.birth_data.time_unknown
+      ),
       rawChartJson: {
         status: "worker_chart_generated",
         request_id: requestId,

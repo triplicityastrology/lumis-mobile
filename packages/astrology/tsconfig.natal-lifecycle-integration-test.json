@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/natal-lifecycle-integration-tests",
+    "rootDir": "../../packages"
+  },
+  "include": [
+    "src/chart-sanitizer.ts",
+    "src/natal-aspects.ts",
+    "src/natal-facts.ts",
+    "src/natal-input-boundary.ts",
+    "src/natal-engine-composer.ts",
+    "src/provider-neutral-natal-adapter.ts",
+    "src/safe-natal-context.ts",
+    "src/natal-chart-lifecycle.ts",
+    "src/natal-chart-lifecycle.fixtures.ts",
+    "../shared/src/types/chart.ts"
+  ]
+}

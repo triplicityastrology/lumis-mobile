@@ -41,8 +41,9 @@ for (const code of failureCodes) {
   assert.match(doc, new RegExp(`\\\`${code}\\\``));
 }
 
-assert.match(doc, /without[\s\n]*selecting any policy/);
-assert.match(doc, /There[\s\n]*is intentionally no success path/);
+assert.match(doc, /decisions are now closed/);
+assert.match(doc, /There is intentionally[\s\n]*no success path/);
+assert.match(doc, /cache is non-authoritative/);
 assert.match(doc, /synthetic non-personal natal values only/);
 assert.match(fixtures, /syntheticTimedNatal/);
 assert.match(fixtures, /syntheticNoTimeNatal/);
