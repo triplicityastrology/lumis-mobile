@@ -6,11 +6,31 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import type { ChartV2 } from "@lumis/shared";
+
 import { colors, radii, spacing } from "../../theme/tokens";
 import { GeneratingView } from "../../components/GeneratingView";
+import { NatalWheel } from "../../components/NatalWheel";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
+
+/** Big-three summary for the Birth Details display. Rising is included ONLY when
+ *  an authoritative timed chart exists (precision "full" + Ascendant) — never
+ *  invented for unknown-time charts (birth-time capability rule C). */
+function bigThree(chart: ChartV2) {
+  const find = (key: string) => chart.planets.find((p) => p.key === key);
+  const items: Array<{ label: string; glyph: string; value: string }> = [];
+  const sun = find("sun");
+  const moon = find("moon");
+  if (sun) items.push({ label: "Sun", glyph: "☉", value: `${sun.sign} ${Math.round(sun.degree)}°` });
+  if (moon) items.push({ label: "Moon", glyph: "☽", value: `${moon.sign} ${Math.round(moon.degree)}°` });
+  const asc = chart.angles.ascendant;
+  if (chart.precision === "full" && asc) {
+    items.push({ label: "Rising", glyph: "↑", value: `${asc.sign} ${Math.round(asc.degree)}°` });
+  }
+  return items;
+}
 
 /* ---------- date/time <-> string helpers (native pickers guarantee validity) ---------- */
 
@@ -70,9 +90,10 @@ export type BirthRegenerationOutcome =
 type Step = "display" | "edit" | "confirm" | "regenerating" | "success" | "failure";
 
 export function BirthDetailsChangeScreen({
-  details, successfulChanges, onBack, onRegenerate
+  details, chart, successfulChanges, onBack, onRegenerate
 }: {
   details: BirthDetails | null;
+  chart?: ChartV2 | null;
   successfulChanges: number;
   onBack: () => void;
   onRegenerate: (next: BirthDetails, clientRequestId: string) => Promise<BirthRegenerationOutcome>;
@@ -83,7 +104,6 @@ export function BirthDetailsChangeScreen({
     details ?? { birthDate: "", birthTime: "", birthPlace: "", timeUnknown: false }
   );
   const [picker, setPicker] = useState<"date" | "time" | null>(null);
-  const [regenStep, setRegenStep] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -147,16 +167,12 @@ export function BirthDetailsChangeScreen({
     const clientRequestId = requestIdRef.current ?? randomUUID();
     requestIdRef.current = clientRequestId;
     setStep("regenerating");
-    setRegenStep(0);
     setFailureMessage(null);
-    // Status steps advance for feedback; the real backend result decides the outcome.
-    timersRef.current = [
-      setTimeout(() => setRegenStep(1), 900),
-      setTimeout(() => setRegenStep(2), 2100),
-      setTimeout(() => setRegenStep(3), 3300)
-    ];
+    // Authority rule D: the backend exposes no per-step progress, so we do NOT
+    // advance the checklist on a timer (that would falsely claim completed steps).
+    // The regenerating view runs an honest indeterminate loading state instead;
+    // the real backend result decides the outcome.
     const outcome = await onRegenerate(draft, clientRequestId);
-    clearTimers();
     // On success the parent routes to the full chart-reveal page; the success card
     // below is a fallback only for the case where no updated chart was returned.
     if (outcome.ok) {
@@ -214,7 +230,7 @@ export function BirthDetailsChangeScreen({
             </View>
             <View style={[s.counterChip, remaining === 1 && s.counterChipLow, remaining === 0 && s.counterChipNone]}>
               <Text style={[s.counterText, remaining === 1 && s.counterTextLow, remaining === 0 && s.counterTextNone]}>
-                {remaining} of {LIMIT} changes remaining
+                {remaining} of {LIMIT} lifetime changes remaining
               </Text>
             </View>
             {remaining === 0 ? (
@@ -227,6 +243,29 @@ export function BirthDetailsChangeScreen({
             ) : (
               <SoftButton label="Edit birth details" onPress={beginEditing} style={{ marginTop: 18 }} />
             )}
+
+            {/* PROF-002: fill the lower half with the user's real chart wheel and
+                big-three. Rising appears only for authoritative timed charts;
+                unknown-time charts show Sun + Moon only (rule C). */}
+            {chart ? (
+              <View style={s.chartPanel}>
+                <View style={s.chartWheelWrap}>
+                  <NatalWheel chart={chart} size={230} />
+                </View>
+                <View style={s.big3Row}>
+                  {bigThree(chart).map((item) => (
+                    <View key={item.label} style={s.big3Card}>
+                      <Text style={s.big3Glyph}>{item.glyph}</Text>
+                      <Text style={s.big3Label}>{item.label}</Text>
+                      <Text style={s.big3Value}>{item.value}</Text>
+                    </View>
+                  ))}
+                </View>
+                {chart.precision !== "full" ? (
+                  <Text style={s.big3Note}>Your birth time is unknown, so Lumis hides Rising, houses, and the Ascendant.</Text>
+                ) : null}
+              </View>
+            ) : null}
           </>
         ) : null}
 
@@ -352,7 +391,7 @@ export function BirthDetailsChangeScreen({
             <Text style={s.modalTitle}>Regenerate your chart?</Text>
             <Text style={s.modalBody}>
               Changing your birth details will regenerate your chart and Lumis profile. Your past reflections will stay
-              saved, but future guidance will use your new chart. You can change birth details up to 3 times.
+              saved, but future guidance will use your new chart. You can change birth details up to 3 times in total (a lifetime limit).
             </Text>
             {diffs.length > 0 ? (
               <View style={s.diffBox}>
@@ -366,7 +405,7 @@ export function BirthDetailsChangeScreen({
                 ))}
               </View>
             ) : null}
-            <Text style={s.modalCount}>{remaining} changes remaining</Text>
+            <Text style={s.modalCount}>{remaining} lifetime changes remaining</Text>
             <BrandButton label="Regenerate my chart" onPress={runRegeneration} style={{ alignSelf: "stretch", marginTop: 16 }} />
             <GhostButton label="Cancel" onPress={() => setStep("edit")} style={{ marginTop: 6 }} />
           </View>
@@ -378,9 +417,11 @@ export function BirthDetailsChangeScreen({
       {step === "regenerating" ? (
         <View style={s.regenOverlay}>
           <GeneratingView
-            activeStep={regenStep}
+            activeStep={0}
+            indeterminate
             eyebrow="UPDATING YOUR SKY…"
             title="Regenerating your chart."
+            subtitle="This can take a moment. We'll show your updated chart as soon as it's ready."
             steps={REGEN_STEPS}
           />
         </View>
@@ -453,6 +494,14 @@ const s = StyleSheet.create({
   counterTextNone: { color: colors.muted },
   blockedNote: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, marginTop: 16, padding: 14 },
   blockedText: { color: colors.textSoft, fontSize: 13, lineHeight: 19 },
+  chartPanel: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.24)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, marginTop: 24, paddingHorizontal: 12, paddingTop: 18, paddingBottom: 16 },
+  chartWheelWrap: { alignItems: "center" },
+  big3Row: { flexDirection: "row", gap: 10, marginTop: 14, width: "100%" },
+  big3Card: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, flex: 1, paddingVertical: 12 },
+  big3Glyph: { color: colors.gold, fontFamily: "Georgia", fontSize: 20 },
+  big3Label: { color: colors.muted, fontSize: 10, fontWeight: "700", letterSpacing: 1, marginTop: 6, textTransform: "uppercase" },
+  big3Value: { color: colors.ice, fontSize: 12.5, fontWeight: "600", marginTop: 3, textAlign: "center" },
+  big3Note: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 12, textAlign: "center" },
   fieldLabel: { color: colors.muted, fontSize: 12, fontWeight: "600", marginBottom: 6 },
   input: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, color: colors.ice, fontSize: 15, minHeight: 50, paddingHorizontal: 14 },
   toggleRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 18 },

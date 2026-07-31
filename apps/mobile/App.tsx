@@ -904,6 +904,7 @@ export default function App() {
               }
             : null
         }
+        chart={chartProfile}
         successfulChanges={birthDetailChanges}
         onBack={() => setScreen("profileTab")}
         onRegenerate={async (next, clientRequestId) => {

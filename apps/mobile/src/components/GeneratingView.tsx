@@ -17,13 +17,23 @@ export function GeneratingView({
   name,
   eyebrow = "READING YOUR SKY…",
   title,
-  steps
+  steps,
+  indeterminate = false,
+  subtitle
 }: {
   activeStep: number;
   name?: string;
   eyebrow?: string;
   title?: string;
   steps?: string[];
+  /**
+   * Truthful loading (no real per-step backend progress available): render the
+   * steps as an equal in-progress list with no false "completed" checkmarks, and
+   * ignore `activeStep`. Used by PROF-005 chart regeneration (authority rule D:
+   * must not falsely claim backend progress).
+   */
+  indeterminate?: boolean;
+  subtitle?: string;
 }) {
   const stepLabels = steps ?? [
     "Aligning your ephemeris data",
@@ -110,23 +120,26 @@ export function GeneratingView({
         <Text style={styles.eyebrow}>✦ {eyebrow}</Text>
       </View>
       <Text style={styles.title}>{headline}</Text>
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
       <View style={styles.steps}>
         {stepLabels.map((label, index) => {
-          const done = index < activeStep;
-          const active = index === activeStep;
+          // Indeterminate: every row is an equal in-progress item — no step is
+          // marked "done" on a timer (truthful loading, no fake backend progress).
+          const done = !indeterminate && index < activeStep;
+          const active = !indeterminate && index === activeStep;
           return (
-            <View key={label} style={[styles.stepRow, !done && !active && styles.stepRowIdle]}>
+            <View key={label} style={[styles.stepRow, !indeterminate && !done && !active && styles.stepRowIdle]}>
               <View style={[styles.stepIcon, done && styles.stepIconDone]}>
                 {done ? (
                   <Text style={styles.stepCheck}>✓</Text>
-                ) : active && !reduceMotion ? (
+                ) : (active || indeterminate) && !reduceMotion ? (
                   <Animated.View style={[styles.stepSpinner, { transform: [{ rotate: activeSpin }] }]} />
                 ) : (
-                  <Text style={styles.stepNum}>{index + 1}</Text>
+                  <Text style={styles.stepNum}>{indeterminate ? "•" : index + 1}</Text>
                 )}
               </View>
-              <Text style={[styles.stepText, (done || active) && styles.stepTextActive]}>{label}</Text>
+              <Text style={[styles.stepText, (done || active || indeterminate) && styles.stepTextActive]}>{label}</Text>
             </View>
           );
         })}
@@ -143,6 +156,7 @@ const styles = StyleSheet.create({
   eyebrowRow: { flexDirection: "row" },
   eyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
   title: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, lineHeight: 32, marginTop: 8, textAlign: "center" },
+  subtitle: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 8, textAlign: "center" },
   steps: { alignSelf: "stretch", gap: 16, marginTop: 34 },
   stepRow: { alignItems: "center", flexDirection: "row", gap: 14 },
   stepRowIdle: { opacity: 0.4 },
