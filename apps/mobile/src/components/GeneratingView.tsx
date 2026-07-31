@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Line } from "react-native-svg";
+import Svg, { Circle, Line, Text as SvgText } from "react-native-svg";
 
 import { colors } from "../theme/tokens";
+
+const ZODIAC_GLYPHS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"] as const;
 
 /**
  * The chart-generation loading experience (design handoff §6): a self-drawing
@@ -112,6 +114,23 @@ export function GeneratingView({
               />
             );
           })}
+          {ZODIAC_GLYPHS.map((glyph, index) => {
+            const angle = (index * 30 - 75) * (Math.PI / 180);
+            return (
+              <SvgText
+                fill="#EDE3D4"
+                fontFamily="Georgia"
+                fontSize="7.5"
+                key={glyph}
+                opacity="0.72"
+                textAnchor="middle"
+                x={66 + Math.cos(angle) * 51}
+                y={68.5 + Math.sin(angle) * 51}
+              >
+                {glyph}
+              </SvgText>
+            );
+          })}
           <Circle cx="66" cy="66" r="3" fill="#D7A950" />
         </Svg>
       </View>
@@ -122,7 +141,7 @@ export function GeneratingView({
       <Text style={styles.title}>{headline}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-      <View style={styles.steps}>
+      <View accessibilityLabel={indeterminate ? "Chart regeneration is in progress" : undefined} style={styles.steps}>
         {stepLabels.map((label, index) => {
           // Indeterminate: every row is an equal in-progress item — no step is
           // marked "done" on a timer (truthful loading, no fake backend progress).
@@ -149,16 +168,16 @@ export function GeneratingView({
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 36 },
-  stage: { alignItems: "center", height: 210, justifyContent: "center", marginBottom: 30, width: 210 },
+  wrap: { alignItems: "center", flex: 1, justifyContent: "center", paddingBottom: 34, paddingHorizontal: 32, paddingTop: 22 },
+  stage: { alignItems: "center", height: 224, justifyContent: "center", marginBottom: 18, width: 224 },
   glow: { position: "absolute", width: 190, height: 190, borderRadius: 95, backgroundColor: "rgba(201,169,110,0.12)" },
   ring: { position: "absolute", alignItems: "center", justifyContent: "center" },
   eyebrowRow: { flexDirection: "row" },
   eyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
   title: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, lineHeight: 32, marginTop: 8, textAlign: "center" },
-  subtitle: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 8, textAlign: "center" },
-  steps: { alignSelf: "stretch", gap: 16, marginTop: 34 },
-  stepRow: { alignItems: "center", flexDirection: "row", gap: 14 },
+  subtitle: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: 9, maxWidth: 330, textAlign: "center" },
+  steps: { alignSelf: "stretch", backgroundColor: "rgba(42,58,88,0.22)", borderColor: "rgba(190,202,224,0.14)", borderRadius: 16, borderWidth: 1, gap: 15, marginTop: 28, paddingHorizontal: 16, paddingVertical: 17 },
+  stepRow: { alignItems: "center", flexDirection: "row", gap: 13, minHeight: 30 },
   stepRowIdle: { opacity: 0.4 },
   stepIcon: { alignItems: "center", borderColor: colors.line, borderRadius: 13, borderWidth: 1, height: 26, justifyContent: "center", width: 26 },
   stepIconDone: { backgroundColor: colors.gold, borderColor: colors.gold },

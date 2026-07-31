@@ -294,7 +294,12 @@ export function BirthDetailsChangeScreen({
           <>
             <Text style={s.eyebrow}>✦ EDIT</Text>
             <Text style={s.editTitle}>Your birth details</Text>
-            <Text style={s.editSub}>{remaining} of {LIMIT} lifetime changes remaining.</Text>
+            <Text style={s.editIntro}>
+              Review each detail carefully. A confirmed change regenerates your chart while keeping Past Reflections saved.
+            </Text>
+            <View style={s.editCountRow}>
+              <Text style={s.editCount}>{remaining} of {LIMIT} lifetime changes remaining</Text>
+            </View>
 
             <PickerRow label="Birth date" value={draft.birthDate ? displayDate(draft.birthDate) : "Choose date"} onPress={() => openPicker("date")} />
             {!draft.timeUnknown ? (
@@ -314,7 +319,12 @@ export function BirthDetailsChangeScreen({
             </View>
             {draft.timeUnknown ? (
               <Text style={s.toggleNote}>Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements.</Text>
-            ) : null}
+            ) : (
+              <View style={s.accuracyNote}>
+                <Text style={s.accuracyNoteTitle}>Why time matters</Text>
+                <Text style={s.accuracyNoteBody}>Your birth time positions the Ascendant, MC, houses, and planet-house placements.</Text>
+              </View>
+            )}
             <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => updateDraft((current) => ({ ...current, birthPlace: v }))} placeholder="Search city, e.g. Hong Kong" />
             {formError ? (
               <Text
@@ -490,8 +500,10 @@ const s = StyleSheet.create({
   safe: { backgroundColor: "transparent", flex: 1 },
   content: { padding: spacing.lg, paddingBottom: 40 },
   eyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.4, marginBottom: 6 },
-  editTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 26 },
-  editSub: { color: colors.muted, fontSize: 12.5, marginBottom: 8, marginTop: 4 },
+  editTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 30, lineHeight: 36 },
+  editIntro: { color: colors.textSoft, fontSize: 13.5, lineHeight: 20, marginTop: 8, maxWidth: 350 },
+  editCountRow: { alignSelf: "flex-start", backgroundColor: "rgba(201,169,110,0.10)", borderColor: "rgba(215,185,120,0.34)", borderRadius: 999, borderWidth: 1, marginBottom: 6, marginTop: 14, paddingHorizontal: 11, paddingVertical: 5 },
+  editCount: { color: colors.goldLight, fontSize: 11.5, fontWeight: "700" },
   pickerField: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, marginTop: 14, paddingHorizontal: 14, paddingVertical: 12 },
   pickerValueRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   pickerValue: { color: colors.ice, fontSize: 16 },
@@ -524,8 +536,11 @@ const s = StyleSheet.create({
   big3Note: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 12, textAlign: "center" },
   fieldLabel: { color: colors.muted, fontSize: 12, fontWeight: "600", marginBottom: 6 },
   input: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, color: colors.ice, fontSize: 15, minHeight: 50, paddingHorizontal: 14 },
-  toggleRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: 18 },
+  toggleRow: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.26)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 16, minHeight: 54, paddingHorizontal: 14 },
   toggleNote: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 8 },
+  accuracyNote: { backgroundColor: "rgba(201,169,110,0.08)", borderColor: "rgba(215,185,120,0.22)", borderRadius: radii.md, borderWidth: 1, marginTop: 12, padding: 14 },
+  accuracyNoteTitle: { color: colors.goldLight, fontFamily: "Georgia", fontSize: 14 },
+  accuracyNoteBody: { color: colors.textSoft, fontSize: 12, lineHeight: 18, marginTop: 5 },
   formError: { color: "#FFB4A8", fontSize: 12.5, lineHeight: 18, marginTop: 12 },
   hintNote: { color: colors.muted, fontSize: 12, marginTop: 10, textAlign: "center" },
   centered: { alignItems: "center", paddingTop: 24 },
@@ -542,7 +557,7 @@ const s = StyleSheet.create({
   diffArrow: { color: colors.muted },
   diffTo: { color: colors.ice, fontWeight: "600" },
   modalCount: { color: colors.muted, fontSize: 12, marginTop: 14 },
-  regenOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.navy950 },
+  regenOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "transparent" },
   regenWheel: { alignItems: "center", height: 150, justifyContent: "center", marginBottom: 24, width: 150 },
   regenEyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
   regenTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, marginTop: 8, textAlign: "center" },

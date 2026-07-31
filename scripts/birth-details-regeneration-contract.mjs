@@ -9,6 +9,7 @@ const mobileApp = readFileSync("apps/mobile/App.tsx", "utf8");
 const birthDetailsScreen = readFileSync("apps/mobile/src/features/birthDetails/BirthDetailsChangeScreen.tsx", "utf8");
 const birthTimePicker = readFileSync("apps/mobile/src/features/birthDetails/birthTimePicker.ts", "utf8");
 const accountState = readFileSync("apps/mobile/src/services/accountState.ts", "utf8");
+const generatingView = readFileSync("apps/mobile/src/components/GeneratingView.tsx", "utf8");
 
 const diagnostics = ts.transpileModule(profile, {
   compilerOptions: { target: ts.ScriptTarget.ES2022 },
@@ -80,6 +81,17 @@ assert.match(birthDetailsScreen, /onRequestClose=\{closePicker\}/);
 assert.match(birthDetailsScreen, /onPress=\{commitPicker\}/);
 assert.doesNotMatch(birthDetailsScreen, /onChange=\{\([^)]*, d\?: Date\)[\s\S]{0,240}setDraft/);
 assert.match(birthTimePicker, /accepted:[\s\S]*formatBirthTimePickerValue/);
+assert.match(birthDetailsScreen, /Review each detail carefully/);
+assert.match(birthDetailsScreen, /Why time matters/);
+assert.match(birthDetailsScreen, /regenOverlay:\s*\{[\s\S]*backgroundColor:\s*"transparent"/);
+assert.match(generatingView, /const ZODIAC_GLYPHS/);
+assert.match(generatingView, /Chart regeneration is in progress/);
+assert.match(generatingView, /const done = !indeterminate && index < activeStep/);
+assert.doesNotMatch(
+  birthDetailsScreen,
+  /setTimeout\([\s\S]{0,160}setStep\("regenerating"\)/,
+  "regeneration visuals must not fabricate backend progress"
+);
 assert.equal(
   (mobileApp.match(/<CelestialBackground(?:\s[^>]*)?\/>/g) ?? []).length,
   1,
