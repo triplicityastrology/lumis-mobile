@@ -8,8 +8,11 @@ const root =
 const boundary = read(`${root}/stagingWorkbenchBoundary.ts`);
 const fixture = read(`${root}/stagingWorkbenchBoundary.fixtures.ts`);
 const screen = read(`${root}/CareCircleStagingWorkbench.tsx`);
+const sessionGate = read(`${root}/CareCircleStagingSessionGate.tsx`);
 const port = read(`${root}/stagingWorkbenchPort.ts`);
+const portFixture = read(`${root}/stagingWorkbenchPort.fixtures.ts`);
 const entry = read(`${root}/index.tsx`);
+const metro = read(`${root}/metro.config.js`);
 const workbenchPackage = JSON.parse(read(`${root}/package.json`));
 const releasePackage = JSON.parse(read("apps/mobile/package.json"));
 const releaseEntry = read("apps/mobile/index.ts");
@@ -43,13 +46,39 @@ for (const operation of [
   assert.match(screen, new RegExp(`"${operation}"`));
 }
 assert.match(entry, /createInactiveCareCircleClient\(ports\.operationPort\)/);
+assert.match(entry, /CareCircleStagingSessionGate/);
+assert.match(entry, /sessionPort=\{ports\.sessionPort\}/);
 assert.match(port, /list_care_relationships/);
+assert.match(port, /resolve_care_circle_capability/);
+assert.match(port, /signInWithPassword/);
+assert.match(port, /auth\.signOut/);
+assert.match(sessionGate, /Disposable account sign-in/);
+assert.match(sessionGate, /secureTextEntry/);
+assert.match(sessionGate, /setPassword\(""\)/);
+assert.match(sessionGate, /Authenticated disposable staging session/);
+assert.match(screen, /capabilities\.canActAsCaree/);
+assert.match(screen, /capabilities\.canActAsCarer/);
 assert.match(screen, /pending Caree acceptance and has no active authority/);
+assert.match(screen, /Pending Caree acceptance · no authority/);
 assert.match(screen, /Accepted Carers · \$\{accepted\.length\}\/5/);
 assert.match(screen, /atCapacity = accepted\.length >= 5/);
+assert.match(screen, /Test sixth rejection/);
+assert.match(
+  screen,
+  /Backend rejected the sixth active Carer\. The maximum remains five\./
+);
+assert.doesNotMatch(screen, /disabled: disabled \|\| atCapacity/);
 assert.match(screen, /lifetime > 61 \* 60 \* 1000/);
 assert.match(screen, /setPairingCodeInput\(""\)/);
 assert.match(screen, /setPairingCode\(null\)/);
+assert.match(screen, /My Caree relationships/);
+assert.match(screen, /Remove myself/);
+assert.match(screen, /if \(result\.ok\) await refreshRelationships\(false\)/);
+assert.match(portFixture, /CARE_CIRCLE_SIGN_IN_FAILED/);
+assert.match(portFixture, /email is not echoed/);
+assert.match(portFixture, /password is not echoed/);
+assert.match(metro, /workspaceRoot/);
+assert.match(metro, /path\.resolve\(workspaceRoot, "node_modules"\)/);
 
 for (const releaseSource of [
   releaseEntry,
@@ -70,7 +99,7 @@ assert.doesNotMatch(
   /CareCircleStagingWorkbench|stagingWorkbenchBoundary/
 );
 assert.doesNotMatch(
-  `${screen}\n${port}\n${entry}`,
+  `${screen}\n${sessionGate}\n${port}\n${entry}`,
   /console\.|AsyncStorage|SecureStore|analytics|capture|track\(|Camera|BarCode|Notifications|scheduleNotification|billing|payment|emergency/i
 );
 assert.doesNotMatch(

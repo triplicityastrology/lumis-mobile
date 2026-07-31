@@ -6,6 +6,25 @@ import type {
   WorkbenchRelationshipPort,
 } from "./CareCircleStagingWorkbench";
 
+export type WorkbenchCapabilities = {
+  canActAsCaree: boolean;
+  canActAsCarer: boolean;
+  careCirclePaused: boolean;
+};
+
+export type WorkbenchSessionState =
+  | { authenticated: false }
+  | {
+      authenticated: true;
+      capabilities: WorkbenchCapabilities;
+    };
+
+export type WorkbenchSessionPort = {
+  readSession(): Promise<WorkbenchSessionState>;
+  signIn(input: { email: string; password: string }): Promise<void>;
+  signOut(): Promise<void>;
+};
+
 const SAFE_BACKEND_CODES = new Set([
   "AUTH_REQUIRED",
   "48004",
@@ -32,6 +51,7 @@ export function createStagingWorkbenchPorts(
 ): {
   operationPort: CareCircleClientPort;
   relationshipPort: WorkbenchRelationshipPort;
+  sessionPort: WorkbenchSessionPort;
 } {
   return {
     operationPort: {
@@ -56,6 +76,63 @@ export function createStagingWorkbenchPorts(
           throw new Error("CARE_CIRCLE_RELATIONSHIP_LIST_UNAVAILABLE");
         }
         return projected as WorkbenchRelationship[];
+      },
+    },
+    sessionPort: {
+      async readSession() {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+        if (sessionError) {
+          throw new Error("CARE_CIRCLE_SESSION_UNAVAILABLE");
+        }
+        if (!sessionData.session) {
+          return { authenticated: false };
+        }
+
+        const { data: authData, error: authError } =
+          await supabase.auth.getUser();
+        if (authError || !authData.user) {
+          throw new Error("CARE_CIRCLE_SESSION_UNAVAILABLE");
+        }
+
+        const [capabilityResult, settingsResult] = await Promise.all([
+          supabase.rpc("resolve_care_circle_capability"),
+          supabase
+            .from("care_check_settings")
+            .select("paused_until")
+            .maybeSingle(),
+        ]);
+        if (capabilityResult.error || settingsResult.error) {
+          throw new Error("CARE_CIRCLE_SESSION_UNAVAILABLE");
+        }
+
+        const capabilities = projectCapabilities(
+          capabilityResult.data,
+          settingsResult.data
+        );
+        if (!capabilities) {
+          throw new Error("CARE_CIRCLE_SESSION_UNAVAILABLE");
+        }
+
+        return { authenticated: true, capabilities };
+      },
+      async signIn({ email, password }) {
+        if (!email.trim() || !password) {
+          throw new Error("CARE_CIRCLE_SIGN_IN_INVALID");
+        }
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+        if (error) {
+          throw new Error("CARE_CIRCLE_SIGN_IN_FAILED");
+        }
+      },
+      async signOut() {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          throw new Error("CARE_CIRCLE_SIGN_OUT_FAILED");
+        }
       },
     },
   };
@@ -94,6 +171,31 @@ function projectRelationship(value: unknown): WorkbenchRelationship | null {
     participantRole: value.participant_role,
     otherDisplayName: value.other_display_name,
     status: value.relationship_status as WorkbenchRelationship["status"],
+  };
+}
+
+function projectCapabilities(
+  capabilityValue: unknown,
+  settingsValue: unknown
+): WorkbenchCapabilities | null {
+  if (
+    !isRecord(capabilityValue) ||
+    typeof capabilityValue.can_act_as_caree !== "boolean" ||
+    typeof capabilityValue.can_act_as_carer !== "boolean"
+  ) {
+    return null;
+  }
+
+  const pausedUntil =
+    isRecord(settingsValue) && typeof settingsValue.paused_until === "string"
+      ? Date.parse(settingsValue.paused_until)
+      : Number.NaN;
+
+  return {
+    canActAsCaree: capabilityValue.can_act_as_caree,
+    canActAsCarer: capabilityValue.can_act_as_carer,
+    careCirclePaused:
+      Number.isFinite(pausedUntil) && pausedUntil > Date.now(),
   };
 }
 

@@ -11,9 +11,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type {
   CareCircleClientInput,
+  CareCircleClientResult,
   InactiveCareCircleClient,
 } from "../../src/services/inactiveCareCircleClient";
 import { colors, spacing } from "../../src/theme/tokens";
+import type { WorkbenchCapabilities } from "./stagingWorkbenchPort";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -38,17 +40,21 @@ type Notice = {
 };
 
 export function CareCircleStagingWorkbench({
+  capabilities,
   client,
   relationshipPort,
   requestIdFactory,
   now = () => Date.now(),
 }: {
+  capabilities: WorkbenchCapabilities;
   client: InactiveCareCircleClient;
   relationshipPort: WorkbenchRelationshipPort;
   requestIdFactory: () => string;
   now?: () => number;
 }) {
-  const [role, setRole] = useState<"caree" | "carer">("caree");
+  const [role, setRole] = useState<"caree" | "carer">(
+    capabilities.canActAsCaree ? "caree" : "carer"
+  );
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -59,7 +65,7 @@ export function CareCircleStagingWorkbench({
   const [relationships, setRelationships] = useState<WorkbenchRelationship[]>(
     []
   );
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(capabilities.careCirclePaused);
 
   const careeRelationships = relationships.filter(
     (relationship) => relationship.participantRole === "caree"
@@ -70,12 +76,21 @@ export function CareCircleStagingWorkbench({
   const accepted = careeRelationships.filter(
     (relationship) => relationship.status === "active"
   );
+  const carerRelationships = relationships.filter(
+    (relationship) => relationship.participantRole === "carer"
+  );
   const atCapacity = accepted.length >= 5;
   const codeIsExpired =
     pairingCodeExpiresAt !== null &&
     Date.parse(pairingCodeExpiresAt) <= now();
 
   function switchRole(nextRole: "caree" | "carer") {
+    if (
+      (nextRole === "caree" && !capabilities.canActAsCaree) ||
+      (nextRole === "carer" && !capabilities.canActAsCarer)
+    ) {
+      return;
+    }
     setRole(nextRole);
     setPairingCode(null);
     setPairingCodeExpiresAt(null);
@@ -84,7 +99,9 @@ export function CareCircleStagingWorkbench({
     setNotice(null);
   }
 
-  async function runAction(input: CareCircleClientInput) {
+  async function runAction(
+    input: CareCircleClientInput
+  ): Promise<CareCircleClientResult> {
     setBusy(input.action);
     setNotice(null);
     const result = await client.execute(input);
@@ -92,7 +109,7 @@ export function CareCircleStagingWorkbench({
 
     if (!result.ok) {
       setNotice({ tone: "error", text: result.message });
-      return;
+      return result;
     }
 
     if (result.code === "CARE_CIRCLE_PAIRING_CODE_READY") {
@@ -104,7 +121,7 @@ export function CareCircleStagingWorkbench({
           tone: "error",
           text: "The staging pairing code expiry could not be verified.",
         });
-        return;
+        return result;
       }
       setPairingCode(result.pairingCode);
       setPairingCodeExpiresAt(result.expiresAt);
@@ -112,7 +129,7 @@ export function CareCircleStagingWorkbench({
         tone: "success",
         text: "Reusable pairing code ready for this one-hour staging window.",
       });
-      return;
+      return result;
     }
 
     if (result.code === "CARE_CIRCLE_PENDING_CAREE_ACCEPTANCE") {
@@ -120,7 +137,7 @@ export function CareCircleStagingWorkbench({
         tone: "success",
         text: "Request sent. It is pending Caree acceptance and has no active authority.",
       });
-      return;
+      return result;
     }
 
     if (result.code === "CARE_CIRCLE_RELATIONSHIP_ACCEPTED") {
@@ -128,21 +145,21 @@ export function CareCircleStagingWorkbench({
         tone: "success",
         text: "Carer accepted. Refresh relationships to verify active status.",
       });
-      return;
+      return result;
     }
     if (result.code === "CARE_CIRCLE_RELATIONSHIP_DECLINED") {
       setNotice({
         tone: "success",
         text: "Pending request declined.",
       });
-      return;
+      return result;
     }
     if (result.code === "CARE_CIRCLE_RELATIONSHIP_REMOVED") {
       setNotice({
         tone: "success",
         text: "Accepted relationship removed.",
       });
-      return;
+      return result;
     }
     if (result.code === "CARE_CIRCLE_PAUSED") {
       setPaused(true);
@@ -150,7 +167,7 @@ export function CareCircleStagingWorkbench({
         tone: "success",
         text: "Care Circle is paused for this staging account.",
       });
-      return;
+      return result;
     }
 
     setPaused(false);
@@ -158,17 +175,20 @@ export function CareCircleStagingWorkbench({
       tone: "success",
       text: "Care Circle resumed for this staging account.",
     });
+    return result;
   }
 
-  async function refreshRelationships() {
+  async function refreshRelationships(announce = true) {
     setBusy("refresh_relationships");
-    setNotice(null);
+    if (announce) setNotice(null);
     try {
       setRelationships(await relationshipPort.listRelationships());
-      setNotice({
-        tone: "info",
-        text: "Participant-safe staging relationships refreshed.",
-      });
+      if (announce) {
+        setNotice({
+          tone: "info",
+          text: "Participant-safe staging relationships refreshed.",
+        });
+      }
     } catch {
       setNotice({
         tone: "error",
@@ -193,11 +213,12 @@ export function CareCircleStagingWorkbench({
   async function submitPairingCode() {
     const transientCode = pairingCodeInput;
     setPairingCodeInput("");
-    await runAction({
+    const result = await runAction({
       action: "submit_pairing_code",
       clientRequestId: requestIdFactory(),
       pairingCode: transientCode,
     });
+    if (result.ok) await refreshRelationships(false);
   }
 
   async function actOnRelationship(
@@ -207,11 +228,24 @@ export function CareCircleStagingWorkbench({
       | "remove_relationship",
     relationshipId: string
   ) {
-    await runAction({
+    const result = await runAction({
       action,
       clientRequestId: requestIdFactory(),
       relationshipId,
     });
+    if (
+      !result.ok &&
+      action === "accept_relationship" &&
+      atCapacity &&
+      result.code === "CARE_CIRCLE_REQUEST_CONFLICT"
+    ) {
+      setNotice({
+        tone: "success",
+        text: "Backend rejected the sixth active Carer. The maximum remains five.",
+      });
+      return;
+    }
+    if (result.ok) await refreshRelationships(false);
   }
 
   const disabled = busy !== null;
@@ -230,20 +264,34 @@ export function CareCircleStagingWorkbench({
         </Text>
 
         <View style={styles.roleRow} accessibilityRole="tablist">
-          {(["caree", "carer"] as const).map((item) => (
-            <Pressable
-              accessibilityRole="tab"
-              accessibilityState={{ selected: role === item }}
-              disabled={disabled}
-              key={item}
-              onPress={() => switchRole(item)}
-              style={[styles.roleButton, role === item && styles.roleSelected]}
-            >
-              <Text style={styles.roleText}>
-                {item === "caree" ? "Caree test" : "Carer test"}
-              </Text>
-            </Pressable>
-          ))}
+          {(["caree", "carer"] as const).map((item) => {
+            const roleAllowed =
+              item === "caree"
+                ? capabilities.canActAsCaree
+                : capabilities.canActAsCarer;
+            return (
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityState={{
+                  disabled: !roleAllowed,
+                  selected: role === item,
+                }}
+                disabled={disabled || !roleAllowed}
+                key={item}
+                onPress={() => switchRole(item)}
+                style={[
+                  styles.roleButton,
+                  role === item && styles.roleSelected,
+                  !roleAllowed && styles.disabled,
+                ]}
+              >
+                <Text style={styles.roleText}>
+                  {item === "caree" ? "Caree" : "Carer"}
+                  {roleAllowed ? " enabled" : " blocked"}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {notice ? (
@@ -314,8 +362,8 @@ export function CareCircleStagingWorkbench({
                     relationship={relationship}
                     actions={[
                       {
-                        label: atCapacity ? "Maximum 5 active" : "Accept",
-                        disabled: disabled || atCapacity,
+                        label: atCapacity ? "Test sixth rejection" : "Accept",
+                        disabled,
                         onPress: () =>
                           void actOnRelationship(
                             "accept_relationship",
@@ -382,27 +430,76 @@ export function CareCircleStagingWorkbench({
             </Section>
           </>
         ) : (
-          <Section title="Submit Caree pairing code">
-            <Text style={styles.body}>
-              Submission creates a pending request only. The Caree must accept it.
-            </Text>
-            <TextInput
-              accessibilityLabel="Staging pairing code"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              editable={!disabled}
-              onChangeText={setPairingCodeInput}
-              placeholder="Enter the Caree staging code"
-              placeholderTextColor={colors.muted}
-              style={styles.input}
-              value={pairingCodeInput}
-            />
-            <Action
-              disabled={disabled || pairingCodeInput.trim().length === 0}
-              label={busy === "submit_pairing_code" ? "Submitting..." : "Submit code"}
-              onPress={() => void submitPairingCode()}
-            />
-          </Section>
+          <>
+            <Section title="Submit Caree pairing code">
+              <Text style={styles.body}>
+                Submission creates a pending request only. The Caree must accept
+                it before this account receives any Care Circle authority.
+              </Text>
+              <TextInput
+                accessibilityLabel="Staging pairing code"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                editable={!disabled}
+                onChangeText={setPairingCodeInput}
+                placeholder="Enter the Caree staging code"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+                value={pairingCodeInput}
+              />
+              <Action
+                disabled={disabled || pairingCodeInput.trim().length === 0}
+                label={
+                  busy === "submit_pairing_code"
+                    ? "Submitting..."
+                    : "Submit code"
+                }
+                onPress={() => void submitPairingCode()}
+              />
+            </Section>
+            <Section title="My Caree relationships">
+              <Text style={styles.body}>
+                Pending means no active authority. Active appears only after
+                Caree acceptance.
+              </Text>
+              <Action
+                disabled={disabled}
+                label={
+                  busy === "refresh_relationships"
+                    ? "Loading..."
+                    : "Refresh status"
+                }
+                onPress={() => void refreshRelationships()}
+                secondary
+              />
+              {carerRelationships.length === 0 ? (
+                <Text style={styles.empty}>No relationships loaded.</Text>
+              ) : (
+                carerRelationships.map((relationship) => (
+                  <RelationshipRow
+                    actions={
+                      relationship.status === "pending_caree_acceptance" ||
+                      relationship.status === "active"
+                        ? [
+                            {
+                              label: "Remove myself",
+                              disabled,
+                              onPress: () =>
+                                void actOnRelationship(
+                                  "remove_relationship",
+                                  relationship.relationshipId
+                                ),
+                            },
+                          ]
+                        : []
+                    }
+                    key={relationship.relationshipId}
+                    relationship={relationship}
+                  />
+                ))
+              )}
+            </Section>
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -441,7 +538,9 @@ function RelationshipRow({
         <Text style={styles.relationshipName}>
           {relationship.otherDisplayName}
         </Text>
-        <Text style={styles.meta}>{relationship.status}</Text>
+        <Text style={styles.meta}>
+          {relationshipStatusLabel(relationship.status)}
+        </Text>
       </View>
       <View style={styles.rowActions}>
         {actions.map((action) => (
@@ -493,6 +592,20 @@ function formatStagingTime(value: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function relationshipStatusLabel(
+  status: WorkbenchRelationship["status"]
+): string {
+  const labels: Record<WorkbenchRelationship["status"], string> = {
+    pending_caree_acceptance: "Pending Caree acceptance · no authority",
+    active: "Active · accepted by Caree",
+    declined: "Declined",
+    removed_by_caree: "Removed by Caree",
+    removed_by_carer: "Removed by Carer",
+    expired: "Expired",
+  };
+  return labels[status];
 }
 
 const styles = StyleSheet.create({

@@ -9,6 +9,7 @@ import {
 
 import { createInactiveCareCircleClient } from "../../src/services/inactiveCareCircleClient";
 import { getSupabaseClient } from "../../src/services/supabase";
+import { CareCircleStagingSessionGate } from "./CareCircleStagingSessionGate";
 import { CareCircleStagingWorkbench } from "./CareCircleStagingWorkbench";
 import { resolveCareCircleWorkbenchBoundary } from "./stagingWorkbenchBoundary";
 import { createStagingWorkbenchPorts } from "./stagingWorkbenchPort";
@@ -24,11 +25,16 @@ const ports = supabase ? createStagingWorkbenchPorts(supabase) : null;
 function Root() {
   const content =
     boundary.enabled && ports ? (
-      <CareCircleStagingWorkbench
-        client={createInactiveCareCircleClient(ports.operationPort)}
-        relationshipPort={ports.relationshipPort}
-        requestIdFactory={randomUUID}
-      />
+      <CareCircleStagingSessionGate sessionPort={ports.sessionPort}>
+        {(capabilities) => (
+          <CareCircleStagingWorkbench
+            capabilities={capabilities}
+            client={createInactiveCareCircleClient(ports.operationPort)}
+            relationshipPort={ports.relationshipPort}
+            requestIdFactory={randomUUID}
+          />
+        )}
+      </CareCircleStagingSessionGate>
     ) : (
       <View style={styles.blocked}>
         <Text style={styles.title}>Care Circle workbench unavailable</Text>
