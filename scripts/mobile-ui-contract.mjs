@@ -56,6 +56,17 @@ const birthDetailsSource = await readFile(
   path.join(featuresPath, "birthDetails/BirthDetailsChangeScreen.tsx"),
   "utf8"
 );
+// Authority rule C: Rising/Ascendant is surfaced in Birth Details ONLY for a
+// full-precision (timed) chart; unknown-time charts show Sun + Moon only.
+assert.match(birthDetailsSource, /chart\.precision === "full" && asc/);
+assert.match(birthDetailsSource, /Lumis hides Rising, houses, and the Ascendant/);
+// Authority rule D: three LIFETIME changes (not per-year).
+assert.match(birthDetailsSource, /lifetime changes remaining/);
+assert.match(birthDetailsSource, /a lifetime limit/);
+// Authority rule D: regeneration uses an honest indeterminate loader — no fake
+// timed step-completion that claims backend progress.
+assert.match(birthDetailsSource, /indeterminate/);
+assert.doesNotMatch(birthDetailsSource, /setTimeout\(\(\) => setRegenStep/);
 const notificationCenterSource = await readFile(
   path.join(featuresPath, "notifications/NotificationCenterScreen.tsx"),
   "utf8"
