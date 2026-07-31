@@ -236,3 +236,109 @@ Allowed evidence:
 
 Never retain credentials, tokens, pairing codes, fingerprints, user IDs,
 emails, database rows, private payloads, or terminal input screenshots.
+
+## S2-T39 Passwordless Controlled Staging Route
+
+Status: prepared only. The potentially exposed database password is retired and
+must never be reused. Password rotation is not a prerequisite for this route.
+No step below may run until PM and QA accept this exceptional execution path.
+For the S2-T39 window, this section supersedes Gate 3 and Future Authorized
+Deployment above: do not run `migration list`, `db push`, or any database-
+password prompt from those sections.
+
+Supabase recommends `db push` for tracked migrations because ordinary SQL
+Editor changes bypass `supabase_migrations.schema_migrations`. Therefore the
+Dashboard route is compliant only when the migration body and its matching
+history record are committed in the same reviewed transaction. Never run a
+migration body by itself and never repair history after an untracked write.
+
+### Credential and interface boundaries
+
+| Step | Approved interface | Credential boundary |
+| --- | --- | --- |
+| Project/ref confirmation | Authenticated Dashboard project header/settings | Existing Founder owner session; no value copied |
+| Backup/restore evidence review | Existing metadata-only evidence | No credential |
+| Legacy count audit | Dashboard SQL Editor | Existing Founder owner session |
+| Migration-history/schema inspection | Dashboard SQL Editor, read-only | Existing Founder owner session |
+| Exact-order rollback rehearsal | Dashboard SQL Editor transaction ending in `rollback` | Existing Founder owner session |
+| Migrations `0032` then `0033` then `0034` | Dashboard SQL Editor, one atomic migration-plus-history transaction at a time | Existing Founder owner session |
+| Function secret-name and deployed-version checks | Dashboard names/status views or CLI | Existing owner session, or fresh hidden PAT for CLI |
+| Deploy reviewed multi-file `care-circle` function | Supabase CLI only; Dashboard function editor is not an approved deploy path | Fresh hidden PAT, exported for the command and immediately unset |
+| Disposable evidence | Existing gated T08A harness | Fresh hidden staging `sb_secret_` QA key and staging publishable key; immediately unset |
+
+The PAT carries the Founder's account privileges and is not a database
+password. Create it only for the approved window, enter it through a hidden
+local prompt, never run `supabase login`, and revoke it after function/evidence
+capture. Never print project keys. The temporary `sb_secret_` key must be
+revoked after disposable cleanup. No credential belongs in `.env`, shell
+history, evidence, screenshots, or chat.
+
+### Passwordless pre-write gates
+
+1. In the Dashboard, visually confirm exact ref `bmqhwofmdgebpcihjlnb`. A label
+   such as `main` or `Production` is not sufficient. Stop on any mismatch.
+2. Confirm the accepted logical-backup restore evidence and destruction
+   deadline remain recorded. Do not remount or expose backup contents.
+3. Run `supabase/tests/s2-t09-care-circle-legacy-audit.sql` in SQL Editor.
+   Capture counts only. Stop on nonzero revoked or non-SHA-256-shape counts, an
+   unexpected field, query error, or body-bearing notification result requiring
+   privacy review.
+4. Run this metadata-only query in SQL Editor and capture column names/types
+   only:
+
+   ```sql
+   select column_name, data_type, udt_name, is_nullable
+   from information_schema.columns
+   where table_schema = 'supabase_migrations'
+     and table_name = 'schema_migrations'
+   order by ordinal_position;
+   ```
+
+   Stop unless the migration-history shape supports the reviewed atomic history
+   insert. Do not guess columns or values.
+5. Query only migration version/name metadata and reconcile it with the local
+   migration directory. Stop if `0032`, `0033`, or `0034` is already recorded,
+   any earlier local migration is missing remotely, or any unexpected later
+   migration exists.
+6. In one SQL Editor transaction, concatenate the checksum-verified `0032`,
+   `0033`, and `0034` sources in order and end with `rollback;`. This is the
+   passwordless dry-run equivalent. It must complete without error and leave
+   both schema and migration history unchanged. Stop on any error or ambiguity.
+7. Re-run the local checksum/readiness contracts. Stop unless they still match
+   the deployment-control JSON exactly.
+
+### Controlled writes after gate release
+
+For each migration, Technical prepares one reviewable SQL Editor transaction
+containing only:
+
+1. `begin;`;
+2. the byte-for-byte checksum-verified migration source;
+3. one migration-history insert matching the metadata shape verified above;
+4. a metadata-only assertion that exactly that version is recorded; and
+5. `commit;`.
+
+Execute and verify `0032`, then `0033`, then `0034`. Stop after the first failed,
+partial, duplicate, or unexpected result. Never paste all three into an
+unreviewed write tab, never use `migration repair`, and never continue to the
+function without exact migration parity.
+
+After parity, use a fresh hidden PAT with pinned CLI `2.109.1` to verify exact
+project access, list secret names, deploy only `care-circle`, and list its
+version/status. The Dashboard function editor may inspect names/status but must
+not recreate or edit this multi-file function. Unset and revoke the PAT.
+
+Finally, use the existing T08A execute gate with fresh hidden staging QA keys.
+Run disposable Caree/six-Carer evidence, cleanup by redacted run ID, verify zero
+disposable accounts remain, then revoke the temporary secret key. Do not run
+T08B or deploy `notification-device`.
+
+### S2-T39 stop conditions
+
+Stop before writes if the project ref, backup evidence, source SHA, checksum,
+migration history, history-table shape, count-only audit, rollback rehearsal,
+pairing-secret name, or approval differs from the reviewed record. Stop after
+writes on any parity failure, unsafe function source/version, unauthenticated
+result other than `401 AUTH_REQUIRED`, evidence redaction failure, incomplete
+cleanup, or credential exposure. Keep Care Circle static and inactive and use
+forward-only recovery only.

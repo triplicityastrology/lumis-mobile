@@ -75,6 +75,20 @@ assert.match(
   runbook,
   /T08B[^]*must not run[^]*notification-device/i
 );
+assert.match(runbook, /S2-T39 Passwordless Controlled Staging Route/);
+assert.match(runbook, /database password is retired and[\s\S]*must never be reused/i);
+assert.match(runbook, /supersedes Gate 3 and Future Authorized[\s\S]*do not run `migration list`, `db push`/i);
+assert.match(runbook, /bmqhwofmdgebpcihjlnb/);
+assert.match(runbook, /0032[^]*0033[^]*0034[^]*care-circle/);
+assert.match(runbook, /migration body and its matching[\s\S]*history record[\s\S]*same reviewed transaction/i);
+assert.match(runbook, /transaction ending in `rollback`/i);
+assert.match(runbook, /fresh hidden PAT/);
+assert.match(runbook, /never run `supabase login`/i);
+assert.match(runbook, /Dashboard function editor[\s\S]*not an approved deploy path/i);
+assert.match(runbook, /fresh hidden staging `sb_secret_` QA key/i);
+assert.match(runbook, /temporary `sb_secret_` key must be[\s\S]*revoked/i);
+assert.match(runbook, /Do not run[\s\S]*T08B/i);
+assert.doesNotMatch(runbook, /sbp_[A-Za-z0-9_-]{8,}|sb_secret_[A-Za-z0-9_-]{8,}/);
 
 assert.match(auditSql, /count\(\*\)/i);
 assert.doesNotMatch(
