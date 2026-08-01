@@ -343,6 +343,74 @@ result other than `401 AUTH_REQUIRED`, evidence redaction failure, incomplete
 cleanup, or credential exposure. Keep Care Circle static and inactive and use
 forward-only recovery only.
 
+## S2-T40 Dashboard Migration Packets
+
+Status: prepared locally, blocked, and unrun. These packets do not authorize or
+perform a Dashboard operation:
+
+- `supabase/dashboard-packets/s2-t40/0032_care_circle_backend_foundation.dashboard.sql`
+- `supabase/dashboard-packets/s2-t40/0033_inactive_notification_foundation.dashboard.sql`
+- `supabase/dashboard-packets/s2-t40/0034_reusable_care_pairing_operations.dashboard.sql`
+
+Each packet is checksum-bound to its reviewed migration and contains that
+migration body inside one transaction. The first executable statement raises
+`S2_T40_STOP_HISTORY_SHAPE_NOT_CONFIRMED`, and the packet ends in `rollback;`.
+The required migration-history version and name are recorded as comments, but
+there is deliberately no executable history insert. This prevents an operator
+from guessing the live `supabase_migrations.schema_migrations` shape.
+
+Run the local parity check only:
+
+```bash
+cd "/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work"
+"/Users/rubyku/.local/node22/bin/pnpm" test:s2-care-circle-dashboard-packets
+```
+
+### Authorized read-only completion gate
+
+During the later PM-authorized Dashboard window, inspect column name, type,
+nullability, default, and ordering for the live history table, plus version/name
+metadata only. Do not capture rows containing any unrelated metadata. Stop
+unless the exact project ref is `bmqhwofmdgebpcihjlnb` and the shape can support
+one atomic migration-plus-history transaction without guessed values.
+
+After that evidence is reviewed, Technical must prepare a new reviewed packet
+revision that:
+
+1. replaces the blocking statement with an exact history-shape assertion;
+2. adds one history insert using only confirmed columns and the packet's fixed
+   version/name;
+3. preserves the migration body byte-for-byte and its source SHA-256;
+4. keeps migration plus history in one transaction; and
+5. remains rollback-only until rehearsal passes.
+
+### Safe rollback rehearsal
+
+After all three history inserts are source-reviewed, create one temporary
+Dashboard rehearsal by placing the three migration-body-plus-history units in
+the exact `0032` then `0033` then `0034` order inside a single `begin;` and final
+`rollback;`. Run it once in the authorized SQL Editor window. Confirm afterward
+using metadata-only reads that none of the three history versions or schema
+objects persisted. Stop if the rehearsal errors, writes survive rollback, or
+the observed order/shape differs. Do not convert any individual packet to
+`commit;` until PM/QA accepts that evidence.
+
+### Stop before every write
+
+Stop before every write if any of these is missing or different:
+
+- PM's controlled-window release and QA acceptance of this packet source;
+- exact staging ref `bmqhwofmdgebpcihjlnb`;
+- accepted logical-backup/restore evidence and destruction deadline;
+- clean approved source SHA and all three recorded migration checksums;
+- count-only legacy audit with zero revoked and zero invalid-fingerprint rows;
+- confirmed history-table shape and reviewed exact history insert;
+- remote history parity showing no existing `0032`, `0033`, `0034`, no missing
+  earlier migration, and no unexpected later migration;
+- successful combined rollback rehearsal with no persisted change.
+
+Execute no packet from this commit: all three intentionally remain blocked.
+
 ## S2-T43 Fresh Temporary PAT Function Gate
 
 Status: source-ready and unrun. This gate does not authorize a deployment and
