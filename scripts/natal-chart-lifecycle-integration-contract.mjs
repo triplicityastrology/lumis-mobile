@@ -8,6 +8,7 @@ const app = readFileSync("apps/mobile/App.tsx", "utf8");
 const accountState = readFileSync("apps/mobile/src/services/accountState.ts", "utf8");
 const summary = readFileSync("apps/mobile/src/services/natalChartSummary.ts", "utf8");
 const insights = readFileSync("apps/mobile/src/screens/ChartInsightsScreen.tsx", "utf8");
+const readiness = readFileSync("docs/architecture/S2-T37-minimal-natal-lifecycle.md", "utf8");
 
 assert.match(lifecycle, /adaptProviderNeutralNatalPayload/);
 assert.match(lifecycle, /composeNatalEngineOutput/);
@@ -59,5 +60,18 @@ assert.doesNotMatch(
   /buildFixtureChart|submitChartProfile|regenerateBirthDetails|functions\.invoke|\bfetch\(/,
   "Mobile structural summary must remain a pure restored-chart projection."
 );
+for (const value of [
+  "7c567bea9a46a820c59ca60d81eeb70e1890aa393b11cbbb3902ec471d021ccb",
+  "d9c2ef8d406f6100a3cea54e5e67635e67d0283dc3301f88f65a678bcb9dbc34",
+  "baa002fde6dce82462146f9613e0a4fd2e7067d51b865c3bb042766a0252fe2d",
+  "eee1a1f957a7bd0b9d7a8f20cc8f7e3b3dead82a0cdc1fcd93fbc9b217230685",
+  "145b5371b50d1e730ef75517b5bf8f653fdb88b0e5923c18ffbb0e28eb650d78",
+]) {
+  assert.match(readiness, new RegExp(value));
+}
+assert.match(readiness, /only future deployment command[\s\S]*functions deploy profile --project-ref bmqhwofmdgebpcihjlnb/);
+assert.match(readiness, /Deploy no Worker or other function and apply no[\s\S]*migration/);
+assert.match(readiness, /cross-user chart[\s\S]*anonymous reads fail/);
+assert.match(readiness, /earlier chart snapshot was not overwritten/);
 
 console.log("natal chart lifecycle integration source contract passed");

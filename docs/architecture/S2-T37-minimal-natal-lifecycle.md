@@ -75,19 +75,37 @@ staging window.
 - Lifecycle source commit: `fe5aac6b98911a72ec3661d2f1e3955f0d92bdfe`.
 - `supabase/functions/profile/index.ts` SHA-256:
   `7c567bea9a46a820c59ca60d81eeb70e1890aa393b11cbbb3902ec471d021ccb`.
+- Existing Worker source SHA-256 (verification only; no Worker deployment):
+  `d9c2ef8d406f6100a3cea54e5e67635e67d0283dc3301f88f65a678bcb9dbc34`.
+- `packages/astrology/src/chart-worker-contract.ts` SHA-256:
+  `baa002fde6dce82462146f9613e0a4fd2e7067d51b865c3bb042766a0252fe2d`.
+- `packages/astrology/src/natal-chart-lifecycle.ts` SHA-256:
+  `eee1a1f957a7bd0b9d7a8f20cc8f7e3b3dead82a0cdc1fcd93fbc9b217230685`.
+- `apps/mobile/src/services/natalChartSummary.ts` SHA-256:
+  `145b5371b50d1e730ef75517b5bf8f653fdb88b0e5923c18ffbb0e28eb650d78`.
 - Target project must equal staging ref `bmqhwofmdgebpcihjlnb` before any CLI
   operation. Stop on a ref, commit, checksum, or dirty-worktree mismatch.
 - The normal app path is sufficient. No staging workbench, route, migration, or
   mobile source change is required.
 
+The reviewed deployment package is the existing `profile` function and its
+repository-local transitive imports. The Worker is not part of this deployment:
+its checksum only proves which existing signed `mobile_natal_v1` / `chart_v2`
+contract the Profile function expects. Accepted Worker output must be natal,
+use the authoritative `full` or `no_birth_time` precision, carry finite absolute
+longitudes for admitted points, carry a complete ordered 12-cusp/angle set only
+for timed charts, and carry no timed fields for no-time charts.
+
 ### Future controlled sequence
 
 1. Confirm the exact linked staging ref, clean reviewed commit, profile checksum,
-   and names-only presence of the existing Worker URL/signing configuration.
-   Never print configuration values.
+   all four supporting checksums above, and names-only presence of the existing
+   Worker URL/signing configuration. Never print configuration values.
 2. Record the immediately prior deployed `profile` function version and source
-   evidence. Deploy only the reviewed `profile` function; do not apply a
-   migration or deploy another function.
+   evidence. With pinned CLI `2.109.1`, the only future deployment command is
+   `supabase functions deploy profile --project-ref bmqhwofmdgebpcihjlnb` from
+   the clean reviewed worktree. Deploy no Worker or other function and apply no
+   migration.
 3. Create two disposable authenticated staging accounts through the ordinary
    app flow. Never use a founder/member account or copy real birth details.
 4. For the timed account, enter synthetic supported birth details, generate the
@@ -99,12 +117,16 @@ staging window.
    contains no houses, house placements, ASC, MC, or structural Moon placement.
 6. Exercise one ordinary PROF-2 change only on a disposable account. Confirm the
    authoritative reload shows the new active version and the prior version
-   remains historical/read-only.
+   remains historical/read-only. Query only version/count metadata to prove the
+   earlier chart snapshot was not overwritten.
 7. The existing source fixtures prove malformed, partial, and prohibited-scope
    Worker charts fail before persistence. Do not alter the live Worker or inject
    malformed provider data merely to reproduce that case. A live fault test
    requires a separately reviewed, non-provider fault-injection mechanism.
-8. Delete all disposable accounts with the approved cleanup path and record only
+8. With the two disposable sessions, prove owner reads succeed, cross-user chart
+   and history reads fail, anonymous reads fail, and the safe mobile projection
+   contains no account identifier or raw chart/provider payload.
+9. Delete all disposable accounts with the approved cleanup path and record only
    the count of records removed.
 
 ### Redacted evidence
