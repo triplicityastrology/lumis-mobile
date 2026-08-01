@@ -50,6 +50,16 @@ assert.equal(
   control.function_sha256,
   "PAT_PREFLIGHT_FUNCTION_CHECKSUM_MISMATCH"
 );
+for (const supporting of control.supporting_files ?? []) {
+  const checksum = createHash("sha256")
+    .update(readFileSync(supporting.path))
+    .digest("hex");
+  assert.equal(
+    checksum,
+    supporting.sha256,
+    "PAT_PREFLIGHT_FUNCTION_CHECKSUM_MISMATCH"
+  );
+}
 
 assert.equal(control.execution_default, "local_validation_only");
 assert.equal(control.supabase_cli_version, "2.109.1");

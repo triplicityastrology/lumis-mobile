@@ -8,6 +8,9 @@ const controlPath =
 const control = JSON.parse(readFileSync(controlPath, "utf8"));
 const source = readFileSync(script, "utf8");
 const functionSource = readFileSync(control.function_path, "utf8");
+assert.match(control.previous_function_sha256, /^[0-9a-f]{64}$/);
+assert.equal(control.supporting_files.length, 1);
+assert.match(control.supporting_files[0].sha256, /^[0-9a-f]{64}$/);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const names = control.required_configuration_names.join(",");
 

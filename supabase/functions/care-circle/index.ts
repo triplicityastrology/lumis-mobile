@@ -1,25 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
-
-type CareCircleAction =
-  | "pairing_code_create"
-  | "pairing_code_revoke"
-  | "pairing_code_submit"
-  | "relationship_accept"
-  | "relationship_decline"
-  | "care_pause"
-  | "care_resume"
-  | "relationship_remove";
-
-type CareCircleRequest = {
-  action?: CareCircleAction;
-  client_request_id?: string;
-  pairing_code?: string;
-  code_id?: string;
-  relationship_id?: string;
-  paused_until?: string;
-};
+import {
+  type CareCircleAction,
+  type CareCircleRequest,
+  normalizePairingCode,
+  PAIRING_CODE_ALPHABET,
+  projectSafeCareCircleResponse,
+  validateCareCircleRequest
+} from "./operation-boundary.ts";
 
 type Configuration = {
   supabaseUrl: string;
@@ -32,20 +21,6 @@ type RpcError = {
   code?: string;
   message?: string;
 };
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PAIRING_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-const ACTIONS: CareCircleAction[] = [
-  "pairing_code_create",
-  "pairing_code_revoke",
-  "pairing_code_submit",
-  "relationship_accept",
-  "relationship_decline",
-  "care_pause",
-  "care_resume",
-  "relationship_remove"
-];
 
 Deno.serve(async (request) => {
   const corsPreflight = handleCorsPreflight(request);
@@ -78,11 +53,12 @@ Deno.serve(async (request) => {
     return safeError(401, "AUTH_REQUIRED", "Sign in is required.");
   }
 
-  const body = await request.json().catch(() => null) as CareCircleRequest | null;
-  const validation = validateRequest(body);
+  const body = await request.json().catch(() => null);
+  const validation = validateCareCircleRequest(body);
   if (!validation.ok) {
     return safeError(validation.status, validation.code, validation.message);
   }
+  const validatedBody = validation.body;
 
   const actorUserId = authData.user.id;
   const serviceClient = createClient(
@@ -92,7 +68,7 @@ Deno.serve(async (request) => {
 
   try {
     const operation = await buildOperation(
-      body!,
+      validatedBody,
       actorUserId,
       configuration.pairingSecret
     );
@@ -101,7 +77,11 @@ Deno.serve(async (request) => {
     if (error) return mapRpcError(error);
 
     return jsonResponse(
-      projectSafeResponse(body!.action!, data, operation.pairingCode),
+      projectSafeCareCircleResponse(
+        validatedBody.action!,
+        data,
+        operation.pairingCode
+      ),
       { status: 200 }
     );
   } catch {
@@ -130,48 +110,6 @@ function getConfiguration(): Configuration | null {
   }
 
   return { supabaseUrl, anonKey, serviceRoleKey, pairingSecret };
-}
-
-function validateRequest(body: CareCircleRequest | null):
-  | { ok: true }
-  | { ok: false; status: number; code: string; message: string } {
-  if (
-    !body
-    || !ACTIONS.includes(body.action as CareCircleAction)
-    || !UUID_PATTERN.test(body.client_request_id ?? "")
-  ) {
-    return invalidOperation();
-  }
-
-  if (
-    body.action === "pairing_code_revoke"
-    && !UUID_PATTERN.test(body.code_id ?? "")
-  ) {
-    return invalidPairingCode();
-  }
-
-  if (body.action === "pairing_code_submit") {
-    const normalized = normalizePairingCode(body.pairing_code);
-    if (!normalized) return invalidPairingCode();
-  }
-
-  if (
-    ["relationship_accept", "relationship_decline", "relationship_remove"].includes(
-      body.action
-    )
-    && !UUID_PATTERN.test(body.relationship_id ?? "")
-  ) {
-    return unavailableRelationship();
-  }
-
-  if (body.action === "care_pause") {
-    const pausedUntil = Date.parse(body.paused_until ?? "");
-    if (!Number.isFinite(pausedUntil) || pausedUntil <= Date.now()) {
-      return invalidOperation();
-    }
-  }
-
-  return { ok: true };
 }
 
 async function buildOperation(
@@ -295,38 +233,6 @@ async function relationshipOperation(
   };
 }
 
-function projectSafeResponse(
-  action: CareCircleAction,
-  data: unknown,
-  pairingCode?: string
-): Record<string, unknown> {
-  const result = isRecord(data) ? data : {};
-  const response: Record<string, unknown> = {
-    ok: result.ok === true,
-    status: safeString(result.status),
-    idempotent: result.idempotent === true
-  };
-
-  if (UUID_PATTERN.test(safeString(result.code_id))) {
-    response.code_id = result.code_id;
-  }
-  if (UUID_PATTERN.test(safeString(result.relationship_id))) {
-    response.relationship_id = result.relationship_id;
-  }
-  if (isSafeTimestamp(result.expires_at)) {
-    response.expires_at = result.expires_at;
-  }
-  if (isSafeTimestamp(result.paused_until)) {
-    response.paused_until = result.paused_until;
-  }
-
-  if (action === "pairing_code_create" && pairingCode) {
-    response.pairing_code = pairingCode;
-  }
-
-  return response;
-}
-
 function mapRpcError(error: RpcError): Response {
   const code = approvedErrorCode(error);
   const messages: Record<string, { status: number; message: string }> = {
@@ -379,18 +285,6 @@ function approvedErrorCode(error: RpcError): string | null {
     if (match) return match[1];
   }
   return null;
-}
-
-function normalizePairingCode(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.toUpperCase().replace(/[-\s]/g, "");
-  if (
-    normalized.length !== 12
-    || [...normalized].some((character) => !PAIRING_CODE_ALPHABET.includes(character))
-  ) {
-    return null;
-  }
-  return normalized;
 }
 
 async function derivePairingCode(
@@ -446,45 +340,6 @@ function hex(bytes: Uint8Array): string {
   return [...bytes]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function safeString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function isSafeTimestamp(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
-function invalidPairingCode() {
-  return {
-    ok: false as const,
-    status: 410,
-    code: "48004",
-    message: "This pairing code is not valid. Ask the Caree to refresh it."
-  };
-}
-
-function unavailableRelationship() {
-  return {
-    ok: false as const,
-    status: 404,
-    code: "48007",
-    message: "This Care Circle relationship is not available."
-  };
-}
-
-function invalidOperation() {
-  return {
-    ok: false as const,
-    status: 409,
-    code: "48012",
-    message: "This Care Circle request can no longer be completed."
-  };
 }
 
 function safeError(status: number, code: string, message: string): Response {

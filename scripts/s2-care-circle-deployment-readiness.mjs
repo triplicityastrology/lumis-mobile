@@ -50,6 +50,16 @@ for (const entry of control.deployment_order) {
     .update(readFileSync(filename))
     .digest("hex");
   assert.equal(actual, entry.sha256, `${entry.name} checksum changed.`);
+  for (const supporting of entry.supporting_files ?? []) {
+    const supportingActual = createHash("sha256")
+      .update(readFileSync(supporting.path))
+      .digest("hex");
+    assert.equal(
+      supportingActual,
+      supporting.sha256,
+      `${entry.name} supporting file checksum changed.`
+    );
+  }
 }
 
 for (const gate of [

@@ -5,6 +5,10 @@ const edge = readFileSync(
   "supabase/functions/care-circle/index.ts",
   "utf8"
 );
+const operationBoundary = readFileSync(
+  "supabase/functions/care-circle/operation-boundary.ts",
+  "utf8"
+);
 const migration = readFileSync(
   "supabase/migrations/0034_reusable_care_pairing_operations.sql",
   "utf8"
@@ -42,7 +46,7 @@ for (const action of [
   "care_resume",
   "relationship_remove"
 ]) {
-  assert.match(edge, new RegExp(`"${action}"`));
+  assert.match(`${edge}\n${operationBoundary}`, new RegExp(`"${action}"`));
 }
 
 for (const rpc of [
@@ -61,10 +65,10 @@ for (const code of [48004, 48005, 48006, 48007, 48009, 48012, 48013]) {
   assert.match(edge, new RegExp(`"${code}"`));
 }
 
-assert.match(edge, /projectSafeResponse/);
-assert.match(edge, /pairing_code = pairingCode/);
+assert.match(edge, /projectSafeCareCircleResponse/);
+assert.match(operationBoundary, /response\.pairing_code = pairingCode/);
 assert.doesNotMatch(
-  extractFunction(edge, "projectSafeResponse"),
+  extractFunction(operationBoundary, "projectSafeCareCircleResponse"),
   /code_hash|request_digest|actor_user_id|caree_user_id|carer_user_id|metadata/
 );
 assert.doesNotMatch(

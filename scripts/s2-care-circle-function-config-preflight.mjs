@@ -26,6 +26,12 @@ try {
     .update(readFileSync(control.function_path))
     .digest("hex");
   stopIf(actualChecksum !== control.function_sha256, "SOURCE_CHECKSUM_MISMATCH");
+  for (const supporting of control.supporting_files ?? []) {
+    const checksum = createHash("sha256")
+      .update(readFileSync(supporting.path))
+      .digest("hex");
+    stopIf(checksum !== supporting.sha256, "SOURCE_CHECKSUM_MISMATCH");
+  }
 
   const names = parseNames(args.configurationNames);
   const required = [...control.required_configuration_names].sort();

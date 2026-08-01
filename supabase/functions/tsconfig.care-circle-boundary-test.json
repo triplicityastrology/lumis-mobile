@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/care-circle-boundary-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "care-circle/operation-boundary.ts",
+    "care-circle/operation-boundary.fixtures.ts"
+  ]
+}
