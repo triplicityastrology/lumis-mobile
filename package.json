@@ -6,6 +6,7 @@
   "scripts": {
     "setup:check": "node scripts/mobile-setup-doctor.mjs",
     "start:normal-expo": "bash scripts/start-normal-expo.sh",
+    "start:care-circle-founder": "bash scripts/start-care-circle-founder-expo.sh",
     "start:persona-comparison": "bash scripts/start-persona-comparison-expo.sh",
     "start:care-circle-two-account": "bash scripts/start-care-circle-two-account-workbench.sh",
     "dev": "pnpm --filter @lumis/mobile start",
@@ -127,7 +128,7 @@
     "test:reflection-deletion-readiness": "node scripts/s2-t84-reflection-deletion-readiness.mjs && node scripts/s2-t84-reflection-deletion-readiness-contract.mjs && node scripts/reflection-deletion-db-contract.mjs",
     "test:reflection-deletion-db": "bash scripts/run-reflection-deletion-local-db.sh",
     "test:identity-home-surfaces": "node scripts/identity-home-surface-contract.mjs",
-    "test:normal-expo-launcher": "node scripts/normal-expo-launcher-contract.mjs",
+    "test:normal-expo-launcher": "node scripts/normal-expo-launcher-contract.mjs && node scripts/care-circle-founder-expo-launcher-contract.mjs",
     "test:navigation": "node scripts/navigation-back-contract.mjs",
     "test:navigation-surface": "node scripts/navigation-surface-layer-contract.mjs",
     "test:notification-preview": "node scripts/notification-preview-samples-contract.mjs",

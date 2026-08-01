@@ -9,6 +9,10 @@ const [rootPackage, launcher] = await Promise.all([
 const packageJson = JSON.parse(rootPackage);
 
 assert.equal(packageJson.scripts["start:normal-expo"], "bash scripts/start-normal-expo.sh");
+assert.equal(
+  packageJson.scripts["start:care-circle-founder"],
+  "bash scripts/start-care-circle-founder-expo.sh"
+);
 assert.match(launcher, /LUMIS_EXPO_PORT:-8081/);
 assert.match(launcher, /8081\|8082/);
 assert.match(launcher, /lsof -tiTCP:/);
