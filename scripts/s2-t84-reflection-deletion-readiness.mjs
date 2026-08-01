@@ -2,13 +2,14 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 const control = JSON.parse(readFileSync("config/s2-t84-reflection-deletion-readiness.json", "utf8"));
-const expectedKeys = ["execution_available", "migration", "prewrite_history_shape_status", "project_ref", "required_remote_predecessor", "schema_version"];
+const expectedKeys = ["execution_available", "local_postgres17_proof", "migration", "prewrite_history_shape_status", "project_ref", "required_remote_predecessor", "schema_version"];
 stopUnless(JSON.stringify(Object.keys(control).sort()) === JSON.stringify(expectedKeys), "CONTROL_SHAPE_INVALID");
 stopUnless(control.schema_version === 1, "CONTROL_VERSION_INVALID");
 stopUnless(control.project_ref === "bmqhwofmdgebpcihjlnb", "PROJECT_REF_MISMATCH");
 stopUnless(control.required_remote_predecessor === "0035", "MIGRATION_ORDER_INVALID");
 stopUnless(control.execution_available === false, "EXECUTION_MUST_REMAIN_BLOCKED");
-stopUnless(control.prewrite_history_shape_status === "blocked_pending_text_type_review", "HISTORY_GATE_INVALID");
+stopUnless(control.prewrite_history_shape_status === "confirmed_t82_text_shape", "HISTORY_GATE_INVALID");
+stopUnless(control.local_postgres17_proof === "required_and_passing", "LOCAL_PROOF_INVALID");
 stopUnless(control.migration?.version === "0036", "MIGRATION_VERSION_INVALID");
 stopUnless(control.migration.path === "supabase/migrations/0036_owner_safe_reflection_deletion.sql", "MIGRATION_PATH_INVALID");
 

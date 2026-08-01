@@ -7,6 +7,7 @@
     "sha256": "889a8177e2051af3745a2d3850b8e932011f3605cd933f1c1bce46a4629af1bf"
   },
   "required_remote_predecessor": "0035",
-  "prewrite_history_shape_status": "blocked_pending_text_type_review",
+  "prewrite_history_shape_status": "confirmed_t82_text_shape",
+  "local_postgres17_proof": "required_and_passing",
   "execution_available": false
 }

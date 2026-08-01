@@ -20,12 +20,13 @@ Migration order is `0035` then `0036`. Migration `0036` is pinned in
 `config/s2-t84-reflection-deletion-readiness.json` and must match SHA-256
 `889a8177e2051af3745a2d3850b8e932011f3605cd933f1c1bce46a4629af1bf`.
 
-Deployment remains blocked with
-`blocked_pending_text_type_review`: the authorised read-only T82 check found the
-live migration-history `version` and `name` columns are PostgreSQL `text`, while
-the reviewed control expected `varchar`. PM/QA must accept the truthful history
-shape and authorise one atomic Dashboard application before Technical prepares
-an executable packet. No current command applies `0036`.
+The metadata control now records `confirmed_t82_text_shape`. Migration `0036`
+also has an isolated PostgreSQL 17 proof for owner deletion, cross-owner and
+anonymous denial, dependent-message cascade, replay, request conflict, unrelated
+thread preservation, transaction rollback, and container cleanup. This local
+proof is not deployment authority. PM/QA must still authorize a checksum-bound
+atomic Dashboard application after remote predecessor `0035` is confirmed.
+No current command applies `0036` remotely.
 
 After a separately authorised deployment, use disposable staging accounts to
 prove owner deletion, cross-owner denial, dependent-message cleanup, exact
