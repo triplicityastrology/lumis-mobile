@@ -13,6 +13,8 @@ const port = read(`${root}/stagingWorkbenchPort.ts`);
 const portFixture = read(`${root}/stagingWorkbenchPort.fixtures.ts`);
 const progress = read(`${root}/workbenchProgress.ts`);
 const progressFixture = read(`${root}/workbenchProgress.fixtures.ts`);
+const recovery = read(`${root}/workbenchRecovery.ts`);
+const recoveryFixture = read(`${root}/workbenchRecovery.fixtures.ts`);
 const entry = read(`${root}/index.tsx`);
 const metro = read(`${root}/metro.config.js`);
 const workbenchPackage = JSON.parse(read(`${root}/package.json`));
@@ -95,6 +97,29 @@ assert.match(screen, /Care Circle test progress/);
 assert.match(screen, /Evidence state:/);
 assert.match(sessionGate, /signedOutProgress/);
 assert.match(sessionGate, /Care Circle test progress/);
+for (const safeFailureState of [
+  "auth_check_unavailable",
+  "auth_sign_in_failed",
+  "pairing_code_unavailable",
+  "pending_refresh_unavailable",
+  "staging_function_unavailable",
+]) {
+  assert.match(recovery, new RegExp(`"${safeFailureState}"`));
+}
+assert.match(recovery, /invalid, expired, or revoked/);
+assert.match(recovery, /No change was confirmed/);
+assert.match(screen, /Retry refresh/);
+assert.match(screen, /Retry request/);
+assert.match(screen, /type SafeRetryInput = Exclude/);
+assert.match(screen, /input\.action !== "submit_pairing_code"/);
+assert.doesNotMatch(screen, /text: result\.message/);
+assert.match(sessionGate, /Retry session check/);
+assert.match(recoveryFixture, /backend code is hidden/);
+assert.match(recoveryFixture, /pairing material is hidden/);
+assert.doesNotMatch(
+  `${screen}\n${sessionGate}`,
+  /error\.message|JSON\.stringify\(error|4800[4-9]|4801[0-3]/
+);
 assert.doesNotMatch(screen, /disabled: disabled \|\| atCapacity/);
 assert.match(screen, /lifetime > 61 \* 60 \* 1000/);
 assert.match(screen, /setPairingCodeInput\(""\)/);

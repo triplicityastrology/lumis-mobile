@@ -17,6 +17,10 @@ import type {
 import { colors, spacing } from "../../src/theme/tokens";
 import type { WorkbenchCapabilities } from "./stagingWorkbenchPort";
 import { resolveWorkbenchProgress } from "./workbenchProgress";
+import {
+  resolveWorkbenchRecovery,
+  type WorkbenchRecovery,
+} from "./workbenchRecovery";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -38,7 +42,13 @@ export type WorkbenchRelationshipPort = {
 type Notice = {
   tone: "info" | "success" | "error";
   text: string;
+  evidenceName?: WorkbenchRecovery["evidenceName"];
 };
+
+type SafeRetryInput = Exclude<
+  CareCircleClientInput,
+  { action: "submit_pairing_code" }
+>;
 
 export function CareCircleStagingWorkbench({
   capabilities,
@@ -70,6 +80,8 @@ export function CareCircleStagingWorkbench({
   const [lastSuccessfulOperation, setLastSuccessfulOperation] = useState<
     "relationship_removed" | null
   >(null);
+  const [retryInput, setRetryInput] = useState<SafeRetryInput | null>(null);
+  const [retryRefresh, setRetryRefresh] = useState(false);
 
   const careeRelationships = relationships.filter(
     (relationship) => relationship.participantRole === "caree"
@@ -110,6 +122,8 @@ export function CareCircleStagingWorkbench({
     setRelationships([]);
     setNotice(null);
     setLastSuccessfulOperation(null);
+    setRetryInput(null);
+    setRetryRefresh(false);
   }
 
   async function runAction(
@@ -117,11 +131,28 @@ export function CareCircleStagingWorkbench({
   ): Promise<CareCircleClientResult> {
     setBusy(input.action);
     setNotice(null);
+    setRetryInput(null);
+    setRetryRefresh(false);
     const result = await client.execute(input);
     setBusy(null);
 
     if (!result.ok) {
-      setNotice({ tone: "error", text: result.message });
+      const recovery = resolveWorkbenchRecovery({
+        kind: "operation",
+        action: input.action,
+        failureCode: result.code,
+      });
+      setNotice({
+        tone: "error",
+        text: recovery.message,
+        evidenceName: recovery.evidenceName,
+      });
+      if (
+        recovery.retryKind === "repeat_safe_action" &&
+        input.action !== "submit_pairing_code"
+      ) {
+        setRetryInput(input as SafeRetryInput);
+      }
       return result;
     }
 
@@ -194,6 +225,7 @@ export function CareCircleStagingWorkbench({
 
   async function refreshRelationships(announce = true) {
     setBusy("refresh_relationships");
+    setRetryRefresh(false);
     if (announce) setNotice(null);
     try {
       setRelationships(await relationshipPort.listRelationships());
@@ -205,10 +237,15 @@ export function CareCircleStagingWorkbench({
         });
       }
     } catch {
+      const recovery = resolveWorkbenchRecovery({
+        kind: "relationship_refresh",
+      });
       setNotice({
         tone: "error",
-        text: "Relationships could not be refreshed. Try again.",
+        text: recovery.message,
+        evidenceName: recovery.evidenceName,
       });
+      setRetryRefresh(true);
     } finally {
       setBusy(null);
     }
@@ -325,13 +362,28 @@ export function CareCircleStagingWorkbench({
 
         {notice ? (
           <View
-            accessibilityLiveRegion="polite"
+            accessibilityLiveRegion={notice.tone === "error" ? "assertive" : "polite"}
             style={[
               styles.notice,
               notice.tone === "error" && styles.noticeError,
             ]}
           >
             <Text style={styles.noticeText}>{notice.text}</Text>
+            {retryRefresh ? (
+              <Action
+                disabled={disabled}
+                label="Retry refresh"
+                onPress={() => void refreshRelationships()}
+                secondary
+              />
+            ) : retryInput ? (
+              <Action
+                disabled={disabled}
+                label="Retry request"
+                onPress={() => void runAction(retryInput)}
+                secondary
+              />
+            ) : null}
           </View>
         ) : null}
 

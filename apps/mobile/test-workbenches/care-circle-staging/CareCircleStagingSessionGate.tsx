@@ -14,6 +14,7 @@ import type {
   WorkbenchSessionPort,
 } from "./stagingWorkbenchPort";
 import { resolveWorkbenchProgress } from "./workbenchProgress";
+import { resolveWorkbenchRecovery } from "./workbenchRecovery";
 
 type SessionView =
   | { status: "loading" }
@@ -50,10 +51,9 @@ export function CareCircleStagingSessionGate({
           : { status: "signed_out" }
       );
     } catch {
+      const recovery = resolveWorkbenchRecovery({ kind: "session_check" });
       setSession({ status: "error" });
-      setNotice(
-        "The disposable staging session could not be checked. Try again."
-      );
+      setNotice(recovery.message);
     }
   }
 
@@ -67,10 +67,9 @@ export function CareCircleStagingSessionGate({
       setEmail("");
       await refreshSession();
     } catch {
+      const recovery = resolveWorkbenchRecovery({ kind: "sign_in" });
       setSession({ status: "signed_out" });
-      setNotice(
-        "Sign-in failed. Check the disposable staging account and try again."
-      );
+      setNotice(recovery.message);
     } finally {
       setBusy(false);
     }
@@ -163,6 +162,16 @@ export function CareCircleStagingSessionGate({
           <Text accessibilityLiveRegion="polite" style={styles.body}>
             Checking the staging session...
           </Text>
+        ) : session.status === "error" ? (
+          <Pressable
+            accessibilityLabel="Retry staging session check"
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => void refreshSession()}
+            style={[styles.action, busy && styles.disabled]}
+          >
+            <Text style={styles.actionText}>Retry session check</Text>
+          </Pressable>
         ) : (
           <>
             <TextInput
