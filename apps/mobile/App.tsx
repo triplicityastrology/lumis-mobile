@@ -2164,14 +2164,8 @@ function ChatShellScreen({
           <View style={styles.messageRowLumis}>
             <LumisChatAvatar avatarKey={lumisAvatarKey} />
             <View style={styles.messageColLumis}>
-              <View style={[
-                styles.messageBubbleLumis,
-                {
-                  backgroundColor: personaTreatment.bubbleBackgroundColor,
-                  borderColor: personaTreatment.bubbleBorderColor
-                }
-              ]}>
-                <Text style={styles.messageTextLumis}>
+              <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisCompleted]}>
+                <Text style={styles.messageTextLumisCompleted}>
                   Hi {name}. What feels most worth understanding today?
                 </Text>
               </View>
@@ -2188,14 +2182,8 @@ function ChatShellScreen({
                 <View style={styles.messageRowLumis}>
                   <LumisChatAvatar avatarKey={lumisAvatarKey} />
                   <View style={styles.messageColLumis}>
-                    <View style={[
-                      styles.messageBubbleLumis,
-                      {
-                        backgroundColor: personaTreatment.bubbleBackgroundColor,
-                        borderColor: personaTreatment.bubbleBorderColor
-                      }
-                    ]}>
-                      <Text style={styles.messageTextLumis}>{turn.result.reply}</Text>
+                    <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisCompleted]}>
+                      <Text style={styles.messageTextLumisCompleted}>{turn.result.reply}</Text>
                     </View>
                     {turn.result.route === "astro_timing" ? (
                       <View style={styles.chatTransitTag}>
@@ -3395,6 +3383,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12
   },
+  messageBubbleLumisCompleted: {
+    backgroundColor: "#F5EBD8",
+    borderColor: "#D8BD84"
+  },
   messageBubbleUser: {
     alignSelf: "flex-end",
     backgroundColor: "rgba(139,147,212,0.26)",
@@ -3405,6 +3397,11 @@ const styles = StyleSheet.create({
     maxWidth: "88%",
     paddingHorizontal: 14,
     paddingVertical: 12
+  },
+  messageTextLumisCompleted: {
+    color: "#202A3D",
+    fontSize: 14,
+    lineHeight: 22
   },
   chatTransitTag: {
     alignItems: "center",
