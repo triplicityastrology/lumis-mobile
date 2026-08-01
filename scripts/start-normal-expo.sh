@@ -24,6 +24,29 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v git >/dev/null 2>&1; then
+  printf 'STOP: git is required to identify the current Lumis build.\n' >&2
+  exit 1
+fi
+
+GIT_ROOT="$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ "$GIT_ROOT" != "$ROOT" ]]; then
+  printf 'STOP: launcher is not inside the expected Lumis worktree.\n' >&2
+  exit 1
+fi
+
+COMMIT="$(git -C "$ROOT" rev-parse --verify HEAD 2>/dev/null || true)"
+BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null || true)"
+if [[ ! "$COMMIT" =~ ^[0-9a-f]{40}$ || -z "$BRANCH" ]]; then
+  printf 'STOP: current Lumis source revision could not be verified.\n' >&2
+  exit 1
+fi
+
+if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]]; then
+  printf 'STOP: tracked source changes are uncommitted. Commit or review them before Founder capture.\n' >&2
+  exit 1
+fi
+
 # `lsof` returns 1 when nothing listens.  Treat that expected result as empty;
 # never combine it with `set -e` in a pipeline that would terminate the launcher.
 PIDS="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
@@ -45,6 +68,7 @@ if [[ -n "$PIDS" ]]; then
   done <<< "$PIDS"
 fi
 
+printf 'LUMIS_CURRENT_BUILD commit=%s branch=%s app=normal tracked_tree=clean\n' "$COMMIT" "$BRANCH"
 printf 'Starting the normal Lumis app on port %s. Keep this Terminal open; press Ctrl+C here when finished.\n' "$PORT"
 printf 'Care Circle workbench is not enabled by this command.\n'
 
