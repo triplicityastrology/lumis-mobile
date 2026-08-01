@@ -10,8 +10,8 @@
   "history_columns": [
     {
       "column_name": "version",
-      "data_type": "character varying",
-      "udt_name": "varchar",
+      "data_type": "text",
+      "udt_name": "text",
       "is_nullable": "NO",
       "column_default": null,
       "ordinal_position": 1
@@ -26,8 +26,8 @@
     },
     {
       "column_name": "name",
-      "data_type": "character varying",
-      "udt_name": "varchar",
+      "data_type": "text",
+      "udt_name": "text",
       "is_nullable": "YES",
       "column_default": null,
       "ordinal_position": 3

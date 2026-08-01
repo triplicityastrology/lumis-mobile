@@ -1,5 +1,11 @@
 # S2-T45 Care Circle Dashboard Evidence Validator
 
+The closed migration-history schema reflects the authorised T82 read-only
+observation: `version text not null`, `statements text[] null`, and `name text
+null`. The validator accepts only those exact names, types, order, nullability,
+and null defaults. Similar or extended type names remain rejected without being
+echoed.
+
 Status: local-only pre-write control. It does not query Supabase, revise the
 blocked migration packets, or authorize a Dashboard write.
 

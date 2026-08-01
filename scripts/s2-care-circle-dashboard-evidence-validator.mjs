@@ -3,9 +3,9 @@ import { readFileSync, readdirSync } from "node:fs";
 const APPROVED_REF = "bmqhwofmdgebpcihjlnb";
 const EXPECTED_PENDING = ["0032", "0033", "0034"];
 const SAFE_HISTORY_COLUMN_METADATA = new Map([
-  ["version", { dataType: "character varying", udtName: "varchar", nullable: "NO" }],
+  ["version", { dataType: "text", udtName: "text", nullable: "NO" }],
   ["statements", { dataType: "ARRAY", udtName: "_text", nullable: "YES" }],
-  ["name", { dataType: "character varying", udtName: "varchar", nullable: "YES" }]
+  ["name", { dataType: "text", udtName: "text", nullable: "YES" }]
 ]);
 const FORBIDDEN_KEY =
   /(?:secret|password|token|pairing|fingerprint|email|user_?id|row|payload|body|url|connection|credential)/i;
