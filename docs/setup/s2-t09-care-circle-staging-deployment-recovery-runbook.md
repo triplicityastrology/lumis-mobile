@@ -493,11 +493,26 @@ export SUPABASE_ACCESS_TOKEN
 
 printf 'Revoke the temporary PAT in Supabase Dashboard now, then press Return here.\n'
 IFS= read -r REVOKE_CONFIRMED
-if "$PNPM" dlx supabase@2.109.1 functions list \
-  --project-ref "$EXPECTED_REF" >/dev/null 2>&1; then
+set +e
+REVOCATION_OUTPUT="$(
+  "$PNPM" dlx supabase@2.109.1 functions list \
+    --project-ref "$EXPECTED_REF" 2>&1
+)"
+REVOCATION_STATUS=$?
+set -e
+
+if [[ "$REVOCATION_STATUS" -eq 0 ]]; then
+  unset REVOCATION_OUTPUT
   printf 'STOP_PAT_REVOCATION_NOT_EFFECTIVE\n' >&2
   exit 1
 fi
+if ! printf '%s' "$REVOCATION_OUTPUT" | \
+  node scripts/classify-supabase-pat-revocation.mjs >/dev/null; then
+  unset REVOCATION_OUTPUT
+  printf 'STOP_PAT_REVOCATION_UNVERIFIED\n' >&2
+  exit 1
+fi
+unset REVOCATION_OUTPUT
 
 cleanup_pat
 trap - EXIT HUP INT TERM
@@ -512,12 +527,15 @@ project metadata.
 
 1. When the operator block pauses, revoke the token in Supabase Dashboard
    Account > Access Tokens before pressing Return in Terminal.
-2. The block uses the still-transient environment value once to require the
-   exact staging `functions list` call to fail, suppresses its response, unsets
-   the token, and records only `PAT_REVOKE_VERIFIED`.
-3. In a fresh Terminal shell, confirm `SUPABASE_ACCESS_TOKEN` is unset using
+2. The block uses the still-transient environment value once and accepts only a
+   safely classified HTTP `401`/`403` authentication or authorization denial.
+   It never prints the captured response. Network, CLI, wrong-project, missing-
+   status, or unknown failures record `STOP_PAT_REVOCATION_UNVERIFIED`.
+3. After a recognized denial, the block unsets the token and records only
+   `PAT_REVOKE_VERIFIED`.
+4. In a fresh Terminal shell, confirm `SUPABASE_ACCESS_TOKEN` is unset using
    `[[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]`; this produces no secret output.
-4. If the revoked token can still list functions, the block records
+5. If the revoked token can still list functions, the block records
    `STOP_PAT_REVOCATION_NOT_EFFECTIVE`, unset it, and stop the window.
 
 Do not revoke by deleting unrelated account sessions or keys. Do not proceed
