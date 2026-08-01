@@ -20,6 +20,15 @@ assert.deepEqual(await deleteReflectionWithPort(async () => ({ data: null, error
   ok: false,
   code: "NOT_FOUND"
 });
+let failureAttempts = 0;
+const failedOnce = async () => {
+  failureAttempts += 1;
+  if (failureAttempts === 1) throw new Error("private transport detail");
+  return { data: "deleted", error: null };
+};
+assert.deepEqual(await deleteReflectionWithPort(failedOnce, input), { ok: false, code: "TEMPORARILY_UNAVAILABLE" });
+assert.deepEqual(await deleteReflectionWithPort(failedOnce, input), { ok: true, status: "deleted" });
+assert.equal(failureAttempts, 2);
 assert.deepEqual(await deleteReflectionWithPort(async () => {
   throw new Error("private transport detail");
 }, input), { ok: false, code: "TEMPORARILY_UNAVAILABLE" });

@@ -58,6 +58,7 @@ import {
 } from "./src/services/auth";
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
 import { deleteOwnedReflection } from "./src/services/reflections";
+import { applyConfirmedReflectionDeletion } from "./src/services/reflectionDeletionState";
 import { safeUserErrorMessage } from "./src/services/userFacingErrors";
 import { createAccountRestoreFreshnessGate } from "./src/services/accountRestoreFreshness";
 import {
@@ -870,17 +871,31 @@ export default function App() {
           if (accountSource === "supabase") {
             const result = await deleteOwnedReflection({ threadId: thread.id, clientRequestId });
             if (!result.ok) return false;
-            setReflectionThreads((threads) => threads.filter((candidate) => candidate.id !== thread.id));
-            if (activeSupabaseThreadId === thread.id) {
-              setActiveSupabaseThreadId(null);
-              setChatTurns([]);
-              setForceNewSupabaseThread(true);
-            }
+            const next = applyConfirmedReflectionDeletion({
+              source: "supabase",
+              deletedThreadId: thread.id,
+              reflectionThreads,
+              threadId: (candidate) => candidate.id,
+              activeThreadId: activeSupabaseThreadId,
+              chatTurns
+            });
+            setReflectionThreads(next.reflectionThreads);
+            setActiveSupabaseThreadId(next.activeThreadId);
+            setChatTurns(next.chatTurns);
+            setForceNewSupabaseThread(next.forceNewThread);
             return true;
           }
           if (thread.id !== "local-reflection" || !profileData || !chartProfile) return false;
-          setChatTurns([]);
-          await saveDemoSession(profileData, chartProfile, personaStyle, [], remainingCredits);
+          const next = applyConfirmedReflectionDeletion({
+            source: "local_demo",
+            deletedThreadId: thread.id,
+            reflectionThreads,
+            threadId: (candidate) => candidate.id,
+            activeThreadId: null,
+            chatTurns
+          });
+          setChatTurns(next.chatTurns);
+          await saveDemoSession(profileData, chartProfile, personaStyle, next.chatTurns, remainingCredits);
           return true;
         }}
         onStartNewTopic={startNewTopic}

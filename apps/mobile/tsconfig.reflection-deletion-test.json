@@ -11,6 +11,8 @@
   },
   "include": [
     "src/services/reflectionDeletionBoundary.ts",
+    "src/services/reflectionDeletionState.ts",
+    "src/services/reflectionDeletionState.fixtures.ts",
     "src/services/reflections.fixtures.ts",
     "src/services/reflections.ts"
   ]
