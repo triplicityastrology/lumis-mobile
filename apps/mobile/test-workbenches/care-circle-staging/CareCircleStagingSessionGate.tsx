@@ -28,6 +28,11 @@ import {
   createSinglePhoneJourney,
 } from "./singlePhoneJourney";
 import type { WorkbenchProgressName } from "./workbenchProgress";
+import {
+  createWorkbenchEvidenceSummary,
+  listWorkbenchEvidence,
+  recordConfirmedWorkbenchEvidence,
+} from "./workbenchEvidenceSummary";
 
 type SessionView =
   | { status: "loading" }
@@ -57,7 +62,10 @@ export function CareCircleStagingSessionGate({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [sessionEpoch, setSessionEpoch] = useState(0);
-  const [journey, setJourney] = useState(createSinglePhoneJourney);
+  const [flow, setFlow] = useState(() => ({
+    journey: createSinglePhoneJourney(),
+    evidence: createWorkbenchEvidenceSummary(),
+  }));
   const signedOutProgress = resolveWorkbenchProgress({ authenticated: false });
 
   useEffect(() => {
@@ -164,9 +172,9 @@ export function CareCircleStagingSessionGate({
               Carer {session.capabilities.canActAsCarer ? "enabled" : "blocked"}
             </Text>
             <Text accessibilityLiveRegion="polite" style={styles.journeyTitle}>
-              {journey.label}
+              {flow.journey.label}
             </Text>
-            <Text style={styles.sessionMeta}>{journey.guidance}</Text>
+            <Text style={styles.sessionMeta}>{flow.journey.guidance}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -184,12 +192,25 @@ export function CareCircleStagingSessionGate({
             {notice}
           </Text>
         ) : null}
+        <EvidenceSummary
+          evidence={flow.evidence}
+          onReset={() =>
+            setFlow({
+              journey: createSinglePhoneJourney(),
+              evidence: createWorkbenchEvidenceSummary(),
+            })
+          }
+        />
         <View key={sessionEpoch} style={styles.workbench}>
           {children(session.capabilities, {
             onEvidenceState(input) {
-              setJourney((current) =>
-                advanceSinglePhoneJourney(current, input)
-              );
+              setFlow((current) => ({
+                journey: advanceSinglePhoneJourney(current.journey, input),
+                evidence: recordConfirmedWorkbenchEvidence(current.evidence, {
+                  journeyStage: current.journey.stage,
+                  ...input,
+                }),
+              }));
             },
           })}
         </View>
@@ -306,6 +327,49 @@ export function CareCircleStagingSessionGate({
   );
 }
 
+function EvidenceSummary({
+  evidence,
+  onReset,
+}: {
+  evidence: ReturnType<typeof createWorkbenchEvidenceSummary>;
+  onReset: () => void;
+}) {
+  const items = listWorkbenchEvidence(evidence);
+  const confirmed = items.filter((item) => item.confirmed).length;
+  return (
+    <View
+      accessibilityLabel={`Founder evidence summary. ${confirmed} of ${items.length} checks confirmed.`}
+      style={styles.evidenceSummary}
+    >
+      <View style={styles.evidenceHeader}>
+        <View style={styles.sessionCopy}>
+          <Text style={styles.evidenceTitle}>Founder evidence summary</Text>
+          <Text style={styles.sessionMeta}>
+            Confirmed participant-safe outcomes only
+          </Text>
+        </View>
+        <Pressable
+          accessibilityLabel="Reset Care Circle evidence"
+          accessibilityRole="button"
+          onPress={onReset}
+          style={styles.resetEvidence}
+        >
+          <Text style={styles.secondaryText}>Reset Evidence</Text>
+        </Pressable>
+      </View>
+      {items.map((item) => (
+        <Text
+          accessibilityLabel={`${item.label}: ${item.confirmed ? "confirmed" : "not confirmed"}`}
+          key={item.name}
+          style={item.confirmed ? styles.evidenceConfirmed : styles.evidencePending}
+        >
+          {item.confirmed ? "Confirmed" : "Not confirmed"} · {item.label}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
   signedIn: { flex: 1, backgroundColor: colors.navy950 },
@@ -334,6 +398,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg,
     paddingVertical: 8,
+  },
+  evidenceSummary: {
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  evidenceHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  evidenceTitle: { color: colors.ice, fontSize: 13, fontWeight: "700" },
+  evidenceConfirmed: { color: colors.good, fontSize: 11, lineHeight: 18 },
+  evidencePending: { color: colors.muted, fontSize: 11, lineHeight: 18 },
+  resetEvidence: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
   },
   workbench: { flex: 1 },
   content: {

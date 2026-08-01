@@ -21,6 +21,8 @@ const deviceSafety = read(`${root}/workbenchDeviceSafety.ts`);
 const deviceSafetyFixture = read(`${root}/workbenchDeviceSafety.fixtures.ts`);
 const outcomeIntegrity = read(`${root}/workbenchOutcomeIntegrity.ts`);
 const outcomeFixture = read(`${root}/workbenchOutcomeIntegrity.fixtures.ts`);
+const evidenceSummary = read(`${root}/workbenchEvidenceSummary.ts`);
+const evidenceSummaryFixture = read(`${root}/workbenchEvidenceSummary.fixtures.ts`);
 const entry = read(`${root}/index.tsx`);
 const founderEntry = read("apps/mobile/src/dev/FounderCareCircleWorkbench.tsx");
 const metro = read(`${root}/metro.config.js`);
@@ -78,6 +80,27 @@ assert.match(sessionGate, /secureTextEntry/);
 assert.match(sessionGate, /setPassword\(""\)/);
 assert.match(sessionGate, /key=\{sessionEpoch\}/);
 assert.match(sessionGate, /advanceSinglePhoneJourney/);
+assert.match(sessionGate, /Founder evidence summary/);
+assert.match(sessionGate, /Reset Evidence/);
+assert.match(sessionGate, /recordConfirmedWorkbenchEvidence/);
+assert.doesNotMatch(sessionGate, /Clipboard|setStringAsync|Share\.share/);
+for (const evidenceName of [
+  "code_ready",
+  "pending_no_authority",
+  "accepted_active",
+  "paused",
+  "resumed",
+  "self_removed",
+  "relationship_cleanup",
+]) {
+  assert.match(evidenceSummary, new RegExp(`"${evidenceName}"`));
+}
+assert.match(evidenceSummaryFixture, /request-ready state is not evidence/);
+assert.match(evidenceSummaryFixture, /summary items expose safe fields only/);
+assert.doesNotMatch(
+  evidenceSummary,
+  /pairingCode|relationshipId|accountId|userId|email|token|url|error|response/i
+);
 assert.match(screen, /capabilities\.accountRole/);
 assert.match(screen, /Test identity is fixed by this signed-in account/);
 assert.match(port, /account_mode/);
