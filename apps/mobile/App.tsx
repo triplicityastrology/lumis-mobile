@@ -17,9 +17,10 @@ import Plus from "lucide-react-native/icons/plus";
 import Search from "lucide-react-native/icons/search";
 import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { BackHandler, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, BackHandler, type LayoutChangeEvent, Modal, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -56,6 +57,7 @@ import {
   type AuthStatus
 } from "./src/services/auth";
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
+import { deleteOwnedReflection } from "./src/services/reflections";
 import { safeUserErrorMessage } from "./src/services/userFacingErrors";
 import {
   clearLocalDemoSession,
@@ -854,6 +856,23 @@ export default function App() {
             setActiveSupabaseThreadId(thread.id);
           }
           setScreen(profileData && chartProfile ? "chat" : "profile");
+        }}
+        onDeleteReflection={async (thread, clientRequestId) => {
+          if (accountSource === "supabase") {
+            const result = await deleteOwnedReflection({ threadId: thread.id, clientRequestId });
+            if (!result.ok) return false;
+            setReflectionThreads((threads) => threads.filter((candidate) => candidate.id !== thread.id));
+            if (activeSupabaseThreadId === thread.id) {
+              setActiveSupabaseThreadId(null);
+              setChatTurns([]);
+              setForceNewSupabaseThread(true);
+            }
+            return true;
+          }
+          if (thread.id !== "local-reflection" || !profileData || !chartProfile) return false;
+          setChatTurns([]);
+          await saveDemoSession(profileData, chartProfile, personaStyle, [], remainingCredits);
+          return true;
         }}
         onStartNewTopic={startNewTopic}
       />
@@ -2323,6 +2342,7 @@ function PastReflectionsScreen({
   reflectionThreads,
   onBack,
   onContinueReflection,
+  onDeleteReflection,
   onStartNewTopic
 }: {
   hasLocalDemoSession: boolean;
@@ -2333,9 +2353,16 @@ function PastReflectionsScreen({
   reflectionThreads: RestoredReflectionThread[];
   onBack: () => void;
   onContinueReflection: (thread: RestoredReflectionThread | null) => void;
+  onDeleteReflection: (thread: RestoredReflectionThread, clientRequestId: string) => Promise<boolean>;
   onStartNewTopic: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [reflectionToDelete, setReflectionToDelete] = useState<{
+    thread: RestoredReflectionThread;
+    clientRequestId: string;
+  } | null>(null);
+  const [deletingReflectionId, setDeletingReflectionId] = useState<string | null>(null);
+  const [deleteReflectionError, setDeleteReflectionError] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const localThread: RestoredReflectionThread | null = chatTurns.length > 0
     ? {
@@ -2366,6 +2393,19 @@ function PastReflectionsScreen({
         return searchableText.includes(normalizedQuery);
       })
     : visibleThreads;
+
+  async function confirmReflectionDeletion() {
+    if (!reflectionToDelete || deletingReflectionId) return;
+    setDeletingReflectionId(reflectionToDelete.thread.id);
+    setDeleteReflectionError(false);
+    const deleted = await onDeleteReflection(reflectionToDelete.thread, reflectionToDelete.clientRequestId);
+    setDeletingReflectionId(null);
+    if (deleted) {
+      setReflectionToDelete(null);
+      return;
+    }
+    setDeleteReflectionError(true);
+  }
 
   return (
     <SafeAreaViewCtx edges={["bottom"]} style={styles.lumisDarkSafe}>
@@ -2446,6 +2486,20 @@ function PastReflectionsScreen({
                           </View>
                           <View style={styles.reflectionThreadStatus}>
                             {!thread.canContinue ? <Text style={styles.reflectionReadOnlyLabel}>READ ONLY</Text> : null}
+                            <Pressable
+                              accessibilityLabel={`Delete reflection ${thread.title}`}
+                              accessibilityRole="button"
+                              disabled={deletingReflectionId === thread.id}
+                              hitSlop={10}
+                              onPress={(event) => {
+                                event.stopPropagation();
+                                setDeleteReflectionError(false);
+                                setReflectionToDelete({ thread, clientRequestId: randomUUID() });
+                              }}
+                              style={styles.reflectionDeleteButton}
+                            >
+                              <Trash2 color="#D9C18F" size={17} />
+                            </Pressable>
                             <ChevronRight color="#71839A" size={19} />
                           </View>
                         </Pressable>
@@ -2505,6 +2559,46 @@ function PastReflectionsScreen({
             </Text>
           </View>
         </ScrollView>
+        <Modal
+          animationType="fade"
+          onRequestClose={deletingReflectionId ? undefined : () => setReflectionToDelete(null)}
+          transparent
+          visible={Boolean(reflectionToDelete)}
+        >
+          <View style={styles.reflectionDeleteOverlay}>
+            <View accessibilityLabel="Delete Past Reflection" accessibilityViewIsModal style={styles.reflectionDeleteDialog}>
+              <Text style={styles.reflectionDeleteTitle}>Delete Past Reflection?</Text>
+              <Text style={styles.reflectionDeleteBody}>
+                {reflectionToDelete?.thread.title ?? "Reflection"} · {reflectionToDelete ? formatReflectionDate(reflectionToDelete.thread.updatedAt) : ""}
+              </Text>
+              <Text style={styles.reflectionDeleteWarning}>This removes this reflection and its messages. It cannot be undone.</Text>
+              {deleteReflectionError ? (
+                <Text accessibilityLiveRegion="assertive" role="alert" style={styles.reflectionDeleteError}>
+                  Lumis could not delete this reflection. It remains saved. Retry or cancel.
+                </Text>
+              ) : null}
+              <View style={styles.reflectionDeleteActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={Boolean(deletingReflectionId)}
+                  onPress={() => setReflectionToDelete(null)}
+                  style={styles.reflectionDeleteCancel}
+                >
+                  <Text style={styles.reflectionDeleteCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={Boolean(deletingReflectionId)}
+                  onPress={() => void confirmReflectionDeletion()}
+                  style={styles.reflectionDeleteConfirm}
+                >
+                  {deletingReflectionId ? <ActivityIndicator color="#071321" /> : null}
+                  <Text style={styles.reflectionDeleteConfirmText}>{deleteReflectionError ? "Retry delete" : "Delete"}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaViewCtx>
   );
@@ -4611,6 +4705,41 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     gap: 7
   },
+  reflectionDeleteButton: {
+    alignItems: "center",
+    borderColor: "rgba(201,169,110,0.28)",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36
+  },
+  reflectionDeleteOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(3,10,20,0.78)",
+    flex: 1,
+    justifyContent: "center",
+    padding: 24
+  },
+  reflectionDeleteDialog: {
+    backgroundColor: "#16273D",
+    borderColor: "rgba(201,169,110,0.32)",
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+    maxWidth: 420,
+    padding: 22,
+    width: "100%"
+  },
+  reflectionDeleteTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 21, fontWeight: "700" },
+  reflectionDeleteBody: { color: "#D9C18F", fontSize: 14, lineHeight: 20 },
+  reflectionDeleteWarning: { color: "#AEBAC8", fontSize: 13, lineHeight: 19 },
+  reflectionDeleteError: { color: "#F3B6B6", fontSize: 13, lineHeight: 19 },
+  reflectionDeleteActions: { flexDirection: "row", gap: 10, justifyContent: "flex-end", marginTop: 4 },
+  reflectionDeleteCancel: { alignItems: "center", borderColor: "rgba(255,255,255,0.14)", borderRadius: 10, borderWidth: 1, justifyContent: "center", minHeight: 46, paddingHorizontal: 18 },
+  reflectionDeleteCancelText: { color: "#F0F4F8", fontSize: 14, fontWeight: "700" },
+  reflectionDeleteConfirm: { alignItems: "center", backgroundColor: "#C9A96E", borderRadius: 10, flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 46, minWidth: 104, paddingHorizontal: 18 },
+  reflectionDeleteConfirmText: { color: "#071321", fontSize: 14, fontWeight: "800" },
   reflectionReadOnlyLabel: {
     color: "#AEBAC8",
     fontSize: 8.5,
