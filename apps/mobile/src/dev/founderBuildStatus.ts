@@ -16,7 +16,7 @@ const BUNDLED_FEATURES: readonly FounderBundleFeature[] = [
   { id: "persona_comparison", label: "Persona comparison", included: true, version: "S2-T90" },
   { id: "quota_verification", label: "Quota verification", included: true, version: "S2-T93" },
   { id: "care_circle_workbench", label: "Care Circle workbench", included: true, version: "S2-T96" },
-  { id: "reflection_deletion_readiness", label: "Reflection deletion readiness", included: true, version: "S2-T84" },
+  { id: "reflection_deletion_readiness", label: "Reflection deletion readiness", included: true, version: "S2-T99" },
   { id: "birth_details_fixes", label: "Birth Details fixes", included: true, version: "S2-T36" },
 ];
 

@@ -12,12 +12,14 @@ export function FounderTestHub({
   onOpenBuildStatus,
   onOpenPersonaComparison,
   onOpenQuotaVerification,
+  onOpenReflectionDeletion,
 }: {
   onClose: () => void;
   onOpenCareCircle: () => void;
   onOpenBuildStatus: () => void;
   onOpenPersonaComparison: () => void;
   onOpenQuotaVerification: () => void;
+  onOpenReflectionDeletion: () => void;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -86,6 +88,20 @@ export function FounderTestHub({
             <Text style={styles.rowTitle}>Quota verification</Text>
             <Text style={styles.rowDetail}>Remaining · consumed · refresh source</Text>
             <Text style={styles.fixtureLabel}>Read-only account refresh</Text>
+          </View>
+          <ChevronRight color={colors.muted} size={20} />
+        </Pressable>
+        <Pressable
+          accessibilityHint="Opens a disposable local reflection deletion journey"
+          accessibilityLabel="Past Reflections deletion test"
+          accessibilityRole="button"
+          onPress={onOpenReflectionDeletion}
+          style={styles.row}
+        >
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Past Reflections deletion test</Text>
+            <Text style={styles.rowDetail}>Cancel · failure preservation · retry · delete</Text>
+            <Text style={styles.fixtureLabel}>Disposable local fixture only</Text>
           </View>
           <ChevronRight color={colors.muted} size={20} />
         </Pressable>

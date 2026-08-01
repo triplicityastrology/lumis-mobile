@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/founder-reflection-deletion-tests",
+    "rootDir": "../.."
+  },
+  "include": ["src/dev/founderReflectionDeletionJourney.ts", "src/dev/founderReflectionDeletionJourney.fixtures.ts"]
+}
