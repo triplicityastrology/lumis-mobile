@@ -342,3 +342,115 @@ writes on any parity failure, unsafe function source/version, unauthenticated
 result other than `401 AUTH_REQUIRED`, evidence redaction failure, incomplete
 cleanup, or credential exposure. Keep Care Circle static and inactive and use
 forward-only recovery only.
+
+## S2-T43 Fresh Temporary PAT Function Gate
+
+Status: source-ready and unrun. This gate does not authorize a deployment and
+must wait for the S2-T39/S2-T40 controlled window. It applies only after
+migrations `0032`, `0033`, and `0034` have exact staging parity.
+
+Supabase documents that the CLI may receive `SUPABASE_ACCESS_TOKEN` from the
+environment instead of running `supabase login`, which would store the token.
+A personal access token carries the privileges of its Supabase user account.
+The smallest function-specific Management API permission boundary is
+`edge_functions_read` for pre/post listing and `edge_functions_write` for
+deployment. The token owner must have corresponding access to exact project
+`bmqhwofmdgebpcihjlnb`; no database password or project API key is used.
+
+Official references:
+
+- <https://supabase.com/docs/reference/cli/getting-started>
+- <https://supabase.com/docs/guides/functions/deploy>
+- <https://supabase.com/docs/reference/api/getting-started>
+- <https://supabase.com/docs/guides/platform/access-control>
+
+Before creating a PAT, PM supplies the reviewed full source SHA. Run the inert
+local checker from the repository root:
+
+```bash
+EXPECTED_REF="bmqhwofmdgebpcihjlnb"
+APPROVED_SOURCE_SHA="PASTE_PM_REVIEWED_FULL_SHA"
+
+node scripts/s2-care-circle-function-pat-preflight.mjs \
+  --project-ref "$EXPECTED_REF" \
+  --approved-source-sha "$APPROVED_SOURCE_SHA"
+```
+
+It makes no network request and refuses a dirty tree, a different HEAD or
+linked ref, an unsafe ancestry, a changed function checksum, or a token already
+present in the environment.
+
+Only after PM releases the function step, create one fresh PAT in Supabase
+Dashboard Account > Access Tokens. Use the narrowest available project/access
+settings that permit function read and write. Never put it in `.env`, a file,
+shell history, chat, evidence, screenshots, or `supabase login`.
+
+The future operator block is deliberately limited to function list, one
+function deployment, and function list. It prints no token:
+
+```bash
+set -euo pipefail
+
+ROOT="/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work"
+EXPECTED_REF="bmqhwofmdgebpcihjlnb"
+APPROVED_SOURCE_SHA="PASTE_PM_REVIEWED_FULL_SHA"
+PNPM="/Users/rubyku/.local/node22/bin/pnpm"
+
+cd "$ROOT"
+node scripts/s2-care-circle-function-pat-preflight.mjs \
+  --project-ref "$EXPECTED_REF" \
+  --approved-source-sha "$APPROVED_SOURCE_SHA"
+
+cleanup_pat() {
+  unset SUPABASE_ACCESS_TOKEN
+}
+trap cleanup_pat EXIT HUP INT TERM
+
+printf 'Paste the fresh temporary Supabase PAT, then press Return: '
+IFS= read -r -s SUPABASE_ACCESS_TOKEN
+printf '\n'
+if [[ -z "$SUPABASE_ACCESS_TOKEN" ]]; then
+  printf 'STOP: no PAT was supplied.\n' >&2
+  exit 1
+fi
+export SUPABASE_ACCESS_TOKEN
+
+"$PNPM" dlx supabase@2.109.1 functions list \
+  --project-ref "$EXPECTED_REF"
+"$PNPM" dlx supabase@2.109.1 functions deploy \
+  care-circle \
+  --project-ref "$EXPECTED_REF"
+"$PNPM" dlx supabase@2.109.1 functions list \
+  --project-ref "$EXPECTED_REF"
+
+printf 'Revoke the temporary PAT in Supabase Dashboard now, then press Return here.\n'
+IFS= read -r REVOKE_CONFIRMED
+if "$PNPM" dlx supabase@2.109.1 functions list \
+  --project-ref "$EXPECTED_REF" >/dev/null 2>&1; then
+  printf 'STOP_PAT_REVOCATION_NOT_EFFECTIVE\n' >&2
+  exit 1
+fi
+
+cleanup_pat
+trap - EXIT HUP INT TERM
+printf 'PAT_REVOKE_VERIFIED\n'
+```
+
+Retain only the function name, version, status, update time, reviewed source
+SHA, and function checksum. Do not retain CLI output containing any other
+project metadata.
+
+### Required revoke-after-deploy check
+
+1. When the operator block pauses, revoke the token in Supabase Dashboard
+   Account > Access Tokens before pressing Return in Terminal.
+2. The block uses the still-transient environment value once to require the
+   exact staging `functions list` call to fail, suppresses its response, unsets
+   the token, and records only `PAT_REVOKE_VERIFIED`.
+3. In a fresh Terminal shell, confirm `SUPABASE_ACCESS_TOKEN` is unset using
+   `[[ -z "${SUPABASE_ACCESS_TOKEN:-}" ]]`; this produces no secret output.
+4. If the revoked token can still list functions, the block records
+   `STOP_PAT_REVOCATION_NOT_EFFECTIVE`, unset it, and stop the window.
+
+Do not revoke by deleting unrelated account sessions or keys. Do not proceed
+to disposable evidence until `PAT_REVOKE_VERIFIED` is recorded.
