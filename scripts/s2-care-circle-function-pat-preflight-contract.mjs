@@ -76,6 +76,10 @@ assert.equal(
   packageJson.scripts["test:s2-care-circle-function-pat-preflight"],
   "node scripts/s2-care-circle-function-pat-preflight-contract.mjs && node scripts/s2-care-circle-pat-deploy-operator-contract.mjs"
 );
+assert.equal(
+  packageJson.scripts["test:s2-care-circle-function-health"],
+  "node scripts/s2-care-circle-function-health-contract.mjs"
+);
 
 const wrongRef = spawnSync(
   process.execPath,

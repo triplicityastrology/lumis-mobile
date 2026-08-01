@@ -64,7 +64,7 @@ assert.doesNotMatch(
 assert.match(source, /local_names_only_inert/);
 assert.equal(
   packageJson.scripts["test:s2-care-circle-function-config-preflight"],
-  "node scripts/s2-care-circle-function-config-preflight-contract.mjs"
+  "node scripts/s2-care-circle-function-config-preflight-contract.mjs && node scripts/s2-care-circle-function-health-contract.mjs"
 );
 
 process.stdout.write(
