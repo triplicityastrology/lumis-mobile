@@ -14,7 +14,7 @@ for (const styleName of [
   "reflectionsNoResults",
 ]) {
   const block = styleBlock(app, styleName);
-  assert.match(block, /backgroundColor: "#(?:16273D|263958)"/);
+  assert.match(block, /backgroundColor: "#16273D"/);
   assert.match(block, /borderWidth: 1/);
   assert.doesNotMatch(block, /backgroundColor: "rgba\(/);
 }
@@ -28,7 +28,7 @@ assert.match(styleBlock(app, "savedInsightsEmpty"), /backgroundColor: "#13233A"/
 
 for (const styleName of ["personaChoiceCardActive", "personaAvatarOptionActive"]) {
   const block = styleBlock(app, styleName);
-  assert.match(block, /backgroundColor: "#[0-9A-F]{6}"/i);
+  assert.match(block, /backgroundColor: "#16273D"/);
   assert.doesNotMatch(block, /backgroundColor: "rgba\(/);
 }
 

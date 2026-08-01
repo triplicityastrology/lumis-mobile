@@ -3042,7 +3042,7 @@ const styles = StyleSheet.create({
     padding: 15
   },
   personaChoiceCardActive: {
-    backgroundColor: "#2A3D5E",
+    backgroundColor: "#16273D",
     borderColor: "#DDB45E",
     borderWidth: 1.5
   },
@@ -3154,7 +3154,7 @@ const styles = StyleSheet.create({
   },
   personaIdentityPreview: {
     alignItems: "center",
-    backgroundColor: "#263958",
+    backgroundColor: "#16273D",
     borderColor: "rgba(247,235,221,0.18)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3194,7 +3194,7 @@ const styles = StyleSheet.create({
     width: "22.8%"
   },
   personaAvatarOptionActive: {
-    backgroundColor: "#303D5B",
+    backgroundColor: "#16273D",
     borderColor: "#DDB45E",
     borderWidth: 1.5
   },

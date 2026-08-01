@@ -103,14 +103,22 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           </Pressable>
 
           <Pressable style={styles.primaryAction} onPress={props.onOpenChat}>
-            <View style={styles.primaryIcon}>
-              <MessageCircle color={colors.navy950} size={21} />
-            </View>
-            <View style={styles.actionCopy}>
-              <Text style={styles.primaryActionTitle}>Talk with Lumis</Text>
-              <Text style={styles.primaryActionBody}>A private reflection shaped by your chart</Text>
-            </View>
-            <ChevronRight color={colors.navy950} size={20} />
+            <LinearGradient
+              colors={["#C9A96E", "#D7B978"]}
+              end={{ x: 1, y: 0.2 }}
+              locations={[0, 0.6]}
+              start={{ x: 0, y: 0 }}
+              style={styles.primaryActionGradient}
+            >
+              <View style={styles.primaryIcon}>
+                <MessageCircle color={colors.navy950} size={21} />
+              </View>
+              <View style={styles.actionCopy}>
+                <Text style={styles.primaryActionTitle}>Talk with Lumis</Text>
+                <Text style={styles.primaryActionBody}>A private reflection shaped by your chart</Text>
+              </View>
+              <ChevronRight color={colors.navy950} size={20} />
+            </LinearGradient>
           </Pressable>
 
           <Pressable style={styles.reflectionCard} onPress={props.onPastReflections}>
@@ -311,13 +319,14 @@ const styles = StyleSheet.create({
   compactGlyph: { fontSize: 9, fontWeight: "700" },
   placementText: { color: colors.ice, fontSize: 12, fontWeight: "600" },
   chartNote: { color: colors.muted, fontSize: 10.5, lineHeight: 15, marginTop: 8 },
-  primaryAction: { minHeight: 78, flexDirection: "row", alignItems: "center", gap: 13, padding: 15, borderRadius: radii.lg, backgroundColor: colors.gold },
+  primaryAction: { borderRadius: radii.lg, minHeight: 78, overflow: "hidden" },
+  primaryActionGradient: { alignItems: "center", flexDirection: "row", gap: 13, minHeight: 78, padding: 15, width: "100%" },
   primaryIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(13,27,46,0.10)" },
   actionCopy: { flex: 1, minWidth: 0 },
   primaryActionTitle: { color: colors.navy950, fontSize: 16, fontWeight: "700" },
   primaryActionBody: { color: colors.navy800, fontSize: 11.5, lineHeight: 17, marginTop: 3 },
   reflectionCard: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 13, padding: 15, borderRadius: radii.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  secondaryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.periwinkleFill },
+  secondaryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#1A3550" },
   reflectionTitle: { color: colors.ice, fontSize: 15, fontWeight: "700" },
   reflectionBody: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 3 },
   statusLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 5, paddingTop: 4 },
