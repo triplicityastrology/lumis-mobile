@@ -342,7 +342,8 @@ Deno.serve(async (request) => {
   try {
     chartResult = await generateChart({
       chartRequest: { ...chartRequest, user_id: userId },
-      body
+      body,
+      requireLiveWorker: true
     });
   } catch (error) {
     console.error("PROFILE_CHART_WORKER_FAILED", {

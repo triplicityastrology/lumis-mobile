@@ -26,7 +26,11 @@ assert.match(profile, /if \(!projectedChart\.ok\)[\s\S]*throw new Error\(project
 assert.ok(profile.indexOf("attachNatalChartProjection") < profile.indexOf("p_chart_json: chart"));
 assert.match(profile, /complete_profile_onboarding/);
 assert.match(profile, /complete_birth_details_change/);
-assert.match(profile, /requireLiveWorker:\s*true/);
+const liveWorkerCalls = [...profile.matchAll(/chartResult = await generateChart\(\{([\s\S]*?)\n\s*\}\);/g)];
+assert.equal(liveWorkerCalls.length, 2, "Profile must have exactly two chart-generation paths.");
+for (const call of liveWorkerCalls) {
+  assert.match(call[1], /requireLiveWorker:\s*true/);
+}
 assert.match(profileService, /supabase\.functions\.invoke\("profile"/);
 assert.match(profileService, /if \(!response\?\.chart\)[\s\S]*could not safely confirm the saved chart/);
 assert.match(profileService, /mode:\s*"supabase"/);
@@ -61,7 +65,7 @@ assert.doesNotMatch(
   "Mobile structural summary must remain a pure restored-chart projection."
 );
 for (const value of [
-  "7c567bea9a46a820c59ca60d81eeb70e1890aa393b11cbbb3902ec471d021ccb",
+  "cbb5ef5452e64bb1f21d908052de2540fddc1db8e42cead8964104c927f725fe",
   "d9c2ef8d406f6100a3cea54e5e67635e67d0283dc3301f88f65a678bcb9dbc34",
   "baa002fde6dce82462146f9613e0a4fd2e7067d51b865c3bb042766a0252fe2d",
   "eee1a1f957a7bd0b9d7a8f20cc8f7e3b3dead82a0cdc1fcd93fbc9b217230685",

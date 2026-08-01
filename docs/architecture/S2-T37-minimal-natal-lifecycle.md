@@ -74,7 +74,7 @@ staging window.
 
 - Lifecycle source commit: `fe5aac6b98911a72ec3661d2f1e3955f0d92bdfe`.
 - `supabase/functions/profile/index.ts` SHA-256:
-  `7c567bea9a46a820c59ca60d81eeb70e1890aa393b11cbbb3902ec471d021ccb`.
+  `cbb5ef5452e64bb1f21d908052de2540fddc1db8e42cead8964104c927f725fe`.
 - Existing Worker source SHA-256 (verification only; no Worker deployment):
   `d9c2ef8d406f6100a3cea54e5e67635e67d0283dc3301f88f65a678bcb9dbc34`.
 - `packages/astrology/src/chart-worker-contract.ts` SHA-256:
