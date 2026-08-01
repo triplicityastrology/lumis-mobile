@@ -6,6 +6,7 @@
   "scripts": {
     "setup:check": "node scripts/mobile-setup-doctor.mjs",
     "start:normal-expo": "bash scripts/start-normal-expo.sh",
+    "start:care-circle-two-account": "bash scripts/start-care-circle-two-account-workbench.sh",
     "dev": "pnpm --filter @lumis/mobile start",
     "ios": "pnpm --filter @lumis/mobile ios",
     "android": "pnpm --filter @lumis/mobile android",

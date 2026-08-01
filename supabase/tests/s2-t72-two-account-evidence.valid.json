@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "redacted_run_id": "s2-t72-20260801t120000z-a1b2c3d4",
+  "checks": [
+    { "name": "caree_code_ready", "result": "passed" },
+    { "name": "carer_pending_no_authority", "result": "passed" },
+    { "name": "caree_decision_required", "result": "passed" },
+    { "name": "active", "result": "passed" },
+    { "name": "paused", "result": "passed" },
+    { "name": "active_after_resume", "result": "passed" },
+    { "name": "removed", "result": "passed" },
+    { "name": "relationship_cleanup_complete", "result": "passed" }
+  ],
+  "disposable_account_cleanup_count": 2
+}
