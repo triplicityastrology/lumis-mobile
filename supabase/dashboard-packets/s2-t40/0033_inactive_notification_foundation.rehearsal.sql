@@ -1,4 +1,4 @@
--- S2-T40 Dashboard apply packet: 0033
+-- S2-T40 Dashboard rollback rehearsal: 0033
 -- Approved staging ref: bmqhwofmdgebpcihjlnb
 -- Exact source: supabase/migrations/0033_inactive_notification_foundation.sql
 -- Source SHA-256: 0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d
@@ -1655,4 +1655,4 @@ begin
 end
 $s2_t40_postcheck$;
 
-commit;
+rollback;

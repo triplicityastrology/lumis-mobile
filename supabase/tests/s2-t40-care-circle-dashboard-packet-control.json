@@ -2,9 +2,14 @@
   "control": "S2-T40",
   "environment": "staging",
   "project_ref": "bmqhwofmdgebpcihjlnb",
-  "execution_default": "blocked_source_preparation_only",
+  "execution_default": "inert_source_only_manual_authorization_required",
   "history_table": "supabase_migrations.schema_migrations",
-  "history_shape_status": "pending_authorized_read_only_inspection",
+  "history_shape_status": "confirmed_t82_text_shape",
+  "history_columns": [
+    { "name": "version", "data_type": "text", "udt_name": "text", "nullable": "NO", "ordinal": 1 },
+    { "name": "statements", "data_type": "ARRAY", "udt_name": "_text", "nullable": "YES", "ordinal": 2 },
+    { "name": "name", "data_type": "text", "udt_name": "text", "nullable": "YES", "ordinal": 3 }
+  ],
   "packets": [
     {
       "version": "0032",
@@ -12,21 +17,24 @@
       "migration_path": "supabase/migrations/0032_care_circle_backend_foundation.sql",
       "source_sha256": "9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e",
       "previous_source_sha256": "00b2bbd3c7ff8c1515dc7efd525dc0eef396feaaf98c584119fc4606e85838e2",
-      "packet_file": "0032_care_circle_backend_foundation.dashboard.sql"
+      "packet_file": "0032_care_circle_backend_foundation.dashboard.sql",
+      "rehearsal_file": "0032_care_circle_backend_foundation.rehearsal.sql"
     },
     {
       "version": "0033",
       "history_name": "inactive_notification_foundation",
       "migration_path": "supabase/migrations/0033_inactive_notification_foundation.sql",
       "source_sha256": "0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d",
-      "packet_file": "0033_inactive_notification_foundation.dashboard.sql"
+      "packet_file": "0033_inactive_notification_foundation.dashboard.sql",
+      "rehearsal_file": "0033_inactive_notification_foundation.rehearsal.sql"
     },
     {
       "version": "0034",
       "history_name": "reusable_care_pairing_operations",
       "migration_path": "supabase/migrations/0034_reusable_care_pairing_operations.sql",
       "source_sha256": "466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb",
-      "packet_file": "0034_reusable_care_pairing_operations.dashboard.sql"
+      "packet_file": "0034_reusable_care_pairing_operations.dashboard.sql",
+      "rehearsal_file": "0034_reusable_care_pairing_operations.rehearsal.sql"
     }
   ]
 }

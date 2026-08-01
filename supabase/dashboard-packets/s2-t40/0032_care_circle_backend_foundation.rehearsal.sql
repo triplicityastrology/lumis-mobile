@@ -1,4 +1,4 @@
--- S2-T40 Dashboard apply packet: 0032
+-- S2-T40 Dashboard rollback rehearsal: 0032
 -- Approved staging ref: bmqhwofmdgebpcihjlnb
 -- Exact source: supabase/migrations/0032_care_circle_backend_foundation.sql
 -- Source SHA-256: 9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e
@@ -1861,4 +1861,4 @@ begin
 end
 $s2_t40_postcheck$;
 
-commit;
+rollback;

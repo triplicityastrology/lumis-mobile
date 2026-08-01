@@ -1,4 +1,4 @@
--- S2-T40 Dashboard apply packet: 0034
+-- S2-T40 Dashboard rollback rehearsal: 0034
 -- Approved staging ref: bmqhwofmdgebpcihjlnb
 -- Exact source: supabase/migrations/0034_reusable_care_pairing_operations.sql
 -- Source SHA-256: 466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb
@@ -2153,4 +2153,4 @@ begin
 end
 $s2_t40_postcheck$;
 
-commit;
+rollback;
