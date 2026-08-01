@@ -6,7 +6,7 @@ const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
 const journey = readFileSync("apps/mobile/src/dev/FounderReflectionDeletionPanel.tsx", "utf8");
 const state = readFileSync("apps/mobile/src/dev/founderReflectionDeletionJourney.ts", "utf8");
 assert.match(app, /__DEV__ && founderTestRoute === "reflectionDeletion"/);
-assert.match(hub, /Disposable local fixture only/);
+assert.match(hub, /Local demo · gated signed-in staging mode/);
 assert.match(journey, /Signed-in deletion is Not Ready until migration 0036 is authorised and applied remotely/);
 assert.match(journey, /Lumis could not delete this reflection\. It remains saved\. Retry or cancel\./);
 assert.match(journey, /Delete Past Reflection\?/);

@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { REFLECTION_TEST_MIGRATION_SHA256, resolveReflectionFounderTestBoundary } from "./reflectionFounderTestBoundary";
+const valid = { enabledFlag: "1", deploymentReady: "1", isDevelopment: true, migrationSha256: REFLECTION_TEST_MIGRATION_SHA256, remoteMigrationVersion: "0036", projectRef: "bmqhwofmdgebpcihjlnb", supabaseUrl: "https://bmqhwofmdgebpcihjlnb.supabase.co/" };
+assert.equal(resolveReflectionFounderTestBoundary(valid).enabled, true);
+assert.equal(resolveReflectionFounderTestBoundary({ ...valid, isDevelopment: false }).enabled, false);
+assert.equal(resolveReflectionFounderTestBoundary({ ...valid, projectRef: "wrong" }).enabled, false);
+assert.equal(resolveReflectionFounderTestBoundary({ ...valid, supabaseUrl: "https://example.test/" }).enabled, false);
+assert.equal(resolveReflectionFounderTestBoundary({ ...valid, remoteMigrationVersion: "0035" }).enabled, false);
+assert.equal(resolveReflectionFounderTestBoundary({ ...valid, migrationSha256: "0".repeat(64) }).enabled, false);
+console.log("signed-in reflection Founder test boundary fixtures passed");

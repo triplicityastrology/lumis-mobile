@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/reflection-founder-test-tests",
+    "rootDir": "../.."
+  },
+  "include": ["src/dev/reflectionFounderTestBoundary.ts", "src/dev/reflectionFounderTestBoundary.fixtures.ts"]
+}

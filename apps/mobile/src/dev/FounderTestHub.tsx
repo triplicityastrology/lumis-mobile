@@ -117,7 +117,7 @@ export function FounderTestHub({
           <View style={styles.rowCopy}>
             <Text style={styles.rowTitle}>Past Reflections deletion test</Text>
             <Text style={styles.rowDetail}>Cancel · failure preservation · retry · delete</Text>
-            <Text style={styles.fixtureLabel}>Disposable local fixture only</Text>
+            <Text style={styles.fixtureLabel}>Local demo · gated signed-in staging mode</Text>
           </View>
           <ChevronRight color={colors.muted} size={20} />
         </Pressable>

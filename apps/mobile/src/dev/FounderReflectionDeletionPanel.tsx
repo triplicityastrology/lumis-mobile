@@ -2,14 +2,31 @@ import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import RotateCcw from "lucide-react-native/icons/rotate-ccw";
 import Trash2 from "lucide-react-native/icons/trash-2";
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radii, spacing } from "../theme/tokens";
 import { DISPOSABLE_REFLECTION, createFounderReflectionDeletionState, reduceFounderReflectionDeletion } from "./founderReflectionDeletionJourney";
+import { FounderSignedInReflectionDeletionPanel } from "./FounderSignedInReflectionDeletionPanel";
 
 export function FounderReflectionDeletionJourney({ onBack }: { onBack: () => void }) {
+  const [mode, setMode] = useState<"local" | "signed_in">("local");
   const [state, dispatch] = useReducer(reduceFounderReflectionDeletion, undefined, createFounderReflectionDeletionState);
+  if (mode === "signed_in") {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <Pressable accessibilityLabel="Back to Founder Test Hub" accessibilityRole="button" onPress={onBack} style={styles.iconButton}><ArrowLeft color={colors.ice} size={20} /></Pressable>
+          <Text accessibilityRole="header" style={styles.title}>Reflection deletion test</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="never" keyboardShouldPersistTaps="handled">
+          <Pressable accessibilityRole="button" onPress={() => setMode("local")} style={styles.modeButton}><Text style={styles.modeText}>Switch to local demo</Text></Pressable>
+          <FounderSignedInReflectionDeletionPanel />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -18,6 +35,7 @@ export function FounderReflectionDeletionJourney({ onBack }: { onBack: () => voi
         <View style={styles.headerSpacer} />
       </View>
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="never">
+        <Pressable accessibilityRole="button" onPress={() => setMode("signed_in")} style={styles.modeButton}><Text style={styles.modeText}>Open gated signed-in staging mode</Text></Pressable>
         <View style={styles.notice}>
           <Text style={styles.noticeTitle}>LOCAL DEMO FIXTURE</Text>
           <Text style={styles.noticeBody}>No signed-in account or remote reflection is read or changed. Signed-in deletion is Not Ready until migration 0036 is authorised and applied remotely.</Text>
@@ -78,4 +96,5 @@ const styles = StyleSheet.create({
   overlay: { alignItems: "center", backgroundColor: "rgba(3, 10, 20, 0.78)", flex: 1, justifyContent: "center", padding: spacing.lg }, dialog: { backgroundColor: colors.navy900, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, gap: spacing.md, maxWidth: 420, padding: spacing.lg, width: "100%" },
   dialogTitle: { color: colors.ice, fontSize: 20, fontWeight: "800" }, dialogBody: { color: colors.textSoft, fontSize: 15 }, warning: { color: colors.textSoft, fontSize: 14, lineHeight: 21 }, error: { color: colors.goldLight, fontSize: 14, fontWeight: "700", lineHeight: 21 },
   actions: { flexDirection: "row", gap: spacing.sm }, cancel: { alignItems: "center", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 48 }, cancelText: { color: colors.ice, fontWeight: "700" }, confirm: { alignItems: "center", backgroundColor: colors.gold, borderRadius: radii.sm, flex: 1, justifyContent: "center", minHeight: 48 }, confirmText: { color: colors.navy950, fontWeight: "800" },
+  modeButton: { alignItems: "center", borderColor: colors.gold, borderRadius: radii.sm, borderWidth: 1, justifyContent: "center", minHeight: 48 }, modeText: { color: colors.goldLight, fontWeight: "800" },
 });
