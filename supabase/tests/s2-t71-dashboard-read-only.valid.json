@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "legacy_counts": {
+    "legacy_revoked_relationship_count": 0,
+    "legacy_code_fingerprint_count": 0,
+    "legacy_code_non_sha256_shape_count": 0,
+    "legacy_notification_count": 0,
+    "legacy_notification_with_body_count": 0
+  },
+  "history_columns": [
+    {
+      "column_name": "version",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null,
+      "ordinal_position": 1
+    },
+    {
+      "column_name": "statements",
+      "data_type": "ARRAY",
+      "udt_name": "_text",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 2
+    },
+    {
+      "column_name": "name",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "YES",
+      "column_default": null,
+      "ordinal_position": 3
+    }
+  ],
+  "remote_migrations": [
+    { "version": "0001", "name": "initial_schema" },
+    { "version": "0002", "name": "profile_chat_persistence" },
+    { "version": "0003", "name": "care_notifications_usage" },
+    { "version": "0004", "name": "birth_details_change_policy" },
+    { "version": "0005", "name": "starter_grant_guard" },
+    { "version": "0006", "name": "profile_onboarding_transaction" },
+    { "version": "0007", "name": "lock_migration_reports_access" },
+    { "version": "0008", "name": "onboarding_chart_history" },
+    { "version": "0009", "name": "chat_turn_persistence_rpc" },
+    { "version": "0010", "name": "strip_legacy_raw_provider_response" },
+    { "version": "0011", "name": "explicit_reflection_thread" },
+    { "version": "0012", "name": "external_sync_delivery_ledger" },
+    { "version": "0013", "name": "account_deletion_external_sync" },
+    { "version": "0014", "name": "authoritative_account_entitlements" },
+    { "version": "0015", "name": "entitlement_provider_privacy" },
+    { "version": "0016", "name": "trusted_birth_location_resolver" },
+    { "version": "0017", "name": "persona_policy_and_entitlement_events" },
+    { "version": "0018", "name": "remove_misleading_care_max_index" },
+    { "version": "0019", "name": "dice_throws" },
+    { "version": "0020", "name": "backend_runtime_guardrails" },
+    { "version": "0021", "name": "runtime_observability_and_schedules" },
+    { "version": "0022", "name": "chat_idempotency_context" },
+    { "version": "0023", "name": "strict_sync_retention_and_provider_attempts" },
+    { "version": "0024", "name": "provider_attempt_concurrency_and_payload_allowlist" },
+    { "version": "0025", "name": "runtime_scheduler_status" },
+    { "version": "0026", "name": "birth_details_regeneration" },
+    { "version": "0027", "name": "entitlement_event_integrity_repair" },
+    { "version": "0028", "name": "safe_account_deletion_status_refresh" },
+    { "version": "0029", "name": "safe_account_deletion_enqueue_result" },
+    { "version": "0030", "name": "safe_salesforce_deletion_subject_json" }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "backup": {
+    "captured_at": "2026-07-31T04:30:04Z",
+    "destruction_deadline": "2026-08-07T04:30:04Z",
+    "restore_validated": true
+  },
+  "rollback_rehearsal": {
+    "status": "passed_no_persisted_changes",
+    "persisted_change_count": 0
+  }
+}
