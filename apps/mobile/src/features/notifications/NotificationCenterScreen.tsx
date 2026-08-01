@@ -45,6 +45,26 @@ const MOCK: NotifItem[] = [
 ];
 
 type DemoMode = "loading" | "error" | "empty" | "populated";
+type ReleasePreviewMode = "empty" | "populated";
+
+type PreviewNotifItem = Pick<NotifItem, "id" | "type" | "title" | "context" | "time">;
+
+const PREVIEW_SAMPLES: readonly PreviewNotifItem[] = [
+  {
+    id: "preview-care-circle-reminder",
+    type: "system",
+    title: "Sample Care Circle reminder",
+    context: "Layout preview only. Reminders and delivery are not active.",
+    time: "Preview"
+  },
+  {
+    id: "preview-account-notice",
+    type: "system",
+    title: "Sample account notice",
+    context: "This local sample is not from your account.",
+    time: "Preview"
+  }
+];
 
 function NotifIcon({ type, size = 16, strokeColor }: { type: NotifType; size?: number; strokeColor?: string }) {
   const warm = type === "need_help" || type === "missed_checkin";
@@ -110,25 +130,78 @@ function Row({
   );
 }
 
+function PreviewRow({ item }: { item: PreviewNotifItem }) {
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${item.title}. ${item.context ?? ""} ${item.time}`}
+      style={s.row}
+    >
+      <View style={s.iconChip}>
+        <Svg width={32} height={32} viewBox="0 0 32 32" style={StyleSheet.absoluteFill} accessibilityElementsHidden importantForAccessibility="no">
+          <Defs>
+            <RadialGradient id={`preview-${item.id}`} cx="38%" cy="30%" r="80%">
+              <Stop offset="0%" stopColor="#F0D592" />
+              <Stop offset="100%" stopColor="#C9A05A" />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={16} cy={16} r={16} fill={`url(#preview-${item.id})`} />
+        </Svg>
+        <NotifIcon type={item.type} strokeColor="#3A2218" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle}>{item.title}</Text>
+        {item.context ? <Text style={s.rowCtx}>{item.context}</Text> : null}
+        <Text style={s.rowTime}>{item.time}</Text>
+      </View>
+    </View>
+  );
+}
+
 export function NotificationCenterScreen({
   onBack
 }: { onBack: () => void }) {
+  const [previewMode, setPreviewMode] = useState<ReleasePreviewMode>("populated");
+
   return (
     <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       <ScreenHeader title="Notifications" titleIcon={<BellGlyph />} onBack={onBack} />
       <View style={s.previewBar}>
         <PreviewBadge label="Preview · notifications are not active" />
       </View>
+      {__DEV__ ? (
+        <View accessibilityLabel="Notification preview state" style={s.demoBar}>
+          {(["populated", "empty"] as ReleasePreviewMode[]).map((mode) => (
+            <Pressable
+              accessibilityRole="button"
+              key={mode}
+              onPress={() => setPreviewMode(mode)}
+              style={[s.demoChip, previewMode === mode && s.demoChipOn]}
+            >
+              <Text style={[s.demoChipText, previewMode === mode && s.demoChipTextOn]}>{mode}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <ScrollView
         contentContainerStyle={s.content}
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
-        <QuietEmptyState
-          motif="bell"
-          title="Notifications are a preview."
-          sub="Account and Care Circle notices are not active in this build."
-        />
+        {previewMode === "empty" ? (
+          <QuietEmptyState
+            motif="bell"
+            title="Notifications are a preview."
+            sub="Account and Care Circle notices are not active in this build."
+          />
+        ) : (
+          <>
+            <Text style={s.previewDescription}>Sample layout · local preview data only</Text>
+            <View style={s.list}>
+              {PREVIEW_SAMPLES.map((item) => <PreviewRow item={item} key={item.id} />)}
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,6 +320,7 @@ const s = StyleSheet.create({
   demoChipText: { color: colors.muted, fontSize: 10.5, fontWeight: "600" },
   demoChipTextOn: { color: colors.goldLight },
   content: { padding: spacing.lg, paddingTop: 6 },
+  previewDescription: { color: colors.muted, fontSize: 12, marginBottom: 10 },
   groupLabel: { color: colors.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginBottom: 8, marginTop: 6, textTransform: "uppercase" },
   list: { backgroundColor: "rgba(58,80,118,0.28)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, overflow: "hidden" },
   row: { alignItems: "flex-start", flexDirection: "row", gap: 12, paddingHorizontal: 14, paddingVertical: 14 },
