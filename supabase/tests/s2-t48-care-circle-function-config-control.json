@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "care-circle",
+  "function_path": "supabase/functions/care-circle/index.ts",
+  "function_sha256": "19dad48d318a442b75d3830eb3d2e5dcd9443453275c83d7001c5ece9bc64ce8",
+  "required_configuration_names": [
+    "CARE_CIRCLE_PAIRING_SECRET",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_URL"
+  ],
+  "prohibited_scope_name_markers": [
+    "NOTIFICATION", "EXPO", "APNS", "FCM", "PROVIDER", "SCHEDULER",
+    "CRON", "BILLING", "PAYMENT", "STRIPE", "REVENUECAT"
+  ],
+  "execution_default": "local_names_only_inert"
+}
