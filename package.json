@@ -50,7 +50,7 @@
     "founder-test:cleanup": "zsh scripts/run-s2-founder-test-cleanup.zsh",
     "test:s2-care-circle-founder-session": "node scripts/s2-care-circle-founder-session-contract.mjs",
     "care-circle:founder-session": "node scripts/s2-care-circle-founder-session.mjs",
-    "test:s2-care-circle-bootstrap": "node scripts/s2-care-circle-bootstrap-contract.mjs",
+    "test:s2-care-circle-bootstrap": "node scripts/s2-care-circle-bootstrap-contract.mjs && node scripts/s2-care-circle-bootstrap-descendant-authority-contract.mjs",
     "test:notification-foundation": "node scripts/notification-foundation-contract.mjs",
     "test:inactive-notification-device-client": "tsc -p apps/mobile/tsconfig.inactive-notification-device-client-test.json && node .tmp/inactive-notification-device-client-tests/apps/mobile/src/services/inactiveNotificationDeviceClient.fixtures.js && node scripts/inactive-notification-device-client-contract.mjs",
     "test:s2-foundation-preflight": "node scripts/s2-foundation-preflight.mjs --project-ref bmqhwofmdgebpcihjlnb",

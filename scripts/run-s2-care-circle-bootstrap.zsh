@@ -4,6 +4,7 @@ set -euo pipefail
 
 readonly ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 readonly PROJECT_REF="bmqhwofmdgebpcihjlnb"
+readonly APPROVED_TECHNICAL_ANCESTOR="$(node -p "require('./supabase/tests/s2-t116-care-circle-bootstrap-descendant-authority.json').approved_technical_ancestor")"
 ACTION="preflight"
 RUN_ID=""
 TTY_STATE=""
@@ -31,11 +32,15 @@ trap cleanup_environment EXIT HUP INT TERM
   exit 1
 }
 
+node scripts/s2-care-circle-bootstrap-descendant-authority.mjs >/dev/null
+
 if [[ "$ACTION" == "preflight" ]]; then
   node scripts/s2-care-circle-two-account-operator.mjs \
     --project-ref "$PROJECT_REF" >/dev/null
   print -- "READY_FOR_QA_KEY"
   print -- "project_ref=$PROJECT_REF"
+  print -- "approved_technical_ancestor=$APPROVED_TECHNICAL_ANCESTOR"
+  print -- "head=$(git rev-parse HEAD)"
   print -- "accounts_planned=2"
   print -- "network_calls=0 credentials_requested=0 accounts_created=0"
   exit 0

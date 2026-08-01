@@ -10,6 +10,8 @@ const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 for (const required of [
   'PROJECT_REF="bmqhwofmdgebpcihjlnb"',
   "READY_FOR_QA_KEY",
+  "s2-care-circle-bootstrap-descendant-authority.mjs",
+  "approved_technical_ancestor",
   "stty -echo",
   "S2_T75_SECRET_KEY",
   "S2_T75_CAREE_EMAIL",
@@ -48,6 +50,7 @@ const preflight = spawnSync(
 assert.equal(preflight.status, 0, preflight.stderr);
 assert.match(preflight.stdout, /^READY_FOR_QA_KEY/m);
 assert.match(preflight.stdout, /network_calls=0 credentials_requested=0 accounts_created=0/);
+assert.match(preflight.stdout, /approved_technical_ancestor=[0-9a-f]{40}/);
 assert.doesNotMatch(
   preflight.stdout + preflight.stderr,
   /@example|sb_secret_|password|https?:\/\//i
