@@ -74,7 +74,7 @@ assert.match(
 
 assert.equal(
   packageJson.scripts["test:s2-care-circle-function-pat-preflight"],
-  "node scripts/s2-care-circle-function-pat-preflight-contract.mjs"
+  "node scripts/s2-care-circle-function-pat-preflight-contract.mjs && node scripts/s2-care-circle-pat-deploy-operator-contract.mjs"
 );
 
 const wrongRef = spawnSync(
