@@ -24,10 +24,13 @@ fi
 docker run --detach --rm --name "$CONTAINER" \
   --env POSTGRES_PASSWORD="$PASSWORD" --env POSTGRES_DB=lumis_s2_t64 "$IMAGE" >/dev/null
 STARTED=1
-for _ in {1..60}; do
-  docker exec "$CONTAINER" pg_isready -U "$DB_USER" -d lumis_s2_t64 >/dev/null 2>&1 && break
+for _ in {1..90}; do
+  [[ "$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || true)" == "healthy" ]] && break
   sleep 1
 done
+[[ "$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER")" == "healthy" ]] || {
+  printf 'STOP_S2_T64_DATABASE_NOT_HEALTHY\n' >&2; exit 1;
+}
 docker exec "$CONTAINER" pg_isready -U "$DB_USER" -d lumis_s2_t64 >/dev/null
 
 apply_sql() {

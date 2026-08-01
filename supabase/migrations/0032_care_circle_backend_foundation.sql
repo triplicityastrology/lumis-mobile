@@ -150,9 +150,7 @@ create table if not exists public.care_link_codes (
   consumed_by_user_id uuid references public.users(id) on delete set null,
   relationship_id uuid references public.care_relationships(id) on delete set null,
   revoked_at timestamptz,
-  retention_until timestamptz generated always as (
-    expires_at + interval '90 days'
-  ) stored,
+  retention_until timestamptz not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint care_link_codes_window_check check (
@@ -177,6 +175,23 @@ create table if not exists public.care_link_codes (
     or (status <> 'revoked' and revoked_at is null)
   )
 );
+
+create or replace function public.set_care_link_code_retention_until()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.retention_until := new.expires_at + interval '90 days';
+  return new;
+end;
+$$;
+
+drop trigger if exists set_care_link_code_retention_until_trigger
+  on public.care_link_codes;
+create trigger set_care_link_code_retention_until_trigger
+before insert or update of expires_at on public.care_link_codes
+for each row execute function public.set_care_link_code_retention_until();
 
 create unique index if not exists care_link_codes_hash_idx
   on public.care_link_codes (code_hash);

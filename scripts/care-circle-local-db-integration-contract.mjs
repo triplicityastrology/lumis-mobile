@@ -23,5 +23,8 @@ for (const operation of [
 ]) assert.match(proof, new RegExp(`public\\.${operation}`));
 assert.match(proof, /rollback;/);
 assert.doesNotMatch(proof, /@|https?:\/\//i);
-assert.match(migration0032, /retention_until timestamptz generated always as \([\s\S]+expires_at \+ interval '90 days'/);
+assert.match(migration0032, /retention_until timestamptz not null/);
+assert.match(migration0032, /set_care_link_code_retention_until/);
+assert.match(migration0032, /new\.retention_until := new\.expires_at \+ interval '90 days'/);
+assert.doesNotMatch(migration0032, /retention_until timestamptz generated always/);
 console.log("Care Circle local database integration contract passed");

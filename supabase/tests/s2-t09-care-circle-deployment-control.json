@@ -7,7 +7,9 @@
   "deployment_order": [
     {
       "name": "0032_care_circle_backend_foundation.sql",
-      "sha256": "00b2bbd3c7ff8c1515dc7efd525dc0eef396feaaf98c584119fc4606e85838e2"
+      "sha256": "9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e",
+      "previous_sha256": "00b2bbd3c7ff8c1515dc7efd525dc0eef396feaaf98c584119fc4606e85838e2",
+      "checksum_change_reason": "S2-T67 PostgreSQL 17 retention trigger correction before deployment"
     },
     {
       "name": "0033_inactive_notification_foundation.sql",
