@@ -14,6 +14,7 @@ export type FixedTemplateFamilyId =
   | "ILLEGAL_BOUNDARY";
 
 export type FixedTemplateFailureCode =
+  | "FIXED_TEMPLATE_LOOKUP_INVALID"
   | "FIXED_TEMPLATE_VERSION_UNKNOWN"
   | "FIXED_TEMPLATE_ID_UNKNOWN"
   | "FIXED_TEMPLATE_LANGUAGE_UNKNOWN"
@@ -39,8 +40,12 @@ export type FixedTemplateLookup = {
   registryVersion: typeof FIXED_TEMPLATE_REGISTRY_VERSION;
   familyId: FixedTemplateFamilyId;
   language?: FixedTemplateLanguage;
-  runtime: "development" | "staging" | "production";
 };
+
+export type FixedTemplateRuntime = "development" | "staging" | "production";
+export type FixedTemplateServerLoader = (
+  lookup: FixedTemplateLookup | Record<string, unknown>
+) => FixedTemplateLookupResult;
 
 export type FixedTemplateLookupResult =
   | {
@@ -187,9 +192,32 @@ const REGISTRY: Record<FixedTemplateFamilyId, RegistryRecord> = {
   },
 };
 
-export function loadFixedTemplate(
-  lookup: FixedTemplateLookup | Record<string, unknown>
+export function createFixedTemplateServerLoader(
+  readTrustedServerRuntime: () => unknown
+): FixedTemplateServerLoader {
+  let runtime: FixedTemplateRuntime | undefined;
+  try {
+    const configuredRuntime = readTrustedServerRuntime();
+    if (
+      configuredRuntime === "development" ||
+      configuredRuntime === "staging" ||
+      configuredRuntime === "production"
+    ) {
+      runtime = configuredRuntime;
+    }
+  } catch {
+    runtime = undefined;
+  }
+  return (lookup) => loadFixedTemplate(lookup, runtime);
+}
+
+function loadFixedTemplate(
+  lookup: FixedTemplateLookup | Record<string, unknown>,
+  runtime: FixedTemplateRuntime | undefined
 ): FixedTemplateLookupResult {
+  if (!isClosedLookup(lookup)) {
+    return failure("FIXED_TEMPLATE_LOOKUP_INVALID");
+  }
   if (lookup.registryVersion !== FIXED_TEMPLATE_REGISTRY_VERSION) {
     return failure("FIXED_TEMPLATE_VERSION_UNKNOWN");
   }
@@ -206,17 +234,13 @@ export function loadFixedTemplate(
   ) {
     return failure("FIXED_TEMPLATE_LANGUAGE_UNKNOWN");
   }
-  if (
-    lookup.runtime !== "development" &&
-    lookup.runtime !== "staging" &&
-    lookup.runtime !== "production"
-  ) {
+  if (runtime === undefined) {
     return failure("FIXED_TEMPLATE_RUNTIME_UNKNOWN");
   }
 
   const familyId = lookup.familyId as FixedTemplateFamilyId;
   const record = REGISTRY[familyId];
-  if (lookup.runtime === "production") {
+  if (runtime === "production") {
     if (record.clinicalReviewRequired) {
       return failure("FIXED_TEMPLATE_CLINICAL_REVIEW_REQUIRED");
     }
@@ -240,6 +264,19 @@ export function loadFixedTemplate(
       generated: false,
     },
   };
+}
+
+function isClosedLookup(
+  lookup: FixedTemplateLookup | Record<string, unknown>
+): lookup is FixedTemplateLookup {
+  if (lookup === null || typeof lookup !== "object" || Array.isArray(lookup)) {
+    return false;
+  }
+  const keys = Object.keys(lookup).sort();
+  const expected = lookup.language === undefined
+    ? ["familyId", "registryVersion"]
+    : ["familyId", "language", "registryVersion"];
+  return JSON.stringify(keys) === JSON.stringify(expected);
 }
 
 function failure(code: FixedTemplateFailureCode): FixedTemplateLookupResult {

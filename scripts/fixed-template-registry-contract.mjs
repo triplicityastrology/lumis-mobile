@@ -29,13 +29,19 @@ for (const id of [
 }
 assert.match(registry, /FIXED_TEMPLATE_CLINICAL_REVIEW_REQUIRED/);
 assert.match(registry, /FIXED_TEMPLATE_PRODUCTION_WORDING_REQUIRED/);
+assert.match(registry, /FIXED_TEMPLATE_LOOKUP_INVALID/);
 assert.match(registry, /languageFallbackApplied/);
 assert.match(registry, /generated: false/);
+assert.match(registry, /createFixedTemplateServerLoader/);
+assert.match(registry, /readTrustedServerRuntime/);
+assert.doesNotMatch(registry, /lookup\.runtime/);
 assert.doesNotMatch(registry, /fetch\s*\(|createClient|Deno\.env|getenv|openai|azure|anthropic|translate/i);
 assert.doesNotMatch(`${app}\n${chat}`, /fixed-template-registry/);
 assert.match(architecture, /server-side only/i);
 assert.match(architecture, /no mobile caller/i);
 assert.match(architecture, /clinical review/i);
 assert.match(architecture, /provisional staging\/development baseline/i);
+assert.match(architecture, /trusted server configuration/i);
+assert.match(architecture, /caller-supplied runtime/i);
 
 console.log("fixed-template runtime boundary contract passed");
