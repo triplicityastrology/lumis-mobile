@@ -75,14 +75,27 @@ assert.match(birthDetailsScreen, /outcome\.code === "49001"[\s\S]*setStep\("disp
 assert.match(birthDetailsScreen, /setFailureMessage\(outcome\.message\)[\s\S]*setStep\("failure"\)/);
 assert.match(birthDetailsScreen, /sub=\{failureMessage \?\?/);
 assert.match(birthDetailsScreen, /ASC, MC, houses, or planet-house placements/);
-assert.match(birthDetailsScreen, /const \[pickerValue, setPickerValue\] = useState<Date \| null>\(null\)/);
-assert.match(birthDetailsScreen, /setPickerValue\(new Date\(selected\.getTime\(\)\)\)/);
-assert.match(birthDetailsScreen, /onRequestClose=\{closePicker\}/);
-assert.match(birthDetailsScreen, /onPress=\{commitPicker\}/);
-assert.doesNotMatch(birthDetailsScreen, /onChange=\{\([^)]*, d\?: Date\)[\s\S]{0,240}setDraft/);
+// PROF-003 (founder rework): the editor is a three-step wizard (date → time →
+// place) with progress dots and gradient CTAs; the wheels are inline on frosted
+// glass and read from the snapped value (no 8am/first-item lock).
+assert.match(birthDetailsScreen, /const \[editStep, setEditStep\] = useState<1 \| 2 \| 3>\(1\)/);
+assert.match(birthDetailsScreen, /<ProgressDots active=\{editStep\} \/>/);
+assert.match(birthDetailsScreen, /When were you born\?/);
+assert.match(birthDetailsScreen, /What time were you born\?/);
+assert.match(birthDetailsScreen, /Where were you born\?/);
+assert.match(birthDetailsScreen, /mode="date"[\s\S]{0,240}formatDate\(new Date\(selected\.getTime\(\)\)\)/);
+assert.match(birthDetailsScreen, /mode="time"[\s\S]{0,240}value=\{parseBirthTimePickerValue\(draft\.birthTime\)\}/);
+assert.match(birthDetailsScreen, /mode="time"[\s\S]{0,300}formatBirthTimePickerValue\(new Date\(selected\.getTime\(\)\)\)/);
+// Between-step Back returns to the previous step; step 1 exits the wizard.
+assert.match(birthDetailsScreen, /step === "edit" && editStep > 1[\s\S]{0,180}setEditStep/);
+// Gradient CTAs (RULE 2) and frosted wheel panels (RULE 1).
+assert.match(birthDetailsScreen, /<BrandPrimaryButton\s+label="Continue"/);
+assert.match(birthDetailsScreen, /label="Save & regenerate chart"\s+onPress=\{\(\) => setStep\("confirm"\)\}/);
+assert.match(birthDetailsScreen, /<FrostedCard style=\{s\.wheelPanel\}/);
+// No native off-design picker; the time commit path uses the pure helper.
+assert.doesNotMatch(birthDetailsScreen, /@react-native-community\/datetimepicker/);
 assert.match(birthTimePicker, /accepted:[\s\S]*formatBirthTimePickerValue/);
-assert.match(birthDetailsScreen, /Review each detail carefully/);
-assert.match(birthDetailsScreen, /Why time matters/);
+assert.match(birthTimePicker, /export function composeBirthTime12h/);
 assert.match(birthDetailsScreen, /regenOverlay:\s*\{[\s\S]*backgroundColor:\s*"transparent"/);
 assert.match(generatingView, /const ZODIAC_GLYPHS/);
 assert.match(generatingView, /Chart regeneration is in progress/);

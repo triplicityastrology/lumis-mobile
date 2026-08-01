@@ -19,8 +19,12 @@ import Svg, { Circle, Defs, Line, RadialGradient, Stop } from "react-native-svg"
 
 import type { ChartV2 } from "@lumis/shared";
 
+import { LinearGradient } from "expo-linear-gradient";
+
 import { colors } from "../theme/tokens";
 import { safeUserErrorMessage } from "../services/userFacingErrors";
+import { BRAND_GOLD_GRADIENT, BRAND_GOLD_LOCATIONS } from "./BrandPrimaryButton";
+import { FrostedCard } from "./FrostedCard";
 import { NatalWheel } from "./NatalWheel";
 
 /**
@@ -146,11 +150,20 @@ export function AuthShell({ children }: { children: ReactNode }) {
   );
 }
 
+// RULE 2: every big auth CTA is the brand gold gradient (never flat yellow).
 function PrimaryButton({ label, icon, onPress }: { label: string; icon?: ReactNode; onPress: () => void }) {
   return (
     <Pressable style={styles.primaryBtn} onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
-      <Text style={styles.primaryBtnText}>{label}</Text>
-      {icon}
+      <LinearGradient
+        colors={BRAND_GOLD_GRADIENT}
+        locations={BRAND_GOLD_LOCATIONS}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0.35 }}
+        style={styles.primaryBtnFill}
+      >
+        <Text style={styles.primaryBtnText}>{label}</Text>
+        {icon}
+      </LinearGradient>
     </Pressable>
   );
 }
@@ -619,7 +632,8 @@ export function LogoutDialog({
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={busy ? undefined : onCancel}>
       <View style={styles.dialogScrim}>
-        <View style={styles.dialog} accessibilityViewIsModal accessibilityLabel="Log out of Lumis">
+        {/* AUTH-008 (RULE 1): frosted-glass modal card, not solid navy. */}
+        <FrostedCard style={styles.dialog} radius={26} accessibilityViewIsModal accessibilityLabel="Log out of Lumis">
           <SkyEmblem tone={phase === "error" ? "warn" : "accent"} size={52}>
             {phase === "success" ? <Check color={INK} size={22} strokeWidth={3} /> : <LogOut color={INK} size={20} />}
           </SkyEmblem>
@@ -646,6 +660,8 @@ export function LogoutDialog({
               <Text style={styles.dialogBody}>
                 You'll need your email sign-in link to return to your saved chart and Past Reflections. Your data stays safe on your account.
               </Text>
+              {/* AUTH-008 (RULE 2): primary Log out is the gold gradient; the
+                  submitting spinner is preserved for duplicate-submit feedback. */}
               <Pressable
                 style={[styles.primaryBtn, busy && styles.dim]}
                 onPress={submit}
@@ -654,8 +670,16 @@ export function LogoutDialog({
                 accessibilityLabel="Log out"
                 accessibilityState={{ busy }}
               >
-                {busy ? <ActivityIndicator color="#1a1206" /> : <LogOut color="#1a1206" size={18} />}
-                <Text style={styles.primaryBtnText}>{busy ? "Logging out…" : "Log out"}</Text>
+                <LinearGradient
+                  colors={BRAND_GOLD_GRADIENT}
+                  locations={BRAND_GOLD_LOCATIONS}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0.35 }}
+                  style={styles.primaryBtnFill}
+                >
+                  {busy ? <ActivityIndicator color="#1a1206" /> : <LogOut color="#1a1206" size={18} />}
+                  <Text style={styles.primaryBtnText}>{busy ? "Logging out…" : "Log out"}</Text>
+                </LinearGradient>
               </Pressable>
               <Pressable
                 style={styles.linkBtn}
@@ -668,7 +692,7 @@ export function LogoutDialog({
               </Pressable>
             </>
           )}
-        </View>
+        </FrostedCard>
       </View>
     </Modal>
   );
@@ -676,8 +700,10 @@ export function LogoutDialog({
 
 const styles = StyleSheet.create({
   shell: { backgroundColor: "transparent", flex: 1 },
-  dialogScrim: { alignItems: "center", backgroundColor: "rgba(4,10,20,0.66)", flex: 1, justifyContent: "center", padding: 28 },
-  dialog: { alignItems: "center", backgroundColor: "rgba(30,44,70,0.98)", borderColor: colors.line, borderRadius: 24, borderWidth: 1, padding: 24, width: "100%" },
+  // AUTH-008: translucent navy scrim (SPEC rgba(11,25,48,0.60)).
+  dialogScrim: { alignItems: "center", backgroundColor: "rgba(11,25,48,0.60)", flex: 1, justifyContent: "center", padding: 28 },
+  // Fill/blur/border/clip provided by FrostedCard (RULE 1); shadow kept for lift.
+  dialog: { alignItems: "center", padding: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 40 }, shadowOpacity: 0.6, shadowRadius: 40, width: "100%" },
   dialogTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, marginBottom: 8, marginTop: 12, textAlign: "center" },
   dialogBody: { color: colors.textSoft, fontSize: 13.5, lineHeight: 20, marginBottom: 18, textAlign: "center" },
   shellBody: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center" },
@@ -705,7 +731,9 @@ const styles = StyleSheet.create({
   body: { color: colors.textSoft, fontSize: 14.5, lineHeight: 22, textAlign: "center" },
   bodyStrong: { color: colors.ice, fontSize: 14.5, fontWeight: "600", marginTop: 2, marginBottom: 20, textAlign: "center" },
   small: { color: colors.muted, fontSize: 12.5, lineHeight: 18, textAlign: "center", maxWidth: 320 },
-  primaryBtn: { alignItems: "center", alignSelf: "stretch", backgroundColor: colors.gold, borderRadius: 15, flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 54, marginBottom: 12 },
+  // Clip wrapper; the gold gradient fill lives in primaryBtnFill (RULE 2).
+  primaryBtn: { alignSelf: "stretch", borderRadius: 15, marginBottom: 12, overflow: "hidden" },
+  primaryBtnFill: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "center", minHeight: 54, width: "100%" },
   primaryBtnText: { color: "#1a1206", fontSize: 15.5, fontWeight: "700" },
   softBtn: { alignItems: "center", alignSelf: "stretch", backgroundColor: colors.surfaceRaised, borderColor: colors.line, borderRadius: 15, borderWidth: 1, justifyContent: "center", minHeight: 52, marginBottom: 12 },
   softBtnText: { color: colors.ice, fontSize: 15, fontWeight: "600" },

@@ -15,6 +15,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import type { PersonaStyleKey } from "@lumis/shared";
 
+import { FrostedCard } from "../components/FrostedCard";
 import { UnavailablePill } from "../components/states/StateKit";
 import { LumisPersonaAvatar } from "../components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "../components/MainTabBar";
@@ -160,13 +161,15 @@ function ProfileSection({ children, label, note }: { children: ReactNode; label:
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.rows}>
+      {/* PROF-001 (RULE 1): each group is genuine frosted glass; rows stay
+          transparent inside, and overflow:hidden clips the sky at the corners. */}
+      <FrostedCard style={styles.rows} radius={18}>
         {items.map((child, index) =>
           index === 0 && isValidElement(child) && child.type === ProfileRow
             ? cloneElement(child as ReactElement<ProfileRowProps>, { first: true })
             : child
         )}
-      </View>
+      </FrostedCard>
       {note ? <Text style={styles.sectionNote}>{note}</Text> : null}
     </View>
   );
@@ -245,10 +248,10 @@ const styles = StyleSheet.create({
   section: { gap: 7 },
   sectionLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4 },
   sectionNote: { color: colors.muted, fontSize: 10, lineHeight: 15, paddingHorizontal: 3 },
-  rows: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  rows: { backgroundColor: "transparent" },
   row: { alignItems: "center", backgroundColor: "transparent", borderTopColor: colors.lineSoft, borderTopWidth: 1, flexDirection: "row", gap: 12, minHeight: 58, paddingHorizontal: 14 },
   rowFirst: { borderTopWidth: 0 },
-  rowIcon: { alignItems: "center", backgroundColor: colors.surfaceRaised, borderRadius: 9, height: 30, justifyContent: "center", width: 30 },
+  rowIcon: { alignItems: "center", backgroundColor: "rgba(26,53,80,0.60)", borderRadius: 9, height: 30, justifyContent: "center", width: 30 },
   rowIconDanger: { backgroundColor: "rgba(227,142,124,0.14)" },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.ice, fontSize: 13, fontWeight: "600" },
@@ -266,7 +269,8 @@ const styles = StyleSheet.create({
   accountButton: { alignItems: "center", alignSelf: "center", flexDirection: "row", gap: 9, minHeight: 48 },
   accountButtonText: { color: colors.textSoft, fontSize: 12.5, fontWeight: "700" },
   accountEmail: { color: colors.muted, fontSize: 9.5, marginTop: 2, maxWidth: 260 },
-  logoutButton: { alignItems: "center", alignSelf: "center", borderColor: "rgba(227,142,124,0.45)", borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 8, marginTop: 6, minHeight: 46, paddingHorizontal: 22 },
+  // Destructive: stays warn-tinted (translucent navy fill + warn border), never gold.
+  logoutButton: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(22,39,61,0.55)", borderColor: colors.warnSolid, borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 8, marginTop: 6, minHeight: 46, paddingHorizontal: 22 },
   logoutButtonText: { color: colors.warnSolid, fontSize: 13.5, fontWeight: "700" },
   disclaimer: { color: colors.muted, fontSize: 9.5, lineHeight: 15, textAlign: "center" }
 });

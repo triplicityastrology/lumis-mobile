@@ -69,7 +69,9 @@ import {
 } from "./src/services/localDemoSession";
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
 import { LogoutDialog, NoChartFoundScreen, RestoringSpaceScreen } from "./src/components/AuthSystemKit";
+import { BrandPrimaryButton } from "./src/components/BrandPrimaryButton";
 import { CelestialBackground } from "./src/components/CelestialBackground";
+import { FrostedCard } from "./src/components/FrostedCard";
 import { GeneratingView } from "./src/components/GeneratingView";
 import { LumisPersonaAvatar, PERSONA_AVATARS } from "./src/components/LumisPersonaAvatar";
 import { MainTabBar, type MainTab } from "./src/components/MainTabBar";
@@ -1767,7 +1769,9 @@ function ChartRevealScreen({
         </Text>
 
         <Text style={styles.chartRevealSectionLabel}>YOUR PSYCHOLOGICAL CHART</Text>
-        <View style={styles.chartRevealWheelPanel}>
+        {/* PROF-006 (RULE 1): frosted chart panel — the sky hints through instead
+            of the dark solid fill the founder flagged as "too dark". */}
+        <FrostedCard style={styles.chartRevealWheelPanel} radius={22}>
           <View style={styles.chartRevealWheelCanvas}>
             <NatalChartWheel chart={chart} />
           </View>
@@ -1776,7 +1780,7 @@ function ChartRevealScreen({
               ? "Calculated with your birth time"
               : "Birth time unknown - planets shown without Ascendant, MC, houses, or planet house placements"}
           </Text>
-        </View>
+        </FrostedCard>
 
         <View style={styles.chartRevealPlacements}>
           <BigThreeCard label="Sun" value={formatPlacement(sun)} />
@@ -1788,10 +1792,13 @@ function ChartRevealScreen({
           These placements are the opening notes of your Lumis Persona. You can explore their patterns gently, one conversation at a time.
         </Text>
 
-        <Pressable accessibilityRole="button" onPress={onContinue} style={styles.chartRevealCta}>
-          <Text style={styles.chartRevealCtaText}>{ctaLabel}</Text>
-          <ChevronRight color="#132238" size={19} strokeWidth={2.5} />
-        </Pressable>
+        {/* PROF-006 (RULE 2): "Back to my Sky" gold gradient, not flat yellow. */}
+        <BrandPrimaryButton
+          label={ctaLabel}
+          onPress={onContinue}
+          icon={<ChevronRight color="#1A1206" size={19} strokeWidth={2.5} />}
+          style={styles.chartRevealCta}
+        />
       </ScrollView>
     </SafeAreaViewCtx>
   );
@@ -2551,10 +2558,13 @@ function PastReflectionsScreen({
           {(hasLocalDemoSession || accountSource === "supabase") && profileData ? (
             visibleThreads.length > 0 ? (
               <>
-                <Pressable style={styles.reflectionsNewTopic} onPress={onStartNewTopic}>
-                  <Plus color="#071321" size={18} />
-                  <Text style={styles.reflectionsNewTopicText}>Start a new topic</Text>
-                </Pressable>
+                {/* REFL-001 (RULE 2): "Start a new topic" gold gradient. */}
+                <BrandPrimaryButton
+                  label="Start a new topic"
+                  onPress={onStartNewTopic}
+                  iconLeft={<Plus color="#1A1206" size={18} />}
+                  style={styles.reflectionsNewTopic}
+                />
 
                 <View style={styles.reflectionsSearch}>
                   <Search color="#71839A" size={18} />
@@ -2574,7 +2584,8 @@ function PastReflectionsScreen({
                 </View>
 
                 {filteredThreads.length > 0 ? (
-                  <View style={styles.reflectionsList}>
+                  /* REFL-001 (RULE 1): one frosted-glass wrapper; rows stay transparent inside. */
+                  <FrostedCard style={styles.reflectionsList} radius={16}>
                     {filteredThreads.map((thread, index) => {
                       const latestTurn = thread.turns[thread.turns.length - 1];
                       const preview = latestTurn?.result?.reply ?? latestTurn?.userMessage ?? "Continue your reflection with Lumis.";
@@ -2621,7 +2632,7 @@ function PastReflectionsScreen({
                         </Pressable>
                       );
                     })}
-                  </View>
+                  </FrostedCard>
                 ) : (
                   <View style={styles.reflectionsNoResults}>
                     <Text style={styles.reflectionThreadTitle}>No matching reflections</Text>
@@ -2634,7 +2645,8 @@ function PastReflectionsScreen({
 
                 <View style={styles.savedInsightsSection}>
                   <Text style={styles.reflectionsSectionLabel}>SAVED INSIGHTS</Text>
-                  <View style={styles.savedInsightsEmpty}>
+                  {/* REFL-001 (RULE 1): note-tier frosted glass. */}
+                  <FrostedCard style={styles.savedInsightsEmpty} tier="tertiary" radius={14}>
                     <Sparkles color="#C9A96E" size={19} />
                     <View style={styles.reflectionThreadCopy}>
                       <Text style={styles.reflectionThreadTitle}>Nothing saved yet</Text>
@@ -2642,7 +2654,7 @@ function PastReflectionsScreen({
                         Saved Insights will appear here after this feature becomes available.
                       </Text>
                     </View>
-                  </View>
+                  </FrostedCard>
                 </View>
               </>
             ) : (
@@ -2773,11 +2785,12 @@ function NotificationBellIcon({ size = 22 }: { size?: number }) {
 }
 
 function BigThreeCard({ label, value }: { label: string; value: string }) {
+  // PROF-006 (RULE 1): Sun/Moon summary cards are frosted glass, not solid navy.
   return (
-    <View style={styles.bigThreeCard}>
+    <FrostedCard style={styles.bigThreeCard} tier="secondary" radius={14}>
       <Text style={styles.bigThreeLabel}>{label}</Text>
       <Text style={styles.bigThreeValue}>{value}</Text>
-    </View>
+    </FrostedCard>
   );
 }
 
@@ -4500,17 +4513,20 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   chartRevealEyebrow: {
-    color: "#E0B45D",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    marginTop: 8
+    color: "#D7B978",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.6,
+    marginTop: 8,
+    textTransform: "uppercase"
   },
+  // PROF-006: display serif (Georgia) weight 500 — fixes the "strange" heavy sans.
   chartRevealTitle: {
-    color: "#FFF5E8",
-    fontSize: 31,
-    fontWeight: "800",
-    lineHeight: 38
+    color: "#F0F4F8",
+    fontFamily: "Georgia",
+    fontSize: 28,
+    fontWeight: "500",
+    lineHeight: 35
   },
   chartRevealIntro: {
     color: "rgba(247,235,221,0.78)",
@@ -4525,11 +4541,9 @@ const styles = StyleSheet.create({
     marginTop: 10
   },
   chartRevealWheelPanel: {
+    // Fill/blur/border/clip provided by FrostedCard (RULE 1).
     alignItems: "center",
-    backgroundColor: "rgba(8,19,34,0.66)",
-    borderColor: "rgba(224,180,93,0.32)",
-    borderRadius: 8,
-    borderWidth: 1,
+    backgroundColor: "transparent",
     padding: 14
   },
   chartRevealWheelCanvas: {
@@ -4549,10 +4563,8 @@ const styles = StyleSheet.create({
     gap: 8
   },
   bigThreeCard: {
-    backgroundColor: "rgba(9,21,37,0.64)",
-    borderColor: "rgba(247,235,221,0.18)",
-    borderRadius: 8,
-    borderWidth: 1,
+    // Fill/blur/border/clip provided by FrostedCard (secondary tier).
+    backgroundColor: "transparent",
     flex: 1,
     minHeight: 76,
     padding: 12
@@ -4578,18 +4590,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   chartRevealCta: {
-    alignItems: "center",
-    backgroundColor: "#F2C86F",
-    borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    minHeight: 54,
-    paddingHorizontal: 20
-  },
-  chartRevealCtaText: {
-    color: "#132238",
-    fontSize: 16,
-    fontWeight: "800"
+    // Gradient provided by BrandPrimaryButton (RULE 2).
+    marginTop: 4
   },
   lumisDarkSafe: {
     backgroundColor: "transparent",
@@ -4721,14 +4723,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28
   },
   reflectionsNewTopic: {
-    alignItems: "center",
-    backgroundColor: "#D7B978",
-    borderRadius: 16,
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "center",
-    minHeight: 50,
-    paddingHorizontal: 18
+    borderRadius: 16
   },
   reflectionsNewTopicText: {
     color: "#071321",
@@ -4782,11 +4777,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1
   },
   reflectionsList: {
-    backgroundColor: "#16273D",
-    borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden"
+    // Fill/blur/border/clip provided by FrostedCard (RULE 1 frosted glass).
+    backgroundColor: "transparent"
   },
   reflectionThreadIcon: {
     alignItems: "center",
@@ -4898,11 +4890,9 @@ const styles = StyleSheet.create({
     marginTop: 12
   },
   savedInsightsEmpty: {
+    // Fill/blur/border/clip provided by FrostedCard (tertiary tier).
     alignItems: "center",
-    backgroundColor: "#13233A",
-    borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 10,
-    borderWidth: 1,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 12,
     padding: 16

@@ -7,32 +7,28 @@ const profile = readFileSync(
   "utf8"
 );
 
-const profileRows = styleBlock(profile, "rows");
-assert.match(profileRows, /backgroundColor: colors\.surface/);
-assert.match(profileRows, /borderWidth: 1/);
-assert.match(profileRows, /overflow: "hidden"/);
+// RULE 1: profile groups are frosted glass (fill/clip via FrostedCard); rows stay
+// transparent inside, and the note renders below the group in normal flow.
+assert.match(styleBlock(profile, "rows"), /backgroundColor: "transparent"/);
+assert.match(profile, /<FrostedCard style=\{styles\.rows\} radius=\{18\}>/);
 assert.match(styleBlock(profile, "row"), /backgroundColor: "transparent"/);
-// The group's rows render inside the opaque `styles.rows` wrapper, and the note
-// (helper/disclaimer text) renders directly after it in normal layout flow — so
-// it sits below the group and never ghosts through the card.
 assert.match(
   profile,
-  /<View style=\{styles\.rows\}>[\s\S]*?<\/View>\s*\{note \? <Text style=\{styles\.sectionNote\}>\{note\}<\/Text>/
+  /<FrostedCard style=\{styles\.rows\}[\s\S]*?<\/FrostedCard>\s*\{note \? <Text style=\{styles\.sectionNote\}>\{note\}<\/Text>/
 );
 assert.doesNotMatch(styleBlock(profile, "sectionNote"), /position: "absolute"|zIndex/);
 
-const list = styleBlock(app, "reflectionsList");
-assert.match(list, /backgroundColor: "#16273D"/);
-assert.match(list, /borderWidth: 1/);
-assert.match(list, /overflow: "hidden"/);
+// REFL list is one frosted wrapper; rows stay transparent inside it.
+assert.match(styleBlock(app, "reflectionsList"), /backgroundColor: "transparent"/);
+assert.match(app, /<FrostedCard style=\{styles\.reflectionsList\} radius=\{16\}>/);
 assert.match(styleBlock(app, "reflectionThreadCard"), /backgroundColor: "transparent"/);
 assert.doesNotMatch(styleBlock(app, "reflectionThreadCard"), /borderRadius|borderWidth/);
 assert.match(styleBlock(app, "reflectionThreadCardDivided"), /rgba\(255,255,255,0\.05\)/);
-assert.match(styleBlock(app, "savedInsightsEmpty"), /backgroundColor: "#13233A"/);
+assert.match(styleBlock(app, "savedInsightsEmpty"), /backgroundColor: "transparent"/);
 assert.match(styleBlock(app, "reflectionsSearch"), /backgroundColor: "transparent"/);
 assert.match(
   app,
-  /<View style=\{styles\.reflectionsList\}>[\s\S]{0,800}styles\.reflectionThreadCardDivided/
+  /<FrostedCard style=\{styles\.reflectionsList\}[\s\S]{0,900}styles\.reflectionThreadCardDivided/
 );
 
 console.log("Profile and Past Reflections containment contract passed");

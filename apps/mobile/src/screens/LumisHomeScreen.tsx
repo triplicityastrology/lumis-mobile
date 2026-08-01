@@ -14,6 +14,7 @@ import type { ChartV2 } from "@lumis/shared";
 
 import { LinearGradient } from "expo-linear-gradient";
 
+import { FrostedCard } from "../components/FrostedCard";
 import { MainTabBar } from "../components/MainTabBar";
 import { MiniChartWheel } from "../components/MiniChartWheel";
 import { NatalWheel } from "../components/NatalWheel";
@@ -78,32 +79,36 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
             <Text style={styles.greetingBody}>What would you like to understand today?</Text>
           </View>
 
-          <Pressable style={styles.chartCard} onPress={props.onInsights}>
-            <View style={styles.chartWheelWrap}>
-              {/* HOME-002: real data-driven wheel (not the decorative placeholder). */}
-              <NatalWheel chart={props.chart} size={92} />
-            </View>
-            <View style={styles.chartCardBody}>
-              <Text style={styles.chartLabel}>YOUR BIRTH CHART</Text>
-              <View style={styles.placementRow}>
-                <Placement glyph={"☉︎"} value={sun?.sign ?? "Sun"} />
-                <Placement glyph={"☽︎"} value={moon?.sign ?? "Moon"} />
-                {rising ? <Placement glyph="ASC" value={rising.sign} compact /> : null}
+          <Pressable onPress={props.onInsights}>
+            {/* HOME-002 (RULE 1): genuine frosted glass — sky hints through. */}
+            <FrostedCard style={styles.chartCard} radius={radii.lg}>
+              <View style={styles.chartWheelWrap}>
+                {/* HOME-002: real data-driven wheel (not the decorative placeholder). */}
+                <NatalWheel chart={props.chart} size={92} />
               </View>
-              <Text style={styles.chartNote}>
-                {props.chart.precision === "full"
-                  ? "Birth time confirmed · Houses and angles included"
-                  : "Unknown birth time · Timed placements are hidden"}
-              </Text>
-            </View>
-            <ChevronRight color={colors.muted} size={19} />
+              <View style={styles.chartCardBody}>
+                <Text style={styles.chartLabel}>YOUR BIRTH CHART</Text>
+                <View style={styles.placementRow}>
+                  <Placement glyph={"☉︎"} value={sun?.sign ?? "Sun"} />
+                  <Placement glyph={"☽︎"} value={moon?.sign ?? "Moon"} />
+                  {rising ? <Placement glyph="ASC" value={rising.sign} compact /> : null}
+                </View>
+                <Text style={styles.chartNote}>
+                  {props.chart.precision === "full"
+                    ? "Birth time confirmed · Houses and angles included"
+                    : "Unknown birth time · Timed placements are hidden"}
+                </Text>
+              </View>
+              <ChevronRight color={colors.muted} size={19} />
+            </FrostedCard>
           </Pressable>
 
           <Pressable style={styles.primaryAction} onPress={props.onOpenChat}>
+            {/* HOME-002 (RULE 2): "Talk with Lumis" gold gradient (#C9A96E→#D7B978→#E5C58A). */}
             <LinearGradient
-              colors={["#C9A96E", "#D7B978"]}
-              end={{ x: 1, y: 0.2 }}
-              locations={[0, 0.6]}
+              colors={["#C9A96E", "#D7B978", "#E5C58A"]}
+              end={{ x: 1, y: 0.35 }}
+              locations={[0, 0.55, 1]}
               start={{ x: 0, y: 0 }}
               style={styles.primaryActionGradient}
             >
@@ -118,19 +123,22 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
             </LinearGradient>
           </Pressable>
 
-          <Pressable style={styles.reflectionCard} onPress={props.onPastReflections}>
-            <View style={styles.secondaryIcon}>
-              <History color={colors.periwinkle} size={20} />
-            </View>
-            <View style={styles.actionCopy}>
-              <Text style={styles.reflectionTitle}>Past Reflections</Text>
-              <Text style={styles.reflectionBody}>
-                {props.reflectionCount > 0
-                  ? `${props.reflectionCount} saved conversation${props.reflectionCount === 1 ? "" : "s"}`
-                  : "Your saved conversations will appear here"}
-              </Text>
-            </View>
-            <ChevronRight color={colors.muted} size={19} />
+          <Pressable onPress={props.onPastReflections}>
+            {/* HOME-002 (RULE 1): secondary CTA is a frosted card, not solid navy. */}
+            <FrostedCard style={styles.reflectionCard} radius={radii.lg}>
+              <View style={styles.secondaryIcon}>
+                <History color={colors.periwinkle} size={20} />
+              </View>
+              <View style={styles.actionCopy}>
+                <Text style={styles.reflectionTitle}>Past Reflections</Text>
+                <Text style={styles.reflectionBody}>
+                  {props.reflectionCount > 0
+                    ? `${props.reflectionCount} saved conversation${props.reflectionCount === 1 ? "" : "s"}`
+                    : "Your saved conversations will appear here"}
+                </Text>
+              </View>
+              <ChevronRight color={colors.muted} size={19} />
+            </FrostedCard>
           </Pressable>
 
           <View style={styles.statusLine}>
@@ -306,7 +314,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.accent, fontSize: 10, fontWeight: "700", letterSpacing: 1.8, marginBottom: 11 },
   greeting: { color: colors.ice, fontFamily: "Georgia", fontSize: 29, lineHeight: 35 },
   greetingBody: { color: colors.textSoft, fontSize: 14, lineHeight: 21, marginTop: 7 },
-  chartCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radii.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  chartCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   chartWheelWrap: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
   chartCardBody: { flex: 1, minWidth: 0 },
   chartLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4, marginBottom: 9 },
@@ -322,8 +330,8 @@ const styles = StyleSheet.create({
   actionCopy: { flex: 1, minWidth: 0 },
   primaryActionTitle: { color: colors.navy950, fontSize: 16, fontWeight: "700" },
   primaryActionBody: { color: colors.navy800, fontSize: 11.5, lineHeight: 17, marginTop: 3 },
-  reflectionCard: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 13, padding: 15, borderRadius: radii.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  secondaryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#1A3550" },
+  reflectionCard: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 13, padding: 15 },
+  secondaryIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(26,53,80,0.60)" },
   reflectionTitle: { color: colors.ice, fontSize: 15, fontWeight: "700" },
   reflectionBody: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 3 },
   statusLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 5, paddingTop: 4 },

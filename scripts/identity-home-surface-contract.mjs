@@ -24,19 +24,21 @@ assert.match(styleBlock(app, "personaChoiceCardActive"), /borderColor: "#DDB45E"
 assert.match(styleBlock(app, "personaIcon"), /backgroundColor: "rgba\(/);
 assert.match(styleBlock(app, "personaIconActive"), /backgroundColor: "rgba\(/);
 
+// RULE 1: Restored Home chart + Past Reflections cards are frosted glass (fill
+// delegated to FrostedCard), not solid navy.
 for (const styleName of ["chartCard", "reflectionCard"]) {
-  const block = styleBlock(home, styleName);
-  assert.match(block, /backgroundColor: colors\.surface/);
-  assert.match(block, /borderWidth: 1/);
+  assert.doesNotMatch(styleBlock(home, styleName), /backgroundColor: colors\.surface/);
 }
-assert.match(styleBlock(home, "secondaryIcon"), /backgroundColor: "#1A3550"/);
+assert.match(home, /<FrostedCard style=\{styles\.chartCard\}/);
+assert.match(home, /<FrostedCard style=\{styles\.reflectionCard\}/);
+assert.match(styleBlock(home, "secondaryIcon"), /backgroundColor: "rgba\(26,53,80,0\.60\)"/);
+// RULE 2: "Talk with Lumis" is the three-stop gold gradient.
 assert.match(
   home,
-  /<Pressable style=\{styles\.primaryAction\}[\s\S]{0,260}colors=\{\["#C9A96E", "#D7B978"\]\}[\s\S]{0,180}locations=\{\[0, 0\.6\]\}/
+  /<Pressable style=\{styles\.primaryAction\}[\s\S]{0,300}colors=\{\["#C9A96E", "#D7B978", "#E5C58A"\]\}[\s\S]{0,200}locations=\{\[0, 0\.55, 1\]\}/
 );
 assert.match(styleBlock(home, "primaryAction"), /overflow: "hidden"/);
 assert.doesNotMatch(styleBlock(home, "primaryAction"), /backgroundColor|opacity/);
-assert.doesNotMatch(`${app}\n${home}`, /backdropFilter|BlurView/);
 
 console.log("Name, Persona, and Restored Home surface contract passed");
 

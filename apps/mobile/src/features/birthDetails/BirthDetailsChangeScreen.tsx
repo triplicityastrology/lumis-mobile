@@ -1,21 +1,24 @@
 import { randomUUID } from "expo-crypto";
+import ArrowRight from "lucide-react-native/icons/arrow-right";
 import { useEffect, useRef, useState } from "react";
 import {
-  BackHandler, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
+  BackHandler, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
 
 import { colors, radii, spacing } from "../../theme/tokens";
+import { BrandPrimaryButton } from "../../components/BrandPrimaryButton";
+import { FrostedCard } from "../../components/FrostedCard";
 import { NatalWheel } from "../../components/NatalWheel";
 import { RegeneratingView } from "./RegeneratingView";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
 import {
+  formatBirthTimePickerValue,
   parseBirthTimePickerValue,
-  resolveBirthTimePickerCommit,
 } from "./birthTimePicker";
 import { WheelPicker } from "./WheelPicker";
 import { BIRTH_CHANGE_LIMIT, resolveBirthChangeQuota } from "../../services/birthChangeQuota";
@@ -39,8 +42,6 @@ function bigThree(chart: ChartV2) {
 
 /* ---------- date/time <-> string helpers (native pickers guarantee validity) ---------- */
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 function parseDate(iso: string): Date {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
   if (m) {
@@ -53,10 +54,6 @@ function formatDate(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${mm}-${dd}`;
-}
-function displayDate(iso: string): string {
-  const d = parseDate(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 /**
  * Birth Details change flow (AC-UX-13). Display → edit → confirm (with diff) →
@@ -83,11 +80,11 @@ export function BirthDetailsChangeScreen({
 }) {
   const remaining = resolveBirthChangeQuota(successfulChanges).remainingChanges;
   const [step, setStep] = useState<Step>("display");
+  // PROF-003: the edit flow is a 3-step wizard (date → time → place).
+  const [editStep, setEditStep] = useState<1 | 2 | 3>(1);
   const [draft, setDraft] = useState<BirthDetails>(
     details ?? { birthDate: "", birthTime: "", birthPlace: "", timeUnknown: false }
   );
-  const [picker, setPicker] = useState<"date" | "time" | null>(null);
-  const [pickerValue, setPickerValue] = useState<Date | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
@@ -110,49 +107,24 @@ export function BirthDetailsChangeScreen({
     requestIdRef.current = null;
     setFormError(null);
     setFailureMessage(null);
+    // Re-seed the draft from the saved details every time the wizard opens, so a
+    // previously abandoned edit can never leak into a new session.
     setDraft(details ?? draft);
+    setEditStep(1);
     setStep("edit");
-  }
-
-  function openPicker(nextPicker: "date" | "time") {
-    setPickerValue(
-      nextPicker === "date"
-        ? parseDate(draft.birthDate)
-        : parseBirthTimePickerValue(draft.birthTime)
-    );
-    setPicker(nextPicker);
-  }
-
-  function closePicker() {
-    setPicker(null);
-    setPickerValue(null);
-  }
-
-  function commitPicker() {
-    if (!picker || !pickerValue) {
-      closePicker();
-      return;
-    }
-
-    if (picker === "date") {
-      updateDraft((current) => ({ ...current, birthDate: formatDate(pickerValue) }));
-    } else {
-      updateDraft((current) => ({
-        ...current,
-        birthTime: resolveBirthTimePickerCommit({
-          currentValue: current.birthTime,
-          stagedValue: pickerValue,
-          accepted: true,
-        }),
-      }));
-    }
-    closePicker();
   }
 
   function handleBack() {
     if (step === "regenerating") return;
     if (step === "display") {
       onBack();
+      return;
+    }
+    // Within the wizard, Back steps to the previous step; from step 1 it exits
+    // the wizard without committing any staged value.
+    if (step === "edit" && editStep > 1) {
+      setFormError(null);
+      setEditStep((current) => (current === 3 ? 2 : 1));
       return;
     }
     clearTimers();
@@ -166,7 +138,7 @@ export function BirthDetailsChangeScreen({
       return true;
     });
     return () => subscription.remove();
-  }, [step, onBack]);
+  }, [step, editStep, onBack]);
 
   const dirty = details
     ? draft.birthDate !== details.birthDate ||
@@ -289,90 +261,103 @@ export function BirthDetailsChangeScreen({
         ) : null}
 
         {step === "edit" ? (
-          <>
-            <Text style={s.eyebrow}>✦ EDIT</Text>
-            <Text style={s.editTitle}>Your birth details</Text>
-            <Text style={s.editIntro}>
-              Review each detail carefully. A confirmed change regenerates your chart while keeping Past Reflections saved.
-            </Text>
-            <View style={s.editCountRow}>
-              <Text style={s.editCount}>{remaining} of {BIRTH_CHANGE_LIMIT} lifetime changes remaining</Text>
-            </View>
+          <View style={s.wizard}>
+            <Text style={s.eyebrow}>✦ STEP {editStep} · 3</Text>
+            <ProgressDots active={editStep} />
 
-            <PickerRow label="Birth date" value={draft.birthDate ? displayDate(draft.birthDate) : "Choose date"} onPress={() => openPicker("date")} />
-            {!draft.timeUnknown ? (
-              <PickerRow label="Birth time" value={draft.birthTime || "Choose time"} onPress={() => openPicker("time")} />
-            ) : null}
-            <View style={s.toggleRow}>
-              <Text style={s.fieldLabel}>I don't know my birth time</Text>
-              <Switch
-                accessibilityLabel="I don't know my birth time"
-                accessibilityRole="switch"
-                accessibilityState={{ checked: draft.timeUnknown }}
-                value={draft.timeUnknown}
-                onValueChange={(v) => updateDraft((current) => ({ ...current, timeUnknown: v }))}
-                trackColor={{ false: "rgba(255,255,255,0.12)", true: "rgba(215,185,120,0.6)" }}
-                thumbColor={colors.ice}
-              />
-            </View>
-            {draft.timeUnknown ? (
-              <Text style={s.toggleNote}>Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements.</Text>
-            ) : (
-              <View style={s.accuracyNote}>
-                <Text style={s.accuracyNoteTitle}>Why time matters</Text>
-                <Text style={s.accuracyNoteBody}>Your birth time positions the Ascendant, MC, houses, and planet-house placements.</Text>
-              </View>
-            )}
-            <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => updateDraft((current) => ({ ...current, birthPlace: v }))} placeholder="Search city, e.g. Hong Kong" />
             {formError ? (
-              <Text
-                accessibilityLiveRegion="assertive"
-                accessibilityRole="alert"
-                style={s.formError}
-              >
+              <Text accessibilityLiveRegion="assertive" accessibilityRole="alert" style={s.formError}>
                 {formError}
               </Text>
             ) : null}
 
-            <BrandButton label="Review change" onPress={() => setStep("confirm")} disabled={!dirty || !valid} style={{ marginTop: 22 }} />
-            {!dirty ? <Text style={s.hintNote}>Change a value to continue.</Text> : null}
-
-            {/* PROF-003 design wheel (Month/Day/Year · Hour/Minute/AM·PM) in a
-                Done/Cancel sheet. The staged value is read from the snapped wheel
-                position, so any field can change (no 8am lock); Done commits it,
-                Cancel/scrim keeps the previously saved value. */}
-            {picker ? (
-              <Modal transparent animationType="slide" onRequestClose={closePicker}>
-                <Pressable accessibilityLabel="Cancel picker" style={s.pickerScrim} onPress={closePicker} />
-                <View
-                  accessibilityLabel={picker === "date" ? "Birth date picker" : "Birth time picker"}
-                  accessibilityViewIsModal
-                  style={s.pickerSheet}
-                >
-                  <View style={s.pickerBar}>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Cancel" onPress={closePicker} hitSlop={8}>
-                      <Text style={s.pickerCancel}>Cancel</Text>
-                    </Pressable>
-                    <Text style={s.pickerTitle}>{picker === "date" ? "Birth date" : "Birth time"}</Text>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Done" onPress={commitPicker} hitSlop={8}>
-                      <Text style={s.pickerDone}>Done</Text>
-                    </Pressable>
-                  </View>
+            {editStep === 1 ? (
+              <>
+                <Text style={s.wizardTitle}>When were you born?</Text>
+                <Text style={s.editIntro}>
+                  {remaining} of {BIRTH_CHANGE_LIMIT} lifetime changes remaining. Saving will regenerate your chart.
+                </Text>
+                {/* PROF-003 (RULE 1): inline Month/Day/Year wheel on frosted glass.
+                    The staged value is read from the snapped wheel, so any field can
+                    change (no 8am/first-item lock). */}
+                <FrostedCard style={s.wheelPanel} radius={20}>
                   <WheelPicker
-                    mode={picker}
-                    value={pickerValue ?? (picker === "date" ? parseDate(draft.birthDate) : parseBirthTimePickerValue(draft.birthTime))}
-                    maximumDate={picker === "date" ? new Date() : undefined}
-                    onChange={(selected) => setPickerValue(new Date(selected.getTime()))}
+                    mode="date"
+                    value={parseDate(draft.birthDate)}
+                    maximumDate={new Date()}
+                    onChange={(selected) => updateDraft((current) => ({ ...current, birthDate: formatDate(new Date(selected.getTime())) }))}
                   />
-                  <View style={s.wheelCaps}>
-                    {(picker === "date" ? ["MONTH", "DAY", "YEAR"] : ["HOUR", "MIN", "AM / PM"]).map((cap) => (
-                      <Text key={cap} style={s.wheelCap}>{cap}</Text>
-                    ))}
-                  </View>
-                </View>
-              </Modal>
-            ) : null}
-          </>
+                  <WheelCaps caps={["MONTH", "DAY", "YEAR"]} />
+                </FrostedCard>
+                <BrandPrimaryButton
+                  label="Continue"
+                  onPress={() => setEditStep(2)}
+                  icon={<ArrowRight color="#1A1206" size={19} />}
+                  style={s.wizardCta}
+                />
+              </>
+            ) : editStep === 2 ? (
+              <>
+                <Text style={s.wizardTitle}>What time were you born?</Text>
+                <Text style={s.editIntro}>
+                  Your birth time positions the Ascendant, MC, houses, and planet-house placements.
+                </Text>
+                {!draft.timeUnknown ? (
+                  <FrostedCard style={s.wheelPanel} radius={20}>
+                    <WheelPicker
+                      mode="time"
+                      value={parseBirthTimePickerValue(draft.birthTime)}
+                      onChange={(selected) => updateDraft((current) => ({ ...current, birthTime: formatBirthTimePickerValue(new Date(selected.getTime())) }))}
+                    />
+                    <WheelCaps caps={["HOUR", "MIN", "AM / PM"]} />
+                  </FrostedCard>
+                ) : null}
+                <FrostedCard style={s.toggleRow} radius={radii.md}>
+                  <Text style={s.fieldLabel}>I don't know my birth time</Text>
+                  <Switch
+                    accessibilityLabel="I don't know my birth time"
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: draft.timeUnknown }}
+                    value={draft.timeUnknown}
+                    onValueChange={(v) => updateDraft((current) => ({ ...current, timeUnknown: v }))}
+                    trackColor={{ false: "rgba(255,255,255,0.12)", true: "rgba(215,185,120,0.6)" }}
+                    thumbColor={colors.ice}
+                  />
+                </FrostedCard>
+                {draft.timeUnknown ? (
+                  <Text style={s.toggleNote}>Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements.</Text>
+                ) : null}
+                <BrandPrimaryButton
+                  label="Continue"
+                  onPress={() => {
+                    // Commit the wheel's shown value even if the user never scrolled
+                    // (the displayed time IS the staged time) — never a silent reset.
+                    if (!draft.timeUnknown && !draft.birthTime.trim()) {
+                      updateDraft((current) => ({ ...current, birthTime: formatBirthTimePickerValue(parseBirthTimePickerValue(current.birthTime)) }));
+                    }
+                    setEditStep(3);
+                  }}
+                  icon={<ArrowRight color="#1A1206" size={19} />}
+                  style={s.wizardCta}
+                />
+              </>
+            ) : (
+              <>
+                <Text style={s.wizardTitle}>Where were you born?</Text>
+                <Text style={s.editIntro}>
+                  A confirmed change regenerates your chart while keeping your Past Reflections saved.
+                </Text>
+                <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => updateDraft((current) => ({ ...current, birthPlace: v }))} placeholder="Search city, e.g. Hong Kong" />
+                <BrandPrimaryButton
+                  label="Save & regenerate chart"
+                  onPress={() => setStep("confirm")}
+                  disabled={!dirty || !valid}
+                  style={s.wizardCta}
+                />
+                {!dirty ? <Text style={s.hintNote}>Change a value to continue.</Text> : null}
+              </>
+            )}
+          </View>
         ) : null}
 
         {step === "success" ? (
@@ -459,15 +444,25 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
   );
 }
 
-function PickerRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+/** PROF-003 wizard progress indicator (3 dots; the active step is a gold pill). */
+function ProgressDots({ active }: { active: 1 | 2 | 3 }) {
   return (
-    <Pressable onPress={onPress} style={s.pickerField} accessibilityRole="button" accessibilityLabel={`${label}: ${value}`}>
-      <Text style={s.fieldLabel}>{label}</Text>
-      <View style={s.pickerValueRow}>
-        <Text style={s.pickerValue}>{value}</Text>
-        <Text style={s.pickerChevron}>›</Text>
-      </View>
-    </Pressable>
+    <View style={s.dotsRow} accessibilityLabel={`Step ${active} of 3`}>
+      {[1, 2, 3].map((n) => (
+        <View key={n} style={[s.dot, n === active ? s.dotOn : n < active ? s.dotDone : s.dotOff]} />
+      ))}
+    </View>
+  );
+}
+
+/** 3-column caption row beneath a wheel (e.g. MONTH · DAY · YEAR). */
+function WheelCaps({ caps }: { caps: string[] }) {
+  return (
+    <View style={s.wheelCaps}>
+      {caps.map((cap) => (
+        <Text key={cap} style={s.wheelCap}>{cap}</Text>
+      ))}
+    </View>
   );
 }
 
@@ -529,7 +524,17 @@ const s = StyleSheet.create({
   big3Note: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 12, textAlign: "center" },
   fieldLabel: { color: colors.muted, fontSize: 12, fontWeight: "600", marginBottom: 6 },
   input: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, color: colors.ice, fontSize: 15, minHeight: 50, paddingHorizontal: 14 },
-  toggleRow: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.26)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, flexDirection: "row", justifyContent: "space-between", marginTop: 16, minHeight: 54, paddingHorizontal: 14 },
+  // Fill/blur/border provided by FrostedCard (RULE 1).
+  toggleRow: { alignItems: "center", backgroundColor: "transparent", flexDirection: "row", justifyContent: "space-between", marginTop: 16, minHeight: 54, paddingHorizontal: 14 },
+  wizard: { gap: 0 },
+  wizardTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 28, fontWeight: "500", lineHeight: 34, marginTop: 4 },
+  wizardCta: { marginTop: 24 },
+  wheelPanel: { alignItems: "stretch", marginTop: 18, paddingHorizontal: 10, paddingVertical: 10 },
+  dotsRow: { flexDirection: "row", gap: 7, marginBottom: 16, marginTop: 4 },
+  dot: { borderRadius: 3, height: 6 },
+  dotOn: { backgroundColor: colors.accent, width: 22 },
+  dotDone: { backgroundColor: "rgba(215,185,120,0.55)", width: 6 },
+  dotOff: { backgroundColor: "rgba(255,255,255,0.16)", width: 6 },
   toggleNote: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 8 },
   accuracyNote: { backgroundColor: "rgba(201,169,110,0.08)", borderColor: "rgba(215,185,120,0.22)", borderRadius: radii.md, borderWidth: 1, marginTop: 12, padding: 14 },
   accuracyNoteTitle: { color: colors.goldLight, fontFamily: "Georgia", fontSize: 14 },
