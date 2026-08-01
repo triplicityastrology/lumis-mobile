@@ -54,7 +54,8 @@ async function setup(client) {
     created.push(await createUser(client, "caree", input.careeEmail, input.careePassword));
     created.push(await createUser(client, "carer", input.carerEmail, input.carerPassword));
     await prepareCapabilities(client, created[0], created[1]);
-    process.stdout.write(`S2_T75_SETUP_READY\nrun_id=${runId}\naccounts_created=2\ncredentials_stored=0\n`);
+    await verifyCapabilities(client, created[0], created[1]);
+    process.stdout.write(`S2_T75_SETUP_READY\nrun_id=${runId}\naccounts_created=2\naccount_modes_verified=2\ncredentials_stored=0\n`);
   } catch (error) {
     await removeUsers(client, created);
     throw error;
@@ -111,6 +112,38 @@ async function prepareCapabilities(client, careeId, carerId) {
     grace_hours: 24,
     timezone: "Etc/UTC"
   }));
+}
+
+async function verifyCapabilities(client, careeId, carerId) {
+  const { data: users, error: userError } = await client
+    .from("users")
+    .select("id,account_mode")
+    .in("id", [careeId, carerId]);
+  if (userError || !Array.isArray(users) || users.length !== 2) {
+    throw new Error("STOP_S2_T75_CAPABILITY_VERIFY_FAILED");
+  }
+  const modes = new Map(users.map((user) => [user.id, user.account_mode]));
+  if (modes.get(careeId) !== "standard" || modes.get(carerId) !== "carer_only") {
+    throw new Error("STOP_S2_T75_CAPABILITY_VERIFY_FAILED");
+  }
+  const { count: entitlementCount, error: entitlementError } = await client
+    .from("account_entitlements")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", careeId)
+    .eq("status", "active");
+  const { count: settingsCount, error: settingsError } = await client
+    .from("care_check_settings")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", careeId)
+    .eq("enabled", false);
+  if (
+    entitlementError ||
+    settingsError ||
+    entitlementCount !== 1 ||
+    settingsCount !== 1
+  ) {
+    throw new Error("STOP_S2_T75_CAPABILITY_VERIFY_FAILED");
+  }
 }
 
 async function findRunUsers(client) {

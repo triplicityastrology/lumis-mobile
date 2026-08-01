@@ -76,6 +76,8 @@ assert.throws(() => validateExactRunPair(discovered.slice(0, 1)), /STOP_S2_T75_R
 const runner = readFileSync("scripts/s2-care-circle-two-account-operator.mjs", "utf8");
 const wrapper = readFileSync("scripts/run-s2-care-circle-two-account-operator.sh", "utf8");
 assert.match(runner, /accounts_created=2/);
+assert.match(runner, /account_modes_verified=2/);
+assert.match(runner, /verifyCapabilities/);
 assert.match(runner, /auth_accounts_remaining=0/);
 assert.match(runner, /run_rows_remaining=0/);
 assert.match(runner, /s2_evidence_run_id/);
