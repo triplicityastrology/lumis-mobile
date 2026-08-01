@@ -9,7 +9,7 @@ import {
 
 const DEFAULT_GOLD = "#E8C98D";
 
-export function ChatThinkingIndicator({ color = DEFAULT_GOLD }: { color?: string }) {
+export function ChatThinkingIndicator() {
   const [reduceMotion, setReduceMotion] = useState(false);
   const breathe = useRef(new Animated.Value(0)).current;
   const orbit = useRef(new Animated.Value(0)).current;
@@ -96,16 +96,16 @@ export function ChatThinkingIndicator({ color = DEFAULT_GOLD }: { color?: string
       <Animated.View
         style={[
           styles.coreGlow,
-          { backgroundColor: `${color}2E`, shadowColor: color },
+          { backgroundColor: `${DEFAULT_GOLD}2E`, shadowColor: DEFAULT_GOLD },
           coreStyle,
         ]}
       >
-        <View style={[styles.core, { backgroundColor: color }]} />
+        <View style={[styles.core, { backgroundColor: DEFAULT_GOLD }]} />
       </Animated.View>
       <Animated.View style={[styles.orbit, orbitStyle]}>
-        <OrbitSpark angle="0deg" color={color} opacity={1} />
-        <OrbitSpark angle="120deg" color={color} opacity={0.72} />
-        <OrbitSpark angle="240deg" color={color} opacity={0.48} />
+        <OrbitSpark angle="0deg" color={DEFAULT_GOLD} opacity={1} />
+        <OrbitSpark angle="120deg" color={DEFAULT_GOLD} opacity={0.72} />
+        <OrbitSpark angle="240deg" color={DEFAULT_GOLD} opacity={0.48} />
       </Animated.View>
     </View>
   );

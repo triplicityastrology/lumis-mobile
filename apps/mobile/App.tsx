@@ -2210,7 +2210,7 @@ function ChatShellScreen({
                       accessibilityLiveRegion="polite"
                       style={styles.chatThinkingRow}
                     >
-                      <ChatThinkingIndicator color={personaTreatment.accentColor} />
+                      <ChatThinkingIndicator />
                       <Text style={styles.messageTextLumis}>Reflecting...</Text>
                     </View>
                   </View>
