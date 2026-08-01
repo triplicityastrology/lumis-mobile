@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 import {
+  discoverExactRunUsers,
   TWO_ACCOUNT_PROJECT_REF,
+  validateExactRunPair,
   validateRunId,
   validateSetupInput
 } from "./lib/care-circle-two-account-operator.mjs";
@@ -45,6 +47,8 @@ async function setup(client) {
     carerPassword: requireEnvironment("S2_T75_CARER_PASSWORD")
   };
   validateSetupInput(input);
+  const existing = await findRunUsers(client);
+  if (existing.length !== 0) throw new Error("STOP_S2_T75_RUN_ALREADY_EXISTS");
   const created = [];
   try {
     created.push(await createUser(client, "caree", input.careeEmail, input.careePassword));
@@ -58,8 +62,7 @@ async function setup(client) {
 }
 
 async function cleanup(client) {
-  const users = await findRunUsers(client);
-  if (users.length > 2) throw new Error("STOP_S2_T75_RUN_SCOPE_INVALID");
+  const users = validateExactRunPair(await findRunUsers(client));
   await removeUsers(client, users.map((user) => user.id));
   const remaining = await findRunUsers(client);
   if (remaining.length !== 0) throw new Error("STOP_S2_T75_AUTH_CLEANUP_INCOMPLETE");
@@ -111,12 +114,15 @@ async function prepareCapabilities(client, careeId, carerId) {
 }
 
 async function findRunUsers(client) {
-  const { data, error } = await client.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (error) throw new Error("STOP_S2_T75_AUTH_LIST_FAILED");
-  return data.users.filter((user) =>
-    user.user_metadata?.s2_evidence_suite === "s2t75" &&
-    user.user_metadata?.s2_evidence_run_id === runId
-  );
+  return discoverExactRunUsers(async (page, perPage) => {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error("STOP_S2_T75_AUTH_LIST_FAILED");
+    return {
+      users: data.users,
+      total: data.total,
+      lastPage: data.lastPage
+    };
+  }, runId);
 }
 
 async function removeUsers(client, ids) {

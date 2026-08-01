@@ -62,7 +62,7 @@
     "test:s2-care-circle-dashboard-evidence": "node scripts/s2-care-circle-dashboard-evidence-validator-contract.mjs",
     "test:s2-care-circle-dashboard-read-only": "node scripts/s2-care-circle-dashboard-read-only-contract.mjs",
     "test:s2-care-circle-two-account-launch": "node scripts/s2-care-circle-two-account-launch-contract.mjs",
-    "test:care-circle-aggregate-static": "pnpm test:care-circle-regression-static && pnpm test:care-circle-full-lifecycle-contract && pnpm test:s2-care-circle-dashboard-read-only && pnpm test:s2-care-circle-two-account-launch",
+    "test:care-circle-aggregate-static": "pnpm test:care-circle-regression-static && pnpm test:care-circle-full-lifecycle-contract && pnpm test:s2-care-circle-dashboard-read-only && pnpm test:s2-care-circle-two-account-launch && pnpm test:s2-care-circle-two-account-operator",
     "test:s2-care-circle-logical-backup-readiness": "node scripts/s2-care-circle-logical-backup-readiness.mjs --project-ref bmqhwofmdgebpcihjlnb && node scripts/s2-care-circle-logical-backup-readiness-contract.mjs",
     "test:s2-accessibility": "node scripts/s2-accessibility-device-readiness-contract.mjs",
     "test:golden": "tsc -p packages/astrology/tsconfig.golden-test.json && node .tmp/golden-chart-tests/astrology/src/golden-charts.fixtures.js",
