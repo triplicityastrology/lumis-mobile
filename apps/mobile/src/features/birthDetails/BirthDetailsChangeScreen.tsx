@@ -1,24 +1,23 @@
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { randomUUID } from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
 import {
-  BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
+  BackHandler, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { ChartV2 } from "@lumis/shared";
 
 import { colors, radii, spacing } from "../../theme/tokens";
-import { GeneratingView } from "../../components/GeneratingView";
 import { NatalWheel } from "../../components/NatalWheel";
+import { RegeneratingView } from "./RegeneratingView";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
 import {
-  formatBirthTimePickerValue,
   parseBirthTimePickerValue,
   resolveBirthTimePickerCommit,
 } from "./birthTimePicker";
+import { WheelPicker } from "./WheelPicker";
 
 /** Big-three summary for the Birth Details display. Rising is included ONLY when
  *  an authoritative timed chart exists (precision "full" + Ascendant) — never
@@ -339,47 +338,40 @@ export function BirthDetailsChangeScreen({
             <BrandButton label="Review change" onPress={() => setStep("confirm")} disabled={!dirty || !valid} style={{ marginTop: 22 }} />
             {!dirty ? <Text style={s.hintNote}>Change a value to continue.</Text> : null}
 
-            {/* Native iOS calendar (date) + wheel (time) with built-in validation. */}
+            {/* PROF-003 design wheel (Month/Day/Year · Hour/Minute/AM·PM) in a
+                Done/Cancel sheet. The staged value is read from the snapped wheel
+                position, so any field can change (no 8am lock); Done commits it,
+                Cancel/scrim keeps the previously saved value. */}
             {picker ? (
-              Platform.OS === "ios" ? (
-                <Modal transparent animationType="slide" onRequestClose={closePicker}>
-                  <Pressable accessibilityLabel="Cancel picker" style={s.pickerScrim} onPress={closePicker} />
-                  <View
-                    accessibilityLabel={picker === "date" ? "Birth date picker" : "Birth time picker"}
-                    accessibilityViewIsModal
-                    style={s.pickerSheet}
-                  >
-                    <View style={s.pickerBar}>
-                      <Text style={s.pickerTitle}>{picker === "date" ? "Birth date" : "Birth time"}</Text>
-                      <Pressable accessibilityRole="button" onPress={commitPicker} hitSlop={8}><Text style={s.pickerDone}>Done</Text></Pressable>
-                    </View>
-                    <DateTimePicker
-                      value={pickerValue ?? (picker === "date" ? parseDate(draft.birthDate) : parseBirthTimePickerValue(draft.birthTime))}
-                      mode={picker}
-                      display={picker === "date" ? "inline" : "spinner"}
-                      maximumDate={picker === "date" ? new Date() : undefined}
-                      themeVariant="dark"
-                      onChange={(event: DateTimePickerEvent, selected?: Date) => {
-                        if (event.type === "dismissed" || !selected) return;
-                        setPickerValue(new Date(selected.getTime()));
-                      }}
-                    />
+              <Modal transparent animationType="slide" onRequestClose={closePicker}>
+                <Pressable accessibilityLabel="Cancel picker" style={s.pickerScrim} onPress={closePicker} />
+                <View
+                  accessibilityLabel={picker === "date" ? "Birth date picker" : "Birth time picker"}
+                  accessibilityViewIsModal
+                  style={s.pickerSheet}
+                >
+                  <View style={s.pickerBar}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Cancel" onPress={closePicker} hitSlop={8}>
+                      <Text style={s.pickerCancel}>Cancel</Text>
+                    </Pressable>
+                    <Text style={s.pickerTitle}>{picker === "date" ? "Birth date" : "Birth time"}</Text>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Done" onPress={commitPicker} hitSlop={8}>
+                      <Text style={s.pickerDone}>Done</Text>
+                    </Pressable>
                   </View>
-                </Modal>
-              ) : (
-                <DateTimePicker
-                  value={pickerValue ?? (picker === "date" ? parseDate(draft.birthDate) : parseBirthTimePickerValue(draft.birthTime))}
-                  mode={picker}
-                  display={picker === "date" ? "calendar" : "clock"}
-                  maximumDate={picker === "date" ? new Date() : undefined}
-                  onChange={(e: DateTimePickerEvent, d?: Date) => {
-                    closePicker();
-                    if (e.type !== "set" || !d) return;
-                    if (picker === "date") updateDraft((current) => ({ ...current, birthDate: formatDate(d) }));
-                    else updateDraft((current) => ({ ...current, birthTime: formatBirthTimePickerValue(d) }));
-                  }}
-                />
-              )
+                  <WheelPicker
+                    mode={picker}
+                    value={pickerValue ?? (picker === "date" ? parseDate(draft.birthDate) : parseBirthTimePickerValue(draft.birthTime))}
+                    maximumDate={picker === "date" ? new Date() : undefined}
+                    onChange={(selected) => setPickerValue(new Date(selected.getTime()))}
+                  />
+                  <View style={s.wheelCaps}>
+                    {(picker === "date" ? ["MONTH", "DAY", "YEAR"] : ["HOUR", "MIN", "AM / PM"]).map((cap) => (
+                      <Text key={cap} style={s.wheelCap}>{cap}</Text>
+                    ))}
+                  </View>
+                </View>
+              </Modal>
             ) : null}
           </>
         ) : null}
@@ -442,13 +434,12 @@ export function BirthDetailsChangeScreen({
         </View>
       </Modal>
 
-      {/* Regenerating — the same full Generating page used by onboarding chart
-          generation, over the same sky, with the approved edit-specific copy. */}
+      {/* Regenerating — PROF-005 dedicated decorative loader (symbolic rotating
+          ring, no real natal wheel, no emoji glyphs). Presentation is truthful:
+          no timer-driven step completion; the backend outcome decides the exit. */}
       {step === "regenerating" ? (
         <View style={s.regenOverlay}>
-          <GeneratingView
-            activeStep={0}
-            indeterminate
+          <RegeneratingView
             eyebrow="UPDATING YOUR SKY…"
             title="Regenerating your chart."
             subtitle="This can take a moment. We'll show your updated chart as soon as it's ready."
@@ -512,7 +503,10 @@ const s = StyleSheet.create({
   pickerSheet: { backgroundColor: "rgba(22,35,55,0.99)", borderTopColor: colors.line, borderTopWidth: 1, paddingBottom: 30 },
   pickerBar: { alignItems: "center", borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 18, paddingVertical: 12 },
   pickerTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 16 },
-  pickerDone: { color: colors.gold, fontSize: 15, fontWeight: "700" },
+  pickerCancel: { color: colors.muted, fontSize: 15, fontWeight: "600" },
+  pickerDone: { color: colors.accent, fontSize: 15, fontWeight: "700" },
+  wheelCaps: { flexDirection: "row", paddingHorizontal: 8, paddingTop: 6 },
+  wheelCap: { color: colors.muted, flex: 1, fontSize: 9.5, fontWeight: "700", letterSpacing: 1, textAlign: "center" },
   card: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, paddingHorizontal: 16 },
   summaryRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingVertical: 14 },
   summaryDivider: { borderBottomColor: colors.line, borderBottomWidth: StyleSheet.hairlineWidth },

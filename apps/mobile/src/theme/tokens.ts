@@ -4,6 +4,15 @@ export const colors = {
   navy800: "#152943",
   surface: "#16273D",
   surfaceRaised: "#1A3550",
+  // Exact founder rework-pack navy tokens (SPEC.md, 1/8/2026). Added alongside
+  // the existing palette so the six reworked screens can reference the precise
+  // design values without shifting unrelated screens.
+  surface3: "#13233A", // --surface-3: note / empty-state boxes
+  accent: "#D7B978", // --accent: primary gold (icons, active, CTAs)
+  accentBright: "#C9A96E", // --accent-bright: brighter gold gradient stop
+  accentFill: "rgba(215,185,120,0.14)", // --accent-fill: soft gold chip/pill bg
+  goodSolid: "#7BC784", // --good: "chart is active" green
+  warnSolid: "#E38E7C", // --warn: danger / log-out warning
   cream: "#F7F0E3",
   gold: "#C9A96E",
   goldLight: "#E8DCC0",

@@ -12,9 +12,12 @@ assert.match(profileRows, /backgroundColor: colors\.surface/);
 assert.match(profileRows, /borderWidth: 1/);
 assert.match(profileRows, /overflow: "hidden"/);
 assert.match(styleBlock(profile, "row"), /backgroundColor: "transparent"/);
+// The group's rows render inside the opaque `styles.rows` wrapper, and the note
+// (helper/disclaimer text) renders directly after it in normal layout flow — so
+// it sits below the group and never ghosts through the card.
 assert.match(
   profile,
-  /<View style=\{styles\.rows\}>\{children\}<\/View>\s*\{note \? <Text style=\{styles\.sectionNote\}>\{note\}<\/Text>/
+  /<View style=\{styles\.rows\}>[\s\S]*?<\/View>\s*\{note \? <Text style=\{styles\.sectionNote\}>\{note\}<\/Text>/
 );
 assert.doesNotMatch(styleBlock(profile, "sectionNote"), /position: "absolute"|zIndex/);
 

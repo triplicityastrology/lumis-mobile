@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import ArrowRight from "lucide-react-native/icons/arrow-right";
 import Bell from "lucide-react-native/icons/bell";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import Camera from "lucide-react-native/icons/camera";
 import Check from "lucide-react-native/icons/check";
 import Dices from "lucide-react-native/icons/dices";
@@ -380,28 +381,48 @@ export function RestoringSpaceScreen({
     return undefined;
   }, [result, onGoOnboarding]);
 
-  // AUTH-005 — Restored account found (explicit reload result).
+  // AUTH-005 — Restored account found (explicit reload result). Reached only from
+  // a deliberate Profile/Home reload; cold-start and failure-Retry go straight to
+  // Chat (App.restoreSpace), so this is never a compulsory interstitial.
   if (result === "foundChart") {
     return (
       <AuthShell>
-        <View style={styles.restoredWrap}>
-          <View style={styles.restoredEyebrowRow}>
-            <SkyEmblem tone="good" size={40}><Check color={INK} size={20} strokeWidth={3} /></SkyEmblem>
+        <View style={styles.authTopRow}>
+          <Pressable style={styles.authBackBtn} onPress={onGoChat} accessibilityRole="button" accessibilityLabel="Back to Lumis">
+            <ChevronLeft color={colors.ice} size={20} />
+          </Pressable>
+          <View style={styles.authPill}>
+            <Text style={styles.authPillText}>SECURE ACCOUNT</Text>
           </View>
-          <Text style={styles.h2}>Welcome back.</Text>
-          <Text style={styles.body}>Your chart and reflections are ready.</Text>
+        </View>
+        <View style={styles.authBody}>
+          <Text style={styles.eyebrow}>✦ PRIVATE BY DESIGN</Text>
+          <Text style={styles.h1}>Your Lumis account</Text>
+          <Text style={styles.body}>Your active chart and Past Reflections can be restored on this account.</Text>
+
           {chart ? (
-            <View style={styles.restoredCard}>
-              <NatalWheel chart={chart} size={200} />
+            <View style={styles.authWheel}>
+              {/* Decorative confirmation wheel — houses hidden regardless of precision. */}
+              <NatalWheel chart={chart} size={130} showHouses={false} />
             </View>
           ) : null}
-          <View style={styles.restoredLockRow}>
-            <Lock color={colors.gold} size={14} />
-            <Text style={styles.restoredLockText}>Your chart and conversations stay private to your account.</Text>
+
+          <View style={styles.authConfirmCard}>
+            <View style={styles.authConfirmChip}>
+              <Check color={colors.goodSolid} size={20} strokeWidth={3} />
+            </View>
+            <Text style={styles.authConfirmText}>Chart and reflections found</Text>
           </View>
-          <View style={styles.gap} />
-          <PrimaryButton label="Continue to Lumis" onPress={onGoChat} />
-          {onLogout ? <LinkButton label="Log out" onPress={onLogout} /> : null}
+
+          <View style={styles.authLockNote}>
+            <Lock color={colors.accent} size={15} />
+            <Text style={styles.authLockText}>Your chart and conversations stay private to your account, reachable only through your secure sign-in.</Text>
+          </View>
+
+          <View style={styles.authActions}>
+            <PrimaryButton label="Continue to Lumis" onPress={onGoChat} />
+            {onLogout ? <SoftButton label="Log out" onPress={onLogout} /> : null}
+          </View>
         </View>
       </AuthShell>
     );
@@ -662,11 +683,19 @@ const styles = StyleSheet.create({
   shellBody: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center" },
   center: { alignItems: "center", flex: 1, paddingHorizontal: 26, paddingTop: 30 },
   centerMiddle: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },
-  restoredWrap: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },
-  restoredEyebrowRow: { marginBottom: 6 },
-  restoredCard: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.24)", borderColor: colors.line, borderRadius: 20, borderWidth: 1, marginTop: 18, padding: 14 },
-  restoredLockRow: { alignItems: "center", flexDirection: "row", gap: 7, marginTop: 16, maxWidth: 320 },
-  restoredLockText: { color: colors.muted, flex: 1, fontSize: 12, lineHeight: 17 },
+  // AUTH-005 restored-account confirmation (SPEC rework pack)
+  authTopRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 22, paddingTop: 6, paddingBottom: 2 },
+  authBackBtn: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 20, borderWidth: 1, height: 40, justifyContent: "center", width: 40 },
+  authPill: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 999, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 9 },
+  authPillText: { color: colors.textSoft, fontSize: 10, fontWeight: "700", letterSpacing: 1 },
+  authBody: { alignItems: "center", flex: 1, justifyContent: "center", paddingHorizontal: 30 },
+  authWheel: { alignItems: "center", justifyContent: "center", height: 130, width: 130, marginTop: 22, marginBottom: 6 },
+  authConfirmCard: { alignItems: "center", alignSelf: "stretch", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 18, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 18, paddingHorizontal: 16, paddingVertical: 15 },
+  authConfirmChip: { alignItems: "center", backgroundColor: "rgba(123,199,132,0.14)", borderRadius: 19, height: 38, justifyContent: "center", width: 38 },
+  authConfirmText: { color: colors.ice, flex: 1, fontSize: 14, fontWeight: "600" },
+  authLockNote: { alignItems: "flex-start", alignSelf: "stretch", backgroundColor: colors.surface3, borderColor: colors.lineSoft, borderRadius: 14, borderWidth: 1, flexDirection: "row", gap: 10, marginTop: 12, paddingHorizontal: 15, paddingVertical: 14 },
+  authLockText: { color: colors.textSoft, flex: 1, fontSize: 12.5, lineHeight: 18.5 },
+  authActions: { alignSelf: "stretch", gap: 0, marginTop: 22 },
   flex: { flex: 1 },
   spacer: { flex: 1 },
   gap: { height: 26 },

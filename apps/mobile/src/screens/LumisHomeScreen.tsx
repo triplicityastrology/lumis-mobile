@@ -5,7 +5,6 @@ import History from "lucide-react-native/icons/history";
 import LogIn from "lucide-react-native/icons/log-in";
 import MessageCircle from "lucide-react-native/icons/message-circle";
 import RefreshCw from "lucide-react-native/icons/refresh-cw";
-import Sparkles from "lucide-react-native/icons/sparkles";
 import UserRound from "lucide-react-native/icons/user-round";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -55,17 +54,15 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
       <View style={styles.appFrame}>
         <View style={styles.header}>
           <View style={styles.identityRow}>
-            <View style={styles.avatar}>
-              <Sparkles color={colors.navy950} size={19} strokeWidth={1.8} />
-            </View>
-            <View>
-              <Text style={styles.brand}>Lumis</Text>
-              <Text style={styles.online}>Your chart is active</Text>
-            </View>
+            <Text style={styles.brand}>Lumis</Text>
+            <Text style={styles.online}>Your chart is active</Text>
           </View>
           <View style={styles.headerActions}>
             <Pressable style={styles.iconButton} onPress={props.onNotifications} accessibilityLabel="Notifications">
               <Bell color={colors.ice} size={19} strokeWidth={1.7} />
+              {/* Inert preview badge: signals the notifications preview has sample
+                  content — no live unread count is claimed. */}
+              <View style={styles.notifBadge} />
             </Pressable>
           </View>
         </View>
@@ -76,7 +73,7 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.greetingBlock}>
-            <Text style={styles.eyebrow}>YOUR INNER UNIVERSE</Text>
+            <Text style={styles.eyebrow}>✦ YOUR INNER UNIVERSE</Text>
             <Text style={styles.greeting}>Welcome back, {props.name}.</Text>
             <Text style={styles.greetingBody}>What would you like to understand today?</Text>
           </View>
@@ -89,8 +86,8 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
             <View style={styles.chartCardBody}>
               <Text style={styles.chartLabel}>YOUR BIRTH CHART</Text>
               <View style={styles.placementRow}>
-                <Placement glyph="☉" value={sun?.sign ?? "Sun"} />
-                <Placement glyph="☽" value={moon?.sign ?? "Moon"} />
+                <Placement glyph={"☉︎"} value={sun?.sign ?? "Sun"} />
+                <Placement glyph={"☽︎"} value={moon?.sign ?? "Moon"} />
                 {rising ? <Placement glyph="ASC" value={rising.sign} compact /> : null}
               </View>
               <Text style={styles.chartNote}>
@@ -137,8 +134,8 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           </Pressable>
 
           <View style={styles.statusLine}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>
+            <View style={[styles.statusDot, props.accountLoadStatus === "error" && styles.statusDotError]} />
+            <Text style={[styles.statusText, props.accountLoadStatus !== "loaded" && styles.statusTextMuted]}>
               {props.accountLoadStatus === "loaded"
                 ? "Your chart and reflections are saved to your account."
                 : props.accountLoadMessage || "Your account is ready."}
@@ -298,26 +295,26 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "transparent" },
   appFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
   header: { minHeight: 68, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
-  identityRow: { flexDirection: "row", alignItems: "center", gap: 11 },
-  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.gold },
-  brand: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, fontWeight: "600" },
-  online: { color: colors.good, fontSize: 11, marginTop: 2 },
+  identityRow: { flexDirection: "row", alignItems: "center", gap: 13, flex: 1, minWidth: 0 },
+  brand: { color: colors.ice, fontFamily: "Georgia", fontSize: 24, fontWeight: "500" },
+  online: { color: colors.textSoft, fontSize: 12.5, lineHeight: 17, flexShrink: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 9 },
   iconButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  notifBadge: { position: "absolute", top: 6, right: 7, width: 9, height: 9, borderRadius: 5, backgroundColor: "#E38E7C", borderWidth: 1.5, borderColor: colors.surface },
   homeContent: { padding: spacing.lg, paddingBottom: 30, gap: spacing.md },
   greetingBlock: { paddingTop: spacing.md, paddingBottom: spacing.sm },
-  eyebrow: { color: colors.gold, fontSize: 10, fontWeight: "700", letterSpacing: 1.8, marginBottom: 11 },
+  eyebrow: { color: colors.accent, fontSize: 10, fontWeight: "700", letterSpacing: 1.8, marginBottom: 11 },
   greeting: { color: colors.ice, fontFamily: "Georgia", fontSize: 29, lineHeight: 35 },
   greetingBody: { color: colors.textSoft, fontSize: 14, lineHeight: 21, marginTop: 7 },
   chartCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: radii.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   chartWheelWrap: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
   chartCardBody: { flex: 1, minWidth: 0 },
   chartLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4, marginBottom: 9 },
-  placementRow: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  placement: { flexDirection: "row", alignItems: "center", gap: 3 },
-  placementGlyph: { color: colors.gold, fontFamily: "Georgia", fontSize: 16 },
+  placementRow: { flexDirection: "column", gap: 6 },
+  placement: { flexDirection: "row", alignItems: "center", gap: 7 },
+  placementGlyph: { color: colors.accent, fontFamily: "Georgia", fontSize: 15, width: 18, textAlign: "center" },
   compactGlyph: { fontSize: 9, fontWeight: "700" },
-  placementText: { color: colors.ice, fontSize: 12, fontWeight: "600" },
+  placementText: { color: colors.ice, fontSize: 14, fontWeight: "600" },
   chartNote: { color: colors.muted, fontSize: 10.5, lineHeight: 15, marginTop: 8 },
   primaryAction: { borderRadius: radii.lg, minHeight: 78, overflow: "hidden" },
   primaryActionGradient: { alignItems: "center", flexDirection: "row", gap: 13, minHeight: 78, padding: 15, width: "100%" },
@@ -330,9 +327,10 @@ const styles = StyleSheet.create({
   reflectionTitle: { color: colors.ice, fontSize: 15, fontWeight: "700" },
   reflectionBody: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 3 },
   statusLine: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 5, paddingTop: 4 },
-  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.good },
-  statusDotError: { backgroundColor: colors.warn },
-  statusText: { flex: 1, color: colors.muted, fontSize: 10.5 },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.goodSolid },
+  statusDotError: { backgroundColor: colors.warnSolid },
+  statusText: { flex: 1, color: colors.goodSolid, fontSize: 12 },
+  statusTextMuted: { color: colors.muted },
   welcomeHeader: { minHeight: 68, paddingHorizontal: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   markRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   signInButton: { height: 40, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },

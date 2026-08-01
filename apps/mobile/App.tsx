@@ -4485,8 +4485,8 @@ const styles = StyleSheet.create({
   },
   reflectionsTitle: {
     color: "#F0F4F8",
-    fontSize: 21,
-    fontWeight: "800"
+    fontFamily: "Georgia",
+    fontSize: 24
   },
   reflectionsSubtitle: {
     color: "#8A9BB0",
@@ -4495,7 +4495,7 @@ const styles = StyleSheet.create({
   },
   newTopicIconButton: {
     alignItems: "center",
-    backgroundColor: "#C9A96E",
+    backgroundColor: "#D7B978",
     borderRadius: 999,
     height: 40,
     justifyContent: "center",
@@ -4507,12 +4507,12 @@ const styles = StyleSheet.create({
   },
   reflectionsNewTopic: {
     alignItems: "center",
-    backgroundColor: "#C9A96E",
-    borderRadius: 10,
+    backgroundColor: "#D7B978",
+    borderRadius: 16,
     flexDirection: "row",
     gap: 8,
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 50,
     paddingHorizontal: 18
   },
   reflectionsNewTopicText: {
@@ -4523,8 +4523,8 @@ const styles = StyleSheet.create({
   reflectionsSearch: {
     alignItems: "center",
     backgroundColor: "transparent",
-    borderColor: "rgba(255,255,255,0.1)",
-    borderRadius: 10,
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 12,
     borderWidth: 1,
     flexDirection: "row",
     gap: 9,
@@ -4544,9 +4544,10 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   reflectionsSectionLabel: {
-    color: "#C9A96E",
+    color: "#8A9BB0",
     fontSize: 10,
-    fontWeight: "800"
+    fontWeight: "700",
+    letterSpacing: 1.4
   },
   reflectionsSectionCount: {
     color: "#71839A",
@@ -4568,7 +4569,7 @@ const styles = StyleSheet.create({
   reflectionsList: {
     backgroundColor: "#16273D",
     borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: "hidden"
   },

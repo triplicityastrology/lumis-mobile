@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useState } from "react";
 import Bell from "lucide-react-native/icons/bell";
 import CalendarDays from "lucide-react-native/icons/calendar-days";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
@@ -80,13 +80,18 @@ export function LumisProfileScreen({
             <View style={styles.avatar}><Text style={styles.avatarText}>{name.trim().slice(0, 1).toUpperCase() || "L"}</Text></View>
             <View style={styles.heroCopy}>
               <Text style={styles.name}>{name}</Text>
+              {email ? (
+                <View style={styles.heroBadge}>
+                  <Text style={styles.heroBadgeText}>Private account</Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
           <ProfileSection label="YOUR CHART">
-            <ProfileRow icon={<CalendarDays color={colors.periwinkle} size={17} />} label="Birth date" value={birthDate} onPress={onBirthDetails} />
-            <ProfileRow icon={<Clock3 color={colors.periwinkle} size={17} />} label="Birth time" value={timeUnknown ? "Unknown" : birthTime} onPress={onBirthDetails} />
-            <ProfileRow icon={<MapPin color={colors.periwinkle} size={17} />} label="Birthplace" value={birthPlace} onPress={onBirthDetails} />
+            <ProfileRow icon={<CalendarDays color={colors.accent} size={17} />} label="Birth date" value={birthDate} onPress={onBirthDetails} />
+            <ProfileRow icon={<Clock3 color={colors.accent} size={17} />} label="Birth time" value={timeUnknown ? "Unknown" : birthTime} onPress={onBirthDetails} />
+            <ProfileRow icon={<MapPin color={colors.accent} size={17} />} label="Birthplace" value={birthPlace} onPress={onBirthDetails} />
           </ProfileSection>
 
           <ProfileSection label="LUMIS PERSONA">
@@ -97,12 +102,12 @@ export function LumisProfileScreen({
               <View style={styles.rowCopy}><Text style={styles.rowLabel}>{personaName}</Text><Text style={styles.rowValue}>{formatPersona(personaStyle)}</Text></View>
               <Pressable style={styles.changeButton} onPress={onPersona}><Text style={styles.changeText}>Change</Text></Pressable>
             </View>
-            <ProfileRow icon={<Compass color={colors.periwinkle} size={17} />} label="Main focus" value={formatMainFocus(mainFocus)} showChevron={false} />
+            <ProfileRow icon={<Compass color={colors.accent} size={17} />} label="Main focus" value={formatMainFocus(mainFocus)} showChevron={false} />
           </ProfileSection>
 
           <ProfileSection label="CARE CIRCLE" note="Preview only. Check-ins and carer links are not active yet.">
             <ProfileRow
-              icon={<Bell color={colors.periwinkle} size={17} />}
+              icon={<Bell color={colors.accent} size={17} />}
               label="Care Circle preview"
               value="Not active yet"
               onPress={onCareCircle}
@@ -110,10 +115,10 @@ export function LumisProfileScreen({
           </ProfileSection>
 
           <ProfileSection label="PRIVACY & SUPPORT">
-            <ProfileRow icon={<Bell color={colors.periwinkle} size={17} />} label="Notifications" onPress={onNotifications} />
-            <ProfileRow icon={<ShieldCheck color={colors.periwinkle} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
-            <ProfileRow icon={<Headphones color={colors.periwinkle} size={17} />} label="Contact support" onPress={() => showPendingNotice("Contact support")} />
-            <ProfileRow danger icon={<Trash2 color={colors.warn} size={17} />} label="Delete account" unavailable onPress={() => showPendingNotice("Account deletion")} />
+            <ProfileRow icon={<Bell color={colors.accent} size={17} />} label="Notifications" onPress={onNotifications} />
+            <ProfileRow icon={<ShieldCheck color={colors.accent} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
+            <ProfileRow icon={<Headphones color={colors.accent} size={17} />} label="Contact support" onPress={() => showPendingNotice("Contact support")} />
+            <ProfileRow danger icon={<Trash2 color={colors.warnSolid} size={17} />} label="Delete account" unavailable onPress={() => showPendingNotice("Account deletion")} />
           </ProfileSection>
 
           {notice ? <Pressable onPress={() => setNotice("")} style={styles.notice}><Text style={styles.noticeText}>{notice}</Text><Text style={styles.noticeDismiss}>Dismiss</Text></Pressable> : null}
@@ -132,7 +137,7 @@ export function LumisProfileScreen({
               accessibilityRole="button"
               accessibilityLabel="Log out of Lumis"
             >
-              <LogOut color={colors.warn} size={18} />
+              <LogOut color={colors.warnSolid} size={18} />
               <Text style={styles.logoutButtonText}>Log out</Text>
             </Pressable>
           ) : null}
@@ -148,32 +153,46 @@ export function LumisProfileScreen({
 }
 
 function ProfileSection({ children, label, note }: { children: ReactNode; label: string; note?: string }) {
+  // SPEC PROF-001: the between-row hairline must not appear on the first child.
+  // Drop the top border on the first ProfileRow of the group (inline non-row
+  // children, e.g. the persona row, already omit it).
+  const items = Children.toArray(children);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.rows}>{children}</View>
+      <View style={styles.rows}>
+        {items.map((child, index) =>
+          index === 0 && isValidElement(child) && child.type === ProfileRow
+            ? cloneElement(child as ReactElement<ProfileRowProps>, { first: true })
+            : child
+        )}
+      </View>
       {note ? <Text style={styles.sectionNote}>{note}</Text> : null}
     </View>
   );
 }
 
-function ProfileRow({
-  danger = false,
-  icon,
-  label,
-  onPress,
-  showChevron = true,
-  value,
-  unavailable = false
-}: {
+type ProfileRowProps = {
   danger?: boolean;
+  first?: boolean;
   icon: ReactNode;
   label: string;
   onPress?: () => void;
   showChevron?: boolean;
   value?: string;
   unavailable?: boolean;
-}) {
+};
+
+function ProfileRow({
+  danger = false,
+  first = false,
+  icon,
+  label,
+  onPress,
+  showChevron = true,
+  value,
+  unavailable = false
+}: ProfileRowProps) {
   return (
     <Pressable
       accessibilityLabel={value ? `${label}: ${value}` : label}
@@ -181,7 +200,7 @@ function ProfileRow({
       accessibilityHint={unavailable ? "Currently unavailable" : undefined}
       disabled={!onPress}
       onPress={onPress}
-      style={styles.row}
+      style={[styles.row, first && styles.rowFirst]}
     >
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>{icon}</View>
       <View style={styles.rowCopy}><Text style={[styles.rowLabel, danger && styles.dangerText, unavailable && styles.rowLabelMuted]}>{label}</Text></View>
@@ -190,7 +209,7 @@ function ProfileRow({
       ) : (
         <>
           {value ? <Text numberOfLines={2} style={[styles.rowTrailing, danger && styles.dangerText]}>{value}</Text> : null}
-          {showChevron && onPress ? <ChevronRight color={danger ? colors.warn : colors.muted} size={17} /> : null}
+          {showChevron && onPress ? <ChevronRight color={danger ? colors.warnSolid : colors.muted} size={17} /> : null}
         </>
       )}
     </Pressable>
@@ -219,21 +238,24 @@ const styles = StyleSheet.create({
   hero: { alignItems: "center", flexDirection: "row", gap: 13, paddingVertical: 5 },
   avatar: { alignItems: "center", backgroundColor: colors.gold, borderRadius: 28, height: 56, justifyContent: "center", width: 56 },
   avatarText: { color: colors.navy950, fontFamily: "Georgia", fontSize: 25 },
-  heroCopy: { flex: 1, minWidth: 0 },
-  name: { color: colors.ice, fontFamily: "Georgia", fontSize: 23 },
+  heroCopy: { flex: 1, minWidth: 0, gap: 7 },
+  name: { color: colors.ice, fontFamily: "Georgia", fontSize: 24 },
+  heroBadge: { alignSelf: "flex-start", backgroundColor: colors.accentFill, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
+  heroBadgeText: { color: colors.accent, fontSize: 11.5, fontWeight: "600" },
   section: { gap: 7 },
   sectionLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4 },
   sectionNote: { color: colors.muted, fontSize: 10, lineHeight: 15, paddingHorizontal: 3 },
-  rows: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 8, borderWidth: 1, overflow: "hidden" },
-  row: { alignItems: "center", backgroundColor: "transparent", borderTopColor: colors.lineSoft, borderTopWidth: 1, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 13 },
-  rowIcon: { alignItems: "center", backgroundColor: colors.periwinkleFill, borderRadius: 8, height: 32, justifyContent: "center", width: 32 },
-  rowIconDanger: { backgroundColor: "rgba(211,107,93,0.12)" },
+  rows: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 18, borderWidth: 1, overflow: "hidden" },
+  row: { alignItems: "center", backgroundColor: "transparent", borderTopColor: colors.lineSoft, borderTopWidth: 1, flexDirection: "row", gap: 12, minHeight: 58, paddingHorizontal: 14 },
+  rowFirst: { borderTopWidth: 0 },
+  rowIcon: { alignItems: "center", backgroundColor: colors.surfaceRaised, borderRadius: 9, height: 30, justifyContent: "center", width: 30 },
+  rowIconDanger: { backgroundColor: "rgba(227,142,124,0.14)" },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.ice, fontSize: 13, fontWeight: "600" },
   rowLabelMuted: { color: colors.muted },
   rowValue: { color: colors.muted, fontSize: 10.5, marginTop: 3 },
   rowTrailing: { color: colors.textSoft, flexShrink: 1, fontSize: 11.5, lineHeight: 16, maxWidth: "48%", textAlign: "right" },
-  dangerText: { color: colors.warn },
+  dangerText: { color: colors.warnSolid },
   personaRow: { alignItems: "center", flexDirection: "row", gap: 11, minHeight: 70, paddingHorizontal: 13 },
   personaAvatar: { alignItems: "center", borderRadius: 23, height: 46, justifyContent: "center", width: 46 },
   changeButton: { backgroundColor: colors.periwinkleFill, borderColor: colors.line, borderRadius: 8, borderWidth: 1, minHeight: 38, paddingHorizontal: 13, justifyContent: "center" },
@@ -244,7 +266,7 @@ const styles = StyleSheet.create({
   accountButton: { alignItems: "center", alignSelf: "center", flexDirection: "row", gap: 9, minHeight: 48 },
   accountButtonText: { color: colors.textSoft, fontSize: 12.5, fontWeight: "700" },
   accountEmail: { color: colors.muted, fontSize: 9.5, marginTop: 2, maxWidth: 260 },
-  logoutButton: { alignItems: "center", alignSelf: "center", borderColor: "rgba(224,153,127,0.4)", borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 8, marginTop: 6, minHeight: 46, paddingHorizontal: 22 },
-  logoutButtonText: { color: colors.warn, fontSize: 13.5, fontWeight: "700" },
+  logoutButton: { alignItems: "center", alignSelf: "center", borderColor: "rgba(227,142,124,0.45)", borderRadius: 999, borderWidth: 1, flexDirection: "row", gap: 8, marginTop: 6, minHeight: 46, paddingHorizontal: 22 },
+  logoutButtonText: { color: colors.warnSolid, fontSize: 13.5, fontWeight: "700" },
   disclaimer: { color: colors.muted, fontSize: 9.5, lineHeight: 15, textAlign: "center" }
 });

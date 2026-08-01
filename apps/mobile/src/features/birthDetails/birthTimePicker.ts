@@ -24,6 +24,22 @@ export function formatBirthTimePickerValue(value: Date): string {
   return `${hour12}:${String(value.getMinutes()).padStart(2, "0")} ${suffix}`;
 }
 
+/**
+ * Compose a 12-hour wheel selection (hour 1-12, minute 0-59, AM/PM) into
+ * 24-hour fields. Every field is honoured — so the PROF-003 wheel can commit any
+ * valid time (non-zero minutes, PM, midnight/noon) and can never lock to a fixed
+ * default such as 8:00 AM.
+ */
+export function composeBirthTime12h(
+  hour12: number,
+  minute: number,
+  meridiem: "AM" | "PM"
+): { hour24: number; minute: number } {
+  const base = ((hour12 % 12) + 12) % 12;
+  const hour24 = meridiem === "PM" ? base + 12 : base;
+  return { hour24, minute };
+}
+
 export function resolveBirthTimePickerCommit(input: {
   currentValue: string;
   stagedValue: Date;
