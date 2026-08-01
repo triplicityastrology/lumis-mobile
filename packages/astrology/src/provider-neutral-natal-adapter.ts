@@ -29,6 +29,7 @@ export type ProviderNatalAdapterFailureCode =
   | "NATAL_ADAPTER_HOUSES_INVALID"
   | "NATAL_ADAPTER_HOUSE_INVALID"
   | "NATAL_ADAPTER_DUPLICATE_HOUSE"
+  | "NATAL_ADAPTER_HOUSE_SYSTEM_INVALID"
   | "NATAL_ADAPTER_MOON_ENDPOINTS_INVALID"
   | "NATAL_ADAPTER_TIME_CAPABILITY_MISMATCH"
   | "NATAL_ADAPTER_MAPPED_INPUT_INVALID";
@@ -50,6 +51,7 @@ export type ProviderNatalAdapterFailure = {
     | "house_list_required"
     | "house_shape_invalid"
     | "house_number_must_be_unique"
+    | "declared_placidus_house_system_required"
     | "moon_endpoint_shape_invalid"
     | "timed_data_requires_supplied_birth_time"
     | "mapped_input_rejected";
@@ -61,6 +63,7 @@ export type ProviderNatalAdapterFailure = {
     | "source"
     | "points"
     | "houses"
+    | "house_system"
     | "moon_local_day_endpoints";
 };
 
@@ -70,9 +73,16 @@ export type ProviderNeutralNatalEngineInput = {
   precision: "full" | "no_birth_time";
   points: Array<{ key: CanonicalNatalPointKey; absoluteLongitude: number }>;
   houses: Array<{ no: number; cuspLongitude: number }>;
+  houseSystem?: {
+    key: "placidus";
+    methodId: string;
+    methodVersion: string;
+  };
   moonLocalDayEndpoints?: {
     startLongitude: number;
     endLongitude: number;
+    methodId: string;
+    methodVersion: string;
   };
 };
 
@@ -98,12 +108,19 @@ const ROOT_FIELDS = new Set([
   "source",
   "points",
   "houses",
+  "houseSystem",
   "moonLocalDayEndpoints",
 ]);
 const SOURCE_FIELDS = new Set(["sourceId", "calculationId"]);
 const POINT_FIELDS = new Set(["name", "longitude"]);
 const HOUSE_FIELDS = new Set(["number", "cuspLongitude"]);
-const MOON_ENDPOINT_FIELDS = new Set(["startLongitude", "endLongitude"]);
+const HOUSE_SYSTEM_FIELDS = new Set(["key", "methodId", "methodVersion"]);
+const MOON_ENDPOINT_FIELDS = new Set([
+  "startLongitude",
+  "endLongitude",
+  "methodId",
+  "methodVersion",
+]);
 const SAFE_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9:_-]{0,79}$/;
 
 export function adaptProviderNeutralNatalPayload(
@@ -160,6 +177,10 @@ export function adaptProviderNeutralNatalPayload(
   if (!houseResult.ok) {
     return houseResult;
   }
+  const houseSystemResult = mapHouseSystem(payload.houseSystem);
+  if (!houseSystemResult.ok) {
+    return houseSystemResult;
+  }
   const moonResult = mapMoonEndpoints(payload.moonLocalDayEndpoints);
   if (!moonResult.ok) {
     return moonResult;
@@ -168,21 +189,46 @@ export function adaptProviderNeutralNatalPayload(
   if (
     payload.precision === "no_birth_time" &&
     (houseResult.value.length > 0 ||
+      houseSystemResult.value !== null ||
       pointResult.value.some((point) => isCanonicalNatalAngleKey(point.key)))
   ) {
     return failure(
       "NATAL_ADAPTER_TIME_CAPABILITY_MISMATCH",
       "timed_data_requires_supplied_birth_time",
-      houseResult.value.length > 0 ? "houses" : "points"
+      houseResult.value.length > 0
+        ? "houses"
+        : houseSystemResult.value
+          ? "house_system"
+          : "points"
+    );
+  }
+  if (houseResult.value.length > 0 && houseSystemResult.value === null) {
+    return failure(
+      "NATAL_ADAPTER_HOUSE_SYSTEM_INVALID",
+      "declared_placidus_house_system_required",
+      "house_system"
+    );
+  }
+  if (payload.precision !== "no_birth_time" && moonResult.value !== null) {
+    return failure(
+      "NATAL_ADAPTER_TIME_CAPABILITY_MISMATCH",
+      "timed_data_requires_supplied_birth_time",
+      "moon_local_day_endpoints"
     );
   }
 
+  const admittedPoints = pointResult.value.filter(
+    (point) => !(payload.precision === "no_birth_time" && point.key === "moon")
+  );
   const engineInput: ProviderNeutralNatalEngineInput = {
     schemaVersion: NATAL_INPUT_CONTRACT_VERSION,
     chartType: "natal",
     precision: payload.precision,
-    points: pointResult.value,
+    points: admittedPoints,
     houses: houseResult.value,
+    ...(houseSystemResult.value
+      ? { houseSystem: houseSystemResult.value }
+      : {}),
     ...(moonResult.value
       ? { moonLocalDayEndpoints: moonResult.value }
       : {}),
@@ -208,6 +254,48 @@ export function adaptProviderNeutralNatalPayload(
           : {}),
         source: "validated_provider_neutral_natal_payload",
       },
+    },
+  };
+}
+
+function mapHouseSystem(
+  value: unknown
+):
+  | { ok: true; value: ProviderNeutralNatalEngineInput["houseSystem"] | null }
+  | { ok: false; error: ProviderNatalAdapterFailure } {
+  if (value === undefined) return { ok: true, value: null };
+  if (!isPlainRecord(value)) {
+    return failure(
+      "NATAL_ADAPTER_HOUSE_SYSTEM_INVALID",
+      "declared_placidus_house_system_required",
+      "house_system"
+    );
+  }
+  const fieldFailure = validateClosedFields(
+    value,
+    HOUSE_SYSTEM_FIELDS,
+    "house_system"
+  );
+  if (fieldFailure) return fieldFailure;
+  if (
+    value.key !== "placidus" ||
+    typeof value.methodId !== "string" ||
+    !SAFE_IDENTIFIER.test(value.methodId) ||
+    typeof value.methodVersion !== "string" ||
+    !SAFE_IDENTIFIER.test(value.methodVersion)
+  ) {
+    return failure(
+      "NATAL_ADAPTER_HOUSE_SYSTEM_INVALID",
+      "declared_placidus_house_system_required",
+      "house_system"
+    );
+  }
+  return {
+    ok: true,
+    value: {
+      key: "placidus",
+      methodId: value.methodId,
+      methodVersion: value.methodVersion,
     },
   };
 }
@@ -420,7 +508,11 @@ function mapMoonEndpoints(
     typeof value.startLongitude !== "number" ||
     !Number.isFinite(value.startLongitude) ||
     typeof value.endLongitude !== "number" ||
-    !Number.isFinite(value.endLongitude)
+    !Number.isFinite(value.endLongitude) ||
+    typeof value.methodId !== "string" ||
+    !SAFE_IDENTIFIER.test(value.methodId) ||
+    typeof value.methodVersion !== "string" ||
+    !SAFE_IDENTIFIER.test(value.methodVersion)
   ) {
     return failure(
       "NATAL_ADAPTER_MOON_ENDPOINTS_INVALID",
@@ -433,6 +525,8 @@ function mapMoonEndpoints(
     value: {
       startLongitude: value.startLongitude,
       endLongitude: value.endLongitude,
+      methodId: value.methodId,
+      methodVersion: value.methodVersion,
     },
   };
 }

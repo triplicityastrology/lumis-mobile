@@ -19,6 +19,9 @@ import { projectSafeNatalContext } from "./safe-natal-context";
 export const NATAL_CHART_PROJECTION_VERSION = "natal_chart_projection_v1" as const;
 export const NATAL_CHART_SOURCE_ID =
   "triplicity_cloudflare_worker_mobile_natal_v1_chart_v2" as const;
+export const NATAL_CHART_HOUSE_METHOD_ID =
+  "triplicity_worker_placidus_cusps" as const;
+export const NATAL_CHART_HOUSE_METHOD_VERSION = "chart_v2" as const;
 
 export type NatalChartLifecycleFailureCode =
   | "NATAL_LIFECYCLE_NOT_OBJECT"
@@ -170,6 +173,15 @@ export async function attachNatalChartProjection(
       number: house.no,
       cuspLongitude: house.cuspLongitude,
     })),
+    ...(precision === "full" && houseResult.houses.length > 0
+      ? {
+          houseSystem: {
+            key: "placidus" as const,
+            methodId: NATAL_CHART_HOUSE_METHOD_ID,
+            methodVersion: NATAL_CHART_HOUSE_METHOD_VERSION,
+          },
+        }
+      : {}),
   };
   const adapted = adaptProviderNeutralNatalPayload(payload);
   if (!adapted.ok) {

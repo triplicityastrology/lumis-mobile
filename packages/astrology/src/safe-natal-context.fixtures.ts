@@ -20,6 +20,11 @@ const engineResult = composeNatalEngineOutput({
     no: index + 1,
     cuspLongitude: 190 + index * 30,
   })),
+  houseSystem: {
+    key: "placidus",
+    methodId: "fixture_house_cusps",
+    methodVersion: "v1",
+  },
 });
 truthy(engineResult.ok, "accepted engine output fixture");
 if (!engineResult.ok) {
@@ -79,6 +84,8 @@ const noTimeOutput = composeNatalEngineOutput({
   moonLocalDayEndpoints: {
     startLongitude: 42,
     endLongitude: 55,
+    methodId: "fixture_local_day_moon",
+    methodVersion: "v1",
   },
 });
 truthy(noTimeOutput.ok, "no-time engine output fixture");

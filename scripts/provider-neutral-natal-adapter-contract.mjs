@@ -17,6 +17,11 @@ assert.match(adapter, /const ROOT_FIELDS = new Set\(\[[\s\S]*"schemaVersion"[\s\
 assert.match(adapter, /SAFE_IDENTIFIER/);
 assert.match(adapter, /NATAL_ADAPTER_DUPLICATE_POINT/);
 assert.match(adapter, /NATAL_ADAPTER_TIME_CAPABILITY_MISMATCH/);
+assert.match(adapter, /NATAL_ADAPTER_HOUSE_SYSTEM_INVALID/);
+assert.match(adapter, /declared_placidus_house_system_required/);
+assert.match(adapter, /methodId/);
+assert.match(adapter, /methodVersion/);
+assert.match(adapter, /precision === "no_birth_time" && point\.key === "moon"/);
 assert.match(adapter, /isProhibitedNatalScopeIdentifier/);
 assert.doesNotMatch(
   adapter,

@@ -59,8 +59,10 @@ export function composeNatalEngineOutput(
       schemaVersion: NATAL_ENGINE_OUTPUT_VERSION,
       scope: "natal",
       inputProvenance: {
-        ...canonicalInput.provenance,
+        source: canonicalInput.provenance.source,
+        contractVersion: canonicalInput.provenance.contractVersion,
         sourceFields: [...canonicalInput.provenance.sourceFields],
+        rule: canonicalInput.provenance.rule,
       },
       capabilities: { ...canonicalInput.capabilities },
       facts,

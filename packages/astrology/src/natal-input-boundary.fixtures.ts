@@ -21,6 +21,11 @@ const timedInput = {
     no: index + 1,
     cuspLongitude: 271 + index * 30,
   })),
+  houseSystem: {
+    key: "placidus",
+    methodId: "fixture_house_cusps",
+    methodVersion: "v1",
+  },
 };
 const timed = validateNatalEngineInput(timedInput);
 truthy(timed.ok, "complete timed natal input accepted");
@@ -80,6 +85,8 @@ const noTimeInput = {
   moonLocalDayEndpoints: {
     startLongitude: 42,
     endLongitude: 55,
+    methodId: "fixture_local_day_moon",
+    methodVersion: "v1",
   },
 };
 const noTime = validateNatalEngineInput(noTimeInput);
@@ -107,6 +114,18 @@ if (noTime.ok) {
     equal(moonFact.value, "taurus", "Moon endpoint rule receives canonical input");
   }
 }
+
+expectFailure(
+  { ...timedInput, houseSystem: undefined },
+  "NATAL_INPUT_HOUSE_SYSTEM_INVALID"
+);
+expectFailure(
+  {
+    ...noTimeInput,
+    moonLocalDayEndpoints: { startLongitude: 42, endLongitude: 55 },
+  },
+  "NATAL_INPUT_MOON_ENDPOINTS_INVALID"
+);
 
 expectFailure(null, "NATAL_INPUT_NOT_OBJECT");
 expectFailure({}, "NATAL_INPUT_SCHEMA_UNSUPPORTED");

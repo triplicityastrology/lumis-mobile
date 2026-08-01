@@ -125,6 +125,7 @@ const INPUT_SOURCE_FIELDS = new Set([
   "precision",
   "points",
   "houses",
+  "houseSystem",
   "moonLocalDayEndpoints",
 ]);
 const BODY_KEYS = new Set<CanonicalNatalBodyKey>([

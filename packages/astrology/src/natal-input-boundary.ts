@@ -25,6 +25,7 @@ export type NatalInputFailureCode =
   | "NATAL_INPUT_HOUSES_INVALID"
   | "NATAL_INPUT_HOUSE_INVALID"
   | "NATAL_INPUT_DUPLICATE_HOUSE"
+  | "NATAL_INPUT_HOUSE_SYSTEM_INVALID"
   | "NATAL_INPUT_TIME_CAPABILITY_MISMATCH"
   | "NATAL_INPUT_MOON_ENDPOINTS_INVALID";
 
@@ -42,6 +43,7 @@ export type NatalInputFailureReason =
   | "house_list_required"
   | "house_shape_invalid"
   | "house_number_must_be_unique"
+  | "house_system_shape_invalid"
   | "timed_data_requires_supplied_birth_time"
   | "moon_endpoint_shape_invalid";
 
@@ -52,6 +54,7 @@ export type NatalInputFailureLocation =
   | "precision"
   | "points"
   | "houses"
+  | "house_system"
   | "moon_local_day_endpoints";
 
 export type NatalInputFailure = {
@@ -87,9 +90,25 @@ export type CanonicalNatalEngineInput = {
   capabilities: BirthTimeCapabilities;
   points: CanonicalNatalInputPoint[];
   houses: CanonicalNatalInputHouse[];
+  houseSystem?: {
+    key: "placidus";
+    methodId: string;
+    methodVersion: string;
+    provenance: {
+      source: "validated_provider_normalised_natal_input";
+      sourceFields: [
+        "houseSystem.key",
+        "houseSystem.methodId",
+        "houseSystem.methodVersion",
+      ];
+      rule: "declared_placidus_house_system";
+    };
+  };
   moonLocalDayEndpoints?: {
     startLongitude: number;
     endLongitude: number;
+    methodId?: string;
+    methodVersion?: string;
     provenance: {
       source: "validated_provider_normalised_natal_input";
       sourceFields: [
@@ -103,6 +122,8 @@ export type CanonicalNatalEngineInput = {
     source: "validated_provider_normalised_natal_input";
     contractVersion: typeof NATAL_INPUT_CONTRACT_VERSION;
     sourceFields: string[];
+    houseSystem?: { key: "placidus"; methodId: string; methodVersion: string };
+    moonEndpointMethod?: { methodId: string; methodVersion: string };
     rule: "closed_natal_input_contract";
   };
 };
@@ -117,11 +138,19 @@ const ROOT_FIELDS = new Set([
   "precision",
   "points",
   "houses",
+  "houseSystem",
   "moonLocalDayEndpoints",
 ]);
 const POINT_FIELDS = new Set(["key", "absoluteLongitude"]);
 const HOUSE_FIELDS = new Set(["no", "cuspLongitude"]);
-const MOON_ENDPOINT_FIELDS = new Set(["startLongitude", "endLongitude"]);
+const HOUSE_SYSTEM_FIELDS = new Set(["key", "methodId", "methodVersion"]);
+const MOON_ENDPOINT_FIELDS = new Set([
+  "startLongitude",
+  "endLongitude",
+  "methodId",
+  "methodVersion",
+]);
+const SAFE_METHOD_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9:_-]{0,79}$/;
 const PROHIBITED_SCOPE_TOKENS = [
   "solarreturn",
   "returnchart",
@@ -200,6 +229,8 @@ export function validateNatalEngineInput(
   if (!houseResult.ok) {
     return houseResult;
   }
+  const houseSystemResult = canonicalizeHouseSystem(input.houseSystem);
+  if (!houseSystemResult.ok) return houseSystemResult;
   const moonResult = canonicalizeMoonEndpoints(input.moonLocalDayEndpoints);
   if (!moonResult.ok) {
     return moonResult;
@@ -209,12 +240,20 @@ export function validateNatalEngineInput(
   if (
     birthTime === "not_supplied" &&
     (houseResult.value.length > 0 ||
+      houseSystemResult.value !== null ||
       pointResult.value.some((point) => isCanonicalNatalAngleKey(point.key)))
   ) {
     return failure(
       "NATAL_INPUT_TIME_CAPABILITY_MISMATCH",
       "timed_data_requires_supplied_birth_time",
       houseResult.value.length > 0 ? "houses" : "points"
+    );
+  }
+  if (houseResult.value.length > 0 && houseSystemResult.value === null) {
+    return failure(
+      "NATAL_INPUT_HOUSE_SYSTEM_INVALID",
+      "house_system_shape_invalid",
+      "house_system"
     );
   }
 
@@ -224,6 +263,7 @@ export function validateNatalEngineInput(
     "precision",
     "points",
     "houses",
+    ...(houseSystemResult.value ? ["houseSystem"] : []),
     ...(moonResult.value ? ["moonLocalDayEndpoints"] : []),
   ];
 
@@ -236,6 +276,9 @@ export function validateNatalEngineInput(
       capabilities: resolveBirthTimeCapabilities(birthTime),
       points: pointResult.value,
       houses: houseResult.value,
+      ...(houseSystemResult.value
+        ? { houseSystem: houseSystemResult.value }
+        : {}),
       ...(moonResult.value
         ? { moonLocalDayEndpoints: moonResult.value }
         : {}),
@@ -243,7 +286,75 @@ export function validateNatalEngineInput(
         source: "validated_provider_normalised_natal_input",
         contractVersion: NATAL_INPUT_CONTRACT_VERSION,
         sourceFields,
+        ...(houseSystemResult.value
+          ? {
+              houseSystem: {
+                key: houseSystemResult.value.key,
+                methodId: houseSystemResult.value.methodId,
+                methodVersion: houseSystemResult.value.methodVersion,
+              },
+            }
+          : {}),
+        ...(moonResult.value?.methodId && moonResult.value.methodVersion
+          ? {
+              moonEndpointMethod: {
+                methodId: moonResult.value.methodId,
+                methodVersion: moonResult.value.methodVersion,
+              },
+            }
+          : {}),
         rule: "closed_natal_input_contract",
+      },
+    },
+  };
+}
+
+function canonicalizeHouseSystem(
+  value: unknown
+):
+  | { ok: true; value: CanonicalNatalEngineInput["houseSystem"] | null }
+  | { ok: false; error: NatalInputFailure } {
+  if (value === undefined) return { ok: true, value: null };
+  if (!isPlainRecord(value)) {
+    return failure(
+      "NATAL_INPUT_HOUSE_SYSTEM_INVALID",
+      "house_system_shape_invalid",
+      "house_system"
+    );
+  }
+  const fieldFailure = validateClosedFields(
+    value,
+    HOUSE_SYSTEM_FIELDS,
+    "house_system"
+  );
+  if (fieldFailure) return fieldFailure;
+  if (
+    value.key !== "placidus" ||
+    typeof value.methodId !== "string" ||
+    !SAFE_METHOD_IDENTIFIER.test(value.methodId) ||
+    typeof value.methodVersion !== "string" ||
+    !SAFE_METHOD_IDENTIFIER.test(value.methodVersion)
+  ) {
+    return failure(
+      "NATAL_INPUT_HOUSE_SYSTEM_INVALID",
+      "house_system_shape_invalid",
+      "house_system"
+    );
+  }
+  return {
+    ok: true,
+    value: {
+      key: "placidus",
+      methodId: value.methodId,
+      methodVersion: value.methodVersion,
+      provenance: {
+        source: "validated_provider_normalised_natal_input",
+        sourceFields: [
+          "houseSystem.key",
+          "houseSystem.methodId",
+          "houseSystem.methodVersion",
+        ],
+        rule: "declared_placidus_house_system",
       },
     },
   };
@@ -441,7 +552,14 @@ function canonicalizeMoonEndpoints(
     typeof value.endLongitude === "number"
       ? normalizeNatalLongitude(value.endLongitude)
       : null;
-  if (startLongitude == null || endLongitude == null) {
+  if (
+    startLongitude == null ||
+    endLongitude == null ||
+    typeof value.methodId !== "string" ||
+    !SAFE_METHOD_IDENTIFIER.test(value.methodId) ||
+    typeof value.methodVersion !== "string" ||
+    !SAFE_METHOD_IDENTIFIER.test(value.methodVersion)
+  ) {
     return failure(
       "NATAL_INPUT_MOON_ENDPOINTS_INVALID",
       "moon_endpoint_shape_invalid",
@@ -454,6 +572,8 @@ function canonicalizeMoonEndpoints(
     value: {
       startLongitude,
       endLongitude,
+      methodId: value.methodId,
+      methodVersion: value.methodVersion,
       provenance: {
         source: "validated_provider_normalised_natal_input",
         sourceFields: [

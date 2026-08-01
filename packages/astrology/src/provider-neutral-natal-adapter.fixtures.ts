@@ -24,6 +24,11 @@ const timedPayload = {
     number: index + 1,
     cuspLongitude: 271 + index * 30,
   })),
+  houseSystem: {
+    key: "placidus",
+    methodId: "fixture_house_cusps",
+    methodVersion: "v1",
+  },
 };
 
 const timed = adaptProviderNeutralNatalPayload(timedPayload);
@@ -39,6 +44,7 @@ if (timed.ok) {
   equal(timed.value.engineInput.chartType, "natal", "natal mapping");
   equal(timed.value.engineInput.points[0]?.key, "ascendant", "stable point order");
   equal(timed.value.engineInput.houses.length, 12, "timed houses mapped");
+  equal(timed.value.engineInput.houseSystem?.key, "placidus", "house system recorded");
   truthy(
     validateNatalEngineInput(timed.value.engineInput).ok,
     "mapped timed input passes accepted boundary"
@@ -66,6 +72,8 @@ const noTimePayload = {
   moonLocalDayEndpoints: {
     startLongitude: 42,
     endLongitude: 55,
+    methodId: "fixture_local_day_moon",
+    methodVersion: "v1",
   },
 };
 
@@ -73,6 +81,11 @@ const noTime = adaptProviderNeutralNatalPayload(noTimePayload);
 truthy(noTime.ok, "valid no-birth-time payload");
 if (noTime.ok) {
   equal(noTime.value.engineInput.houses.length, 0, "no-time houses empty");
+  equal(
+    noTime.value.engineInput.points.some((point) => point.key === "moon"),
+    false,
+    "no-time exact Moon longitude is not admitted"
+  );
   equal(
     noTime.value.engineInput.points.some((point) =>
       point.key === "ascendant" || point.key === "medium_coeli"
@@ -84,7 +97,28 @@ if (noTime.ok) {
     validateNatalEngineInput(noTime.value.engineInput).ok,
     "mapped no-time input passes accepted boundary"
   );
+  equal(
+    noTime.value.engineInput.moonLocalDayEndpoints?.methodId,
+    "fixture_local_day_moon",
+    "Moon endpoint method recorded"
+  );
 }
+
+expectFailure(
+  { ...timedPayload, houseSystem: undefined },
+  "NATAL_ADAPTER_HOUSE_SYSTEM_INVALID"
+);
+expectFailure(
+  { ...timedPayload, houseSystem: { ...timedPayload.houseSystem, key: "unknown" } },
+  "NATAL_ADAPTER_HOUSE_SYSTEM_INVALID"
+);
+expectFailure(
+  {
+    ...noTimePayload,
+    moonLocalDayEndpoints: { startLongitude: 42, endLongitude: 55 },
+  },
+  "NATAL_ADAPTER_MOON_ENDPOINTS_INVALID"
+);
 
 expectFailure(null, "NATAL_ADAPTER_NOT_OBJECT");
 expectFailure({}, "NATAL_ADAPTER_SCHEMA_UNSUPPORTED");

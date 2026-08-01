@@ -122,6 +122,17 @@ infrastructure before `natal_engine_input_v1`. It accepts only the closed
 - approved natal point names and finite longitudes;
 - numbered house cusps;
 - optional Moon local-day endpoints.
+- timed house data is admitted by the provider adapter only with an explicit
+  `placidus` declaration and bounded calculation method/version provenance;
+- supplied no-birth-time Moon local-day endpoints require a bounded named
+  method/version, and their absence never triggers a noon substitution.
+  The adapter omits any exact no-time Moon point; only the endpoint stability
+  rule may produce the bounded Moon-sign fact.
+
+The designated `triplicity_cloudflare_worker` `chart_v2` lifecycle mapping
+declares its approved Placidus cusp contract as
+`triplicity_worker_placidus_cusps` / `chart_v2`. Other provider-neutral callers
+must supply their own validated declaration; the adapter does not infer one.
 
 The adapter rejects unknown fields, duplicate canonical aliases, non-natal chart
 types, Solar Return or contextual `SR`, transit, timing, annual-theme, Vertex,

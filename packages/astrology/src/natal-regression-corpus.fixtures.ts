@@ -89,6 +89,11 @@ const timed = composeLifecycle(
       { name: "ASC", longitude: 190 },
     ],
     houses: houses(190),
+    houseSystem: {
+      key: "placidus",
+      methodId: "fixture_house_cusps",
+      methodVersion: "v1",
+    },
   })
 );
 equal(timed.capabilities.birthTime, "supplied", "timed birth-time capability");
@@ -109,6 +114,8 @@ const noTime = composeLifecycle(
     moonLocalDayEndpoints: {
       startLongitude: 60,
       endLongitude: 61,
+      methodId: "fixture_local_day_moon",
+      methodVersion: "v1",
     },
   })
 );
@@ -302,6 +309,13 @@ function payload(
     moonLocalDayEndpoints: {
       startLongitude: number;
       endLongitude: number;
+      methodId: string;
+      methodVersion: string;
+    };
+    houseSystem: {
+      key: "placidus";
+      methodId: string;
+      methodVersion: string;
     };
   }> = {}
 ) {

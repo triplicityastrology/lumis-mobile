@@ -18,6 +18,11 @@ const timedInput = {
     no: index + 1,
     cuspLongitude: 190 + index * 30,
   })),
+  houseSystem: {
+    key: "placidus",
+    methodId: "fixture_house_cusps",
+    methodVersion: "v1",
+  },
 };
 
 const timed = composeNatalEngineOutput(timedInput);
@@ -60,6 +65,8 @@ const noTimeInput = {
   moonLocalDayEndpoints: {
     startLongitude: 42,
     endLongitude: 55,
+    methodId: "fixture_local_day_moon",
+    methodVersion: "v1",
   },
 };
 
