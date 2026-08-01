@@ -1,0 +1,16 @@
+{
+  "control": "S2-T115",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "approved_technical_ancestor": "c06efb6a0169f5d332d34f915470c17b94b1f9c8",
+  "execution_default": "local_validation_only",
+  "locked_operator_files": [
+    { "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "d3eff70474e8c8831be95475be2b4b630391c1a83179c7d197bd757a16c68ad8" },
+    { "path": "scripts/s2-care-circle-function-pat-preflight.mjs", "sha256": "5e59267a915b183707fe166f3f8fa0e216bfa953ea7d4a59c51a644bb7b2d9ed" },
+    { "path": "scripts/s2-care-circle-final-parity-preflight.mjs", "sha256": "db955adde7d961628b6a5a9366a0986c1f0678cc68cd1d7a4efa86e53757633d" },
+    { "path": "scripts/lib/care-circle-final-parity.mjs", "sha256": "cd99dd69e51e3e26c6b7b81b286962308206085aba301360af3a2e33af077932" },
+    { "path": "scripts/s2-care-circle-function-config-preflight.mjs", "sha256": "75601637ec1ac1834cdc86d9077d1a5d912e49422e2b9abfec0db8410a8b3273" },
+    { "path": "scripts/validate-supabase-secret-names.mjs", "sha256": "a8acd20d18e6dacc7d17f117b523a6fc8e00d3c93ec943eb20162e877646e179" },
+    { "path": "scripts/validate-supabase-function-list.mjs", "sha256": "6dc738f680ffde3de3c36271c4c03c7cbe1ba5cdf6312f8d7a630417ae102f7e" },
+    { "path": "scripts/classify-supabase-pat-revocation.mjs", "sha256": "1743f1eb2c55fe121ded30f25ec5cf1d49a5ced4b1f4f9a7c8fd920eb6a8be8f" }
+  ]
+}

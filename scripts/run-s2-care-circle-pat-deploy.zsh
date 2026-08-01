@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-readonly ROOT="/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work"
+readonly ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 readonly EXPECTED_REF="bmqhwofmdgebpcihjlnb"
 readonly PINNED_CLI="2.109.1"
 readonly PNPM="/Users/rubyku/.local/node22/bin/pnpm"
@@ -10,21 +10,21 @@ readonly FUNCTION_NAME="care-circle"
 readonly REQUIRED_CONFIG_NAMES="CARE_CIRCLE_PAIRING_SECRET,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL"
 
 MODE="preflight"
-APPROVED_SOURCE_SHA=""
+APPROVED_TECHNICAL_ANCESTOR=""
 PAT_READY=""
 
 while (( $# > 0 )); do
   case "$1" in
     --) shift ;;
     --execute) MODE="execute"; shift ;;
-    --approved-source-sha) APPROVED_SOURCE_SHA="${2:-}"; shift 2 ;;
+    --approved-technical-ancestor) APPROVED_TECHNICAL_ANCESTOR="${2:-}"; shift 2 ;;
     --pat-ready) PAT_READY="${2:-}"; shift 2 ;;
     *) print -u2 -- "STOP_S2_T102_ARGUMENTS_INVALID"; exit 1 ;;
   esac
 done
 
-if [[ ! "$APPROVED_SOURCE_SHA" =~ '^[0-9a-f]{40}$' ]]; then
-  print -u2 -- "STOP_S2_T102_SOURCE_SHA_REQUIRED"
+if [[ ! "$APPROVED_TECHNICAL_ANCESTOR" =~ '^[0-9a-f]{40}$' ]]; then
+  print -u2 -- "STOP_S2_T102_TECHNICAL_ANCESTOR_REQUIRED"
   exit 1
 fi
 if [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
@@ -35,9 +35,12 @@ fi
 cd "$ROOT"
 node scripts/s2-care-circle-final-parity-preflight.mjs \
   --project-ref "$EXPECTED_REF" >/dev/null
+node scripts/s2-care-circle-clean-descendant-authority.mjs \
+  --project-ref "$EXPECTED_REF" \
+  --approved-technical-ancestor "$APPROVED_TECHNICAL_ANCESTOR" >/dev/null
 node scripts/s2-care-circle-function-pat-preflight.mjs \
   --project-ref "$EXPECTED_REF" \
-  --approved-source-sha "$APPROVED_SOURCE_SHA" >/dev/null
+  --approved-technical-ancestor "$APPROVED_TECHNICAL_ANCESTOR" >/dev/null
 node scripts/s2-care-circle-function-config-preflight.mjs \
   --project-ref "$EXPECTED_REF" \
   --reviewed-function-sha256 "$(node -p "require('./supabase/tests/s2-t48-care-circle-function-config-control.json').function_sha256")" \
@@ -46,7 +49,8 @@ node scripts/s2-care-circle-function-config-preflight.mjs \
 if [[ "$MODE" != "execute" ]]; then
   print -- "READY_FOR_PAT"
   print -- "project_ref=$EXPECTED_REF"
-  print -- "source_sha=$APPROVED_SOURCE_SHA"
+  print -- "approved_technical_ancestor=$APPROVED_TECHNICAL_ANCESTOR"
+  print -- "head=$(git rev-parse HEAD)"
   print -- "function_name=$FUNCTION_NAME"
   print -- "network_calls=0 token_requested=0 deployment_actions=0"
   exit 0
@@ -117,7 +121,8 @@ unset FUNCTION_LIST_JSON
 FUNCTION_SHA256="$(node -p "require('./supabase/tests/s2-t43-care-circle-function-pat-control.json').function_sha256")"
 print -- "CARE_CIRCLE_INACTIVE_DEPLOY_VERIFIED"
 print -- "project_ref=$EXPECTED_REF"
-print -- "source_sha=$APPROVED_SOURCE_SHA"
+print -- "approved_technical_ancestor=$APPROVED_TECHNICAL_ANCESTOR"
+print -- "head=$(git rev-parse HEAD)"
 print -- "function_sha256=$FUNCTION_SHA256"
 print -- "$FUNCTION_EVIDENCE"
 

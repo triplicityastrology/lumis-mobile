@@ -63,7 +63,7 @@
     "test:s2-care-circle-deployment-readiness": "node scripts/s2-care-circle-deployment-readiness.mjs --project-ref bmqhwofmdgebpcihjlnb",
     "test:s2-care-circle-deployment-runbook": "node scripts/s2-care-circle-deployment-runbook-contract.mjs",
     "test:s2-care-circle-function-pat-preflight": "node scripts/s2-care-circle-function-pat-preflight-contract.mjs && node scripts/s2-care-circle-pat-deploy-operator-contract.mjs",
-    "test:s2-care-circle-pat-deploy-operator": "node scripts/s2-care-circle-pat-deploy-operator-contract.mjs",
+    "test:s2-care-circle-pat-deploy-operator": "node scripts/s2-care-circle-pat-deploy-operator-contract.mjs && node scripts/s2-care-circle-clean-descendant-authority-contract.mjs",
     "care-circle:deploy-inactive": "zsh scripts/run-s2-care-circle-pat-deploy.zsh",
     "test:s2-care-circle-function-config-preflight": "node scripts/s2-care-circle-function-config-preflight-contract.mjs && node scripts/s2-care-circle-function-health-contract.mjs",
     "test:s2-care-circle-function-health": "node scripts/s2-care-circle-function-health-contract.mjs",

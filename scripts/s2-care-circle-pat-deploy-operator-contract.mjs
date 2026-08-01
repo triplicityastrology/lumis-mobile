@@ -11,6 +11,8 @@ for (const required of [
   'FUNCTION_NAME="care-circle"',
   "--) shift ;;",
   "READY_FOR_PAT",
+  "--approved-technical-ancestor",
+  "s2-care-circle-clean-descendant-authority.mjs",
   "PAT_READY",
   "IFS= read -r -s",
   "s2-care-circle-final-parity-preflight.mjs",
@@ -27,12 +29,13 @@ for (const required of [
   assert.ok(operator.includes(required), `operator omits ${required}`);
 }
 assert.doesNotMatch(operator, /supabase\s+login|db push|notification-device/);
+assert.doesNotMatch(operator, /--approved-source-sha|APPROVED_SOURCE_SHA/);
 assert.doesNotMatch(operator, /SUPABASE_ACCESS_TOKEN=.*sbp_|tee .*TOKEN|echo .*TOKEN/);
 assert.match(operator, /if \[\[ "\$MODE" != "execute" \]\][\s\S]*READY_FOR_PAT/);
 assert.match(operator, /cleanup_token[\s\S]*unset SUPABASE_ACCESS_TOKEN/);
 assert.equal(
   packageJson.scripts["test:s2-care-circle-pat-deploy-operator"],
-  "node scripts/s2-care-circle-pat-deploy-operator-contract.mjs"
+  "node scripts/s2-care-circle-pat-deploy-operator-contract.mjs && node scripts/s2-care-circle-clean-descendant-authority-contract.mjs"
 );
 
 const safeSecrets = run(

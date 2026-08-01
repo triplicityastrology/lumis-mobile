@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 const CONTROL_PATH =
@@ -16,26 +16,28 @@ assert.equal(
   control.project_ref,
   "PAT_PREFLIGHT_PROJECT_REF_MISMATCH"
 );
-assert.match(args.approvedSourceSha, /^[0-9a-f]{40}$/);
+const authority = JSON.parse(readFileSync("supabase/tests/s2-t115-care-circle-descendant-authority.json", "utf8"));
+assert.equal(args.approvedTechnicalAncestor, authority.approved_technical_ancestor, "PAT_PREFLIGHT_ANCESTOR_INPUT_MISMATCH");
 assert.equal(
   process.env.SUPABASE_ACCESS_TOKEN,
   undefined,
   "PAT_PREFLIGHT_TOKEN_MUST_NOT_BE_SET"
 );
-assert.equal(
-  existsSync(LINKED_REF_PATH),
-  true,
-  "PAT_PREFLIGHT_LINKED_REF_MISSING"
-);
-assert.equal(
-  readFileSync(LINKED_REF_PATH, "utf8").trim(),
-  control.project_ref,
-  "PAT_PREFLIGHT_LINKED_REF_MISMATCH"
-);
+if (existsSync(LINKED_REF_PATH)) {
+  assert.equal(
+    readFileSync(LINKED_REF_PATH, "utf8").trim(),
+    control.project_ref,
+    "PAT_PREFLIGHT_LINKED_REF_MISMATCH"
+  );
+}
 
 const head = git("rev-parse", "HEAD");
-assert.equal(head, args.approvedSourceSha, "PAT_PREFLIGHT_SOURCE_SHA_MISMATCH");
-assert.equal(git("status", "--porcelain=v1"), "", "PAT_PREFLIGHT_TREE_DIRTY");
+const descendant = spawnSync(process.execPath, [
+  "scripts/s2-care-circle-clean-descendant-authority.mjs",
+  "--project-ref", args.projectRef,
+  "--approved-technical-ancestor", args.approvedTechnicalAncestor,
+], { encoding: "utf8" });
+assert.equal(descendant.status, 0, "PAT_PREFLIGHT_DESCENDANT_AUTHORITY_FAILED");
 assert.equal(
   git("merge-base", "--is-ancestor", control.minimum_safe_function_commit, head),
   "",
@@ -73,7 +75,8 @@ process.stdout.write(
   [
     "S2-T43 local PAT preflight passed.",
     `project_ref=${control.project_ref}`,
-    `source_sha=${head}`,
+    `approved_technical_ancestor=${args.approvedTechnicalAncestor}`,
+    `head=${head}`,
     `function_sha256=${functionChecksum}`,
     "network_contact=false",
     "token_requested=false"
@@ -93,9 +96,9 @@ function parseArgs(values) {
     const flag = values[index];
     const value = values[index + 1];
     if (flag === "--project-ref") result.projectRef = value;
-    if (flag === "--approved-source-sha") result.approvedSourceSha = value;
+    if (flag === "--approved-technical-ancestor") result.approvedTechnicalAncestor = value;
   }
-  if (!result.projectRef || !result.approvedSourceSha || values.length !== 4) {
+  if (!result.projectRef || !result.approvedTechnicalAncestor || values.length !== 4) {
     throw new Error("PAT_PREFLIGHT_ARGUMENTS_INVALID");
   }
   return result;

@@ -36,8 +36,8 @@ assert.deepEqual(control.minimum_permissions, [
 ]);
 
 assert.match(checker, /SUPABASE_ACCESS_TOKEN[\s\S]*undefined/);
-assert.match(checker, /git\("status", "--porcelain=v1"\)/);
-assert.match(checker, /PAT_PREFLIGHT_TREE_DIRTY/);
+assert.match(checker, /s2-care-circle-clean-descendant-authority\.mjs/);
+assert.match(checker, /PAT_PREFLIGHT_DESCENDANT_AUTHORITY_FAILED/);
 assert.match(checker, /PAT_PREFLIGHT_FUNCTION_CHECKSUM_MISMATCH/);
 assert.doesNotMatch(
   checker,
@@ -87,8 +87,8 @@ const wrongRef = spawnSync(
     "scripts/s2-care-circle-function-pat-preflight.mjs",
     "--project-ref",
     "not-staging",
-    "--approved-source-sha",
-    "0".repeat(40)
+    "--approved-technical-ancestor",
+    control.minimum_safe_function_commit
   ],
   { encoding: "utf8" }
 );
