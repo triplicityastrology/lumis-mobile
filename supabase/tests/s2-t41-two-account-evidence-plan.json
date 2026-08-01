@@ -1,0 +1,46 @@
+{
+  "control": "S2-T41-A",
+  "environment": "staging",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "source_readiness_only",
+  "actors": {
+    "caree": 1,
+    "carer": 1,
+    "existing_accounts_allowed": false
+  },
+  "ordered_device_steps": [
+    "caree_sign_in",
+    "caree_create_one_hour_pairing_code",
+    "caree_switch_account",
+    "carer_sign_in",
+    "carer_submit_pairing_code",
+    "carer_verify_pending_caree_acceptance_no_authority",
+    "carer_switch_account",
+    "caree_sign_in",
+    "caree_refresh_pending_requests",
+    "caree_accept_relationship",
+    "caree_verify_active",
+    "caree_pause",
+    "caree_resume",
+    "caree_switch_account",
+    "carer_sign_in",
+    "carer_verify_active",
+    "carer_remove_self",
+    "carer_verify_removed",
+    "carer_sign_out",
+    "operator_cleanup_two_disposable_accounts"
+  ],
+  "forbidden_in_this_run": [
+    "second_carer",
+    "sixth_carer_capacity",
+    "cross_user_matrix",
+    "notification_delivery",
+    "normal_app_activation"
+  ],
+  "evidence": [
+    "redacted_run_id",
+    "ordered_check_names",
+    "safe_status_codes",
+    "two_account_cleanup_count"
+  ]
+}
