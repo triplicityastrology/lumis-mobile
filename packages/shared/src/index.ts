@@ -7,4 +7,5 @@ export * from "./config/entitlements";
 export * from "./config/birth-date";
 export * from "./config/account-entitlement";
 export * from "./config/preview-capability-boundary";
+export * from "./config/persona-calculator";
 export * from "./types/chart";
