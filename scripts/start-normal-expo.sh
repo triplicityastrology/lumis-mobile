@@ -73,4 +73,5 @@ printf 'Starting the normal Lumis app on port %s. Keep this Terminal open; press
 printf 'Care Circle workbench is not enabled by this command.\n'
 
 cd "$ROOT"
+export EXPO_PUBLIC_LUMIS_SOURCE_COMMIT="$COMMIT"
 exec pnpm --dir "$MOBILE_DIR" exec expo start --tunnel --port "$PORT" --clear

@@ -95,6 +95,7 @@ import {
   resolvePersonaChatTreatment
 } from "./src/features/chat/personaChatTreatment";
 import { FounderTestHub, FounderTestHubEntry } from "./src/dev/FounderTestHub";
+import { FounderBuildStatusPanel } from "./src/dev/FounderBuildStatusPanel";
 import { FounderCareCircleWorkbench } from "./src/dev/FounderCareCircleWorkbench";
 import PersonaComparisonWorkbench from "./src/dev/PersonaComparisonWorkbench";
 import { QuotaVerificationPanel } from "./src/dev/QuotaVerificationPanel";
@@ -209,7 +210,7 @@ export default function App() {
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [founderTestRoute, setFounderTestRoute] = useState<
-    null | "hub" | "persona" | "quota" | "careCircle"
+    null | "hub" | "buildStatus" | "persona" | "quota" | "careCircle"
   >(null);
   const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
@@ -1172,10 +1173,16 @@ export default function App() {
         <View style={styles.devOverlay}>
           <FounderTestHub
             onClose={() => setFounderTestRoute(null)}
+            onOpenBuildStatus={() => setFounderTestRoute("buildStatus")}
             onOpenCareCircle={() => setFounderTestRoute("careCircle")}
             onOpenPersonaComparison={() => setFounderTestRoute("persona")}
             onOpenQuotaVerification={() => setFounderTestRoute("quota")}
           />
+        </View>
+      ) : null}
+      {__DEV__ && founderTestRoute === "buildStatus" ? (
+        <View style={styles.devOverlay}>
+          <FounderBuildStatusPanel onBack={() => setFounderTestRoute("hub")} />
         </View>
       ) : null}
       {__DEV__ && founderTestRoute === "persona" ? (

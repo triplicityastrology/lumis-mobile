@@ -18,9 +18,10 @@ assert.match(launcher, /git -C "\$ROOT" rev-parse --show-toplevel/);
 assert.match(launcher, /status --porcelain --untracked-files=no/);
 assert.match(launcher, /LUMIS_CURRENT_BUILD commit=%s branch=%s app=normal tracked_tree=clean/);
 assert.match(launcher, /current Lumis source revision could not be verified/);
+assert.match(launcher, /export EXPO_PUBLIC_LUMIS_SOURCE_COMMIT="\$COMMIT"/);
 assert.match(launcher, /exec pnpm --dir "\$MOBILE_DIR" exec expo start --tunnel --port "\$PORT" --clear/);
 assert.match(launcher, /Care Circle workbench is not enabled by this command/);
 assert.doesNotMatch(launcher, /test-workbenches|CARE_CIRCLE_STAGING_WORKBENCH|kill\s/);
-assert.doesNotMatch(launcher, /EXPO_PUBLIC_|SUPABASE|secret|token|password/i);
+assert.doesNotMatch(launcher, /SUPABASE|secret|token|password/i);
 
 console.log("Normal Expo launcher contract passed.");

@@ -9,11 +9,13 @@ import { colors, radii, spacing } from "../theme/tokens";
 export function FounderTestHub({
   onClose,
   onOpenCareCircle,
+  onOpenBuildStatus,
   onOpenPersonaComparison,
   onOpenQuotaVerification,
 }: {
   onClose: () => void;
   onOpenCareCircle: () => void;
+  onOpenBuildStatus: () => void;
   onOpenPersonaComparison: () => void;
   onOpenQuotaVerification: () => void;
 }) {
@@ -31,6 +33,20 @@ export function FounderTestHub({
           <FlaskConical color={colors.gold} size={20} />
           <Text style={styles.noticeText}>Development evidence only. Test fixtures are not live AI responses or production capabilities.</Text>
         </View>
+        <Pressable
+          accessibilityHint="Shows the source commit and test surfaces included in this Metro bundle"
+          accessibilityLabel="Current build and feature status"
+          accessibilityRole="button"
+          onPress={onOpenBuildStatus}
+          style={styles.row}
+        >
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Current build and feature status</Text>
+            <Text style={styles.rowDetail}>Source marker · bundled test surfaces</Text>
+            <Text style={styles.fixtureLabel}>Detect a stale Metro bundle</Text>
+          </View>
+          <ChevronRight color={colors.muted} size={20} />
+        </Pressable>
         <Pressable
           accessibilityHint="Opens the gated disposable-account Care Circle staging journey"
           accessibilityLabel="Care Circle staging test"
