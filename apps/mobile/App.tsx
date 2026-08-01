@@ -81,6 +81,7 @@ import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
+import { ChatThinkingIndicator } from "./src/components/ChatThinkingIndicator";
 import {
   isNearChatLatest,
   shouldMaintainChatLatest,
@@ -2186,7 +2187,14 @@ function ChatShellScreen({
                 <View style={styles.messageRowLumis}>
                   <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
                   <View style={styles.messageBubbleLumis}>
-                    <Text style={styles.messageTextLumis}>Reflecting...</Text>
+                    <View
+                      accessibilityLabel="Lumis is reflecting"
+                      accessibilityLiveRegion="polite"
+                      style={styles.chatThinkingRow}
+                    >
+                      <ChatThinkingIndicator />
+                      <Text style={styles.messageTextLumis}>Reflecting...</Text>
+                    </View>
                   </View>
                 </View>
               ) : null}
@@ -3380,6 +3388,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 11,
     paddingVertical: 6
+  },
+  chatThinkingRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    minHeight: 20
   },
   chatTransitTagText: {
     color: "#E9B083",
