@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const runner = readFileSync("scripts/run-care-circle-local-db-integration.sh", "utf8");
 const proof = readFileSync("supabase/tests/s2-t64-care-circle-local-integration.sql", "utf8");
+const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.match(
   runner,
@@ -26,5 +27,11 @@ for (const invariant of [
 }
 assert.match(proof, /rollback;/);
 assert.doesNotMatch(proof, /@|https?:\/\//i);
+assert.equal(
+  packageJson.scripts["test:care-circle-full-lifecycle-docker"],
+  "bash scripts/run-care-circle-local-db-integration.sh"
+);
+assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:care-circle-full-lifecycle-contract/);
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
 
 console.log("Care Circle full local lifecycle contract passed");

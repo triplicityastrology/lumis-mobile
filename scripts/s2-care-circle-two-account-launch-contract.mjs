@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 const launcher = readFileSync("scripts/start-care-circle-two-account-workbench.sh", "utf8");
 const validator = "scripts/s2-care-circle-two-account-evidence-validator.mjs";
 const validPath = "supabase/tests/s2-t72-two-account-evidence.valid.json";
+const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const root = mkdtempSync(path.join(tmpdir(), "s2-t72-"));
 
 try {
@@ -33,6 +34,10 @@ try {
   assert.equal(rejected.stdout, "");
   assert.equal(rejected.stderr, "STOP_S2_T72_FIELD_SHAPE_INVALID\n");
   assert.doesNotMatch(rejected.stderr, /not-allowed|stack|Error|at file:/i);
+  assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:s2-care-circle-two-account-launch/);
+  assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+  assert.match(launcher, /deletes exactly two disposable accounts/);
+  assert.doesNotMatch(launcher, /cleanup (?:passed|complete|verified)/i);
 
   console.log("S2-T72 two-account launch and evidence contract passed");
 } finally {

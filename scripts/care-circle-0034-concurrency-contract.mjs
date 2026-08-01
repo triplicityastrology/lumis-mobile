@@ -26,6 +26,7 @@ assert.equal(
   "bash scripts/run-care-circle-0034-concurrency.sh"
 );
 assert.match(packageJson.scripts["test:care-circle-regression-static"], /test:care-circle-0034-concurrency-contract/);
-assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-regression-static");
+assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:care-circle-regression-static/);
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
 
 console.log("Care Circle 0034 independent concurrency contract passed");

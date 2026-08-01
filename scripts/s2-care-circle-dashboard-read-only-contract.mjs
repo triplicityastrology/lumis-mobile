@@ -8,6 +8,7 @@ const sql = readFileSync("supabase/tests/s2-t71-dashboard-read-only-evidence.sql
 const dashboardPath = "supabase/tests/s2-t71-dashboard-read-only.valid.json";
 const contextPath = "supabase/tests/s2-t71-dashboard-context.valid.json";
 const transformer = "scripts/s2-care-circle-dashboard-evidence-transformer.mjs";
+const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const root = mkdtempSync(path.join(tmpdir(), "s2-t71-"));
 
 try {
@@ -43,6 +44,8 @@ try {
   assert.equal(unsafe.stdout, "");
   assert.equal(unsafe.stderr, "STOP_S2_T71_FIELD_SHAPE_INVALID\n");
   assert.doesNotMatch(unsafe.stderr, /private|stack|Error|at file:/i);
+  assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:s2-care-circle-dashboard-read-only/);
+  assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
 
   process.stdout.write("S2-T71 read-only Dashboard evidence contract passed\n");
 } finally {
