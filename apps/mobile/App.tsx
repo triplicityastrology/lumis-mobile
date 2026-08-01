@@ -95,6 +95,7 @@ import {
   resolvePersonaChatTreatment
 } from "./src/features/chat/personaChatTreatment";
 import { FounderTestHub, FounderTestHubEntry } from "./src/dev/FounderTestHub";
+import { FounderCareCircleWorkbench } from "./src/dev/FounderCareCircleWorkbench";
 import PersonaComparisonWorkbench from "./src/dev/PersonaComparisonWorkbench";
 import { QuotaVerificationPanel } from "./src/dev/QuotaVerificationPanel";
 import {
@@ -207,7 +208,9 @@ export default function App() {
   const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const [founderTestRoute, setFounderTestRoute] = useState<null | "hub" | "persona" | "quota">(null);
+  const [founderTestRoute, setFounderTestRoute] = useState<
+    null | "hub" | "persona" | "quota" | "careCircle"
+  >(null);
   const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
   const isMainTabScreen =
@@ -1169,6 +1172,7 @@ export default function App() {
         <View style={styles.devOverlay}>
           <FounderTestHub
             onClose={() => setFounderTestRoute(null)}
+            onOpenCareCircle={() => setFounderTestRoute("careCircle")}
             onOpenPersonaComparison={() => setFounderTestRoute("persona")}
             onOpenQuotaVerification={() => setFounderTestRoute("quota")}
           />
@@ -1185,6 +1189,13 @@ export default function App() {
             initialEvidence={currentQuotaEvidence()}
             onBack={() => setFounderTestRoute("hub")}
             onReload={reloadQuotaEvidence}
+          />
+        </View>
+      ) : null}
+      {__DEV__ && founderTestRoute === "careCircle" ? (
+        <View style={styles.devOverlay}>
+          <FounderCareCircleWorkbench
+            onBack={() => setFounderTestRoute("hub")}
           />
         </View>
       ) : null}

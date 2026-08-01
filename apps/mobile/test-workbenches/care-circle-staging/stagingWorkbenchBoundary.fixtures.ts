@@ -2,12 +2,57 @@ import {
   CARE_CIRCLE_STAGING_PROJECT_REF,
   CARE_CIRCLE_STAGING_SUPABASE_ORIGIN,
   resolveCareCircleWorkbenchBoundary,
+  resolveFounderCareCircleEntryBoundary,
 } from "./stagingWorkbenchBoundary";
 
 equal(
   resolveCareCircleWorkbenchBoundary({ isDevelopment: true }).enabled,
   false,
   "default is disabled"
+);
+
+const founderBase = {
+  flag: "1",
+  projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
+  supabaseUrl: CARE_CIRCLE_STAGING_SUPABASE_ORIGIN,
+  hasSupabasePublicKey: true,
+  deploymentReady: "1",
+  isDevelopment: true,
+};
+equal(
+  resolveFounderCareCircleEntryBoundary(founderBase).enabled,
+  true,
+  "matching Founder entry boundary is enabled"
+);
+const deploymentNotReady = resolveFounderCareCircleEntryBoundary({
+  ...founderBase,
+  deploymentReady: undefined,
+});
+equal(
+  deploymentNotReady.enabled,
+  false,
+  "missing deployment readiness is disabled"
+);
+equal(
+  !deploymentNotReady.enabled && deploymentNotReady.code,
+  "CARE_CIRCLE_WORKBENCH_DEPLOYMENT_NOT_READY",
+  "missing deployment readiness has a stable safe reason"
+);
+equal(
+  resolveFounderCareCircleEntryBoundary({
+    ...founderBase,
+    hasSupabasePublicKey: false,
+  }).enabled,
+  false,
+  "missing public client configuration is disabled"
+);
+equal(
+  resolveFounderCareCircleEntryBoundary({
+    ...founderBase,
+    supabaseUrl: "https://example.invalid",
+  }).enabled,
+  false,
+  "Founder entry cannot bypass the exact staging URL"
 );
 equal(
   resolveCareCircleWorkbenchBoundary({

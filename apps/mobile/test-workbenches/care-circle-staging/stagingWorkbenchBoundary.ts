@@ -4,6 +4,8 @@ export const CARE_CIRCLE_STAGING_SUPABASE_ORIGIN =
   "https://bmqhwofmdgebpcihjlnb.supabase.co" as const;
 export const CARE_CIRCLE_STAGING_WORKBENCH_FLAG =
   "EXPO_PUBLIC_CARE_CIRCLE_STAGING_WORKBENCH" as const;
+export const CARE_CIRCLE_STAGING_DEPLOYMENT_READY_FLAG =
+  "EXPO_PUBLIC_CARE_CIRCLE_STAGING_DEPLOYMENT_READY" as const;
 
 export type CareCircleWorkbenchBoundary =
   | {
@@ -53,6 +55,40 @@ export function resolveCareCircleWorkbenchBoundary(input: {
     mode: "disposable_staging_test_only",
     projectRef: CARE_CIRCLE_STAGING_PROJECT_REF,
   };
+}
+
+export type FounderCareCircleEntryBoundary =
+  | CareCircleWorkbenchBoundary
+  | {
+      enabled: false;
+      code:
+        | "CARE_CIRCLE_WORKBENCH_CONFIGURATION_REQUIRED"
+        | "CARE_CIRCLE_WORKBENCH_DEPLOYMENT_NOT_READY";
+    };
+
+export function resolveFounderCareCircleEntryBoundary(input: {
+  flag?: string;
+  projectRef?: string;
+  supabaseUrl?: string;
+  hasSupabasePublicKey: boolean;
+  deploymentReady?: string;
+  isDevelopment: boolean;
+}): FounderCareCircleEntryBoundary {
+  const boundary = resolveCareCircleWorkbenchBoundary(input);
+  if (!boundary.enabled) return boundary;
+  if (!input.hasSupabasePublicKey) {
+    return {
+      enabled: false,
+      code: "CARE_CIRCLE_WORKBENCH_CONFIGURATION_REQUIRED",
+    };
+  }
+  if (input.deploymentReady !== "1") {
+    return {
+      enabled: false,
+      code: "CARE_CIRCLE_WORKBENCH_DEPLOYMENT_NOT_READY",
+    };
+  }
+  return boundary;
 }
 
 function isExactStagingSupabaseUrl(value: string | undefined): boolean {

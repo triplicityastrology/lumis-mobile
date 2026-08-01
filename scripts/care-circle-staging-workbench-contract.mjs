@@ -22,6 +22,7 @@ const deviceSafetyFixture = read(`${root}/workbenchDeviceSafety.fixtures.ts`);
 const outcomeIntegrity = read(`${root}/workbenchOutcomeIntegrity.ts`);
 const outcomeFixture = read(`${root}/workbenchOutcomeIntegrity.fixtures.ts`);
 const entry = read(`${root}/index.tsx`);
+const founderEntry = read("apps/mobile/src/dev/FounderCareCircleWorkbench.tsx");
 const metro = read(`${root}/metro.config.js`);
 const workbenchPackage = JSON.parse(read(`${root}/package.json`));
 const releasePackage = JSON.parse(read("apps/mobile/package.json"));
@@ -35,6 +36,9 @@ const doc = read("docs/qa/S2-T35-care-circle-staging-test-workbench.md");
 assert.equal(workbenchPackage.main, "index.tsx");
 assert.equal(releasePackage.main, "index.ts");
 assert.match(boundary, /EXPO_PUBLIC_CARE_CIRCLE_STAGING_WORKBENCH/);
+assert.match(boundary, /EXPO_PUBLIC_CARE_CIRCLE_STAGING_DEPLOYMENT_READY/);
+assert.match(boundary, /resolveFounderCareCircleEntryBoundary/);
+assert.match(fixture, /CARE_CIRCLE_WORKBENCH_DEPLOYMENT_NOT_READY/);
 assert.match(boundary, /input\.flag !== "1"/);
 assert.match(boundary, /!input\.isDevelopment/);
 assert.match(boundary, /bmqhwofmdgebpcihjlnb/);
@@ -172,18 +176,22 @@ assert.match(portFixture, /password is not echoed/);
 assert.match(metro, /workspaceRoot/);
 assert.match(metro, /path\.resolve\(workspaceRoot, "node_modules"\)/);
 
-for (const releaseSource of [
-  releaseEntry,
-  releaseApp,
-  releasePreview,
-]) {
+for (const releaseSource of [releaseEntry, releasePreview]) {
   assert.doesNotMatch(
     releaseSource,
     /CareCircleStagingWorkbench|stagingWorkbenchBoundary|test-workbenches/
   );
 }
+assert.match(releaseApp, /__DEV__ && founderTestRoute === "careCircle"/);
+assert.match(releaseApp, /FounderCareCircleWorkbench/);
+assert.match(founderEntry, /CareCircleStagingSessionGate/);
+assert.match(founderEntry, /CareCircleStagingWorkbench/);
+assert.match(founderEntry, /resolveFounderCareCircleEntryBoundary/);
+assert.match(founderEntry, /createInactiveCareCircleClient\(ports\.operationPort\)/);
+assert.match(founderEntry, /No staging operation was attempted/);
 
 const releaseTree = listSourceFiles("apps/mobile/src")
+  .filter((path) => path !== "apps/mobile/src/dev/FounderCareCircleWorkbench.tsx")
   .map(read)
   .join("\n");
 assert.doesNotMatch(

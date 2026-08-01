@@ -8,10 +8,12 @@ import { colors, radii, spacing } from "../theme/tokens";
 
 export function FounderTestHub({
   onClose,
+  onOpenCareCircle,
   onOpenPersonaComparison,
   onOpenQuotaVerification,
 }: {
   onClose: () => void;
+  onOpenCareCircle: () => void;
   onOpenPersonaComparison: () => void;
   onOpenQuotaVerification: () => void;
 }) {
@@ -29,6 +31,20 @@ export function FounderTestHub({
           <FlaskConical color={colors.gold} size={20} />
           <Text style={styles.noticeText}>Development evidence only. Test fixtures are not live AI responses or production capabilities.</Text>
         </View>
+        <Pressable
+          accessibilityHint="Opens the gated disposable-account Care Circle staging journey"
+          accessibilityLabel="Care Circle staging test"
+          accessibilityRole="button"
+          onPress={onOpenCareCircle}
+          style={styles.row}
+        >
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Care Circle staging test</Text>
+            <Text style={styles.rowDetail}>One iPhone · Caree ↔ Carer</Text>
+            <Text style={styles.fixtureLabel}>Deployment gate required</Text>
+          </View>
+          <ChevronRight color={colors.muted} size={20} />
+        </Pressable>
         <Pressable
           accessibilityHint="Opens the local Acceptance, Spark, and Awareness comparison"
           accessibilityLabel="Persona behaviour comparison"
