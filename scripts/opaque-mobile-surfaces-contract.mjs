@@ -10,16 +10,21 @@ for (const styleName of [
   "personaIdentityPreview",
   "personaAvatarOption",
   "personaNameInput",
-  "reflectionThreadCard",
   "reflectionsEmpty",
   "reflectionsNoResults",
-  "savedInsightsEmpty",
 ]) {
   const block = styleBlock(app, styleName);
   assert.match(block, /backgroundColor: "#(?:16273D|263958)"/);
   assert.match(block, /borderWidth: 1/);
   assert.doesNotMatch(block, /backgroundColor: "rgba\(/);
 }
+
+const reflectionsList = styleBlock(app, "reflectionsList");
+assert.match(reflectionsList, /backgroundColor: "#16273D"/);
+assert.match(reflectionsList, /borderWidth: 1/);
+assert.match(reflectionsList, /overflow: "hidden"/);
+assert.match(styleBlock(app, "reflectionThreadCard"), /backgroundColor: "transparent"/);
+assert.match(styleBlock(app, "savedInsightsEmpty"), /backgroundColor: "#13233A"/);
 
 for (const styleName of ["personaChoiceCardActive", "personaAvatarOptionActive"]) {
   const block = styleBlock(app, styleName);

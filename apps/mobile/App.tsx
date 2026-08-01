@@ -2417,38 +2417,42 @@ function PastReflectionsScreen({
                   <Text style={styles.reflectionsSectionCount}>{filteredThreads.length}</Text>
                 </View>
 
-                {filteredThreads.length > 0 ? filteredThreads.map((thread) => {
-                  const latestTurn = thread.turns[thread.turns.length - 1];
-                  const preview = latestTurn?.result?.reply ?? latestTurn?.userMessage ?? "Continue your reflection with Lumis.";
-                  const persona = PERSONA_STYLES.find((style) => style.key === thread.personaStyle) ?? selectedPersona;
+                {filteredThreads.length > 0 ? (
+                  <View style={styles.reflectionsList}>
+                    {filteredThreads.map((thread, index) => {
+                      const latestTurn = thread.turns[thread.turns.length - 1];
+                      const preview = latestTurn?.result?.reply ?? latestTurn?.userMessage ?? "Continue your reflection with Lumis.";
+                      const persona = PERSONA_STYLES.find((style) => style.key === thread.personaStyle) ?? selectedPersona;
 
-                  return (
-                    <Pressable
-                      accessibilityLabel={thread.canContinue ? "Continue reflection" : "Read reflection"}
-                      key={thread.id}
-                      style={styles.reflectionThreadCard}
-                      onPress={() => onContinueReflection(thread)}
-                    >
-                      <View style={styles.reflectionThreadIcon}>
-                        <MessageCircle color="#8B93D4" size={20} />
-                      </View>
-                      <View style={styles.reflectionThreadCopy}>
-                        <Text style={styles.reflectionThreadTitle} numberOfLines={2}>{thread.title}</Text>
-                        <Text style={styles.reflectionThreadPreview} numberOfLines={2}>{preview}</Text>
-                        <Text style={styles.reflectionThreadMeta}>
-                          {formatReflectionDate(thread.updatedAt)} · {persona.labelEn} · Chart v{thread.chartVersion}
-                        </Text>
-                        <Text style={styles.reflectionThreadAction}>
-                          {thread.canContinue ? "Continue reflection" : "Read reflection"}
-                        </Text>
-                      </View>
-                      <View style={styles.reflectionThreadStatus}>
-                        {!thread.canContinue ? <Text style={styles.reflectionReadOnlyLabel}>READ ONLY</Text> : null}
-                        <ChevronRight color="#71839A" size={19} />
-                      </View>
-                    </Pressable>
-                  );
-                }) : (
+                      return (
+                        <Pressable
+                          accessibilityLabel={thread.canContinue ? "Continue reflection" : "Read reflection"}
+                          key={thread.id}
+                          style={[styles.reflectionThreadCard, index > 0 && styles.reflectionThreadCardDivided]}
+                          onPress={() => onContinueReflection(thread)}
+                        >
+                          <View style={styles.reflectionThreadIcon}>
+                            <MessageCircle color="#8B93D4" size={20} />
+                          </View>
+                          <View style={styles.reflectionThreadCopy}>
+                            <Text style={styles.reflectionThreadTitle} numberOfLines={2}>{thread.title}</Text>
+                            <Text style={styles.reflectionThreadPreview} numberOfLines={2}>{preview}</Text>
+                            <Text style={styles.reflectionThreadMeta}>
+                              {formatReflectionDate(thread.updatedAt)} · {persona.labelEn} · Chart v{thread.chartVersion}
+                            </Text>
+                            <Text style={styles.reflectionThreadAction}>
+                              {thread.canContinue ? "Continue reflection" : "Read reflection"}
+                            </Text>
+                          </View>
+                          <View style={styles.reflectionThreadStatus}>
+                            {!thread.canContinue ? <Text style={styles.reflectionReadOnlyLabel}>READ ONLY</Text> : null}
+                            <ChevronRight color="#71839A" size={19} />
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
                   <View style={styles.reflectionsNoResults}>
                     <Text style={styles.reflectionThreadTitle}>No matching reflections</Text>
                     <Text style={styles.reflectionThreadPreview}>Try a different word or clear your search.</Text>
@@ -4518,7 +4522,7 @@ const styles = StyleSheet.create({
   },
   reflectionsSearch: {
     alignItems: "center",
-    backgroundColor: "#10243D",
+    backgroundColor: "transparent",
     borderColor: "rgba(255,255,255,0.1)",
     borderRadius: 10,
     borderWidth: 1,
@@ -4551,14 +4555,22 @@ const styles = StyleSheet.create({
   },
   reflectionThreadCard: {
     alignItems: "center",
-    backgroundColor: "#16273D",
-    borderColor: "rgba(255,255,255,0.09)",
-    borderRadius: 14,
-    borderWidth: 1,
+    backgroundColor: "transparent",
     flexDirection: "row",
     gap: 12,
     minHeight: 104,
     padding: 14
+  },
+  reflectionThreadCardDivided: {
+    borderTopColor: "rgba(255,255,255,0.05)",
+    borderTopWidth: 1
+  },
+  reflectionsList: {
+    backgroundColor: "#16273D",
+    borderColor: "rgba(255,255,255,0.09)",
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden"
   },
   reflectionThreadIcon: {
     alignItems: "center",
@@ -4636,7 +4648,7 @@ const styles = StyleSheet.create({
   },
   savedInsightsEmpty: {
     alignItems: "center",
-    backgroundColor: "#16273D",
+    backgroundColor: "#13233A",
     borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 10,
     borderWidth: 1,
