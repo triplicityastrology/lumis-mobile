@@ -977,7 +977,7 @@ assert.doesNotMatch(
   /requiredError[\s\S]{0,120}balanceResult|firstError/,
   "optional enrichment cannot reject an otherwise authoritative chart"
 );
-assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 1/);
+assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 3/);
 assert.match(app, /const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600/);
 const startupLoader = extractRange(
   app,
@@ -989,12 +989,12 @@ assert.match(startupLoader, /isTransientAccountRestoreError\(error\)/);
 assert.match(
   startupLoader,
   /retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/,
-  "startup restoration must stop after one bounded retry"
+  "startup restoration must stop after the bounded hydration window"
 );
 assert.match(
   startupLoader,
-  /setTimeout\(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS\)/,
-  "the one retry must remain inside the loading state while native networking settles"
+  /setTimeout\(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS \* retryCount\)/,
+  "bounded backoff must remain inside the loading state while native networking settles"
 );
 assert.doesNotMatch(
   startupLoader,
@@ -1060,13 +1060,17 @@ assert.doesNotMatch(
 let transientAttempts = 0;
 const recoveredStartupAccount = await simulateBoundedStartupRestore(async () => {
   transientAttempts += 1;
-  if (transientAttempts === 1) {
+  if (transientAttempts <= 3) {
     throw new AccountRestoreSimulationError("ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE");
   }
   return { status: "loaded", chartVersion: 2 };
 });
 assert.deepEqual(recoveredStartupAccount, { status: "loaded", chartVersion: 2 });
-assert.equal(transientAttempts, 2, "one transient cold-start failure must retry exactly once");
+assert.equal(
+  transientAttempts,
+  4,
+  "cold-start hydration may settle on the final bounded attempt without showing terminal failure"
+);
 
 let terminalAttempts = 0;
 await assert.rejects(
@@ -1088,7 +1092,7 @@ await assert.rejects(
     }),
   /ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE/
 );
-assert.equal(exhaustedAttempts, 2, "transient startup recovery must stop after one retry");
+assert.equal(exhaustedAttempts, 4, "transient startup recovery must stop after three retries");
 const optionalLanguageUnavailable = simulateOptionalLanguageEnrichment({
   requiredAccount: { status: "loaded", chartVersion: 3 },
   languageResult: { error: true, data: null }
@@ -1150,7 +1154,7 @@ assert.deepEqual(postCallbackAccount, { status: "loaded", chartVersion: 4 });
 assert.equal(
   postCallbackAccountAttempts,
   2,
-  "a real callback session must remain loading through one bounded account-read retry"
+  "a real callback session must remain loading through bounded account-read recovery"
 );
 assert.deepEqual(
   simulateStartupSessionOutcome({ isConfigured: true, user: null }),
@@ -1281,7 +1285,7 @@ async function simulateBoundedStartupRestore(load) {
       if (
         !(error instanceof AccountRestoreSimulationError) ||
         error.code !== "ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE" ||
-        retryCount >= 1
+        retryCount >= 3
       ) {
         throw error;
       }

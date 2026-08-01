@@ -105,7 +105,7 @@ type CareCircleItem = {
 
 const STARTER_CREDITS = 50;
 const BIRTH_DETAIL_CHANGE_LIMIT = 3;
-const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 1;
+const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 3;
 const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600;
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
@@ -1408,7 +1408,7 @@ async function loadStartupAccountState(userId: string): Promise<SupabaseAccountS
 
       retryCount += 1;
       await new Promise<void>((resolve) => {
-        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS);
+        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS * retryCount);
       });
     }
   }
@@ -1430,7 +1430,7 @@ async function loadStartupAuthStatus(): Promise<AuthStatus> {
 
       retryCount += 1;
       await new Promise<void>((resolve) => {
-        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS);
+        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS * retryCount);
       });
     }
   }

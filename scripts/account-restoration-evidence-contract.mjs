@@ -89,7 +89,12 @@ assert.ok(
   signedInRestore.indexOf("return;") < signedInRestore.indexOf("loadLocalDemoSession()"),
   "a signed-in restore failure cannot fall through to local fixture/session state"
 );
-assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 1/);
+assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 3/);
+assert.match(
+  app,
+  /STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS \* retryCount/,
+  "transient startup recovery must use a bounded backoff inside the splash window"
+);
 assert.match(
   app,
   /async function loadStartupAccountState[\s\S]*isTransientAccountRestoreError\(error\)[\s\S]*retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/,
