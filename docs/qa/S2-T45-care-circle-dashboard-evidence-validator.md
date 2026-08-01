@@ -17,6 +17,9 @@ captured column names and revise the blocked S2-T40 packets separately.
 Unknown fields and keys suggesting rows, IDs, email, tokens, pairing material,
 payloads, connection details, or credentials are rejected. Output is limited to
 `S2_T45_DASHBOARD_EVIDENCE_PASS` or one stable `STOP_S2_T45_*` code.
+Reviewed migration-history column names and PostgreSQL type metadata are also
+closed; arbitrary defaults and unexpected or private-looking values fail
+without being echoed.
 
 Local validation only:
 

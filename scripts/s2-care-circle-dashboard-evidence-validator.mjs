@@ -2,6 +2,11 @@ import { readFileSync, readdirSync } from "node:fs";
 
 const APPROVED_REF = "bmqhwofmdgebpcihjlnb";
 const EXPECTED_PENDING = ["0032", "0033", "0034"];
+const SAFE_HISTORY_COLUMN_METADATA = new Map([
+  ["version", { dataType: "character varying", udtName: "varchar", nullable: "NO" }],
+  ["statements", { dataType: "ARRAY", udtName: "_text", nullable: "YES" }],
+  ["name", { dataType: "character varying", udtName: "varchar", nullable: "YES" }]
+]);
 const FORBIDDEN_KEY =
   /(?:secret|password|token|pairing|fingerprint|email|user_?id|row|payload|body|url|connection|credential)/i;
 const ALLOWED_KEYS = new Set([
@@ -106,10 +111,8 @@ function validateClosedEvidence(value) {
       typeof column.column_name !== "string" ||
         typeof column.data_type !== "string" ||
         typeof column.udt_name !== "string" ||
-        !["YES", "NO"].includes(column.is_nullable) ||
-        !(column.column_default === null || typeof column.column_default === "string") ||
-        !Number.isSafeInteger(column.ordinal_position) ||
-        !/^[a-z][a-z0-9_]*$/u.test(column.column_name),
+        typeof column.is_nullable !== "string" ||
+        !Number.isSafeInteger(column.ordinal_position),
       "HISTORY_SHAPE_INVALID"
     );
     return column.column_name;
@@ -124,6 +127,17 @@ function validateClosedEvidence(value) {
       ),
     "HISTORY_SHAPE_INVALID"
   );
+  for (const column of value.history_columns) {
+    const safeMetadata = SAFE_HISTORY_COLUMN_METADATA.get(column.column_name);
+    stopIf(
+      !safeMetadata ||
+        column.data_type !== safeMetadata.dataType ||
+        column.udt_name !== safeMetadata.udtName ||
+        column.is_nullable !== safeMetadata.nullable ||
+        column.column_default !== null,
+      "UNSAFE_METADATA_VALUE"
+    );
+  }
 
   const expectedRemote = localMigrationVersions().filter(
     (version) => Number(version) < 32
@@ -184,6 +198,10 @@ function exactKeys(value, expected) {
 
 function parseTimestamp(value) {
   stopIf(typeof value !== "string", "BACKUP_TIMESTAMP_INVALID");
+  stopIf(
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/u.test(value),
+    "BACKUP_TIMESTAMP_INVALID"
+  );
   const parsed = Date.parse(value);
   stopIf(!Number.isFinite(parsed) || !value.endsWith("Z"), "BACKUP_TIMESTAMP_INVALID");
   return parsed;
