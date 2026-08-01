@@ -94,6 +94,8 @@ import {
 import {
   resolvePersonaChatTreatment
 } from "./src/features/chat/personaChatTreatment";
+import { FounderTestHub, FounderTestHubEntry } from "./src/dev/FounderTestHub";
+import PersonaComparisonWorkbench from "./src/dev/PersonaComparisonWorkbench";
 
 type ProfileData = BirthProfileForm;
 
@@ -200,6 +202,7 @@ export default function App() {
   const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [founderTestRoute, setFounderTestRoute] = useState<null | "hub" | "persona">(null);
   const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
   const isMainTabScreen =
@@ -1132,6 +1135,22 @@ export default function App() {
         onCancel={() => setLogoutDialogOpen(false)}
         onConfirm={performAuthoritativeSignOut}
       />
+      {__DEV__ && founderTestRoute === "hub" ? (
+        <View style={styles.devOverlay}>
+          <FounderTestHub
+            onClose={() => setFounderTestRoute(null)}
+            onOpenPersonaComparison={() => setFounderTestRoute("persona")}
+          />
+        </View>
+      ) : null}
+      {__DEV__ && founderTestRoute === "persona" ? (
+        <View style={styles.devOverlay}>
+          <PersonaComparisonWorkbench onExit={() => setFounderTestRoute("hub")} />
+        </View>
+      ) : null}
+      {__DEV__ && founderTestRoute === null ? (
+        <FounderTestHubEntry onPress={() => setFounderTestRoute("hub")} />
+      ) : null}
     </View>
   );
 }
@@ -2789,6 +2808,11 @@ const styles = StyleSheet.create({
   appRoot: {
     flex: 1,
     backgroundColor: "#06101C"
+  },
+  devOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#06101C",
+    zIndex: 60
   },
   screenViewport: {
     ...StyleSheet.absoluteFillObject,

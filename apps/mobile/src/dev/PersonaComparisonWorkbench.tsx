@@ -11,7 +11,7 @@ import {
   type PersonaComparisonPublicName,
 } from "./personaComparisonFixture";
 
-export default function PersonaComparisonWorkbench() {
+export default function PersonaComparisonWorkbench({ onExit }: { onExit?: () => void }) {
   const [selected, setSelected] = useState<PersonaComparisonPublicName>("Acceptance");
   const evidence = getPersonaComparisonEvidence(selected);
 
@@ -23,6 +23,11 @@ export default function PersonaComparisonWorkbench() {
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={styles.content}
       >
+        {onExit ? (
+          <Pressable accessibilityLabel="Back to Founder Test Hub" accessibilityRole="button" onPress={onExit} style={styles.backButton}>
+            <Text style={styles.backText}>Back to Test Hub</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.eyebrow}>DEVELOPMENT COMPARISON</Text>
         <Text accessibilityRole="header" style={styles.title}>Persona behaviour</Text>
         <Text style={styles.intro}>Compare the same local evidence situation across the three approved public personas.</Text>
@@ -81,6 +86,8 @@ function Status({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.navy950, flex: 1 },
   content: { padding: spacing.lg, paddingBottom: 48 },
+  backButton: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },
+  backText: { color: colors.goldLight, fontSize: 14, fontWeight: "700" },
   eyebrow: { color: colors.goldLight, fontSize: 12, fontWeight: "700", letterSpacing: 0, marginTop: spacing.sm },
   title: { color: colors.ice, fontSize: 30, fontWeight: "700", letterSpacing: 0, marginTop: spacing.xs },
   intro: { color: colors.textSoft, fontSize: 16, lineHeight: 23, marginTop: spacing.sm },
