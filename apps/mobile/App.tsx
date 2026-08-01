@@ -59,6 +59,7 @@ import {
 import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
 import { deleteOwnedReflection } from "./src/services/reflections";
 import { safeUserErrorMessage } from "./src/services/userFacingErrors";
+import { createAccountRestoreFreshnessGate } from "./src/services/accountRestoreFreshness";
 import {
   clearLocalDemoSession,
   type LocalDemoChatTurn,
@@ -188,6 +189,7 @@ export default function App() {
   const screenRef = useRef(screen);
   screenRef.current = screen;
   const authRedirectInFlightRef = useRef(false);
+  const accountRestoreFreshnessRef = useRef(createAccountRestoreFreshnessGate());
   const processedAuthRedirectUrlsRef = useRef(new Set<string>());
   const pendingAfterSplashRef = useRef<"home" | "chat" | "noChart" | "restoringSpace" | null>(null);
   const [accountSource, setAccountSource] = useState<AccountSource>("none");
@@ -368,6 +370,7 @@ export default function App() {
     routeLoadedAccount = false,
     retryTransientStartupFailure = false
   ) {
+    const restoreTicket = accountRestoreFreshnessRef.current.begin();
     if (status.isConfigured && status.user) {
       setAccountLoadStatus("loading");
       setAccountLoadMessage("Loading your Lumis profile...");
@@ -376,6 +379,7 @@ export default function App() {
         const accountState = retryTransientStartupFailure
           ? await loadStartupAccountState(status.user.id)
           : await loadSupabaseAccountState(status.user.id);
+        if (!restoreTicket.isCurrent()) return;
         const restored = applySupabaseAccountState(accountState);
         if (restored && routeLoadedAccount) {
           routeAfterSplash("chat");
@@ -383,6 +387,7 @@ export default function App() {
           routeAfterSplash("noChart");
         }
       } catch (error) {
+        if (!restoreTicket.isCurrent()) return;
         setAccountLoadStatus("error");
         setAccountLoadMessage(safeAccountRestoreMessage(error));
         setRestoreResult("failed");
@@ -407,6 +412,7 @@ export default function App() {
       setMainFocus(localSession.mainFocus ?? null);
       setPlanTier("starter");
       setRemainingCredits(localSession.remainingCredits ?? STARTER_CREDITS);
+      setBirthDetailChanges(0);
       setHasLocalDemoSession(true);
       setAccountSource("local_demo");
       setAccountLoadStatus("loaded");
@@ -437,6 +443,7 @@ export default function App() {
   // "Couldn't load your space" Retry ("retry") continues directly to Chat, like
   // automatic cold-start restoration — no confirmation card after a failure retry.
   async function restoreSpace(origin: "reload" | "retry" = "reload") {
+    const restoreTicket = accountRestoreFreshnessRef.current.begin();
     setScreen("restoringSpace");
     setRestoreResult("loading");
     setAccountLoadStatus("loading");
@@ -451,6 +458,7 @@ export default function App() {
       }
 
       const accountState = await loadSupabaseAccountState(status.user.id);
+      if (!restoreTicket.isCurrent()) return;
       const restored = applySupabaseAccountState(accountState);
       if (!restored) {
         setRestoreResult("noChart");
@@ -464,6 +472,7 @@ export default function App() {
       // Deliberate reload → show the AUTH-005 restored-account confirmation card.
       setRestoreResult("foundChart");
     } catch (error) {
+      if (!restoreTicket.isCurrent()) return;
       setAccountLoadStatus("error");
       setAccountLoadMessage(safeAccountRestoreMessage(error));
       setRestoreResult("failed");
@@ -974,7 +983,11 @@ export default function App() {
 
           try {
             const result = await regenerateBirthDetails(updated, clientRequestId);
+            const restoreTicket = accountRestoreFreshnessRef.current.begin();
             const accountState = await loadSupabaseAccountState(authStatus.user.id);
+            if (!restoreTicket.isCurrent()) {
+              throw new BirthDetailsChangeError("Lumis is loading newer account data. Please try again.", "49003");
+            }
 
             if (!applySupabaseAccountState(accountState)) {
               throw new BirthDetailsChangeError(
@@ -995,8 +1008,9 @@ export default function App() {
               if (typeof error.successfulChangeCount === "number") {
                 setBirthDetailChanges(error.successfulChangeCount);
               } else if (error.code === "49001") {
+                const restoreTicket = accountRestoreFreshnessRef.current.begin();
                 const accountState = await loadSupabaseAccountState(authStatus.user.id);
-                applySupabaseAccountState(accountState);
+                if (restoreTicket.isCurrent()) applySupabaseAccountState(accountState);
               }
               return { ok: false, code: error.code, message: error.message };
             }
@@ -1062,12 +1076,15 @@ export default function App() {
         onPastReflections={async () => {
           setReflectionsReturn("home");
           if (authStatus?.isConfigured && authStatus.user) {
+            const restoreTicket = accountRestoreFreshnessRef.current.begin();
             setAccountLoadStatus("loading");
             setAccountLoadMessage("Refreshing Past Reflections...");
 
             try {
-              applySupabaseAccountState(await loadSupabaseAccountState(authStatus.user.id));
+              const accountState = await loadSupabaseAccountState(authStatus.user.id);
+              if (restoreTicket.isCurrent()) applySupabaseAccountState(accountState);
             } catch (error) {
+              if (!restoreTicket.isCurrent()) return;
               setAccountLoadStatus("error");
               setAccountLoadMessage(safeAccountRestoreMessage(error));
             }

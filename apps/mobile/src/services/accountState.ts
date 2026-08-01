@@ -10,6 +10,7 @@ import { sanitizeChartForClient } from "@lumis/astrology";
 import type { SendChatMessageResult } from "./chat";
 import { getSupabaseClient } from "./supabase";
 import type { BirthProfileForm } from "./profile";
+import { resolveBirthChangeQuota } from "./birthChangeQuota";
 
 type UserRow = {
   buddy_avatar_key: string;
@@ -309,7 +310,7 @@ export async function loadSupabaseAccountState(
     mainFocus: user?.focus?.trim() || null,
     planTier: planResult.error ? "starter" : normalizePlanTier(planResult.data),
     remainingCredits: balanceResult.error ? null : balance?.remaining ?? null,
-    successfulBirthDetailChanges: birthData.successful_change_count,
+    successfulBirthDetailChanges: resolveBirthChangeQuota(birthData.successful_change_count).successfulChanges,
     message:
       reflectionHistoryUnavailable
         ? "Your chart is ready. Past Reflections could not be refreshed and remain unchanged."

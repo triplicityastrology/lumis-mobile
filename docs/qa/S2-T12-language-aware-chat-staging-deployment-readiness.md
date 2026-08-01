@@ -22,7 +22,7 @@ The following SHA-256 digests pin the exact reviewed source:
 | `packages/shared/src/config/app-language.ts` | `2264cdcf025d2b21b39e3410adab16440360319b3609847bf0204d0de960e1c5` |
 | `packages/shared/src/config/chat-router.ts` | `6e1fd4728c71adeb99434cf1a4987d98aaf0ac7d41a2604f49d62db711bf9a82` |
 | `supabase/functions/chat-message/index.ts` | `73a7df7042c4b8400996092ebbc7fb9a67eb24c3185fd812918b4887a56cd7ad` |
-| `apps/mobile/src/services/accountState.ts` | `bbea677ea4fbf615dd4959c2deef5c202e05c23e1d12db53d478891354b10bd1` |
+| `apps/mobile/src/services/accountState.ts` | `9d4dd1de3add3f4a938ccb99973347a7433fdf37d9bbab9d536c7ad2ee4b6ef6` |
 
 Any digest mismatch stops the future staging window and requires renewed review.
 

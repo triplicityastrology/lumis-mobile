@@ -104,7 +104,10 @@ assert.equal(
 );
 assert.match(birthDetailsScreen, /step !== "regenerating" \? \(/);
 assert.match(accountState, /active_chart_version, successful_change_count/);
-assert.match(accountState, /successfulBirthDetailChanges:\s*birthData\.successful_change_count/);
+assert.match(
+  accountState,
+  /successfulBirthDetailChanges:\s*resolveBirthChangeQuota\(birthData\.successful_change_count\)\.successfulChanges/
+);
 assert.match(mobileApp, /setBirthDetailChanges\(accountState\.successfulBirthDetailChanges\)/);
 const normalBirthDetailsPath = mobileApp.slice(
   mobileApp.indexOf('if (screen === "birthDetails")'),

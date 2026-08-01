@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/birth-change-quota-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/accountRestoreFreshness.ts",
+    "src/services/birthChangeQuota.ts",
+    "src/services/birthChangeQuota.fixtures.ts"
+  ]
+}

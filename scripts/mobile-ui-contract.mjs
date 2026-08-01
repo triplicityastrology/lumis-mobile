@@ -280,7 +280,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /catch \(error\)[\s\S]{0,220}routeAfterSplash\("restoringSpace"\)/,
+  /catch \(error\)[\s\S]{0,320}routeAfterSplash\("restoringSpace"\)/,
   "temporary restoration failures must remain in the retryable restore flow"
 );
 assert.match(homeScreenSource, /const canCreateChart = props\.isAuthenticated && props\.accountLoadStatus === "empty"/);

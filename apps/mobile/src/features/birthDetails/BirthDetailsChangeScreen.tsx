@@ -18,6 +18,7 @@ import {
   resolveBirthTimePickerCommit,
 } from "./birthTimePicker";
 import { WheelPicker } from "./WheelPicker";
+import { BIRTH_CHANGE_LIMIT, resolveBirthChangeQuota } from "../../services/birthChangeQuota";
 
 /** Big-three summary for the Birth Details display. Rising is included ONLY when
  *  an authoritative timed chart exists (precision "full" + Ascendant) — never
@@ -64,8 +65,6 @@ function displayDate(iso: string): string {
  * The hosted backend performs the chart regeneration and version switch.
  */
 
-const LIMIT = 3;
-
 export type BirthDetails = { birthDate: string; birthTime: string; birthPlace: string; timeUnknown: boolean };
 export type BirthRegenerationOutcome =
   | { ok: true }
@@ -82,7 +81,7 @@ export function BirthDetailsChangeScreen({
   onBack: () => void;
   onRegenerate: (next: BirthDetails, clientRequestId: string) => Promise<BirthRegenerationOutcome>;
 }) {
-  const remaining = Math.max(0, LIMIT - successfulChanges);
+  const remaining = resolveBirthChangeQuota(successfulChanges).remainingChanges;
   const [step, setStep] = useState<Step>("display");
   const [draft, setDraft] = useState<BirthDetails>(
     details ?? { birthDate: "", birthTime: "", birthPlace: "", timeUnknown: false }
@@ -250,7 +249,7 @@ export function BirthDetailsChangeScreen({
             </View>
             <View style={[s.counterChip, remaining === 1 && s.counterChipLow, remaining === 0 && s.counterChipNone]}>
               <Text style={[s.counterText, remaining === 1 && s.counterTextLow, remaining === 0 && s.counterTextNone]}>
-                {remaining} of {LIMIT} lifetime changes remaining
+                {remaining} of {BIRTH_CHANGE_LIMIT} lifetime changes remaining
               </Text>
             </View>
             {remaining === 0 ? (
@@ -297,7 +296,7 @@ export function BirthDetailsChangeScreen({
               Review each detail carefully. A confirmed change regenerates your chart while keeping Past Reflections saved.
             </Text>
             <View style={s.editCountRow}>
-              <Text style={s.editCount}>{remaining} of {LIMIT} lifetime changes remaining</Text>
+              <Text style={s.editCount}>{remaining} of {BIRTH_CHANGE_LIMIT} lifetime changes remaining</Text>
             </View>
 
             <PickerRow label="Birth date" value={draft.birthDate ? displayDate(draft.birthDate) : "Choose date"} onPress={() => openPicker("date")} />
