@@ -1,6 +1,10 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  BackHandler,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +19,10 @@ import type {
 } from "./stagingWorkbenchPort";
 import { resolveWorkbenchProgress } from "./workbenchProgress";
 import { resolveWorkbenchRecovery } from "./workbenchRecovery";
+import {
+  createWorkbenchSingleFlight,
+  resolveWorkbenchBackAction,
+} from "./workbenchDeviceSafety";
 
 type SessionView =
   | { status: "loading" }
@@ -29,6 +37,7 @@ export function CareCircleStagingSessionGate({
   children: (capabilities: WorkbenchCapabilities) => ReactNode;
   sessionPort: WorkbenchSessionPort;
 }) {
+  const sessionFlight = useRef(createWorkbenchSingleFlight()).current;
   const [session, setSession] = useState<SessionView>({ status: "loading" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,7 +49,28 @@ export function CareCircleStagingSessionGate({
     void refreshSession();
   }, []);
 
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        const action = resolveWorkbenchBackAction({
+          busy: sessionFlight.isActive(),
+          hasTransientInput: email.length > 0 || password.length > 0,
+        });
+        if (action === "block_busy") return true;
+        if (action === "clear_transient_input") {
+          setEmail("");
+          setPassword("");
+          return true;
+        }
+        return false;
+      }
+    );
+    return () => subscription.remove();
+  }, [email, password, sessionFlight]);
+
   async function refreshSession() {
+    if (!sessionFlight.enter()) return;
     setSession({ status: "loading" });
     setNotice(null);
     try {
@@ -54,10 +84,13 @@ export function CareCircleStagingSessionGate({
       const recovery = resolveWorkbenchRecovery({ kind: "session_check" });
       setSession({ status: "error" });
       setNotice(recovery.message);
+    } finally {
+      sessionFlight.leave();
     }
   }
 
   async function signIn() {
+    if (!sessionFlight.enter()) return;
     const transientPassword = password;
     setPassword("");
     setBusy(true);
@@ -65,17 +98,24 @@ export function CareCircleStagingSessionGate({
     try {
       await sessionPort.signIn({ email, password: transientPassword });
       setEmail("");
-      await refreshSession();
+      const result = await sessionPort.readSession();
+      setSession(
+        result.authenticated
+          ? { status: "signed_in", capabilities: result.capabilities }
+          : { status: "signed_out" }
+      );
     } catch {
       const recovery = resolveWorkbenchRecovery({ kind: "sign_in" });
       setSession({ status: "signed_out" });
       setNotice(recovery.message);
     } finally {
+      sessionFlight.leave();
       setBusy(false);
     }
   }
 
   async function signOut() {
+    if (!sessionFlight.enter()) return;
     setBusy(true);
     setNotice(null);
     try {
@@ -88,6 +128,7 @@ export function CareCircleStagingSessionGate({
         "Sign-out failed. The current staging session remains active."
       );
     } finally {
+      sessionFlight.leave();
       setBusy(false);
     }
   }
@@ -131,7 +172,15 @@ export function CareCircleStagingSessionGate({
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.safe}
+      >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.eyebrow}>STAGING TEST WORKBENCH</Text>
         <Text style={styles.title}>Disposable account sign-in</Text>
         <Text style={styles.body}>
@@ -200,7 +249,9 @@ export function CareCircleStagingSessionGate({
               value={password}
             />
             <Pressable
+              accessibilityLabel="Sign in to staging"
               accessibilityRole="button"
+              accessibilityState={{ disabled: busy || !email.trim() || !password }}
               disabled={busy || !email.trim() || !password}
               onPress={() => void signIn()}
               style={[
@@ -222,7 +273,8 @@ export function CareCircleStagingSessionGate({
             </Pressable>
           </>
         )}
-      </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -257,7 +309,7 @@ const styles = StyleSheet.create({
   },
   workbench: { flex: 1 },
   content: {
-    flex: 1,
+    flexGrow: 1,
     width: "100%",
     maxWidth: 480,
     alignSelf: "center",

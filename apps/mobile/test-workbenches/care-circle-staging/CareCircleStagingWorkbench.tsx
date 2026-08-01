@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  BackHandler,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -14,8 +18,14 @@ import type {
   CareCircleClientResult,
   InactiveCareCircleClient,
 } from "../../src/services/inactiveCareCircleClient";
+import { INACTIVE_CARE_CIRCLE_CLIENT_VERSION } from "../../src/services/inactiveCareCircleClient";
 import { colors, spacing } from "../../src/theme/tokens";
 import type { WorkbenchCapabilities } from "./stagingWorkbenchPort";
+import {
+  createWorkbenchSingleFlight,
+  resolveWorkbenchBackAction,
+  shouldStackWorkbenchActions,
+} from "./workbenchDeviceSafety";
 import { resolveWorkbenchProgress } from "./workbenchProgress";
 import {
   resolveWorkbenchRecovery,
@@ -63,6 +73,8 @@ export function CareCircleStagingWorkbench({
   requestIdFactory: () => string;
   now?: () => number;
 }) {
+  const { fontScale } = useWindowDimensions();
+  const actionFlight = useRef(createWorkbenchSingleFlight()).current;
   const [role, setRole] = useState<"caree" | "carer">(
     capabilities.canActAsCaree ? "caree" : "carer"
   );
@@ -107,6 +119,26 @@ export function CareCircleStagingWorkbench({
     relationships,
     lastSuccessfulOperation,
   });
+  const stackActions = shouldStackWorkbenchActions(fontScale);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        const action = resolveWorkbenchBackAction({
+          busy: actionFlight.isActive(),
+          hasTransientInput: pairingCodeInput.length > 0,
+        });
+        if (action === "block_busy") return true;
+        if (action === "clear_transient_input") {
+          setPairingCodeInput("");
+          return true;
+        }
+        return false;
+      }
+    );
+    return () => subscription.remove();
+  }, [actionFlight, pairingCodeInput]);
 
   function switchRole(nextRole: "caree" | "carer") {
     if (
@@ -129,12 +161,26 @@ export function CareCircleStagingWorkbench({
   async function runAction(
     input: CareCircleClientInput
   ): Promise<CareCircleClientResult> {
+    if (!actionFlight.enter()) {
+      return {
+        ok: false,
+        clientVersion: INACTIVE_CARE_CIRCLE_CLIENT_VERSION,
+        code: "CARE_CIRCLE_UNAVAILABLE",
+        message: "Care Circle could not complete this request. Try again later.",
+        retryable: true,
+      };
+    }
     setBusy(input.action);
     setNotice(null);
     setRetryInput(null);
     setRetryRefresh(false);
-    const result = await client.execute(input);
-    setBusy(null);
+    let result: CareCircleClientResult;
+    try {
+      result = await client.execute(input);
+    } finally {
+      actionFlight.leave();
+      setBusy(null);
+    }
 
     if (!result.ok) {
       const recovery = resolveWorkbenchRecovery({
@@ -224,6 +270,7 @@ export function CareCircleStagingWorkbench({
   }
 
   async function refreshRelationships(announce = true) {
+    if (!actionFlight.enter()) return;
     setBusy("refresh_relationships");
     setRetryRefresh(false);
     if (announce) setNotice(null);
@@ -247,6 +294,7 @@ export function CareCircleStagingWorkbench({
       });
       setRetryRefresh(true);
     } finally {
+      actionFlight.leave();
       setBusy(null);
     }
   }
@@ -306,6 +354,10 @@ export function CareCircleStagingWorkbench({
 
   return (
     <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.safe}
+      >
       <ScrollView
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="never"
@@ -329,7 +381,10 @@ export function CareCircleStagingWorkbench({
           </Text>
         </View>
 
-        <View style={styles.roleRow} accessibilityRole="tablist">
+          <View
+            style={[styles.roleRow, stackActions && styles.actionColumn]}
+            accessibilityRole="tablist"
+          >
           {(["caree", "carer"] as const).map((item) => {
             const roleAllowed =
               item === "caree"
@@ -339,7 +394,7 @@ export function CareCircleStagingWorkbench({
               <Pressable
                 accessibilityRole="tab"
                 accessibilityState={{
-                  disabled: !roleAllowed,
+                  disabled: disabled || !roleAllowed,
                   selected: role === item,
                 }}
                 disabled={disabled || !roleAllowed}
@@ -409,7 +464,7 @@ export function CareCircleStagingWorkbench({
                   This code has expired and cannot accept new submissions.
                 </Text>
               ) : null}
-              <View style={styles.actionRow}>
+              <View style={[styles.actionRow, stackActions && styles.actionColumn]}>
                 <Action
                   disabled={disabled}
                   label="Create code"
@@ -583,6 +638,7 @@ export function CareCircleStagingWorkbench({
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -626,7 +682,9 @@ function RelationshipRow({
       <View style={styles.rowActions}>
         {actions.map((action) => (
           <Pressable
+            accessibilityLabel={`${action.label} ${relationship.otherDisplayName}`}
             accessibilityRole="button"
+            accessibilityState={{ disabled: action.disabled }}
             disabled={action.disabled}
             key={action.label}
             onPress={action.onPress}
@@ -653,7 +711,9 @@ function Action({
 }) {
   return (
     <Pressable
+      accessibilityLabel={label}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={[
@@ -729,6 +789,7 @@ const styles = StyleSheet.create({
   progressGuidance: { color: colors.textSoft, fontSize: 12, lineHeight: 18 },
   progressEvidence: { color: colors.muted, fontSize: 10 },
   roleRow: { flexDirection: "row", gap: 8, marginTop: 20 },
+  actionColumn: { flexDirection: "column" },
   roleButton: {
     flex: 1,
     minHeight: 44,
