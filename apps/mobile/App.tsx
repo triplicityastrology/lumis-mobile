@@ -2164,8 +2164,8 @@ function ChatShellScreen({
           <View style={styles.messageRowLumis}>
             <LumisChatAvatar avatarKey={lumisAvatarKey} />
             <View style={styles.messageColLumis}>
-              <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisCompleted]}>
-                <Text style={styles.messageTextLumisCompleted}>
+              <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisSubtle]}>
+                <Text style={styles.messageTextLumis}>
                   Hi {name}. What feels most worth understanding today?
                 </Text>
               </View>
@@ -2182,8 +2182,8 @@ function ChatShellScreen({
                 <View style={styles.messageRowLumis}>
                   <LumisChatAvatar avatarKey={lumisAvatarKey} />
                   <View style={styles.messageColLumis}>
-                    <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisCompleted]}>
-                      <Text style={styles.messageTextLumisCompleted}>{turn.result.reply}</Text>
+                    <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisSubtle]}>
+                      <Text style={styles.messageTextLumis}>{turn.result.reply}</Text>
                     </View>
                     {turn.result.route === "astro_timing" ? (
                       <View style={styles.chatTransitTag}>
@@ -2198,13 +2198,7 @@ function ChatShellScreen({
               {isSending && !turn.result && !turn.error && turn.id === chatTurns[chatTurns.length - 1]?.id ? (
                 <View style={styles.messageRowLumis}>
                   <LumisChatAvatar avatarKey={lumisAvatarKey} />
-                  <View style={[
-                    styles.messageBubbleLumis,
-                    {
-                      backgroundColor: personaTreatment.bubbleBackgroundColor,
-                      borderColor: personaTreatment.bubbleBorderColor
-                    }
-                  ]}>
+                  <View style={[styles.messageBubbleLumis, styles.messageBubbleLumisSubtle]}>
                     <View
                       accessibilityLabel="Lumis is reflecting"
                       accessibilityLiveRegion="polite"
@@ -3383,9 +3377,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12
   },
-  messageBubbleLumisCompleted: {
-    backgroundColor: "#F5EBD8",
-    borderColor: "#D8BD84"
+  messageBubbleLumisSubtle: {
+    backgroundColor: "rgba(22,39,61,0.10)",
+    borderColor: "rgba(215,185,120,0.28)"
   },
   messageBubbleUser: {
     alignSelf: "flex-end",
@@ -3397,11 +3391,6 @@ const styles = StyleSheet.create({
     maxWidth: "88%",
     paddingHorizontal: 14,
     paddingVertical: 12
-  },
-  messageTextLumisCompleted: {
-    color: "#202A3D",
-    fontSize: 14,
-    lineHeight: 22
   },
   chatTransitTag: {
     alignItems: "center",

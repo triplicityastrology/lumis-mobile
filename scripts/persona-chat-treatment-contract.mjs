@@ -14,8 +14,7 @@ const treatment = readFileSync(
 assert.match(app, /resolvePersonaChatTreatment\(selectedStyle\)/);
 assert.match(app, /function LumisChatAvatar/);
 assert.match(app, /<LumisPersonaAvatar avatarKey=\{avatarKey\} size=\{26\}/);
-assert.match(app, /personaTreatment\.bubbleBackgroundColor/);
-assert.match(app, /personaTreatment\.bubbleBorderColor/);
+assert.match(app, /messageBubbleLumisSubtle/);
 assert.match(app, /<ChatThinkingIndicator\s*\/>/);
 assert.doesNotMatch(app, /ChatThinkingIndicator[^>]*personaTreatment|ChatThinkingIndicator[^>]*color=/);
 assert.doesNotMatch(app, /PersonaChatMarker|Lumis marker/);
