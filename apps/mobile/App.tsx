@@ -88,8 +88,7 @@ import {
   type ChatContentChange
 } from "./src/features/chat/chatScrollIntent";
 import {
-  resolvePersonaChatTreatment,
-  type PersonaChatTreatment
+  resolvePersonaChatTreatment
 } from "./src/features/chat/personaChatTreatment";
 
 type ProfileData = BirthProfileForm;
@@ -1911,19 +1910,10 @@ function PersonaRoleIcon({ index }: { index: number }) {
   return <Compass color="#9DD6B7" size={27} strokeWidth={1.7} />;
 }
 
-function PersonaChatMarker({ treatment }: { treatment: PersonaChatTreatment }) {
-  const icon = treatment.icon === "acceptance"
-    ? <UsersRound color={treatment.markerForegroundColor} size={13} strokeWidth={2} />
-    : treatment.icon === "awareness"
-      ? <Compass color={treatment.markerForegroundColor} size={13} strokeWidth={2} />
-      : <Sparkles color={treatment.markerForegroundColor} size={13} strokeWidth={2} />;
-
+function LumisChatAvatar({ avatarKey }: { avatarKey: string }) {
   return (
-    <View
-      accessibilityLabel={`${treatment.label} Lumis marker`}
-      style={[styles.messageAvatar, { backgroundColor: treatment.accentColor }]}
-    >
-      {icon}
+    <View style={styles.messageAvatar}>
+      <LumisPersonaAvatar avatarKey={avatarKey} size={26} />
     </View>
   );
 }
@@ -2172,7 +2162,7 @@ function ChatShellScreen({
         >
           <Text style={styles.chatDayLabel}>TODAY</Text>
           <View style={styles.messageRowLumis}>
-            <PersonaChatMarker treatment={personaTreatment} />
+            <LumisChatAvatar avatarKey={lumisAvatarKey} />
             <View style={styles.messageColLumis}>
               <View style={[
                 styles.messageBubbleLumis,
@@ -2196,7 +2186,7 @@ function ChatShellScreen({
               </View>
               {turn.result ? (
                 <View style={styles.messageRowLumis}>
-                  <PersonaChatMarker treatment={personaTreatment} />
+                  <LumisChatAvatar avatarKey={lumisAvatarKey} />
                   <View style={styles.messageColLumis}>
                     <View style={[
                       styles.messageBubbleLumis,
@@ -2219,7 +2209,7 @@ function ChatShellScreen({
               ) : null}
               {isSending && !turn.result && !turn.error && turn.id === chatTurns[chatTurns.length - 1]?.id ? (
                 <View style={styles.messageRowLumis}>
-                  <PersonaChatMarker treatment={personaTreatment} />
+                  <LumisChatAvatar avatarKey={lumisAvatarKey} />
                   <View style={[
                     styles.messageBubbleLumis,
                     {

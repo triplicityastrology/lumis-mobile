@@ -12,12 +12,12 @@ const treatment = readFileSync(
 );
 
 assert.match(app, /resolvePersonaChatTreatment\(selectedStyle\)/);
-assert.match(app, /function PersonaChatMarker/);
+assert.match(app, /function LumisChatAvatar/);
+assert.match(app, /<LumisPersonaAvatar avatarKey=\{avatarKey\} size=\{26\}/);
 assert.match(app, /personaTreatment\.bubbleBackgroundColor/);
 assert.match(app, /personaTreatment\.bubbleBorderColor/);
 assert.match(app, /<ChatThinkingIndicator color=\{personaTreatment\.accentColor\}/);
-assert.match(app, /accessibilityLabel=\{`\$\{treatment\.label\} Lumis marker`\}/);
-assert.doesNotMatch(app, /messageAvatar\}><Sparkles color="#071321"/);
+assert.doesNotMatch(app, /PersonaChatMarker|Lumis marker/);
 assert.match(indicator, /ChatThinkingIndicator\(\{ color = DEFAULT_GOLD \}/);
 assert.match(indicator, /reduceMotionChanged/);
 assert.match(treatment, /acceptance:[\s\S]*#B8A7E8/);
