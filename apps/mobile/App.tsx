@@ -19,7 +19,7 @@ import Send from "lucide-react-native/icons/send";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { BackHandler, type LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { BackHandler, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -81,6 +81,11 @@ import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
+import {
+  isNearChatLatest,
+  shouldMaintainChatLatest,
+  type ChatContentChange
+} from "./src/features/chat/chatScrollIntent";
 
 type ProfileData = BirthProfileForm;
 
@@ -1981,6 +1986,9 @@ function ChatShellScreen({
   const [draftMessage, setDraftMessage] = useState(initialDraft ?? "");
   const [isSending, setIsSending] = useState(false);
   const [retryClientMessageId, setRetryClientMessageId] = useState<string | null>(null);
+  const chatScrollRef = useRef<ScrollView>(null);
+  const isFollowingChatLatestRef = useRef(true);
+  const [showReturnToLatest, setShowReturnToLatest] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
@@ -1995,6 +2003,37 @@ function ChatShellScreen({
   useEffect(() => {
     if (initialDraft) onInitialDraftConsumed();
   }, [initialDraft, onInitialDraftConsumed]);
+
+  function scrollToChatLatest(animated = true) {
+    isFollowingChatLatestRef.current = true;
+    setShowReturnToLatest(false);
+    requestAnimationFrame(() => {
+      chatScrollRef.current?.scrollToEnd({ animated });
+    });
+  }
+
+  function maintainChatLatest(change: ChatContentChange = "reply_completed") {
+    if (shouldMaintainChatLatest(isFollowingChatLatestRef.current, change)) {
+      scrollToChatLatest(change !== "composer_layout");
+    } else {
+      setShowReturnToLatest(true);
+    }
+  }
+
+  function handleChatScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const isFollowingLatest = isNearChatLatest({
+      contentHeight: contentSize.height,
+      viewportHeight: layoutMeasurement.height,
+      offsetY: contentOffset.y
+    });
+    isFollowingChatLatestRef.current = isFollowingLatest;
+    setShowReturnToLatest(!isFollowingLatest);
+  }
+
+  useEffect(() => {
+    maintainChatLatest(isSending ? "reply_pending" : "reply_completed");
+  }, [chatTurns, isSending]);
 
   async function handleSend() {
     if (!canSend) {
@@ -2099,9 +2138,13 @@ function ChatShellScreen({
         </View>
 
         <ScrollView
+          ref={chatScrollRef}
           contentContainerStyle={styles.chatContent}
           contentInsetAdjustmentBehavior="never"
           keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => maintainChatLatest("reply_completed")}
+          onScroll={handleChatScroll}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.chatDayLabel}>TODAY</Text>
@@ -2171,6 +2214,20 @@ function ChatShellScreen({
 
         </ScrollView>
 
+        {showReturnToLatest ? (
+          <View style={styles.chatReturnLatestRow}>
+            <Pressable
+              accessibilityLabel="Return to latest message"
+              accessibilityRole="button"
+              onPress={() => scrollToChatLatest()}
+              style={styles.chatReturnLatestButton}
+            >
+              <ChevronDown color="#E8C98D" size={15} />
+              <Text style={styles.chatReturnLatestText}>Latest</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {readOnlyReason ? (
           <View style={styles.chatReadOnlyNotice}>
             <Text style={styles.chatReadOnlyTitle}>Past Reflection · Read only</Text>
@@ -2180,7 +2237,10 @@ function ChatShellScreen({
             </Pressable>
           </View>
         ) : (
-          <View style={styles.chatFooter}>
+          <View
+            style={styles.chatFooter}
+            onLayout={() => maintainChatLatest("composer_layout")}
+          >
             <View style={styles.chatDisclaimer}>
               <Info color="#71839A" size={12} />
               <Text style={styles.chatDisclaimerText}>Reflective guidance, not professional advice.</Text>
@@ -3385,6 +3445,27 @@ const styles = StyleSheet.create({
   },
   chatFooter: {
     gap: 10
+  },
+  chatReturnLatestRow: {
+    alignItems: "center",
+    height: 34,
+    justifyContent: "center"
+  },
+  chatReturnLatestButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(22,39,61,0.94)",
+    borderColor: "rgba(232,201,141,0.36)",
+    borderRadius: 17,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 34,
+    paddingHorizontal: 13
+  },
+  chatReturnLatestText: {
+    color: "#E8C98D",
+    fontSize: 12,
+    fontWeight: "700"
   },
   chatDisclaimer: {
     alignItems: "center",

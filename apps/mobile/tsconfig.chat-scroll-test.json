@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-scroll-tests",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": [
+    "src/features/chat/chatScrollIntent.ts",
+    "src/features/chat/chatScrollIntent.fixtures.ts"
+  ]
+}
