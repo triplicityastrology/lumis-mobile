@@ -32,6 +32,7 @@ import {
   type WorkbenchRecovery,
 } from "./workbenchRecovery";
 import { confirmWorkbenchOutcome } from "./workbenchOutcomeIntegrity";
+import type { WorkbenchProgressName } from "./workbenchProgress";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -72,17 +73,22 @@ export function CareCircleStagingWorkbench({
   relationshipPort,
   requestIdFactory,
   now = () => Date.now(),
+  onEvidenceState,
 }: {
   capabilities: WorkbenchCapabilities;
   client: InactiveCareCircleClient;
   relationshipPort: WorkbenchRelationshipPort;
   requestIdFactory: () => string;
   now?: () => number;
+  onEvidenceState?: (input: {
+    accountRole: "caree" | "carer";
+    evidenceName: WorkbenchProgressName;
+  }) => void;
 }) {
   const { fontScale } = useWindowDimensions();
   const actionFlight = useRef(createWorkbenchSingleFlight()).current;
   const [role, setRole] = useState<"caree" | "carer">(
-    capabilities.canActAsCaree ? "caree" : "carer"
+    capabilities.accountRole
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -126,6 +132,13 @@ export function CareCircleStagingWorkbench({
     hadRelationship,
   });
   const stackActions = shouldStackWorkbenchActions(fontScale);
+
+  useEffect(() => {
+    onEvidenceState?.({
+      accountRole: capabilities.accountRole,
+      evidenceName: progress.evidenceName,
+    });
+  }, [capabilities.accountRole, onEvidenceState, progress.evidenceName]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
@@ -364,9 +377,10 @@ export function CareCircleStagingWorkbench({
           >
           {(["caree", "carer"] as const).map((item) => {
             const roleAllowed =
-              item === "caree"
+              item === capabilities.accountRole &&
+              (item === "caree"
                 ? capabilities.canActAsCaree
-                : capabilities.canActAsCarer;
+                : capabilities.canActAsCarer);
             return (
               <Pressable
                 accessibilityRole="tab"
@@ -391,6 +405,10 @@ export function CareCircleStagingWorkbench({
             );
           })}
         </View>
+        <Text style={styles.body}>
+          Test identity is fixed by this signed-in account. Use Switch account
+          to change between the disposable Caree and Carer.
+        </Text>
 
         {notice ? (
           <View

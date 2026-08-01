@@ -23,6 +23,11 @@ import {
   createWorkbenchSingleFlight,
   resolveWorkbenchBackAction,
 } from "./workbenchDeviceSafety";
+import {
+  advanceSinglePhoneJourney,
+  createSinglePhoneJourney,
+} from "./singlePhoneJourney";
+import type { WorkbenchProgressName } from "./workbenchProgress";
 
 type SessionView =
   | { status: "loading" }
@@ -34,7 +39,15 @@ export function CareCircleStagingSessionGate({
   children,
   sessionPort,
 }: {
-  children: (capabilities: WorkbenchCapabilities) => ReactNode;
+  children: (
+    capabilities: WorkbenchCapabilities,
+    journeyPort: {
+      onEvidenceState(input: {
+        accountRole: "caree" | "carer";
+        evidenceName: WorkbenchProgressName;
+      }): void;
+    }
+  ) => ReactNode;
   sessionPort: WorkbenchSessionPort;
 }) {
   const sessionFlight = useRef(createWorkbenchSingleFlight()).current;
@@ -43,6 +56,8 @@ export function CareCircleStagingSessionGate({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
+  const [journey, setJourney] = useState(createSinglePhoneJourney);
   const signedOutProgress = resolveWorkbenchProgress({ authenticated: false });
 
   useEffect(() => {
@@ -104,6 +119,7 @@ export function CareCircleStagingSessionGate({
           ? { status: "signed_in", capabilities: result.capabilities }
           : { status: "signed_out" }
       );
+      if (result.authenticated) setSessionEpoch((value) => value + 1);
     } catch {
       const recovery = resolveWorkbenchRecovery({ kind: "sign_in" });
       setSession({ status: "signed_out" });
@@ -123,6 +139,7 @@ export function CareCircleStagingSessionGate({
       setSession({ status: "signed_out" });
       setEmail("");
       setPassword("");
+      setSessionEpoch((value) => value + 1);
     } catch {
       setNotice(
         "Sign-out failed. The current staging session remains active."
@@ -146,6 +163,10 @@ export function CareCircleStagingSessionGate({
               {" · "}
               Carer {session.capabilities.canActAsCarer ? "enabled" : "blocked"}
             </Text>
+            <Text accessibilityLiveRegion="polite" style={styles.journeyTitle}>
+              {journey.label}
+            </Text>
+            <Text style={styles.sessionMeta}>{journey.guidance}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -163,8 +184,14 @@ export function CareCircleStagingSessionGate({
             {notice}
           </Text>
         ) : null}
-        <View style={styles.workbench}>
-          {children(session.capabilities)}
+        <View key={sessionEpoch} style={styles.workbench}>
+          {children(session.capabilities, {
+            onEvidenceState(input) {
+              setJourney((current) =>
+                advanceSinglePhoneJourney(current, input)
+              );
+            },
+          })}
         </View>
       </View>
     );
@@ -296,6 +323,7 @@ const styles = StyleSheet.create({
   sessionCopy: { flex: 1 },
   sessionTitle: { color: colors.ice, fontSize: 13, fontWeight: "700" },
   sessionMeta: { color: colors.muted, fontSize: 11, marginTop: 3 },
+  journeyTitle: { color: colors.gold, fontSize: 12, fontWeight: "700", marginTop: 6 },
   signOut: {
     minHeight: 44,
     justifyContent: "center",

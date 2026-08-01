@@ -27,12 +27,13 @@ function Root() {
   const content =
     boundary.enabled && ports ? (
       <CareCircleStagingSessionGate sessionPort={ports.sessionPort}>
-        {(capabilities) => (
+        {(capabilities, journeyPort) => (
           <CareCircleStagingWorkbench
             capabilities={capabilities}
             client={createInactiveCareCircleClient(ports.operationPort)}
             relationshipPort={ports.relationshipPort}
             requestIdFactory={randomUUID}
+            onEvidenceState={journeyPort.onEvidenceState}
           />
         )}
       </CareCircleStagingSessionGate>

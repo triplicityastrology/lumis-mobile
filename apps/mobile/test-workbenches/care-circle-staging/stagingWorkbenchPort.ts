@@ -8,6 +8,7 @@ import type {
 } from "./CareCircleStagingWorkbench";
 
 export type WorkbenchCapabilities = {
+  accountRole: "caree" | "carer";
   canActAsCaree: boolean;
   canActAsCarer: boolean;
   careCirclePaused: boolean;
@@ -192,6 +193,8 @@ function projectCapabilities(
 ): WorkbenchCapabilities | null {
   if (
     !isRecord(capabilityValue) ||
+    (capabilityValue.account_mode !== "standard" &&
+      capabilityValue.account_mode !== "carer_only") ||
     typeof capabilityValue.can_act_as_caree !== "boolean" ||
     typeof capabilityValue.can_act_as_carer !== "boolean"
   ) {
@@ -199,6 +202,8 @@ function projectCapabilities(
   }
 
   return {
+    accountRole:
+      capabilityValue.account_mode === "carer_only" ? "carer" : "caree",
     canActAsCaree: capabilityValue.can_act_as_caree,
     canActAsCarer: capabilityValue.can_act_as_carer,
     careCirclePaused: projectPaused(settingsValue),

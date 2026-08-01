@@ -13,6 +13,8 @@ const port = read(`${root}/stagingWorkbenchPort.ts`);
 const portFixture = read(`${root}/stagingWorkbenchPort.fixtures.ts`);
 const progress = read(`${root}/workbenchProgress.ts`);
 const progressFixture = read(`${root}/workbenchProgress.fixtures.ts`);
+const singlePhoneJourney = read(`${root}/singlePhoneJourney.ts`);
+const singlePhoneJourneyFixture = read(`${root}/singlePhoneJourney.fixtures.ts`);
 const recovery = read(`${root}/workbenchRecovery.ts`);
 const recoveryFixture = read(`${root}/workbenchRecovery.fixtures.ts`);
 const deviceSafety = read(`${root}/workbenchDeviceSafety.ts`);
@@ -70,6 +72,26 @@ assert.match(port, /auth\.signOut/);
 assert.match(sessionGate, /Disposable account sign-in/);
 assert.match(sessionGate, /secureTextEntry/);
 assert.match(sessionGate, /setPassword\(""\)/);
+assert.match(sessionGate, /key=\{sessionEpoch\}/);
+assert.match(sessionGate, /advanceSinglePhoneJourney/);
+assert.match(screen, /capabilities\.accountRole/);
+assert.match(screen, /Test identity is fixed by this signed-in account/);
+assert.match(port, /account_mode/);
+assert.match(portFixture, /backend account mode fixes the test identity/);
+for (const step of [
+  "caree_create_code",
+  "carer_submit_code",
+  "caree_accept",
+  "carer_verify_active",
+  "caree_pause",
+  "caree_resume",
+  "carer_remove",
+  "operator_cleanup_required",
+]) {
+  assert.match(singlePhoneJourney, new RegExp(`"${step}"`));
+}
+assert.match(singlePhoneJourney, /counts are zero/);
+assert.match(singlePhoneJourneyFixture, /wrong identity cannot advance/);
 assert.match(sessionGate, /Authenticated disposable staging session/);
 assert.match(screen, /capabilities\.canActAsCaree/);
 assert.match(screen, /capabilities\.canActAsCarer/);

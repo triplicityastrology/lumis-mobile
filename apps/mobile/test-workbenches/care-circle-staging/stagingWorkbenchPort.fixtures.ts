@@ -19,6 +19,7 @@ async function runFixtures(): Promise<void> {
   const signedIn = createStagingWorkbenchPorts(
     fakeSupabase({
       authenticated: true,
+      accountMode: "standard",
       canActAsCaree: true,
       canActAsCarer: false,
       pausedUntil: "2030-01-02T00:00:00.000Z",
@@ -34,6 +35,11 @@ async function runFixtures(): Promise<void> {
   );
   const session = await signedIn.sessionPort.readSession();
   equal(session.authenticated, true, "real session is recognized");
+  equal(
+    session.authenticated && session.capabilities.accountRole,
+    "caree",
+    "backend account mode fixes the test identity"
+  );
   equal(
     session.authenticated && session.capabilities.canActAsCaree,
     true,
@@ -98,6 +104,7 @@ function fakeSupabase(input: {
   authCalls?: string[];
   canActAsCaree?: boolean;
   canActAsCarer?: boolean;
+  accountMode?: "standard" | "carer_only";
   pausedUntil?: string | null;
   relationships?: unknown[];
   signInFails?: boolean;
@@ -135,6 +142,7 @@ function fakeSupabase(input: {
       if (name === "resolve_care_circle_capability") {
         return {
           data: {
+            account_mode: input.accountMode ?? "carer_only",
             can_act_as_caree: input.canActAsCaree ?? false,
             can_act_as_carer: input.canActAsCarer ?? false,
           },
