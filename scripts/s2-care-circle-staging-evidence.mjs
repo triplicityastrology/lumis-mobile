@@ -171,6 +171,20 @@ try {
     carerTokens[0],
     null
   );
+  const pendingProjection = await userRequest(
+    context,
+    carerTokens[0],
+    "/rest/v1/rpc/list_care_relationships",
+    { method: "POST", body: {} }
+  );
+  safeCheck(
+    pendingProjection.ok &&
+      pendingProjection.body.length === 1 &&
+      pendingProjection.body[0]?.status === "pending_caree_acceptance" &&
+      pendingProjection.body[0]?.accepted_at === null,
+    "pending_projection_no_authority",
+    "CARE_PENDING_PROJECTION_AUTHORITY_EXPOSED"
+  );
   pass(context, "Participant storage denial and safe projection hold");
 
   const carerAccept = await careOperation(context, carerTokens[0], {
@@ -226,6 +240,22 @@ try {
     rejected?.body?.error?.code === "48012",
     "sixth_carer_denial",
     "CARE_SIXTH_CARER_DENIAL_FAILED"
+  );
+  const capacityProjection = await userRequest(
+    context,
+    careeToken,
+    "/rest/v1/rpc/list_care_relationships",
+    { method: "POST", body: {} }
+  );
+  safeCheck(
+    capacityProjection.ok &&
+      capacityProjection.body.filter((item) => item.status === "active")
+        .length === 5 &&
+      capacityProjection.body.filter(
+        (item) => item.status === "pending_caree_acceptance"
+      ).length === 1,
+    "capacity_projection_state",
+    "CARE_CAPACITY_PROJECTION_INVALID"
   );
   pass(context, "Concurrent sixth acceptance is rejected and five become active");
 
