@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/persona-chat-tests",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": [
+    "src/features/chat/personaChatTreatment.ts",
+    "src/features/chat/personaChatTreatment.fixtures.ts"
+  ]
+}

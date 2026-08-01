@@ -87,6 +87,10 @@ import {
   shouldMaintainChatLatest,
   type ChatContentChange
 } from "./src/features/chat/chatScrollIntent";
+import {
+  resolvePersonaChatTreatment,
+  type PersonaChatTreatment
+} from "./src/features/chat/personaChatTreatment";
 
 type ProfileData = BirthProfileForm;
 
@@ -1907,6 +1911,23 @@ function PersonaRoleIcon({ index }: { index: number }) {
   return <Compass color="#9DD6B7" size={27} strokeWidth={1.7} />;
 }
 
+function PersonaChatMarker({ treatment }: { treatment: PersonaChatTreatment }) {
+  const icon = treatment.icon === "acceptance"
+    ? <UsersRound color={treatment.markerForegroundColor} size={13} strokeWidth={2} />
+    : treatment.icon === "awareness"
+      ? <Compass color={treatment.markerForegroundColor} size={13} strokeWidth={2} />
+      : <Sparkles color={treatment.markerForegroundColor} size={13} strokeWidth={2} />;
+
+  return (
+    <View
+      accessibilityLabel={`${treatment.label} Lumis marker`}
+      style={[styles.messageAvatar, { backgroundColor: treatment.accentColor }]}
+    >
+      {icon}
+    </View>
+  );
+}
+
 function personaExample(style: PersonaStyleKey) {
   if (style === "acceptance") return "I will take this slowly with you. No pressure.";
   if (style === "spark") return "Let us find the fresh angle that gets things moving.";
@@ -1991,6 +2012,7 @@ function ChatShellScreen({
   const isFollowingChatLatestRef = useRef(true);
   const [showReturnToLatest, setShowReturnToLatest] = useState(false);
   const selectedPersona = PERSONA_STYLES.find((style) => style.key === selectedStyle) ?? PERSONA_STYLES[0];
+  const personaTreatment = resolvePersonaChatTreatment(selectedStyle);
   const sun = chart?.planets.find((planet) => planet.key === "sun");
   const moon = chart?.planets.find((planet) => planet.key === "moon");
   const ascendant = chart?.angles.ascendant;
@@ -2122,7 +2144,7 @@ function ChatShellScreen({
               accessibilityRole="button"
               accessibilityLabel={`${selectedPersona.labelEn} — open your Sky`}
             >
-              <View style={styles.chatPresenceDot} />
+              <View style={[styles.chatPresenceDot, { backgroundColor: personaTreatment.accentColor }]} />
               <Text style={styles.chatChipText}>{selectedPersona.labelEn}</Text>
               <Compass color="#C4CEDB" size={12} />
             </Pressable>
@@ -2150,9 +2172,15 @@ function ChatShellScreen({
         >
           <Text style={styles.chatDayLabel}>TODAY</Text>
           <View style={styles.messageRowLumis}>
-            <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
+            <PersonaChatMarker treatment={personaTreatment} />
             <View style={styles.messageColLumis}>
-              <View style={styles.messageBubbleLumis}>
+              <View style={[
+                styles.messageBubbleLumis,
+                {
+                  backgroundColor: personaTreatment.bubbleBackgroundColor,
+                  borderColor: personaTreatment.bubbleBorderColor
+                }
+              ]}>
                 <Text style={styles.messageTextLumis}>
                   Hi {name}. What feels most worth understanding today?
                 </Text>
@@ -2168,9 +2196,15 @@ function ChatShellScreen({
               </View>
               {turn.result ? (
                 <View style={styles.messageRowLumis}>
-                  <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
+                  <PersonaChatMarker treatment={personaTreatment} />
                   <View style={styles.messageColLumis}>
-                    <View style={styles.messageBubbleLumis}>
+                    <View style={[
+                      styles.messageBubbleLumis,
+                      {
+                        backgroundColor: personaTreatment.bubbleBackgroundColor,
+                        borderColor: personaTreatment.bubbleBorderColor
+                      }
+                    ]}>
                       <Text style={styles.messageTextLumis}>{turn.result.reply}</Text>
                     </View>
                     {turn.result.route === "astro_timing" ? (
@@ -2185,14 +2219,20 @@ function ChatShellScreen({
               ) : null}
               {isSending && !turn.result && !turn.error && turn.id === chatTurns[chatTurns.length - 1]?.id ? (
                 <View style={styles.messageRowLumis}>
-                  <View style={styles.messageAvatar}><Sparkles color="#071321" size={13} /></View>
-                  <View style={styles.messageBubbleLumis}>
+                  <PersonaChatMarker treatment={personaTreatment} />
+                  <View style={[
+                    styles.messageBubbleLumis,
+                    {
+                      backgroundColor: personaTreatment.bubbleBackgroundColor,
+                      borderColor: personaTreatment.bubbleBorderColor
+                    }
+                  ]}>
                     <View
                       accessibilityLabel="Lumis is reflecting"
                       accessibilityLiveRegion="polite"
                       style={styles.chatThinkingRow}
                     >
-                      <ChatThinkingIndicator />
+                      <ChatThinkingIndicator color={personaTreatment.accentColor} />
                       <Text style={styles.messageTextLumis}>Reflecting...</Text>
                     </View>
                   </View>
