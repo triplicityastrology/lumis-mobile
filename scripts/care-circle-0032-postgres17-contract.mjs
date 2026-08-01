@@ -5,6 +5,7 @@ const runner = readFileSync("scripts/run-care-circle-0032-postgres17.sh", "utf8"
 const migration = readFileSync("supabase/migrations/0032_care_circle_backend_foundation.sql", "utf8");
 const fixture = readFileSync("supabase/tests/s2-t67-care-circle-retention.sql", "utf8");
 const compatibility = readFileSync("supabase/tests/s2-t64-local-supabase-compatibility.sql", "utf8");
+const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.match(runner, /0032_care_circle_backend_foundation\.sql/);
 assert.doesNotMatch(runner, /0033_|0034_|--linked|project-ref|supabase\.co/);
@@ -17,5 +18,7 @@ assert.match(fixture, /rollback;/);
 assert.match(compatibility, /graphql_watch_ddl/);
 assert.match(compatibility, /pgrst_ddl_watch/);
 assert.doesNotMatch(compatibility, /disable row level security/);
+assert.match(packageJson.scripts["test:care-circle-regression-static"], /test:care-circle-0032-postgres17-contract/);
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-regression-static");
 
 console.log("Care Circle 0032 PostgreSQL 17 retention contract passed");

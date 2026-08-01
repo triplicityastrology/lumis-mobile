@@ -6,6 +6,7 @@ const boundary = readFileSync(
   "supabase/functions/care-circle/operation-boundary.ts",
   "utf8"
 );
+const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 
 assert.match(edge, /userClient\.auth\.getUser\(\)/);
 assert.match(edge, /p_actor_user_id: actorUserId/);
@@ -19,5 +20,8 @@ assert.doesNotMatch(
   boundary,
   /response\.(?:actor_user_id|caree_user_id|carer_user_id|request_digest|code_hash|metadata)/
 );
+assert.match(packageJson.scripts["test:care-circle-edge-security"], /operation-boundary\.fixtures/);
+assert.match(packageJson.scripts["test:care-circle-regression-static"], /test:care-circle-edge-security/);
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-regression-static");
 
 console.log("Care Circle Edge security contract passed");
