@@ -16,6 +16,7 @@ import type {
 } from "../../src/services/inactiveCareCircleClient";
 import { colors, spacing } from "../../src/theme/tokens";
 import type { WorkbenchCapabilities } from "./stagingWorkbenchPort";
+import { resolveWorkbenchProgress } from "./workbenchProgress";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -66,6 +67,9 @@ export function CareCircleStagingWorkbench({
     []
   );
   const [paused, setPaused] = useState(capabilities.careCirclePaused);
+  const [lastSuccessfulOperation, setLastSuccessfulOperation] = useState<
+    "relationship_removed" | null
+  >(null);
 
   const careeRelationships = relationships.filter(
     (relationship) => relationship.participantRole === "caree"
@@ -83,6 +87,14 @@ export function CareCircleStagingWorkbench({
   const codeIsExpired =
     pairingCodeExpiresAt !== null &&
     Date.parse(pairingCodeExpiresAt) <= now();
+  const progress = resolveWorkbenchProgress({
+    authenticated: true,
+    role,
+    hasUsablePairingCode: Boolean(pairingCode) && !codeIsExpired,
+    paused,
+    relationships,
+    lastSuccessfulOperation,
+  });
 
   function switchRole(nextRole: "caree" | "carer") {
     if (
@@ -97,6 +109,7 @@ export function CareCircleStagingWorkbench({
     setPairingCodeInput("");
     setRelationships([]);
     setNotice(null);
+    setLastSuccessfulOperation(null);
   }
 
   async function runAction(
@@ -155,6 +168,7 @@ export function CareCircleStagingWorkbench({
       return result;
     }
     if (result.code === "CARE_CIRCLE_RELATIONSHIP_REMOVED") {
+      setLastSuccessfulOperation("relationship_removed");
       setNotice({
         tone: "success",
         text: "Accepted relationship removed.",
@@ -183,6 +197,7 @@ export function CareCircleStagingWorkbench({
     if (announce) setNotice(null);
     try {
       setRelationships(await relationshipPort.listRelationships());
+      setLastSuccessfulOperation(null);
       if (announce) {
         setNotice({
           tone: "info",
@@ -245,7 +260,9 @@ export function CareCircleStagingWorkbench({
       });
       return;
     }
-    if (result.ok) await refreshRelationships(false);
+    if (result.ok && action !== "remove_relationship") {
+      await refreshRelationships(false);
+    }
   }
 
   const disabled = busy !== null;
@@ -262,6 +279,18 @@ export function CareCircleStagingWorkbench({
         <Text style={styles.warning}>
           Disposable staging accounts only. This is not a release feature.
         </Text>
+
+        <View
+          accessibilityLabel={`Care Circle test progress: ${progress.label}. ${progress.guidance}`}
+          accessibilityLiveRegion="polite"
+          style={styles.progress}
+        >
+          <Text style={styles.progressName}>{progress.label}</Text>
+          <Text style={styles.progressGuidance}>{progress.guidance}</Text>
+          <Text style={styles.progressEvidence}>
+            Evidence state: {progress.evidenceName}
+          </Text>
+        </View>
 
         <View style={styles.roleRow} accessibilityRole="tablist">
           {(["caree", "carer"] as const).map((item) => {
@@ -635,6 +664,18 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 8,
   },
+  progress: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    marginTop: 14,
+    padding: 12,
+  },
+  progressName: { color: colors.ice, fontSize: 15, fontWeight: "800" },
+  progressGuidance: { color: colors.textSoft, fontSize: 12, lineHeight: 18 },
+  progressEvidence: { color: colors.muted, fontSize: 10 },
   roleRow: { flexDirection: "row", gap: 8, marginTop: 20 },
   roleButton: {
     flex: 1,

@@ -13,6 +13,7 @@ import type {
   WorkbenchCapabilities,
   WorkbenchSessionPort,
 } from "./stagingWorkbenchPort";
+import { resolveWorkbenchProgress } from "./workbenchProgress";
 
 type SessionView =
   | { status: "loading" }
@@ -32,6 +33,7 @@ export function CareCircleStagingSessionGate({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const signedOutProgress = resolveWorkbenchProgress({ authenticated: false });
 
   useEffect(() => {
     void refreshSession();
@@ -137,6 +139,19 @@ export function CareCircleStagingSessionGate({
           Use only a disposable staging account created for Care Circle
           validation. This creates a real staging session, not a demo account.
         </Text>
+
+        {session.status === "signed_out" ? (
+          <View
+            accessibilityLabel={`Care Circle test progress: ${signedOutProgress.label}. ${signedOutProgress.guidance}`}
+            style={styles.progress}
+          >
+            <Text style={styles.progressTitle}>{signedOutProgress.label}</Text>
+            <Text style={styles.progressText}>{signedOutProgress.guidance}</Text>
+            <Text style={styles.progressEvidence}>
+              Evidence state: {signedOutProgress.evidenceName}
+            </Text>
+          </View>
+        ) : null}
 
         {notice ? (
           <Text accessibilityLiveRegion="assertive" style={styles.notice}>
@@ -249,6 +264,17 @@ const styles = StyleSheet.create({
   },
   title: { color: colors.ice, fontSize: 26, fontWeight: "700" },
   body: { color: colors.textSoft, fontSize: 14, lineHeight: 20 },
+  progress: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    padding: 12,
+  },
+  progressTitle: { color: colors.ice, fontSize: 15, fontWeight: "800" },
+  progressText: { color: colors.textSoft, fontSize: 12, lineHeight: 18 },
+  progressEvidence: { color: colors.muted, fontSize: 10 },
   notice: { color: colors.warn, fontSize: 14, lineHeight: 20 },
   input: {
     minHeight: 48,

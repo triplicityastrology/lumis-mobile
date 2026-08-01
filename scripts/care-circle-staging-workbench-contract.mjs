@@ -11,6 +11,8 @@ const screen = read(`${root}/CareCircleStagingWorkbench.tsx`);
 const sessionGate = read(`${root}/CareCircleStagingSessionGate.tsx`);
 const port = read(`${root}/stagingWorkbenchPort.ts`);
 const portFixture = read(`${root}/stagingWorkbenchPort.fixtures.ts`);
+const progress = read(`${root}/workbenchProgress.ts`);
+const progressFixture = read(`${root}/workbenchProgress.fixtures.ts`);
 const entry = read(`${root}/index.tsx`);
 const metro = read(`${root}/metro.config.js`);
 const workbenchPackage = JSON.parse(read(`${root}/package.json`));
@@ -74,6 +76,25 @@ assert.match(
   screen,
   /Backend rejected the sixth active Carer\. The maximum remains five\./
 );
+for (const evidenceState of [
+  "signed_out",
+  "caree_code_ready",
+  "carer_pending_no_authority",
+  "caree_decision_required",
+  "active",
+  "paused",
+  "removed",
+  "relationship_cleanup_complete",
+]) {
+  assert.match(progress, new RegExp(`"${evidenceState}"`));
+}
+assert.match(progress, /Pending Caree acceptance/);
+assert.match(progress, /no Care Circle authority/);
+assert.match(progressFixture, /pending is not active/);
+assert.match(screen, /Care Circle test progress/);
+assert.match(screen, /Evidence state:/);
+assert.match(sessionGate, /signedOutProgress/);
+assert.match(sessionGate, /Care Circle test progress/);
 assert.doesNotMatch(screen, /disabled: disabled \|\| atCapacity/);
 assert.match(screen, /lifetime > 61 \* 60 \* 1000/);
 assert.match(screen, /setPairingCodeInput\(""\)/);
