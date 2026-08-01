@@ -17,6 +17,8 @@ const recovery = read(`${root}/workbenchRecovery.ts`);
 const recoveryFixture = read(`${root}/workbenchRecovery.fixtures.ts`);
 const deviceSafety = read(`${root}/workbenchDeviceSafety.ts`);
 const deviceSafetyFixture = read(`${root}/workbenchDeviceSafety.fixtures.ts`);
+const outcomeIntegrity = read(`${root}/workbenchOutcomeIntegrity.ts`);
+const outcomeFixture = read(`${root}/workbenchOutcomeIntegrity.fixtures.ts`);
 const entry = read(`${root}/index.tsx`);
 const metro = read(`${root}/metro.config.js`);
 const workbenchPackage = JSON.parse(read(`${root}/package.json`));
@@ -71,15 +73,12 @@ assert.match(sessionGate, /setPassword\(""\)/);
 assert.match(sessionGate, /Authenticated disposable staging session/);
 assert.match(screen, /capabilities\.canActAsCaree/);
 assert.match(screen, /capabilities\.canActAsCarer/);
-assert.match(screen, /pending Caree acceptance and has no active authority/);
+assert.match(outcomeIntegrity, /Pending Caree acceptance confirmed/);
 assert.match(screen, /Pending Caree acceptance · no authority/);
 assert.match(screen, /Accepted Carers · \$\{accepted\.length\}\/5/);
 assert.match(screen, /atCapacity = accepted\.length >= 5/);
 assert.match(screen, /Test sixth rejection/);
-assert.match(
-  screen,
-  /Backend rejected the sixth active Carer\. The maximum remains five\./
-);
+assert.match(outcomeIntegrity, /Backend capacity rejection confirmed/);
 for (const evidenceState of [
   "signed_out",
   "caree_code_ready",
@@ -120,6 +119,14 @@ assert.match(screen, /accessibilityState=\{\{ disabled/);
 assert.match(deviceSafety, /fontScale >= 1\.35/);
 assert.match(deviceSafety, /clear_transient_input/);
 assert.match(deviceSafetyFixture, /double tap is rejected synchronously/);
+assert.match(screen, /confirmWorkbenchOutcome/);
+assert.match(screen, /result\.code === "CARE_CIRCLE_PAIRING_CODE_READY"\) return/);
+assert.match(port, /readProjection/);
+assert.match(port, /care_check_settings/);
+assert.match(outcomeIntegrity, /outcome_unconfirmed/);
+assert.match(outcomeFixture, /sent accept cannot imply active/);
+assert.match(outcomeFixture, /sent removal cannot imply removed/);
+assert.match(outcomeFixture, /generic conflict cannot imply capacity rejection/);
 assert.match(screen, /type SafeRetryInput = Exclude/);
 assert.match(screen, /input\.action !== "submit_pairing_code"/);
 assert.doesNotMatch(screen, /text: result\.message/);
@@ -136,7 +143,7 @@ assert.match(screen, /setPairingCodeInput\(""\)/);
 assert.match(screen, /setPairingCode\(null\)/);
 assert.match(screen, /My Caree relationships/);
 assert.match(screen, /Remove myself/);
-assert.match(screen, /if \(result\.ok\) await refreshRelationships\(false\)/);
+assert.match(screen, /const projection = await refreshRelationships\(false\)/);
 assert.match(portFixture, /CARE_CIRCLE_SIGN_IN_FAILED/);
 assert.match(portFixture, /email is not echoed/);
 assert.match(portFixture, /password is not echoed/);

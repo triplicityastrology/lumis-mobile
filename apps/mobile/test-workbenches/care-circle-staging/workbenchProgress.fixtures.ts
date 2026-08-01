@@ -36,13 +36,19 @@ state(
   {
     authenticated: true,
     role: "caree",
-    relationships: [activeCaree],
-    lastSuccessfulOperation: "relationship_removed",
+    relationships: [removedCaree],
+    projectionConfirmed: true,
   },
   "removed"
 );
 state(
-  { authenticated: true, role: "caree", relationships: [removedCaree] },
+  {
+    authenticated: true,
+    role: "caree",
+    relationships: [],
+    projectionConfirmed: true,
+    hadRelationship: true,
+  },
   "relationship_cleanup_complete"
 );
 

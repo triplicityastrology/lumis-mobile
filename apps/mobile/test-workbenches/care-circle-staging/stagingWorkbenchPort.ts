@@ -4,6 +4,7 @@ import type { CareCircleClientPort } from "../../src/services/inactiveCareCircle
 import type {
   WorkbenchRelationship,
   WorkbenchRelationshipPort,
+  WorkbenchProjection,
 } from "./CareCircleStagingWorkbench";
 
 export type WorkbenchCapabilities = {
@@ -64,18 +65,29 @@ export function createStagingWorkbenchPorts(
       },
     },
     relationshipPort: {
-      async listRelationships() {
-        const { data, error } = await supabase.rpc(
-          "list_care_relationships"
-        );
-        if (error || !Array.isArray(data)) {
+      async readProjection(): Promise<WorkbenchProjection> {
+        const [relationshipsResult, settingsResult] = await Promise.all([
+          supabase.rpc("list_care_relationships"),
+          supabase
+            .from("care_check_settings")
+            .select("paused_until")
+            .maybeSingle(),
+        ]);
+        if (
+          relationshipsResult.error ||
+          settingsResult.error ||
+          !Array.isArray(relationshipsResult.data)
+        ) {
           throw new Error("CARE_CIRCLE_RELATIONSHIP_LIST_UNAVAILABLE");
         }
-        const projected = data.map(projectRelationship);
+        const projected = relationshipsResult.data.map(projectRelationship);
         if (projected.some((item) => item === null)) {
           throw new Error("CARE_CIRCLE_RELATIONSHIP_LIST_UNAVAILABLE");
         }
-        return projected as WorkbenchRelationship[];
+        return {
+          relationships: projected as WorkbenchRelationship[],
+          paused: projectPaused(settingsResult.data),
+        };
       },
     },
     sessionPort: {
@@ -186,17 +198,19 @@ function projectCapabilities(
     return null;
   }
 
+  return {
+    canActAsCaree: capabilityValue.can_act_as_caree,
+    canActAsCarer: capabilityValue.can_act_as_carer,
+    careCirclePaused: projectPaused(settingsValue),
+  };
+}
+
+function projectPaused(settingsValue: unknown): boolean {
   const pausedUntil =
     isRecord(settingsValue) && typeof settingsValue.paused_until === "string"
       ? Date.parse(settingsValue.paused_until)
       : Number.NaN;
-
-  return {
-    canActAsCaree: capabilityValue.can_act_as_caree,
-    canActAsCarer: capabilityValue.can_act_as_carer,
-    careCirclePaused:
-      Number.isFinite(pausedUntil) && pausedUntil > Date.now(),
-  };
+  return Number.isFinite(pausedUntil) && pausedUntil > Date.now();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

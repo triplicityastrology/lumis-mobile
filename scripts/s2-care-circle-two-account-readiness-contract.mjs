@@ -11,6 +11,10 @@ const plan = JSON.parse(
 const session = readFileSync(`${root}/CareCircleStagingSessionGate.tsx`, "utf8");
 const screen = readFileSync(`${root}/CareCircleStagingWorkbench.tsx`, "utf8");
 const port = readFileSync(`${root}/stagingWorkbenchPort.ts`, "utf8");
+const outcomeIntegrity = readFileSync(
+  `${root}/workbenchOutcomeIntegrity.ts`,
+  "utf8"
+);
 const client = readFileSync(
   "apps/mobile/src/services/inactiveCareCircleClient.ts",
   "utf8"
@@ -43,7 +47,8 @@ for (const sourceRequirement of [
   [screen, /submit_pairing_code/],
   [screen, /Pending Caree acceptance · no authority/],
   [screen, /accept_relationship/],
-  [screen, /CARE_CIRCLE_RELATIONSHIP_ACCEPTED/],
+  [outcomeIntegrity, /active_confirmed/],
+  [outcomeIntegrity, /relationship\?\.status === "active"/],
   [screen, /pause_care/],
   [screen, /resume_care/],
   [screen, /remove_relationship/],

@@ -50,14 +50,14 @@ async function runFixtures(): Promise<void> {
     "pause state is projected"
   );
 
-  const relationships =
-    await signedIn.relationshipPort.listRelationships();
-  equal(relationships.length, 1, "participant-safe relationship is listed");
+  const projection = await signedIn.relationshipPort.readProjection();
+  equal(projection.relationships.length, 1, "participant-safe relationship is listed");
   equal(
-    relationships[0]?.status,
+    projection.relationships[0]?.status,
     "pending_caree_acceptance",
     "pending status is preserved"
   );
+  equal(projection.paused, true, "relationship refresh includes pause projection");
 
   const authCalls: string[] = [];
   const accountSwitch = createStagingWorkbenchPorts(

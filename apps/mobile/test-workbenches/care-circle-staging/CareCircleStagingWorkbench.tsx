@@ -31,6 +31,7 @@ import {
   resolveWorkbenchRecovery,
   type WorkbenchRecovery,
 } from "./workbenchRecovery";
+import { confirmWorkbenchOutcome } from "./workbenchOutcomeIntegrity";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -46,7 +47,12 @@ export type WorkbenchRelationship = {
 };
 
 export type WorkbenchRelationshipPort = {
-  listRelationships(): Promise<WorkbenchRelationship[]>;
+  readProjection(): Promise<WorkbenchProjection>;
+};
+
+export type WorkbenchProjection = {
+  relationships: WorkbenchRelationship[];
+  paused: boolean;
 };
 
 type Notice = {
@@ -89,9 +95,8 @@ export function CareCircleStagingWorkbench({
     []
   );
   const [paused, setPaused] = useState(capabilities.careCirclePaused);
-  const [lastSuccessfulOperation, setLastSuccessfulOperation] = useState<
-    "relationship_removed" | null
-  >(null);
+  const [projectionConfirmed, setProjectionConfirmed] = useState(false);
+  const [hadRelationship, setHadRelationship] = useState(false);
   const [retryInput, setRetryInput] = useState<SafeRetryInput | null>(null);
   const [retryRefresh, setRetryRefresh] = useState(false);
 
@@ -117,7 +122,8 @@ export function CareCircleStagingWorkbench({
     hasUsablePairingCode: Boolean(pairingCode) && !codeIsExpired,
     paused,
     relationships,
-    lastSuccessfulOperation,
+    projectionConfirmed,
+    hadRelationship,
   });
   const stackActions = shouldStackWorkbenchActions(fontScale);
 
@@ -153,7 +159,8 @@ export function CareCircleStagingWorkbench({
     setPairingCodeInput("");
     setRelationships([]);
     setNotice(null);
-    setLastSuccessfulOperation(null);
+    setProjectionConfirmed(false);
+    setHadRelationship(false);
     setRetryInput(null);
     setRetryRefresh(false);
   }
@@ -222,67 +229,33 @@ export function CareCircleStagingWorkbench({
       return result;
     }
 
-    if (result.code === "CARE_CIRCLE_PENDING_CAREE_ACCEPTANCE") {
-      setNotice({
-        tone: "success",
-        text: "Request sent. It is pending Caree acceptance and has no active authority.",
-      });
-      return result;
-    }
-
-    if (result.code === "CARE_CIRCLE_RELATIONSHIP_ACCEPTED") {
-      setNotice({
-        tone: "success",
-        text: "Carer accepted. Refresh relationships to verify active status.",
-      });
-      return result;
-    }
-    if (result.code === "CARE_CIRCLE_RELATIONSHIP_DECLINED") {
-      setNotice({
-        tone: "success",
-        text: "Pending request declined.",
-      });
-      return result;
-    }
-    if (result.code === "CARE_CIRCLE_RELATIONSHIP_REMOVED") {
-      setLastSuccessfulOperation("relationship_removed");
-      setNotice({
-        tone: "success",
-        text: "Accepted relationship removed.",
-      });
-      return result;
-    }
-    if (result.code === "CARE_CIRCLE_PAUSED") {
-      setPaused(true);
-      setNotice({
-        tone: "success",
-        text: "Care Circle is paused for this staging account.",
-      });
-      return result;
-    }
-
-    setPaused(false);
     setNotice({
-      tone: "success",
-      text: "Care Circle resumed for this staging account.",
+      tone: "info",
+      text: "Backend response received. Confirming the participant-safe state...",
     });
     return result;
   }
 
-  async function refreshRelationships(announce = true) {
-    if (!actionFlight.enter()) return;
+  async function refreshRelationships(
+    announce = true
+  ): Promise<WorkbenchProjection | null> {
+    if (!actionFlight.enter()) return null;
     setBusy("refresh_relationships");
     setRetryRefresh(false);
     if (announce) setNotice(null);
     try {
-      setRelationships(await relationshipPort.listRelationships());
-      setLastSuccessfulOperation(null);
+      const projection = await relationshipPort.readProjection();
+      setRelationships(projection.relationships);
+      setPaused(projection.paused);
+      setProjectionConfirmed(true);
+      if (projection.relationships.length > 0) setHadRelationship(true);
       if (announce) {
         setNotice({
           tone: "info",
           text: "Participant-safe staging relationships refreshed.",
         });
       }
+      return projection;
     } catch {
       const recovery = resolveWorkbenchRecovery({
         kind: "relationship_refresh",
@@ -293,6 +266,7 @@ export function CareCircleStagingWorkbench({
         evidenceName: recovery.evidenceName,
       });
       setRetryRefresh(true);
+      return null;
     } finally {
       actionFlight.leave();
       setBusy(null);
@@ -313,12 +287,11 @@ export function CareCircleStagingWorkbench({
   async function submitPairingCode() {
     const transientCode = pairingCodeInput;
     setPairingCodeInput("");
-    const result = await runAction({
+    await runAndConfirm({
       action: "submit_pairing_code",
       clientRequestId: requestIdFactory(),
       pairingCode: transientCode,
     });
-    if (result.ok) await refreshRelationships(false);
   }
 
   async function actOnRelationship(
@@ -328,26 +301,30 @@ export function CareCircleStagingWorkbench({
       | "remove_relationship",
     relationshipId: string
   ) {
-    const result = await runAction({
+    await runAndConfirm({
       action,
       clientRequestId: requestIdFactory(),
       relationshipId,
     });
-    if (
+  }
+
+  async function runAndConfirm(request: CareCircleClientInput) {
+    const result = await runAction(request);
+    if (result.ok && result.code === "CARE_CIRCLE_PAIRING_CODE_READY") return;
+    const possibleCapacityRejection =
       !result.ok &&
-      action === "accept_relationship" &&
+      request.action === "accept_relationship" &&
       atCapacity &&
-      result.code === "CARE_CIRCLE_REQUEST_CONFLICT"
-    ) {
-      setNotice({
-        tone: "success",
-        text: "Backend rejected the sixth active Carer. The maximum remains five.",
-      });
-      return;
-    }
-    if (result.ok && action !== "remove_relationship") {
-      await refreshRelationships(false);
-    }
+      result.code === "CARE_CIRCLE_REQUEST_CONFLICT";
+    if (!result.ok && !possibleCapacityRejection) return;
+
+    const projection = await refreshRelationships(false);
+    if (!projection) return;
+    const confirmation = confirmWorkbenchOutcome({ request, result, projection });
+    setNotice({
+      tone: confirmation.confirmed ? "success" : "error",
+      text: confirmation.message,
+    });
   }
 
   const disabled = busy !== null;
@@ -435,7 +412,7 @@ export function CareCircleStagingWorkbench({
               <Action
                 disabled={disabled}
                 label="Retry request"
-                onPress={() => void runAction(retryInput)}
+                onPress={() => void runAndConfirm(retryInput)}
                 secondary
               />
             ) : null}
@@ -546,7 +523,7 @@ export function CareCircleStagingWorkbench({
                 disabled={disabled}
                 label={paused ? "Resume Care Circle" : "Pause Care Circle"}
                 onPress={() =>
-                  void runAction(
+                  void runAndConfirm(
                     paused
                       ? {
                           action: "resume_care",

@@ -24,7 +24,8 @@ export function resolveWorkbenchProgress(input: {
   hasUsablePairingCode?: boolean;
   paused?: boolean;
   relationships?: WorkbenchRelationship[];
-  lastSuccessfulOperation?: "relationship_removed" | null;
+  projectionConfirmed?: boolean;
+  hadRelationship?: boolean;
 }): WorkbenchProgress {
   if (!input.authenticated) {
     return progress(
@@ -51,11 +52,18 @@ export function resolveWorkbenchProgress(input: {
     relationship.status === "expired"
   );
 
-  if (input.lastSuccessfulOperation === "relationship_removed") {
+  if (
+    input.projectionConfirmed &&
+    relationships.some(
+      (relationship) =>
+        relationship.status === "removed_by_caree" ||
+        relationship.status === "removed_by_carer"
+    )
+  ) {
     return progress(
       "removed",
       "Relationship removed",
-      "Refresh the participant-safe relationship list to confirm cleanup."
+      "Participant-safe state confirms this relationship was removed."
     );
   }
   if (pending && role === "caree") {
@@ -86,7 +94,10 @@ export function resolveWorkbenchProgress(input: {
       "Caree acceptance has activated this relationship."
     );
   }
-  if (terminal) {
+  if (
+    terminal ||
+    (input.projectionConfirmed && input.hadRelationship && relationships.length === 0)
+  ) {
     return progress(
       "relationship_cleanup_complete",
       "Relationship cleanup complete",
