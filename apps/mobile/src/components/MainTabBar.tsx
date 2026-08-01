@@ -49,11 +49,15 @@ export function MainTabBar({
 
 const styles = StyleSheet.create({
   tabs: {
-    backgroundColor: "rgba(6,16,28,0.96)",
+    backgroundColor: colors.navy950,
     borderTopColor: colors.line,
     borderTopWidth: 1,
+    elevation: 8,
     flexDirection: "row",
-    paddingTop: 8
+    minHeight: 58,
+    paddingTop: 8,
+    position: "relative",
+    zIndex: 20
   },
   tab: {
     alignItems: "center",
