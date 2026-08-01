@@ -9,9 +9,11 @@ import { colors, radii, spacing } from "../theme/tokens";
 export function FounderTestHub({
   onClose,
   onOpenPersonaComparison,
+  onOpenQuotaVerification,
 }: {
   onClose: () => void;
   onOpenPersonaComparison: () => void;
+  onOpenQuotaVerification: () => void;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -38,6 +40,20 @@ export function FounderTestHub({
             <Text style={styles.rowTitle}>Persona behaviour comparison</Text>
             <Text style={styles.rowDetail}>Acceptance · Spark · Awareness</Text>
             <Text style={styles.fixtureLabel}>Local fixture, not live AI</Text>
+          </View>
+          <ChevronRight color={colors.muted} size={20} />
+        </Pressable>
+        <Pressable
+          accessibilityHint="Opens read-only birth-change quota evidence"
+          accessibilityLabel="Quota verification"
+          accessibilityRole="button"
+          onPress={onOpenQuotaVerification}
+          style={styles.row}
+        >
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Quota verification</Text>
+            <Text style={styles.rowDetail}>Remaining · consumed · refresh source</Text>
+            <Text style={styles.fixtureLabel}>Read-only account refresh</Text>
           </View>
           <ChevronRight color={colors.muted} size={20} />
         </Pressable>

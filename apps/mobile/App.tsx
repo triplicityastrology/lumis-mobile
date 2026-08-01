@@ -96,6 +96,11 @@ import {
 } from "./src/features/chat/personaChatTreatment";
 import { FounderTestHub, FounderTestHubEntry } from "./src/dev/FounderTestHub";
 import PersonaComparisonWorkbench from "./src/dev/PersonaComparisonWorkbench";
+import { QuotaVerificationPanel } from "./src/dev/QuotaVerificationPanel";
+import {
+  createQuotaVerificationEvidence,
+  type QuotaVerificationEvidence,
+} from "./src/dev/quotaVerification";
 
 type ProfileData = BirthProfileForm;
 
@@ -202,7 +207,7 @@ export default function App() {
   const [activeSupabaseThreadId, setActiveSupabaseThreadId] = useState<string | null>(null);
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const [founderTestRoute, setFounderTestRoute] = useState<null | "hub" | "persona">(null);
+  const [founderTestRoute, setFounderTestRoute] = useState<null | "hub" | "persona" | "quota">(null);
   const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
   const isMainTabScreen =
@@ -258,6 +263,31 @@ export default function App() {
     const status = await getAuthStatus();
     setAuthStatus(status);
     return status;
+  }
+
+  function currentQuotaEvidence(): QuotaVerificationEvidence {
+    return createQuotaVerificationEvidence({
+      accountSource,
+      consumedCount: birthDetailChanges,
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+    });
+  }
+
+  async function reloadQuotaEvidence(): Promise<QuotaVerificationEvidence> {
+    const status = await refreshAuthStatus();
+    if (status.isConfigured && status.user) {
+      const accountState = await loadSupabaseAccountState(status.user.id);
+      if (!applySupabaseAccountState(accountState)) {
+        throw new Error("QUOTA_ACCOUNT_STATE_UNAVAILABLE");
+      }
+      return createQuotaVerificationEvidence({
+        accountSource: "supabase",
+        consumedCount: accountState.successfulBirthDetailChanges,
+        supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      });
+    }
+    if (accountSource === "local_demo") return currentQuotaEvidence();
+    throw new Error("QUOTA_ACCOUNT_STATE_UNAVAILABLE");
   }
 
   function openAccountEntry() {
@@ -1140,12 +1170,22 @@ export default function App() {
           <FounderTestHub
             onClose={() => setFounderTestRoute(null)}
             onOpenPersonaComparison={() => setFounderTestRoute("persona")}
+            onOpenQuotaVerification={() => setFounderTestRoute("quota")}
           />
         </View>
       ) : null}
       {__DEV__ && founderTestRoute === "persona" ? (
         <View style={styles.devOverlay}>
           <PersonaComparisonWorkbench onExit={() => setFounderTestRoute("hub")} />
+        </View>
+      ) : null}
+      {__DEV__ && founderTestRoute === "quota" ? (
+        <View style={styles.devOverlay}>
+          <QuotaVerificationPanel
+            initialEvidence={currentQuotaEvidence()}
+            onBack={() => setFounderTestRoute("hub")}
+            onReload={reloadQuotaEvidence}
+          />
         </View>
       ) : null}
       {__DEV__ && founderTestRoute === null ? (
