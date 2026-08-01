@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   section: { gap: 7 },
   sectionLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4 },
   sectionNote: { color: colors.muted, fontSize: 10, lineHeight: 15, paddingHorizontal: 3 },
-  rows: { backgroundColor: "rgba(21,41,67,0.9)", borderColor: colors.line, borderRadius: 8, borderWidth: 1, overflow: "hidden" },
+  rows: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 8, borderWidth: 1, overflow: "hidden" },
   row: { alignItems: "center", borderTopColor: colors.lineSoft, borderTopWidth: 1, flexDirection: "row", gap: 10, minHeight: 58, paddingHorizontal: 13 },
   rowIcon: { alignItems: "center", backgroundColor: colors.periwinkleFill, borderRadius: 8, height: 32, justifyContent: "center", width: 32 },
   rowIconDanger: { backgroundColor: "rgba(211,107,93,0.12)" },

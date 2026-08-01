@@ -3057,7 +3057,7 @@ const styles = StyleSheet.create({
   },
   personaChoiceCard: {
     alignItems: "flex-start",
-    backgroundColor: "rgba(25,43,70,0.72)",
+    backgroundColor: "#16273D",
     borderColor: "rgba(247,235,221,0.16)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3066,7 +3066,7 @@ const styles = StyleSheet.create({
     padding: 15
   },
   personaChoiceCardActive: {
-    backgroundColor: "rgba(42,61,94,0.86)",
+    backgroundColor: "#2A3D5E",
     borderColor: "#DDB45E",
     borderWidth: 1.5
   },
@@ -3178,7 +3178,7 @@ const styles = StyleSheet.create({
   },
   personaIdentityPreview: {
     alignItems: "center",
-    backgroundColor: "rgba(38,57,88,0.76)",
+    backgroundColor: "#263958",
     borderColor: "rgba(247,235,221,0.18)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3207,7 +3207,7 @@ const styles = StyleSheet.create({
   },
   personaAvatarOption: {
     alignItems: "center",
-    backgroundColor: "rgba(18,34,56,0.64)",
+    backgroundColor: "#16273D",
     borderColor: "rgba(247,235,221,0.14)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3218,7 +3218,7 @@ const styles = StyleSheet.create({
     width: "22.8%"
   },
   personaAvatarOptionActive: {
-    backgroundColor: "rgba(48,61,91,0.88)",
+    backgroundColor: "#303D5B",
     borderColor: "#DDB45E",
     borderWidth: 1.5
   },
@@ -3238,7 +3238,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9
   },
   personaNameInput: {
-    backgroundColor: "rgba(9,21,37,0.68)",
+    backgroundColor: "#16273D",
     borderColor: "rgba(247,235,221,0.18)",
     borderRadius: 8,
     borderWidth: 1,
@@ -4575,7 +4575,7 @@ const styles = StyleSheet.create({
   },
   reflectionThreadCard: {
     alignItems: "center",
-    backgroundColor: "#152943",
+    backgroundColor: "#16273D",
     borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 14,
     borderWidth: 1,
@@ -4629,7 +4629,7 @@ const styles = StyleSheet.create({
   },
   reflectionsEmpty: {
     alignItems: "center",
-    backgroundColor: "#152943",
+    backgroundColor: "#16273D",
     borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 16,
     borderWidth: 1,
@@ -4647,7 +4647,7 @@ const styles = StyleSheet.create({
   },
   reflectionsNoResults: {
     alignItems: "center",
-    backgroundColor: "rgba(21,41,67,0.68)",
+    backgroundColor: "#16273D",
     borderColor: "rgba(255,255,255,0.08)",
     borderRadius: 10,
     borderWidth: 1,
@@ -4660,6 +4660,7 @@ const styles = StyleSheet.create({
   },
   savedInsightsEmpty: {
     alignItems: "center",
+    backgroundColor: "#16273D",
     borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 10,
     borderWidth: 1,
