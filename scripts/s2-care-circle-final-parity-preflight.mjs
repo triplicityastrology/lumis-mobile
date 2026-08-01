@@ -60,12 +60,24 @@ try {
     edgeFiles,
     dashboardPacketVersions: dashboard.packets.map((entry) => entry.version),
     dashboardPacketParity: packetCheck.status === 0 && packetFiles.length === 3,
-    historyMetadataBlocked:
-      dashboard.history_shape_status === "pending_authorized_read_only_inspection" &&
-      dashboard.packets.every((entry) =>
-        readFileSync(path.join("supabase/dashboard-packets/s2-t40", entry.packet_file), "utf8")
-          .includes("S2_T40_MIGRATION_HISTORY_RECORD_BLOCKED_BEGIN")
-      ),
+    historyColumns: dashboard.history_columns.map((column) => [
+      column.name,
+      column.data_type,
+      column.udt_name,
+      column.nullable,
+      column.ordinal
+    ]),
+    historyInsertsVerified:
+      dashboard.history_shape_status === "confirmed_t82_text_shape" &&
+      dashboard.packets.every((entry) => {
+        const packet = readFileSync(
+          path.join("supabase/dashboard-packets/s2-t40", entry.packet_file),
+          "utf8"
+        );
+        return packet.includes(
+          "insert into supabase_migrations.schema_migrations (version, statements, name)"
+        );
+      }),
     networkCalls: 0
   };
 
@@ -75,7 +87,7 @@ try {
   process.stdout.write(`project_ref=${projectRef}\nsource_sha=${sourceSha}\ncli_version=${snapshot.cliVersion}\n`);
   for (const [name, hash] of snapshot.migrations) process.stdout.write(`migration=${name} sha256=${hash}\n`);
   for (const [name, hash] of snapshot.edgeFiles) process.stdout.write(`edge_file=${name} sha256=${hash}\n`);
-  process.stdout.write("dashboard_order=0032,0033,0034\nhistory_metadata=blocked_pending_shape\nnetwork_calls=0\n");
+  process.stdout.write("dashboard_order=0032,0033,0034\nhistory_metadata=confirmed_t82_text_shape\nnetwork_calls=0\n");
 } catch (error) {
   const code = error instanceof Error && /^STOP_S2_T74_[A-Z0-9_]+$/.test(error.message)
     ? error.message

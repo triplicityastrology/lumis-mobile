@@ -11,13 +11,19 @@ const REQUIRED_EDGE_FILES = [
   ["supabase/functions/care-circle/operation-boundary.ts", "746e60e1ff1ee40f9b37eb665879e3011e933b3007325f5d059076d0e6e3c80a"],
   ["supabase/functions/_shared/cors.ts", "e4ea6680fbb157a84a060c26f31b5795f9fbea00d239cbf78a2a3596bf7ef3f9"]
 ];
+const REQUIRED_HISTORY_COLUMNS = [
+  ["version", "text", "text", "NO", 1],
+  ["statements", "ARRAY", "_text", "YES", 2],
+  ["name", "text", "text", "YES", 3]
+];
 
 export const finalParityConstants = Object.freeze({
   approvedProjectRef: APPROVED_PROJECT_REF,
   approvedCliVersion: APPROVED_CLI_VERSION,
   requiredAncestor: REQUIRED_ANCESTOR,
   requiredMigrations: REQUIRED_MIGRATIONS,
-  requiredEdgeFiles: REQUIRED_EDGE_FILES
+  requiredEdgeFiles: REQUIRED_EDGE_FILES,
+  requiredHistoryColumns: REQUIRED_HISTORY_COLUMNS
 });
 
 export function validateFinalParity(snapshot) {
@@ -32,9 +38,20 @@ export function validateFinalParity(snapshot) {
   assertExactEntries(snapshot.edgeFiles, REQUIRED_EDGE_FILES, "EDGE_BUNDLE");
   stopUnless(snapshot.dashboardPacketVersions.join(",") === "0032,0033,0034", "DASHBOARD_ORDER_INVALID");
   stopUnless(snapshot.dashboardPacketParity === true, "DASHBOARD_PACKET_STALE");
-  stopUnless(snapshot.historyMetadataBlocked === true, "HISTORY_METADATA_UNSAFE");
+  assertExactHistoryColumns(snapshot.historyColumns, REQUIRED_HISTORY_COLUMNS);
+  stopUnless(snapshot.historyInsertsVerified === true, "HISTORY_INSERT_UNSAFE");
   stopUnless(snapshot.networkCalls === 0, "NETWORK_BOUNDARY_VIOLATION");
   return { ok: true };
+}
+
+function assertExactHistoryColumns(actual, expected) {
+  stopUnless(actual.length === expected.length, "HISTORY_METADATA_UNSAFE");
+  for (let index = 0; index < expected.length; index += 1) {
+    stopUnless(
+      JSON.stringify(actual[index]) === JSON.stringify(expected[index]),
+      "HISTORY_METADATA_UNSAFE"
+    );
+  }
 }
 
 function assertExactEntries(actual, expected, prefix) {
