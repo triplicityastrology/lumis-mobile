@@ -47,5 +47,11 @@ apply_sql supabase/migrations/0033_inactive_notification_foundation.sql
 apply_sql supabase/migrations/0034_reusable_care_pairing_operations.sql
 docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d lumis_s2_t64 \
   < "$ROOT/supabase/tests/s2-t64-care-circle-local-integration.sql" \
-  | grep -F 'S2_T64_LOCAL_DATABASE_PROOF_PASSED' >/dev/null
-printf 'S2_T64_LOCAL_DATABASE_PROOF_PASSED\n'
+  | grep -F 'S2_T70_FULL_LOCAL_LIFECYCLE_PASSED' >/dev/null
+docker rm -f "$CONTAINER" >/dev/null
+STARTED=0
+if docker inspect "$CONTAINER" >/dev/null 2>&1; then
+  printf 'STOP_S2_T70_CONTAINER_CLEANUP_FAILED\n' >&2; exit 1
+fi
+printf 'S2_T70_FULL_LOCAL_LIFECYCLE_PASSED\n'
+printf 'S2_T70_LOCAL_CONTAINER_CLEANUP_CONFIRMED\n'

@@ -17,8 +17,8 @@ values ('10000000-0000-4000-8000-000000000001', 'essential', 'ESSENTIAL_M', 'act
 on conflict (user_id) do update set
   plan_tier = excluded.plan_tier, product_code = excluded.product_code,
   status = excluded.status, source = excluded.source;
-insert into public.care_check_settings (user_id)
-values ('10000000-0000-4000-8000-000000000001');
+insert into public.care_check_settings (user_id, timezone)
+values ('10000000-0000-4000-8000-000000000001', 'UTC');
 
 set local role service_role;
 select set_config('request.jwt.claim.role', 'service_role', true);
@@ -30,12 +30,29 @@ declare
   v_relationship_id uuid;
   v_status text;
   v_carer integer;
+  v_replay jsonb;
 begin
   v_code := public.create_care_pairing_code_backend(
     '10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001',
     'digest:create:1', repeat('a', 64)
   );
   if v_code->>'status' <> 'active' then raise exception 'S2_T64_CODE_NOT_ACTIVE'; end if;
+  v_replay := public.create_care_pairing_code_backend(
+    '10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001',
+    'digest:create:1', repeat('a', 64)
+  );
+  if (v_replay->>'idempotent')::boolean is not true then
+    raise exception 'S2_T70_CREATE_REPLAY_NOT_IDEMPOTENT';
+  end if;
+  begin
+    perform public.create_care_pairing_code_backend(
+      '10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001',
+      'digest:create:changed', repeat('b', 64)
+    );
+    raise exception 'S2_T70_CREATE_CONFLICT_ALLOWED';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> '48012' then raise; end if;
+  end;
 
   for v_carer in 1..6 loop
     v_relationship := public.consume_care_pairing_code_backend(
@@ -69,6 +86,17 @@ begin
       format('digest:accept:%s', v_carer), v_relationship_id
     );
   end loop;
+
+  select id into v_relationship_id from public.care_relationships
+  where carer_user_id = '20000000-0000-4000-8000-000000000001';
+  v_replay := public.accept_care_relationship_backend(
+    '10000000-0000-4000-8000-000000000001',
+    '43000000-0000-4000-8000-000000000001',
+    'digest:accept:1', v_relationship_id
+  );
+  if (v_replay->>'idempotent')::boolean is not true then
+    raise exception 'S2_T70_ACCEPT_REPLAY_NOT_IDEMPOTENT';
+  end if;
 
   select id into v_relationship_id from public.care_relationships
   where carer_user_id = '20000000-0000-4000-8000-000000000006';
@@ -135,5 +163,18 @@ do $$ begin
   end if;
 end $$;
 
+reset role;
+set local role service_role;
+select set_config('request.jwt.claim.role', 'service_role', true);
+delete from public.users where id = '10000000-0000-4000-8000-000000000001';
+do $$ begin
+  if exists (select 1 from public.care_link_codes where caree_user_id = '10000000-0000-4000-8000-000000000001')
+    or exists (select 1 from public.care_relationships where caree_user_id = '10000000-0000-4000-8000-000000000001')
+    or exists (select 1 from public.care_pairing_code_events where caree_user_id = '10000000-0000-4000-8000-000000000001')
+    or exists (select 1 from public.care_check_settings where user_id = '10000000-0000-4000-8000-000000000001') then
+    raise exception 'S2_T70_DELETION_CLEANUP_FAILED';
+  end if;
+end $$;
+
 rollback;
-select 'S2_T64_LOCAL_DATABASE_PROOF_PASSED' as result;
+select 'S2_T70_FULL_LOCAL_LIFECYCLE_PASSED' as result;
