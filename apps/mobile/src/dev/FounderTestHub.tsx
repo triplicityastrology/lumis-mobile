@@ -11,6 +11,7 @@ export function FounderTestHub({
   onOpenCareCircle,
   onOpenBuildStatus,
   onOpenPersonaComparison,
+  onOpenProfileTest,
   onOpenQuotaVerification,
   onOpenReflectionDeletion,
 }: {
@@ -18,6 +19,7 @@ export function FounderTestHub({
   onOpenCareCircle: () => void;
   onOpenBuildStatus: () => void;
   onOpenPersonaComparison: () => void;
+  onOpenProfileTest: () => void;
   onOpenQuotaVerification: () => void;
   onOpenReflectionDeletion: () => void;
 }) {
@@ -60,6 +62,20 @@ export function FounderTestHub({
             <Text style={styles.rowTitle}>Care Circle staging test</Text>
             <Text style={styles.rowDetail}>One iPhone · Caree ↔ Carer</Text>
             <Text style={styles.fixtureLabel}>Deployment gate required</Text>
+          </View>
+          <ChevronRight color={colors.muted} size={20} />
+        </Pressable>
+        <Pressable
+          accessibilityHint="Opens the gated timed and unknown-time disposable Profile journey"
+          accessibilityLabel="Timed and no-time Profile test"
+          accessibilityRole="button"
+          onPress={onOpenProfileTest}
+          style={styles.row}
+        >
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Timed and no-time Profile test</Text>
+            <Text style={styles.rowDetail}>Onboarding · restoration · PROF-2 · RLS</Text>
+            <Text style={styles.fixtureLabel}>Real staging accounts · deployment gate required</Text>
           </View>
           <ChevronRight color={colors.muted} size={20} />
         </Pressable>

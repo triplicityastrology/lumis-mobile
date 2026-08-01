@@ -100,6 +100,7 @@ import { FounderTestHub, FounderTestHubEntry } from "./src/dev/FounderTestHub";
 import { FounderBuildStatusPanel } from "./src/dev/FounderBuildStatusPanel";
 import { FounderReflectionDeletionJourney } from "./src/dev/FounderReflectionDeletionPanel";
 import { FounderCareCircleWorkbench } from "./src/dev/FounderCareCircleWorkbench";
+import { FounderProfileTestPanel } from "./src/dev/FounderProfileTestPanel";
 import PersonaComparisonWorkbench from "./src/dev/PersonaComparisonWorkbench";
 import { QuotaVerificationPanel } from "./src/dev/QuotaVerificationPanel";
 import {
@@ -213,7 +214,7 @@ export default function App() {
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [founderTestRoute, setFounderTestRoute] = useState<
-    null | "hub" | "buildStatus" | "persona" | "quota" | "careCircle" | "reflectionDeletion"
+    null | "hub" | "buildStatus" | "persona" | "quota" | "careCircle" | "profileTest" | "reflectionDeletion"
   >(null);
   const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
@@ -1179,6 +1180,7 @@ export default function App() {
             onOpenBuildStatus={() => setFounderTestRoute("buildStatus")}
             onOpenCareCircle={() => setFounderTestRoute("careCircle")}
             onOpenPersonaComparison={() => setFounderTestRoute("persona")}
+            onOpenProfileTest={() => setFounderTestRoute("profileTest")}
             onOpenQuotaVerification={() => setFounderTestRoute("quota")}
             onOpenReflectionDeletion={() => setFounderTestRoute("reflectionDeletion")}
           />
@@ -1187,6 +1189,11 @@ export default function App() {
       {__DEV__ && founderTestRoute === "reflectionDeletion" ? (
         <View style={styles.devOverlay}>
           <FounderReflectionDeletionJourney onBack={() => setFounderTestRoute("hub")} />
+        </View>
+      ) : null}
+      {__DEV__ && founderTestRoute === "profileTest" ? (
+        <View style={styles.devOverlay}>
+          <FounderProfileTestPanel onBack={() => setFounderTestRoute("hub")} />
         </View>
       ) : null}
       {__DEV__ && founderTestRoute === "buildStatus" ? (

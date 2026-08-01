@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const app = readFileSync("apps/mobile/App.tsx", "utf8");
+const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
+const panel = readFileSync("apps/mobile/src/dev/FounderProfileTestPanel.tsx", "utf8");
+const boundary = readFileSync("apps/mobile/src/dev/profileFounderTestBoundary.ts", "utf8");
+assert.match(app, /__DEV__ && founderTestRoute === "profileTest"/);
+assert.match(hub, /Timed and no-time Profile test/);
+assert.match(panel, /loadSupabaseAccountState/);
+assert.match(panel, /signInWithPassword/);
+assert.match(panel, /signOut/);
+assert.match(panel, /PROF-2 historical chart preserved/);
+assert.match(panel, /Owner read \/ cross-user denial/);
+assert.match(panel, /Confirmed empty account/);
+assert.doesNotMatch(panel, /fixture|local demo|createChart|submitBirthProfile/);
+assert.match(boundary, /PROFILE_TEST_FUNCTION_SHA256/);
+assert.match(boundary, /url\.protocol === "https:"/);
+console.log("Profile Founder mobile route contract passed");
