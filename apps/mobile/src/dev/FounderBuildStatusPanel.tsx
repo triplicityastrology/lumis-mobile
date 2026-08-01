@@ -1,5 +1,7 @@
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
-import CheckCircle2 from "lucide-react-native/icons/check-circle-2";
+// lucide-react-native@1.24.0 renamed this icon; `check-circle-2` no longer ships
+// (it crashed the Metro bundle). `circle-check-big` is the same filled check.
+import CheckCircle2 from "lucide-react-native/icons/circle-check-big";
 import RefreshCw from "lucide-react-native/icons/refresh-cw";
 import { DevSettings, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
