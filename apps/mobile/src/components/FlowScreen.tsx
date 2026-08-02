@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   badgeText: { color: colors.gold, fontSize: 9, fontWeight: "700", letterSpacing: 1.2 },
   content: { flexGrow: 1, paddingHorizontal: 26, paddingTop: spacing.md, paddingBottom: 34 },
   eyebrow: { color: colors.gold, fontSize: 9.5, fontWeight: "700", letterSpacing: 1.7 },
-  title: { color: colors.ice, fontFamily: "Georgia", fontSize: 31, lineHeight: 37, marginTop: 13 },
+  title: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 31, lineHeight: 37, marginTop: 13 },
   body: { color: colors.textSoft, fontSize: 14, lineHeight: 21, marginTop: 10 },
   children: { marginTop: 25, gap: 13 }
 });

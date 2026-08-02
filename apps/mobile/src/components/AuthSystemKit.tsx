@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
   dialogScrim: { alignItems: "center", backgroundColor: "rgba(11,25,48,0.60)", flex: 1, justifyContent: "center", padding: 28 },
   // Fill/blur/border/clip provided by FrostedCard (RULE 1); shadow kept for lift.
   dialog: { alignItems: "center", padding: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 40 }, shadowOpacity: 0.6, shadowRadius: 40, width: "100%" },
-  dialogTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 20, marginBottom: 8, marginTop: 12, textAlign: "center" },
+  dialogTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 20, marginBottom: 8, marginTop: 12, textAlign: "center" },
   dialogBody: { color: colors.textSoft, fontSize: 13.5, lineHeight: 20, marginBottom: 18, textAlign: "center" },
   shellBody: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center" },
   center: { alignItems: "center", flex: 1, paddingHorizontal: 26, paddingTop: 30 },
@@ -725,8 +725,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   spacer: { flex: 1 },
   gap: { height: 26 },
-  h1: { color: colors.ice, fontFamily: "Georgia", fontSize: 30, marginTop: 20, marginBottom: 10, textAlign: "center" },
-  h2: { color: colors.ice, fontFamily: "Georgia", fontSize: 23, marginTop: 20, marginBottom: 8, textAlign: "center" },
+  h1: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 30, marginTop: 20, marginBottom: 10, textAlign: "center" },
+  h2: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 23, marginTop: 20, marginBottom: 8, textAlign: "center" },
   eyebrow: { color: "#E9B083", fontSize: 10.5, fontWeight: "700", letterSpacing: 2, marginBottom: 8 },
   body: { color: colors.textSoft, fontSize: 14.5, lineHeight: 22, textAlign: "center" },
   bodyStrong: { color: colors.ice, fontSize: 14.5, fontWeight: "600", marginTop: 2, marginBottom: 20, textAlign: "center" },
@@ -762,6 +762,6 @@ const styles = StyleSheet.create({
   retryCard: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.24)", borderColor: colors.line, borderRadius: 20, borderWidth: 1, padding: 22 },
   retryCardLarge: { marginHorizontal: 20, marginVertical: 40 },
   retryCardSmall: { marginHorizontal: 20, marginVertical: 10 },
-  retryTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 18, marginBottom: 6, marginTop: 14, textAlign: "center" },
+  retryTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 18, marginBottom: 6, marginTop: 14, textAlign: "center" },
   retryBody: { color: colors.muted, fontSize: 12.5, lineHeight: 18, marginBottom: 16, textAlign: "center" }
 });

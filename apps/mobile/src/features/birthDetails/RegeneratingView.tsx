@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   wrap: { alignItems: "center", flex: 1, justifyContent: "center", paddingBottom: 40, paddingHorizontal: 32, paddingTop: 22 },
   ring: { alignItems: "center", height: 150, justifyContent: "center", marginBottom: 26, width: 150 },
   eyebrow: { color: colors.accent, fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
-  title: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, lineHeight: 32, marginTop: 8, textAlign: "center" },
+  title: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 26, lineHeight: 32, marginTop: 8, textAlign: "center" },
   subtitle: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: 9, maxWidth: 330, textAlign: "center" },
   steps: { alignItems: "flex-start", alignSelf: "center", gap: 18, marginTop: 30, maxWidth: 300 },
   stepRow: { alignItems: "center", flexDirection: "row", gap: 14 },

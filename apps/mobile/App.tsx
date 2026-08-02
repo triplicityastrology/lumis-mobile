@@ -4381,7 +4381,7 @@ const styles = StyleSheet.create({
   },
   generatingTitle: {
     color: "#F0F4F8",
-    fontFamily: "Georgia",
+    fontFamily: "Newsreader-Medium",
     fontSize: 28,
     lineHeight: 35,
     marginTop: 12,
@@ -4565,7 +4565,7 @@ const styles = StyleSheet.create({
   // PROF-006: display serif (Georgia) weight 500 — fixes the "strange" heavy sans.
   chartRevealTitle: {
     color: "#F0F4F8",
-    fontFamily: "Georgia",
+    fontFamily: "Newsreader-Medium",
     fontSize: 28,
     fontWeight: "500",
     lineHeight: 35
@@ -4744,7 +4744,7 @@ const styles = StyleSheet.create({
   },
   reflectionsTitle: {
     color: "#F0F4F8",
-    fontFamily: "Georgia",
+    fontFamily: "Newsreader-Medium",
     fontSize: 24
   },
   reflectionsSubtitle: {
@@ -4886,7 +4886,7 @@ const styles = StyleSheet.create({
     padding: 22,
     width: "100%"
   },
-  reflectionDeleteTitle: { color: "#F0F4F8", fontFamily: "Georgia", fontSize: 21, fontWeight: "700" },
+  reflectionDeleteTitle: { color: "#F0F4F8", fontFamily: "Newsreader-Medium", fontSize: 21, fontWeight: "700" },
   reflectionDeleteBody: { color: "#D9C18F", fontSize: 14, lineHeight: 20 },
   reflectionDeleteWarning: { color: "#AEBAC8", fontSize: 13, lineHeight: 19 },
   reflectionDeleteError: { color: "#F3B6B6", fontSize: 13, lineHeight: 19 },

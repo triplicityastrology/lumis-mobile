@@ -2,19 +2,23 @@ import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 
+import { type } from "../theme/typography";
+
 /**
- * Founder branding fix (1/8/2026, RULE 2) — brand gold GRADIENT for every large
- * primary/full-width/modal CTA. Never a flat yellow rectangle.
+ * The single global primary CTA (Codex signed-off). One gradient, reused by every
+ * large primary/full-width/modal button across the app. Never a flat rectangle.
  *
- * Gradient: linear-gradient(100deg, #C9A96E 0%, #D7B978 55%, #E5C58A 100%)
- * Text on gold: #1A1206.
+ * Gradient: linear-gradient(100°, #E5C06B 0%, #E9B083 55%, #E89B92 100%)
+ *   ≈ start (0.15, 0) → end (0.85, 1). Text on gold: #3A2218 (ink.on-gold).
  *
  * Small solid-gold chips (Past Reflections "+", notification Accept pill, Profile
  * badge) intentionally do NOT use this — they stay solid per the Rule 2 exception.
  */
-export const BRAND_GOLD_GRADIENT = ["#C9A96E", "#D7B978", "#E5C58A"] as const;
+export const BRAND_GOLD_GRADIENT = ["#E5C06B", "#E9B083", "#E89B92"] as const;
 export const BRAND_GOLD_LOCATIONS = [0, 0.55, 1] as const;
-export const BRAND_GOLD_INK = "#1A1206";
+export const BRAND_GOLD_START = { x: 0.15, y: 0 } as const;
+export const BRAND_GOLD_END = { x: 0.85, y: 1 } as const;
+export const BRAND_GOLD_INK = "#3A2218";
 
 export function BrandPrimaryButton({
   label,
@@ -47,8 +51,8 @@ export function BrandPrimaryButton({
       <LinearGradient
         colors={BRAND_GOLD_GRADIENT}
         locations={BRAND_GOLD_LOCATIONS}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0.35 }}
+        start={BRAND_GOLD_START}
+        end={BRAND_GOLD_END}
         style={styles.gradient}
       >
         {iconLeft}
@@ -62,12 +66,12 @@ export function BrandPrimaryButton({
 const styles = StyleSheet.create({
   // Rounded clip + subtle gold glow shadow (SPEC: 0 6px 18px -8px rgba(215,185,120,0.45)).
   wrap: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#D7B978",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14
+    shadowColor: "#E89B92",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.55,
+    shadowRadius: 18
   },
   gradient: {
     alignItems: "center",
@@ -78,6 +82,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15
   },
-  label: { color: BRAND_GOLD_INK, fontSize: 15.5, fontWeight: "700" },
+  label: type.buttonLabel,
   dim: { opacity: 0.5 }
 });

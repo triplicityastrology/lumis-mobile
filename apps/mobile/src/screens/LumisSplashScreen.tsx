@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   center: { alignItems: "center", flex: 1, justifyContent: "center", gap: 4 },
   mark: { alignItems: "center", height: 120, justifyContent: "center", width: 120 },
   orbit: { height: 120, position: "absolute", width: 120 },
-  sun: { color: "#E8DCC0", fontFamily: "Georgia", fontSize: 30, position: "absolute" },
-  wordmark: { color: colors.ice, fontFamily: "Georgia", fontSize: 34, marginTop: 18 },
+  sun: { color: "#E8DCC0", fontFamily: "Newsreader-Medium", fontSize: 30, position: "absolute" },
+  wordmark: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 34, marginTop: 18 },
   slogan: { color: colors.textSoft, fontSize: 13.5, marginTop: 8, opacity: 0.75, textAlign: "center" }
 });

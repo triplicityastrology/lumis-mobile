@@ -106,7 +106,7 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           <Pressable style={styles.primaryAction} onPress={props.onOpenChat}>
             {/* HOME-002 (RULE 2): "Talk with Lumis" gold gradient (#C9A96E→#D7B978→#E5C58A). */}
             <LinearGradient
-              colors={["#C9A96E", "#D7B978", "#E5C58A"]}
+              colors={["#E5C06B", "#E9B083", "#E89B92"]}
               end={{ x: 1, y: 0.35 }}
               locations={[0, 0.55, 1]}
               start={{ x: 0, y: 0 }}
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   appFrame: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", backgroundColor: "transparent" },
   header: { minHeight: 68, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
   identityRow: { flexDirection: "row", alignItems: "center", gap: 13, flex: 1, minWidth: 0 },
-  brand: { color: colors.ice, fontFamily: "Georgia", fontSize: 24, fontWeight: "500" },
+  brand: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 24, fontWeight: "500" },
   online: { color: colors.textSoft, fontSize: 12.5, lineHeight: 17, flexShrink: 1 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 9 },
   iconButton: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   homeContent: { padding: spacing.lg, paddingBottom: 30, gap: spacing.md },
   greetingBlock: { paddingTop: spacing.md, paddingBottom: spacing.sm },
   eyebrow: { color: colors.accent, fontSize: 10, fontWeight: "700", letterSpacing: 1.8, marginBottom: 11 },
-  greeting: { color: colors.ice, fontFamily: "Georgia", fontSize: 29, lineHeight: 35 },
+  greeting: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 29, lineHeight: 35 },
   greetingBody: { color: colors.textSoft, fontSize: 14, lineHeight: 21, marginTop: 7 },
   chartCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   chartWheelWrap: { width: 92, height: 92, borderRadius: 46, overflow: "hidden" },
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   chartLabel: { color: colors.muted, fontSize: 9, fontWeight: "700", letterSpacing: 1.4, marginBottom: 9 },
   placementRow: { flexDirection: "column", gap: 6 },
   placement: { flexDirection: "row", alignItems: "center", gap: 7 },
-  placementGlyph: { color: colors.accent, fontFamily: "Georgia", fontSize: 15, width: 18, textAlign: "center" },
+  placementGlyph: { color: colors.accent, fontFamily: "Newsreader-Medium", fontSize: 15, width: 18, textAlign: "center" },
   compactGlyph: { fontSize: 9, fontWeight: "700" },
   placementText: { color: colors.ice, fontSize: 14, fontWeight: "600" },
   chartNote: { color: colors.muted, fontSize: 10.5, lineHeight: 15, marginTop: 8 },
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   signInText: { color: colors.ice, fontSize: 12.5, fontWeight: "600" },
   welcomeContent: { flexGrow: 1, paddingHorizontal: 26, paddingTop: 18, paddingBottom: 34 },
   halo: { alignSelf: "center", width: 176, height: 176, borderRadius: 88, alignItems: "center", justifyContent: "center", marginBottom: 20, backgroundColor: colors.periwinkleFill },
-  welcomeTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 32, lineHeight: 38, maxWidth: 390 },
+  welcomeTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 32, lineHeight: 38, maxWidth: 390 },
   welcomeBody: { color: colors.textSoft, fontSize: 14.5, lineHeight: 22, marginTop: 12 },
   promiseList: { marginTop: 25, gap: 15 },
   promiseRow: { flexDirection: "row", gap: 13, alignItems: "center" },

@@ -33,8 +33,8 @@ assert.match(frosted, /secondary: "rgba\(26,53,80,0\.60\)"/, "secondary overlay 
 assert.match(frosted, /tertiary: "rgba\(19,35,58,0\.50\)"/, "tertiary overlay 50% navy");
 // RULE 2: three-stop gold gradient with dark ink text.
 assert.match(brandBtn, /from "expo-linear-gradient"/, "BrandPrimaryButton uses LinearGradient");
-assert.match(brandBtn, /\["#C9A96E", "#D7B978", "#E5C58A"\]/, "gold gradient stops");
-assert.match(brandBtn, /BRAND_GOLD_INK = "#1A1206"/, "dark ink on gold");
+assert.match(brandBtn, /\["#E5C06B", "#E9B083", "#E89B92"\]/, "gold gradient stops");
+assert.match(brandBtn, /BRAND_GOLD_INK = "#3A2218"/, "dark ink on gold");
 
 /* ---------------- exact SPEC navy tokens ---------------- */
 assert.match(tokens, /accent: "#D7B978"/, "accent gold token present");
@@ -56,11 +56,11 @@ assert.match(home, /statusText: \{ flex: 1, color: colors\.goodSolid/, "HOME foo
 // RULE 1/2: frosted cards + gradient Talk CTA.
 assert.match(home, /<FrostedCard style=\{styles\.chartCard\}/, "HOME chart card is frosted");
 assert.match(home, /<FrostedCard style=\{styles\.reflectionCard\}/, "HOME Past Reflections card is frosted");
-assert.match(home, /colors=\{\["#C9A96E", "#D7B978", "#E5C58A"\]\}/, "HOME Talk CTA is the gold gradient");
+assert.match(home, /colors=\{\["#E5C06B", "#E9B083", "#E89B92"\]\}/, "HOME Talk CTA is the gold gradient");
 
 /* ---------------- REFL-001 Past Reflections ---------------- */
 assert.match(app, /function PastReflectionsScreen\(/, "REFL-001 is a routed full-page screen");
-assert.match(app, /reflectionsTitle: \{[\s\S]*fontFamily: "Georgia"/, "REFL-001 serif title");
+assert.match(app, /reflectionsTitle: \{[\s\S]*fontFamily: "Newsreader-Medium"/, "REFL-001 serif title");
 assert.match(app, /<FrostedCard style=\{styles\.reflectionsList\} radius=\{16\}>/, "REFL list is one frosted wrapper");
 assert.match(app, /reflectionThreadCard: \{[\s\S]*backgroundColor: "transparent"/, "REFL rows stay transparent");
 assert.match(app, /reflectionsSearch: \{[\s\S]*backgroundColor: "transparent"/, "REFL search stays transparent");
@@ -110,7 +110,7 @@ assert.match(birth, /<RegeneratingView/, "PROF-005 uses the dedicated decorative
 assert.doesNotMatch(birth, /GeneratingView/, "PROF-005 does not spin the shared onboarding wheel");
 
 /* ---------------- PROF-006 Updated chart reveal ---------------- */
-assert.match(app, /chartRevealTitle: \{[\s\S]*fontFamily: "Georgia"[\s\S]*fontWeight: "500"/, "PROF-006 H1 is display serif 500, not bold sans");
+assert.match(app, /chartRevealTitle: \{[\s\S]*fontFamily: "Newsreader-Medium"[\s\S]*fontWeight: "500"/, "PROF-006 H1 is display serif 500, not bold sans");
 assert.match(app, /chartRevealEyebrow: \{[\s\S]*color: "#D7B978"/, "PROF-006 gold eyebrow");
 assert.match(app, /<FrostedCard style=\{styles\.chartRevealWheelPanel\}/, "PROF-006 chart panel frosted");
 assert.match(app, /<FrostedCard style=\{styles\.bigThreeCard\} tier="secondary"/, "PROF-006 Sun/Moon cards frosted");

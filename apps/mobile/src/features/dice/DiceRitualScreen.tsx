@@ -827,7 +827,7 @@ function renderWorldDice(
             x={cx}
             y={cy + glyphSize * 0.34}
             fontSize={glyphSize}
-            fontFamily="Georgia"
+            fontFamily="Newsreader-Medium"
             fill={glyphColor}
             textAnchor="middle"
           >
@@ -941,7 +941,7 @@ function renderPalmDice(orientations: ReturnType<typeof randomOrientation>[], W:
             x={c.x}
             y={c.y + dieScale * 0.16}
             fontSize={dieScale * 0.45}
-            fontFamily="Georgia"
+            fontFamily="Newsreader-Medium"
             fill={`rgba(216,176,110,${(0.55 + 0.45 * lambert).toFixed(2)})`}
             textAnchor="middle"
           >
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", padding: spacing.lg },
   questionCard: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(206,216,255,0.16)", borderRadius: 22, borderWidth: 1, maxWidth: 420, overflow: "hidden", paddingHorizontal: 16, paddingVertical: 12, width: "88%" },
   questionLabel: { color: "#E9B083", fontSize: 10, fontWeight: "700", letterSpacing: 1.4, marginBottom: 3, textAlign: "center" },
-  questionInput: { color: colors.ice, fontFamily: "Georgia", fontSize: 16, minHeight: 32, padding: 0, textAlign: "center" },
+  questionInput: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 16, minHeight: 32, padding: 0, textAlign: "center" },
   flexSpacer: { flex: 1 },
   hint: { color: colors.ice, fontSize: 15, marginBottom: 12, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 8 },
   readyBlock: { alignItems: "center", marginTop: 16, width: "100%" },
@@ -1055,7 +1055,7 @@ const styles = StyleSheet.create({
   symbolsRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   symbolCell: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.045)", borderColor: "rgba(206,216,255,0.16)", borderRadius: radii.md, borderWidth: 1, flex: 1, maxWidth: 112, paddingVertical: 10 },
   symbolKind: { color: "#A2B0C6", fontSize: 9, fontWeight: "700", letterSpacing: 1 },
-  symbolGlyph: { color: colors.gold, fontFamily: "Georgia", fontSize: 36, marginTop: 2 },
+  symbolGlyph: { color: colors.gold, fontFamily: "Newsreader-Medium", fontSize: 36, marginTop: 2 },
   symbolZh: { color: colors.ice, fontSize: 14, marginTop: 2 },
   symbolEn: { color: "#A2B0C6", fontSize: 11 },
   sheetNote: { color: "#A2B0C6", fontSize: 12, marginTop: 12, textAlign: "center" },

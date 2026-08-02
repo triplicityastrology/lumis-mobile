@@ -64,7 +64,7 @@ function MiniOctaDie({ glyph, size = 28 }: { glyph: string; size?: number }) {
       <Svg height={size} viewBox="0 0 100 100" width={size}>
         <Polygon fill="#152943" points="50,2 84,16 98,50 84,84 50,98 16,84 2,50 16,16" stroke="#C9A96E" strokeWidth="4" />
         <Polygon fill="none" opacity={0.35} points="50,14 76,24 86,50 76,76 50,86 24,76 14,50 24,24" stroke="#DCC28F" strokeWidth="2" />
-        <SvgText fill="#E8DCC0" fontFamily="Georgia" fontSize={40} textAnchor="middle" x={50} y={64}>
+        <SvgText fill="#E8DCC0" fontFamily="Newsreader-Medium" fontSize={40} textAnchor="middle" x={50} y={64}>
           {glyph + TEXT_STYLE}
         </SvgText>
       </Svg>
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   grab: { alignSelf: "center", backgroundColor: "rgba(206,216,255,0.3)", borderRadius: 3, height: 4, marginBottom: 12, width: 42 },
   headerRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   headerText: { flex: 1, paddingRight: 12 },
-  title: { color: colors.ice, fontFamily: "Georgia", fontSize: 21 },
+  title: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 21 },
   subtitle: { color: "#A2B0C6", fontSize: 11.5, marginTop: 3 },
   deleteErrorRow: { alignItems: "center", backgroundColor: "rgba(224,153,127,0.1)", borderColor: "rgba(224,153,127,0.34)", borderRadius: 12, borderWidth: 1, flexDirection: "row", gap: 10, justifyContent: "space-between", marginBottom: 12, paddingHorizontal: 12, paddingVertical: 9 },
   deleteErrorText: { color: "#E9B083", flex: 1, fontSize: 12, lineHeight: 16 },
@@ -284,14 +284,14 @@ const styles = StyleSheet.create({
   rowDate: { color: "#A2B0C6", fontSize: 10.5, marginTop: 3 },
   rowCta: { color: colors.gold, fontSize: 12.5, fontWeight: "600" },
   empty: { alignItems: "center", paddingVertical: 40 },
-  emptyTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 16 },
+  emptyTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 16 },
   emptySub: { color: "#A2B0C6", fontSize: 12, marginTop: 6, textAlign: "center" },
   detailContent: { alignItems: "stretch", paddingBottom: 8 },
   detailQuestion: { color: "#A2B0C6", fontSize: 13, fontStyle: "italic", marginBottom: 14, textAlign: "center" },
   detailChips: { flexDirection: "row", gap: 8, justifyContent: "center" },
   detailChip: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.045)", borderColor: "rgba(206,216,255,0.16)", borderRadius: radii.md, borderWidth: 1, flex: 1, maxWidth: 112, paddingVertical: 10 },
   chipKind: { color: "#A2B0C6", fontSize: 9, fontWeight: "700", letterSpacing: 1 },
-  chipGlyph: { color: colors.gold, fontFamily: "Georgia", fontSize: 34, marginTop: 2 },
+  chipGlyph: { color: colors.gold, fontFamily: "Newsreader-Medium", fontSize: 34, marginTop: 2 },
   chipZh: { color: colors.ice, fontSize: 13.5, marginTop: 2 },
   chipEn: { color: "#A2B0C6", fontSize: 10.5 },
   detailDate: { color: "#A2B0C6", fontSize: 11, marginTop: 12, textAlign: "center" },

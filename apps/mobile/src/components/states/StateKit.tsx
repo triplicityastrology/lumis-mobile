@@ -238,10 +238,10 @@ const k = StyleSheet.create({
   ghost: { alignItems: "center", justifyContent: "center", minHeight: 40, paddingHorizontal: 16 },
   ghostText: { color: colors.muted, fontSize: 13.5, fontWeight: "600" },
   empty: { alignItems: "center", gap: 10, paddingHorizontal: 24, paddingVertical: 36 },
-  emptyTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 19, marginTop: 6, textAlign: "center" },
+  emptyTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 19, marginTop: 6, textAlign: "center" },
   emptySub: { color: colors.muted, fontSize: 13.5, lineHeight: 20, maxWidth: 300, textAlign: "center" },
   retryCard: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: 22, borderWidth: 1, gap: 8, padding: 22 },
-  retryTitle: { color: colors.ice, fontFamily: "Georgia", fontSize: 17, marginTop: 4, textAlign: "center" },
+  retryTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 17, marginTop: 4, textAlign: "center" },
   retrySub: { color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: "center" },
   glass: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, padding: 16 },
   skelRow: { alignItems: "center", flexDirection: "row", gap: 12, paddingVertical: 12 },
@@ -256,8 +256,8 @@ const k = StyleSheet.create({
   header: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", minHeight: 56, paddingHorizontal: 16 },
   iconBtn: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: 19, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
   iconBtnGhost: { height: 38, width: 38 },
-  headerTitle: { color: colors.ice, flex: 1, fontFamily: "Georgia", fontSize: 19, textAlign: "center" },
+  headerTitle: { color: colors.ice, flex: 1, fontFamily: "Newsreader-Medium", fontSize: 19, textAlign: "center" },
   headerTitleRow: { alignItems: "center", flex: 1, flexDirection: "row", gap: 7, justifyContent: "center" },
-  headerTitleInline: { color: colors.ice, fontFamily: "Georgia", fontSize: 19 },
+  headerTitleInline: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 19 },
   headerRight: { alignItems: "flex-end", minWidth: 38 }
 });

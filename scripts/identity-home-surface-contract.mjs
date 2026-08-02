@@ -35,7 +35,7 @@ assert.match(styleBlock(home, "secondaryIcon"), /backgroundColor: "rgba\(26,53,8
 // RULE 2: "Talk with Lumis" is the three-stop gold gradient.
 assert.match(
   home,
-  /<Pressable style=\{styles\.primaryAction\}[\s\S]{0,300}colors=\{\["#C9A96E", "#D7B978", "#E5C58A"\]\}[\s\S]{0,200}locations=\{\[0, 0\.55, 1\]\}/
+  /<Pressable style=\{styles\.primaryAction\}[\s\S]{0,300}colors=\{\["#E5C06B", "#E9B083", "#E89B92"\]\}[\s\S]{0,200}locations=\{\[0, 0\.55, 1\]\}/
 );
 assert.match(styleBlock(home, "primaryAction"), /overflow: "hidden"/);
 assert.doesNotMatch(styleBlock(home, "primaryAction"), /backgroundColor|opacity/);

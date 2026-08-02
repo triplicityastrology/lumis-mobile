@@ -119,7 +119,7 @@ export function GeneratingView({
             return (
               <SvgText
                 fill="#EDE3D4"
-                fontFamily="Georgia"
+                fontFamily="Newsreader-Medium"
                 fontSize="7.5"
                 key={glyph}
                 opacity="0.72"
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   ring: { position: "absolute", alignItems: "center", justifyContent: "center" },
   eyebrowRow: { flexDirection: "row" },
   eyebrow: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.6 },
-  title: { color: colors.ice, fontFamily: "Georgia", fontSize: 26, lineHeight: 32, marginTop: 8, textAlign: "center" },
+  title: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 26, lineHeight: 32, marginTop: 8, textAlign: "center" },
   subtitle: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: 9, maxWidth: 330, textAlign: "center" },
   steps: { alignSelf: "stretch", backgroundColor: "rgba(42,58,88,0.22)", borderColor: "rgba(190,202,224,0.14)", borderRadius: 16, borderWidth: 1, gap: 15, marginTop: 28, paddingHorizontal: 16, paddingVertical: 17 },
   stepRow: { alignItems: "center", flexDirection: "row", gap: 13, minHeight: 30 },
