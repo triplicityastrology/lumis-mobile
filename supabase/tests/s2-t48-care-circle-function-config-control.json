@@ -11,8 +11,16 @@
       "sha256": "746e60e1ff1ee40f9b37eb665879e3011e933b3007325f5d059076d0e6e3c80a"
     }
   ],
-  "required_configuration_names": [
+  "source_authorized_runtime_names": [
     "CARE_CIRCLE_PAIRING_SECRET",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_URL"
+  ],
+  "required_custom_secret_names": [
+    "CARE_CIRCLE_PAIRING_SECRET"
+  ],
+  "platform_provided_runtime_names": [
     "SUPABASE_ANON_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
     "SUPABASE_URL"

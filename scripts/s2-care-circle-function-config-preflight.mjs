@@ -34,7 +34,7 @@ try {
   }
 
   const names = parseNames(args.configurationNames);
-  const required = [...control.required_configuration_names].sort();
+  const required = [...control.source_authorized_runtime_names].sort();
   stopIf(
     names.some((name) =>
       control.prohibited_scope_name_markers.some((marker) => name.includes(marker))
@@ -53,6 +53,8 @@ try {
       `function_name=${control.function_name}`,
       `function_sha256=${actualChecksum}`,
       `configuration_names=${names.join(",")}`,
+      `custom_secret_names=${control.required_custom_secret_names.join(",")}`,
+      `platform_runtime_names=${control.platform_provided_runtime_names.join(",")}`,
       "notification_provider_scheduler_billing_scope=absent",
       "network_calls=0 values_read=0 deployment_actions=0 activation=0"
     ].join("\n") + "\n"

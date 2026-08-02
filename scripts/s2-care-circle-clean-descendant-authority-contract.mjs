@@ -8,7 +8,7 @@ const control = JSON.parse(readFileSync("supabase/tests/s2-t115-care-circle-desc
 assert.equal(control.project_ref, "bmqhwofmdgebpcihjlnb");
 assert.match(control.approved_technical_ancestor, /^[0-9a-f]{40}$/);
 assert.equal(control.execution_default, "local_validation_only");
-assert.equal(control.locked_operator_files.length, 8);
+assert.equal(control.locked_operator_files.length, 9);
 for (const entry of control.locked_operator_files) {
   assert.equal(createHash("sha256").update(readFileSync(entry.path)).digest("hex"), entry.sha256);
 }

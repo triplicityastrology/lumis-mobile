@@ -7,7 +7,8 @@ readonly EXPECTED_REF="bmqhwofmdgebpcihjlnb"
 readonly PINNED_CLI="2.109.1"
 readonly PNPM="/Users/rubyku/.local/node22/bin/pnpm"
 readonly FUNCTION_NAME="care-circle"
-readonly REQUIRED_CONFIG_NAMES="CARE_CIRCLE_PAIRING_SECRET,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL"
+readonly SOURCE_RUNTIME_NAMES="CARE_CIRCLE_PAIRING_SECRET,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_URL"
+readonly REQUIRED_CUSTOM_SECRET_NAMES="CARE_CIRCLE_PAIRING_SECRET"
 
 MODE="preflight"
 APPROVED_TECHNICAL_ANCESTOR=""
@@ -44,7 +45,7 @@ node scripts/s2-care-circle-function-pat-preflight.mjs \
 node scripts/s2-care-circle-function-config-preflight.mjs \
   --project-ref "$EXPECTED_REF" \
   --reviewed-function-sha256 "$(node -p "require('./supabase/tests/s2-t48-care-circle-function-config-control.json').function_sha256")" \
-  --configuration-names "$REQUIRED_CONFIG_NAMES" >/dev/null
+  --configuration-names "$SOURCE_RUNTIME_NAMES" >/dev/null
 
 if [[ "$MODE" != "execute" ]]; then
   print -- "READY_FOR_PAT"
@@ -62,7 +63,8 @@ fi
 
 cleanup_token() {
   unset SUPABASE_ACCESS_TOKEN
-  unset FUNCTION_LIST_JSON SECRET_LIST_JSON REVOCATION_OUTPUT
+  unset FUNCTION_LIST_JSON SECRET_LIST_JSON SECRET_LIST_STATUS
+  unset CONFIG_NAME_RESULT CONFIG_NAME_STATUS CONFIG_STOP_CODE REVOCATION_OUTPUT
 }
 trap cleanup_token EXIT HUP INT TERM
 
@@ -74,18 +76,35 @@ if [[ -z "$SUPABASE_ACCESS_TOKEN" ]]; then
 fi
 export SUPABASE_ACCESS_TOKEN
 
+set +e
 SECRET_LIST_JSON="$("$PNPM" dlx "supabase@$PINNED_CLI" secrets list \
-  --project-ref "$EXPECTED_REF" --output json 2>/dev/null)" || {
-  print -u2 -- "STOP_S2_T102_CONFIGURATION_CHECK_FAILED"
+  --project-ref "$EXPECTED_REF" --output json 2>&1)"
+SECRET_LIST_STATUS=$?
+set -e
+if (( SECRET_LIST_STATUS != 0 )); then
+  CONFIG_STOP_CODE="$(print -rn -- "$SECRET_LIST_JSON" | \
+    node scripts/classify-supabase-config-command.mjs "$SECRET_LIST_STATUS")"
+  unset SECRET_LIST_JSON
+  print -u2 -- "STOP_S2_T127_$CONFIG_STOP_CODE"
   exit 1
-}
-print -rn -- "$SECRET_LIST_JSON" | \
+fi
+set +e
+CONFIG_NAME_RESULT="$(print -rn -- "$SECRET_LIST_JSON" | \
   node scripts/validate-supabase-secret-names.mjs \
-    --required "$REQUIRED_CONFIG_NAMES" >/dev/null || {
-      print -u2 -- "STOP_S2_T102_CONFIGURATION_CHECK_FAILED"
-      exit 1
-    }
+    --required "$REQUIRED_CUSTOM_SECRET_NAMES" 2>&1)"
+CONFIG_NAME_STATUS=$?
+set -e
 unset SECRET_LIST_JSON
+if (( CONFIG_NAME_STATUS != 0 )); then
+  if [[ "$CONFIG_NAME_RESULT" == "MISSING_REQUIRED_NAME" ]]; then
+    print -u2 -- "STOP_S2_T127_CUSTOM_PAIRING_SECRET_MISSING"
+  else
+    print -u2 -- "STOP_S2_T127_CONFIG_RESPONSE_UNSAFE"
+  fi
+  unset CONFIG_NAME_RESULT
+  exit 1
+fi
+unset CONFIG_NAME_RESULT
 
 FUNCTION_LIST_JSON="$("$PNPM" dlx "supabase@$PINNED_CLI" functions list \
   --project-ref "$EXPECTED_REF" --output json 2>/dev/null)" || {

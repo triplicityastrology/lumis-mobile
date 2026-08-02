@@ -19,12 +19,15 @@ for (const required of [
   "s2-care-circle-function-pat-preflight.mjs",
   "s2-care-circle-function-config-preflight.mjs",
   "validate-supabase-secret-names.mjs",
+  "classify-supabase-config-command.mjs",
   "validate-supabase-function-list.mjs",
   'functions deploy "$FUNCTION_NAME"',
   "classify-supabase-pat-revocation.mjs",
   "STOP_PAT_REVOCATION_UNVERIFIED",
   "STOP_PAT_REVOCATION_NOT_EFFECTIVE",
   "PAT_REVOKE_VERIFIED",
+  "STOP_S2_T127_CUSTOM_PAIRING_SECRET_MISSING",
+  "STOP_S2_T127_CONFIG_RESPONSE_UNSAFE",
 ]) {
   assert.ok(operator.includes(required), `operator omits ${required}`);
 }
@@ -57,7 +60,36 @@ const missingSecret = run(
   "[]"
 );
 assert.notEqual(missingSecret.status, 0);
-assert.equal(missingSecret.stdout + missingSecret.stderr, "");
+assert.equal(missingSecret.stdout, "");
+assert.equal(missingSecret.stderr, "MISSING_REQUIRED_NAME\n");
+
+const unsafeSecrets = run(
+  "scripts/validate-supabase-secret-names.mjs",
+  ["--required", "CARE_CIRCLE_PAIRING_SECRET"],
+  JSON.stringify({ secret: "must-not-be-echoed" })
+);
+assert.notEqual(unsafeSecrets.status, 0);
+assert.equal(unsafeSecrets.stdout, "");
+assert.equal(unsafeSecrets.stderr, "UNSAFE_RESPONSE\n");
+assert.doesNotMatch(unsafeSecrets.stderr, /must-not-be-echoed/);
+
+for (const [label, status, input, expected] of [
+  ["auth", "1", "401 Unauthorized: invalid access token", "CONFIG_AUTH_FAILED"],
+  ["permission", "1", "403 Forbidden: insufficient permission", "CONFIG_PERMISSION_FAILED"],
+  ["network", "1", "network connection timed out", "CONFIG_NETWORK_FAILED"],
+  ["cli", "127", "command not found", "CONFIG_CLI_FAILED"],
+  ["unknown", "1", "unclassified private response", "CONFIG_RESPONSE_UNSAFE"],
+]) {
+  const classified = run(
+    "scripts/classify-supabase-config-command.mjs",
+    [status],
+    input
+  );
+  assert.equal(classified.status, 0, label);
+  assert.equal(classified.stdout, `${expected}\n`, label);
+  assert.equal(classified.stderr, "", label);
+  assert.doesNotMatch(classified.stdout, /Unauthorized|Forbidden|private|response body/i);
+}
 
 const safeFunction = run(
   "scripts/validate-supabase-function-list.mjs",

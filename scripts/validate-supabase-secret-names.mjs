@@ -16,11 +16,14 @@ try {
       return name;
     })
   );
-  if (required.some((name) => !present.has(name))) {
-    throw new Error("MISSING_REQUIRED_NAME");
-  }
+  if (required.some((name) => !present.has(name))) stop("MISSING_REQUIRED_NAME");
   process.stdout.write("CONFIGURATION_NAMES_CONFIRMED\n");
-} catch {
+} catch (error) {
+  if (error instanceof Error && error.message === "MISSING_REQUIRED_NAME") {
+    process.stderr.write("MISSING_REQUIRED_NAME\n");
+  } else {
+    process.stderr.write("UNSAFE_RESPONSE\n");
+  }
   process.exitCode = 1;
 }
 
@@ -37,4 +40,8 @@ function parseRequired(args) {
     throw new Error("INVALID_ARGUMENTS");
   }
   return names;
+}
+
+function stop(code) {
+  throw new Error(code);
 }

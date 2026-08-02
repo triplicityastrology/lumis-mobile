@@ -12,7 +12,7 @@ assert.match(control.previous_function_sha256, /^[0-9a-f]{64}$/);
 assert.equal(control.supporting_files.length, 1);
 assert.match(control.supporting_files[0].sha256, /^[0-9a-f]{64}$/);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-const names = control.required_configuration_names.join(",");
+const names = control.source_authorized_runtime_names.join(",");
 
 const passed = run(control.project_ref, control.function_sha256, names);
 assert.equal(passed.status, 0, passed.stderr);
@@ -38,8 +38,16 @@ for (const [label, projectRef, checksum, suppliedNames, expectedCode] of [
   assert.doesNotMatch(result.stderr, /not-staging|EXPO|STRIPE|value|stack|Error/i);
 }
 
-assert.deepEqual(control.required_configuration_names, [
+assert.deepEqual(control.source_authorized_runtime_names, [
   "CARE_CIRCLE_PAIRING_SECRET",
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_URL"
+]);
+assert.deepEqual(control.required_custom_secret_names, [
+  "CARE_CIRCLE_PAIRING_SECRET"
+]);
+assert.deepEqual(control.platform_provided_runtime_names, [
   "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_URL"
@@ -49,7 +57,7 @@ const functionConfigurationNames = [
 ].map((match) => match[1]).sort();
 assert.deepEqual(
   functionConfigurationNames,
-  [...control.required_configuration_names].sort()
+  [...control.source_authorized_runtime_names].sort()
 );
 for (const marker of [
   "NOTIFICATION", "EXPO", "APNS", "FCM", "PROVIDER", "SCHEDULER",
