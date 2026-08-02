@@ -13,7 +13,8 @@ export type SinglePhoneJourneyStage =
   | "caree_pause"
   | "caree_resume"
   | "carer_remove"
-  | "operator_cleanup_required";
+  | "operator_cleanup_required"
+  | "cleanup_complete";
 
 export type SinglePhoneJourney = {
   stage: SinglePhoneJourneyStage;
@@ -88,6 +89,20 @@ export function advanceSinglePhoneJourney(
     );
   }
   if (
+    current.stage === "caree_accept" &&
+    input.accountRole === "caree" &&
+    input.evidenceName === "relationship_cleanup_complete"
+  ) {
+    return journey(
+      "carer_submit_code",
+      "Step 2 · Carer submits code",
+      "The Caree declined the previous request. Switch to the Carer and submit the still-valid code only if you want to test acceptance next.",
+      "carer",
+      "Next: switch to the Caree after a new pending request is confirmed.",
+      "safe_projection"
+    );
+  }
+  if (
     current.stage === "carer_verify_active" &&
     input.accountRole === "carer" &&
     input.evidenceName === "active"
@@ -140,6 +155,20 @@ export function advanceSinglePhoneJourney(
       "Switch account to sign out, then run the approved two-account cleanup. Completion is truthful only after Auth and run-row counts are zero.",
       "operator",
       "Next: retain only the redacted completion checks.",
+      "safe_projection"
+    );
+  }
+  if (
+    current.stage === "operator_cleanup_required" &&
+    input.evidenceName === "relationship_cleanup_complete" &&
+    input.confirmationSource === "safe_projection"
+  ) {
+    return journey(
+      "cleanup_complete",
+      "Complete · Cleanup confirmed",
+      "The rehearsal confirms no pending or active relationship remains.",
+      "operator",
+      "Next: reset the guide before beginning another test.",
       "safe_projection"
     );
   }

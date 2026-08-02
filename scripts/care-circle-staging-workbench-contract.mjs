@@ -83,7 +83,7 @@ assert.match(sessionGate, /setPassword\(""\)/);
 assert.match(sessionGate, /key=\{sessionEpoch\}/);
 assert.match(sessionGate, /advanceSinglePhoneJourney/);
 assert.match(sessionGate, /Founder evidence summary/);
-assert.match(sessionGate, /Current: {flow\.journey\.label}/);
+assert.match(sessionGate, /currentStep: flow\.journey\.label/);
 assert.match(sessionGate, /flow\.journey\.nextLabel/);
 assert.match(sessionGate, /refreshed participant-safe projection/);
 assert.match(singlePhoneJourney, /confirmationSource/);
@@ -162,8 +162,8 @@ for (const evidenceState of [
 assert.match(progress, /Pending Caree acceptance/);
 assert.match(progress, /no Care Circle authority/);
 assert.match(progressFixture, /pending is not active/);
-assert.match(screen, /Care Circle test progress/);
-assert.match(screen, /Evidence state:/);
+assert.match(screen, /CareCircleFounderGuidance/);
+assert.match(releasePreview, /Confirmed state:/);
 assert.match(sessionGate, /signedOutProgress/);
 assert.match(sessionGate, /Care Circle test progress/);
 for (const safeFailureState of [
@@ -234,9 +234,17 @@ assert.match(founderEntry, /createInactiveCareCircleClient\(ports\.operationPort
 assert.match(founderEntry, /No staging operation was attempted/);
 assert.match(releasePreview, /export function CareCircleProductFrame/);
 assert.match(releasePreview, /export function CareCirclePairingCodeMark/);
+assert.match(releasePreview, /export function CareCircleFounderGuidance/);
+assert.match(releasePreview, /FOUNDER TEST GUIDE/);
+assert.match(releasePreview, /Confirmed state:/);
 assert.match(releasePreview, /before 3d8c7a4/);
 assert.match(screen, /CareCircleProductFrame/);
 assert.match(screen, /CareCirclePairingCodeMark/);
+assert.match(screen, /CareCircleFounderGuidance/);
+assert.match(screen, /founderGuidance\.confirmation/);
+assert.match(sessionGate, /founderGuidance:/);
+assert.match(sessionGate, /a refreshed participant-safe projection/);
+assert.match(founderEntry, /founderGuidance=\{journeyPort\.founderGuidance\}/);
 assert.match(screen, /title="Care Circle" onBack=\{onBack\}/);
 assert.doesNotMatch(releasePreview, /export function CareCirclePrototypeScreen/);
 

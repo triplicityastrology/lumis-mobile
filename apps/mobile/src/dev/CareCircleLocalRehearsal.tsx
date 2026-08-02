@@ -51,8 +51,6 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
         <Text style={styles.body}>
           Disposable synthetic states only. Nothing here is staging evidence.
         </Text>
-        <Text style={styles.current}>Current: {journey.label}</Text>
-        <Text style={styles.body}>{journey.nextLabel}</Text>
       </View>
       <View accessibilityRole="tablist" style={styles.switcher}>
         {(["caree", "carer"] as const).map((item) => (
@@ -79,6 +77,12 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
           careCirclePaused: harness.snapshot().paused,
         }}
         client={client}
+        founderGuidance={{
+          confirmation: `${journey.guidance} This guide advances only after ${journey.requiredConfirmation === "safe_projection" ? "a refreshed participant-safe projection" : "a confirmed operation result"}.`,
+          currentStep: journey.label,
+          nextStep: journey.nextLabel,
+          onReset: reset,
+        }}
         mode="local_rehearsal"
         onBack={onBack}
         onEvidenceState={(input) =>
@@ -120,7 +124,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   title: { color: colors.goldLight, fontSize: 18, fontWeight: "800" },
-  current: { color: colors.ice, fontSize: 15, fontWeight: "700" },
   body: { color: colors.textSoft, fontSize: 13, lineHeight: 19 },
   switcher: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md },
   switchButton: {

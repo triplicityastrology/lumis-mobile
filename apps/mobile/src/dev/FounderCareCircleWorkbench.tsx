@@ -56,6 +56,7 @@ export function FounderCareCircleWorkbench({ onBack }: { onBack: () => void }) {
         <CareCircleStagingWorkbench
           capabilities={capabilities}
           client={createInactiveCareCircleClient(ports.operationPort)}
+          founderGuidance={journeyPort.founderGuidance}
           onBack={onBack}
           onEvidenceState={journeyPort.onEvidenceState}
           relationshipPort={ports.relationshipPort}

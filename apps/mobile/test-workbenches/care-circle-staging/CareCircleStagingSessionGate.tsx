@@ -54,6 +54,12 @@ export function CareCircleStagingSessionGate({
         evidenceName: WorkbenchProgressName;
         confirmationSource: JourneyConfirmationSource;
       }): void;
+      founderGuidance: {
+        confirmation: string;
+        currentStep: string;
+        nextStep: string;
+        onReset: () => void;
+      };
     }
   ) => ReactNode;
   sessionPort: WorkbenchSessionPort;
@@ -175,16 +181,6 @@ export function CareCircleStagingSessionGate({
               {" · "}
               Carer {session.capabilities.canActAsCarer ? "enabled" : "blocked"}
             </Text>
-            <Text accessibilityLiveRegion="polite" style={styles.journeyTitle}>
-              Current: {flow.journey.label}
-            </Text>
-            <Text style={styles.sessionMeta}>{flow.journey.guidance}</Text>
-            <Text style={styles.journeyNext}>{flow.journey.nextLabel}</Text>
-            <Text style={styles.sessionMeta}>
-              Advances only after {flow.journey.requiredConfirmation === "safe_projection"
-                ? "a refreshed participant-safe projection"
-                : "a verified backend operation result"}.
-            </Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -217,6 +213,18 @@ export function CareCircleStagingSessionGate({
         />
         <View key={sessionEpoch} style={styles.workbench}>
           {children(session.capabilities, {
+            founderGuidance: {
+              confirmation: `${flow.journey.guidance} This guide advances only after ${flow.journey.requiredConfirmation === "safe_projection" ? "a refreshed participant-safe projection" : "a confirmed backend operation result"}.`,
+              currentStep: flow.journey.label,
+              nextStep: flow.journey.nextLabel,
+              onReset() {
+                setSummaryVisible(false);
+                setFlow({
+                  journey: createSinglePhoneJourney(),
+                  evidence: createWorkbenchEvidenceSummary(),
+                });
+              },
+            },
             onEvidenceState(input) {
               setFlow((current) => ({
                 journey: advanceSinglePhoneJourney(current.journey, input),

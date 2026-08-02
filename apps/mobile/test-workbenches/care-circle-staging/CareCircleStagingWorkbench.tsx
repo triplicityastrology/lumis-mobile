@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import {
+  CareCircleFounderGuidance,
   CareCirclePairingCodeMark,
   CareCircleProductFrame,
 } from "../../src/features/careCircle/CareCircleScreen";
@@ -78,6 +79,7 @@ export function CareCircleStagingWorkbench({
   requestIdFactory,
   now = () => Date.now(),
   onEvidenceState,
+  founderGuidance,
   mode = "staging",
   onBack,
 }: {
@@ -91,6 +93,12 @@ export function CareCircleStagingWorkbench({
     evidenceName: WorkbenchProgressName;
     confirmationSource: JourneyConfirmationSource;
   }) => void;
+  founderGuidance?: {
+    confirmation: string;
+    currentStep: string;
+    nextStep: string;
+    onReset: () => void;
+  };
   mode?: "staging" | "local_rehearsal";
   onBack: () => void;
 }) {
@@ -392,6 +400,15 @@ export function CareCircleStagingWorkbench({
 
   return (
     <CareCircleProductFrame title="Care Circle" onBack={onBack}>
+      {founderGuidance ? (
+        <CareCircleFounderGuidance
+          confirmation={founderGuidance.confirmation}
+          confirmedState={progress.label}
+          currentStep={founderGuidance.currentStep}
+          nextStep={founderGuidance.nextStep}
+          onReset={founderGuidance.onReset}
+        />
+      ) : null}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.safe}
@@ -412,18 +429,6 @@ export function CareCircleStagingWorkbench({
             ? "Local rehearsal — not live backend. Synthetic states only."
             : "Founder staging test with disposable accounts only."}
         </Text>
-
-        <View
-          accessibilityLabel={`Care Circle test progress: ${progress.label}. ${progress.guidance}`}
-          accessibilityLiveRegion="polite"
-          style={styles.progress}
-        >
-          <Text style={styles.progressName}>{progress.label}</Text>
-          <Text style={styles.progressGuidance}>{progress.guidance}</Text>
-          <Text style={styles.progressEvidence}>
-            Evidence state: {progress.evidenceName}
-          </Text>
-        </View>
 
           <View
             style={[styles.roleRow, stackActions && styles.actionColumn]}

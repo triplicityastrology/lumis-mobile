@@ -305,6 +305,46 @@ export function CareCircleProductFrame({
   );
 }
 
+export function CareCircleFounderGuidance({
+  confirmation,
+  currentStep,
+  nextStep,
+  onReset,
+  confirmedState,
+}: {
+  confirmation: string;
+  currentStep: string;
+  nextStep: string;
+  onReset: () => void;
+  confirmedState: string;
+}) {
+  return (
+    <View
+      accessibilityLabel={`Founder test guide. Current step: ${currentStep}. Confirmed state: ${confirmedState}. Next step: ${nextStep}`}
+      accessibilityLiveRegion="polite"
+      style={s.founderGuide}
+    >
+      <View style={s.founderGuideHeading}>
+        <Text style={s.founderGuideBadge}>FOUNDER TEST GUIDE</Text>
+        <Pressable
+          accessibilityLabel="Reset Care Circle test guidance"
+          accessibilityRole="button"
+          onPress={onReset}
+          style={s.founderGuideReset}
+        >
+          <Text style={s.founderGuideResetText}>Reset guide</Text>
+        </Pressable>
+      </View>
+      <Text style={s.founderGuideLabel}>CURRENT STEP</Text>
+      <Text style={s.founderGuideCurrent}>{currentStep}</Text>
+      <Text style={s.founderGuideConfirmation}>{confirmation}</Text>
+      <Text style={s.founderGuideState}>Confirmed state: {confirmedState}</Text>
+      <Text style={s.founderGuideLabel}>NEXT STEP</Text>
+      <Text style={s.founderGuideNext}>{nextStep}</Text>
+    </View>
+  );
+}
+
 function Shell({ title, onBack, emblem, children }: { title: string; onBack: () => void; emblem?: boolean; children: React.ReactNode }) {
   return (
     <CareCircleProductFrame title={title} onBack={onBack}>
@@ -353,6 +393,16 @@ const s = StyleSheet.create({
   emblemWrap: { alignItems: "center", marginBottom: 18 },
   emblem: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
   previewRow: { alignItems: "center", paddingBottom: 10, paddingHorizontal: spacing.lg, paddingTop: 2 },
+  founderGuide: { backgroundColor: "rgba(17,34,55,0.98)", borderColor: colors.gold, borderRadius: radii.md, borderWidth: 1, gap: 5, marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md },
+  founderGuideHeading: { alignItems: "center", flexDirection: "row", gap: spacing.sm, justifyContent: "space-between" },
+  founderGuideBadge: { color: colors.goldLight, flex: 1, fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
+  founderGuideReset: { alignItems: "center", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, justifyContent: "center", minHeight: 44, paddingHorizontal: spacing.sm },
+  founderGuideResetText: { color: colors.textSoft, fontSize: 12, fontWeight: "700" },
+  founderGuideLabel: { color: colors.muted, fontSize: 10, fontWeight: "800", marginTop: 3 },
+  founderGuideCurrent: { color: colors.ice, fontSize: 17, fontWeight: "800", lineHeight: 23 },
+  founderGuideConfirmation: { color: colors.textSoft, fontSize: 13, lineHeight: 19 },
+  founderGuideState: { color: colors.goldLight, fontSize: 12, fontWeight: "700", lineHeight: 18 },
+  founderGuideNext: { color: colors.ice, fontSize: 13, lineHeight: 19 },
   sectionLabel: { color: colors.muted, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.8, marginBottom: 10, textTransform: "uppercase" },
   card: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, padding: 16 },
   scheduleRow: { alignItems: "center", flexDirection: "row", gap: 10 },

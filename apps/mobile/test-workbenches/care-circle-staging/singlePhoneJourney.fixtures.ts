@@ -31,6 +31,30 @@ equal(
   "cleanup is not claimed before count-zero evidence"
 );
 
+journey = advanceSinglePhoneJourney(journey, {
+  accountRole: "carer",
+  evidenceName: "relationship_cleanup_complete",
+  confirmationSource: "safe_projection",
+});
+equal(journey.stage, "cleanup_complete", "confirmed cleanup completes the guide");
+
+let declineJourney = advanceSinglePhoneJourney(createSinglePhoneJourney(), {
+  accountRole: "caree",
+  evidenceName: "caree_code_ready",
+  confirmationSource: "operation_result",
+});
+declineJourney = advanceSinglePhoneJourney(declineJourney, {
+  accountRole: "carer",
+  evidenceName: "carer_pending_no_authority",
+  confirmationSource: "safe_projection",
+});
+declineJourney = advanceSinglePhoneJourney(declineJourney, {
+  accountRole: "caree",
+  evidenceName: "relationship_cleanup_complete",
+  confirmationSource: "safe_projection",
+});
+equal(declineJourney.stage, "carer_submit_code", "decline remains truthful and returns to submission");
+
 const unchanged = advanceSinglePhoneJourney(createSinglePhoneJourney(), {
   accountRole: "carer",
   evidenceName: "caree_code_ready",
