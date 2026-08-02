@@ -4,12 +4,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Rect } from "react-native-svg";
+import QRCode from "react-native-qrcode-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
 import { CelestialBackground } from "../../components/CelestialBackground";
 import {
   BrandButton, GhostButton, LineMotif, PreviewBadge, QuietEmptyState, SafetyNote, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
+import { normalizeCareCircleQrPayload } from "./careCircleQrPayload";
 
 /**
  * Care Circle UI-only flow (AC-UX-11). Full interactive journey on mock data:
@@ -95,7 +97,7 @@ function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => 
     return (
       <Shell title="My check-in code" onBack={() => setView({ v: "home" })}>
         <View style={s.qrCard}>
-          <CareCirclePairingCodeMark />
+          <CareCirclePairingCodeMark value={DEV_PAIRING_CODE} />
           <Text style={s.qrName}>Ruby</Text>
           {/* DEV-ONLY: the fixed mock code is never shown in a release build so it
               can't read as a live, working code (Care Circle is Preview only). */}
@@ -378,17 +380,26 @@ function Shell({ title, onBack, emblem, children }: { title: string; onBack: () 
   );
 }
 
-export function CareCirclePairingCodeMark() {
-  const cells = 9;
-  const rng = (i: number, j: number) => (i * 3 + j * 7 + i * j) % 3 !== 0;
+export function CareCirclePairingCodeMark({ value }: { value?: string | null }) {
+  const payload = normalizeCareCircleQrPayload(value);
+  if (!payload) {
+    return (
+      <View accessibilityLabel="Pairing code unavailable" style={s.qrUnavailable}>
+        <Text style={s.qrUnavailableText}>Code unavailable</Text>
+      </View>
+    );
+  }
   return (
-    <Svg width={148} height={148} viewBox="0 0 9 9">
-      {Array.from({ length: cells }).map((_, i) =>
-        Array.from({ length: cells }).map((__, j) =>
-          rng(i, j) ? <Rect key={`${i}-${j}`} x={i + 0.08} y={j + 0.08} width={0.84} height={0.84} rx={0.12} fill="#E8DCC0" /> : null
-        )
-      )}
-    </Svg>
+    <View accessibilityLabel="Four-digit Care Circle pairing QR code" accessibilityRole="image">
+      <QRCode
+        backgroundColor="#F4E8CC"
+        color="#10243A"
+        ecl="M"
+        quietZone={12}
+        size={148}
+        value={payload}
+      />
+    </View>
   );
 }
 
@@ -453,6 +464,8 @@ const s = StyleSheet.create({
   codeValue: { color: colors.goldLight, fontSize: 20, fontWeight: "700", letterSpacing: 4, marginTop: 2 },
   expiryChip: { backgroundColor: "rgba(201,169,110,0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   expiryText: { color: colors.goldLight, fontSize: 11.5, fontWeight: "600" },
+  qrUnavailable: { alignItems: "center", borderColor: "rgba(215,185,120,0.4)", borderRadius: 12, borderWidth: 1, height: 148, justifyContent: "center", width: 148 },
+  qrUnavailableText: { color: colors.muted, fontSize: 12 },
   explain: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: 16, textAlign: "center" },
   explainSmall: { color: colors.muted, fontSize: 11.5, marginTop: 14, textAlign: "center" },
   viewfinder: { alignItems: "center", alignSelf: "center", justifyContent: "center", marginTop: 12, position: "relative" },

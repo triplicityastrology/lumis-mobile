@@ -18,6 +18,7 @@ import {
   CareCircleProductFrame,
   CareCircleScannerFrame,
 } from "../../src/features/careCircle/CareCircleScreen";
+import { normalizeCareCircleQrPayload } from "../../src/features/careCircle/careCircleQrPayload";
 import { LineMotif, SafetyNote } from "../../src/components/states/StateKit";
 import type {
   CareCircleClientInput,
@@ -350,8 +351,12 @@ export function CareCircleStagingWorkbench({
   }
 
   async function submitPairingCode() {
-    const transientCode = pairingCodeInput;
+    const transientCode = normalizeCareCircleQrPayload(pairingCodeInput);
     setPairingCodeInput("");
+    if (!transientCode) {
+      setNotice({ tone: "error", text: "Enter exactly four digits." });
+      return;
+    }
     await runAndConfirm({
       action: "submit_pairing_code",
       clientRequestId: requestIdFactory(),
@@ -450,7 +455,7 @@ export function CareCircleStagingWorkbench({
         {productView === "code" ? (
           <>
             <View style={styles.codeCard}>
-              <CareCirclePairingCodeMark />
+              <CareCirclePairingCodeMark value={pairingCode && !codeIsExpired ? pairingCode : null} />
               <Text style={styles.codeOwner}>My check-in code</Text>
               {pairingCode && !codeIsExpired ? (
                 <>

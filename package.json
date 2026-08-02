@@ -34,6 +34,7 @@
     "test:care-circle-pairing-migration": "node scripts/care-circle-pairing-migration-contract.mjs",
     "test:care-circle-operations": "node scripts/care-circle-operations-contract.mjs && pnpm test:care-circle-four-digit",
     "test:care-circle-four-digit": "node scripts/care-circle-four-digit-contract.mjs",
+    "test:care-circle-qr": "node scripts/care-circle-qr-contract.mjs",
     "test:s2-care-circle-four-digit-seal": "node scripts/s2-care-circle-four-digit-seal-contract.mjs",
     "test:s2-care-circle-remote-seal-enforcement": "node scripts/s2-care-circle-remote-seal-enforcement-contract.mjs",
     "test:care-circle-four-digit-postgres17": "bash scripts/run-care-circle-0037-four-digit.sh",
@@ -196,7 +197,7 @@
     "test:staging-auth-readiness": "node scripts/staging-auth-readiness-contract.mjs",
     "test:account-deletion-finalizer": "node scripts/account-deletion-finalizer-contract.mjs",
     "staging:auth-readiness": "node scripts/staging-auth-readiness.mjs",
-    "pretest:all-local": "pnpm test:care-circle-aggregate-static",
+    "pretest:all-local": "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr",
     "posttest:all-local": "pnpm test:persona-selection-compatibility && pnpm test:persona-prompt-pipeline && pnpm test:persona-legacy-audit-readiness && pnpm test:persona-source-hygiene && pnpm test:s2-care-circle-postgres17-ci-evidence",
     "test:all-local": "pnpm test:mobile-native-bundle-contract && pnpm test:router && pnpm test:persona-calculator && pnpm test:persona-behavior-registry && pnpm test:persona-comparison-workbench && pnpm test:founder-test-hub && pnpm test:quota-verification-panel && pnpm test:app-language && pnpm test:language-chat-staging-readiness && pnpm test:fixed-template-registry && pnpm test:app-language-selector-readiness && pnpm test:app-language-state-machine && pnpm test:app-language-service && pnpm test:inactive-foundation-config-readiness && pnpm test:dice && pnpm test:chart-wheel && pnpm test:birth-date && pnpm test:birth-location && pnpm test:entitlement && pnpm test:billing-entitlement && pnpm test:credit-expiry-readiness && pnpm test:care-circle && pnpm test:care-circle-backend && pnpm test:care-circle-pairing-migration && pnpm test:care-circle-operations && pnpm test:inactive-care-circle-client && pnpm test:care-circle-staging-workbench && pnpm test:s2-care-circle-two-account-readiness && pnpm test:notification-foundation && pnpm test:inactive-notification-device-client && pnpm test:s2-care-circle-staging-evidence && pnpm test:s2-care-circle-staging-evidence-contract && pnpm test:s2-notification-staging-evidence && pnpm test:s2-notification-staging-evidence-contract && pnpm test:s2-care-circle-deployment-readiness && pnpm test:s2-care-circle-deployment-runbook && pnpm test:s2-care-circle-function-pat-preflight && pnpm test:s2-care-circle-function-config-preflight && pnpm test:s2-care-circle-dashboard-packets && pnpm test:s2-care-circle-dashboard-evidence && pnpm test:s2-care-circle-logical-backup-readiness && pnpm test:s2-accessibility && pnpm test:golden && pnpm test:natal-scope && pnpm test:astrology-scope-audit && pnpm test:preview-capability-boundary && pnpm test:natal-facts && pnpm test:natal-input-boundary && pnpm test:natal-composer && pnpm test:natal-adapter && pnpm test:natal-context && pnpm test:natal-lifecycle-plan && pnpm test:live-chart-natal-readiness && pnpm test:natal-regression-corpus && pnpm test:chart-data-authority && pnpm test:chart-authority-decisions && pnpm test:natal-lifecycle-integration && pnpm test:knowledge-bank-draft && pnpm test:knowledge-bank-draft-corpus && pnpm test:worker && pnpm test:profile && pnpm test:chat-persistence && pnpm test:chat-scroll && pnpm test:chat-thinking-loader && pnpm test:persona-chat && pnpm test:chat-assistant-identity && pnpm test:chat-assistant-bubble && pnpm test:external-sync && pnpm test:mobile-ui && pnpm test:s1t04-six-screen-rework && pnpm test:opaque-surfaces && pnpm test:profile-reflections-containment && pnpm test:reflection-deletion && pnpm test:reflection-deletion-readiness && pnpm test:identity-home-surfaces && pnpm test:normal-expo-launcher && pnpm test:navigation && pnpm test:navigation-surface && pnpm test:notification-preview && pnpm test:mobile-errors && pnpm test:backend-guardrails && pnpm test:route-credits && pnpm test:pii && pnpm test:birth-details-change && pnpm test:birth-change-quota-refresh && pnpm test:auth-account-restore && pnpm test:account-restoration-evidence && pnpm test:account-deletion-finalizer",
     "external-sync:report": "node scripts/external-sync-admin.mjs report",
@@ -205,6 +206,8 @@
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.52.0",
+    "jsqr": "1.4.0",
+    "qrcode": "1.5.4",
     "typescript": "^5.8.3"
   }
 }
