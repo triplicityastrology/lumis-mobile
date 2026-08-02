@@ -4,7 +4,7 @@ import path from "node:path";
 
 export const CI_RECEIPT_PATH = ".lumis-local/s2-t162-care-circle-postgres17-ci-receipt.json";
 const SOURCE_COMMIT = "07b18e530158a6dab260d6f447680cb3ef0f4720";
-const WORKFLOW_SHA256 = "8e5c1309163dbbc0c4e811dfd05a18efca72205494ac99c012b9bbf808762349";
+const WORKFLOW_SHA256 = "50576da9c6b392a97ef558950937f2ef3ab0c43183914175710f9ba5f8f078ce";
 const MIGRATIONS = [
   ["0032", "9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e"],
   ["0033", "0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d"],
@@ -18,7 +18,7 @@ export function validatePostgres17CiEvidence(value) {
   if (!isRecord(value) || !sameKeys(value, ROOT_KEYS)) return stop("SCHEMA_INVALID");
   if (value.schema !== "s2_t162_care_circle_postgres17_ci_evidence_v1" || value.status !== "CI_PROOF_PASSED") return stop("STATUS_INVALID");
   if (value.workflow_source_commit !== SOURCE_COMMIT || value.workflow_path !== ".github/workflows/s2-t157-care-circle-postgres17-proof.yml" || value.workflow_sha256 !== WORKFLOW_SHA256) return stop("WORKFLOW_DRIFT");
-  if (value.runner !== "ubuntu-24.04" || value.postgres_version !== "17.6" || value.postgres_image !== "public.ecr.aws/supabase/postgres:17.6.1.143") return stop("RUNTIME_INVALID");
+  if (value.runner !== "ubuntu-24.04" || value.postgres_version !== "17.6" || value.postgres_image !== "public.ecr.aws/supabase/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453") return stop("RUNTIME_INVALID");
   if (!Array.isArray(value.migrations) || value.migrations.length !== MIGRATIONS.length) return stop("MIGRATION_EVIDENCE_INVALID");
   for (let index = 0; index < MIGRATIONS.length; index += 1) {
     const entry = value.migrations[index];
@@ -59,4 +59,3 @@ function isRecord(value) { return Boolean(value && typeof value === "object" && 
 function sameKeys(value, keys) { return JSON.stringify(Object.keys(value)) === JSON.stringify(keys); }
 function sha(value) { return createHash("sha256").update(value).digest("hex"); }
 function stop(suffix) { return { ok: false, code: `STOP_S2_T162_${suffix}` }; }
-

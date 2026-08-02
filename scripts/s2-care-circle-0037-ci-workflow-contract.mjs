@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
 const workflow = readFileSync(".github/workflows/s2-t157-care-circle-postgres17-proof.yml", "utf8");
 assert.match(workflow, /workflow_dispatch:/u);
 assert.doesNotMatch(workflow, /push:|pull_request:|schedule:/u);
 assert.match(workflow, /ubuntu-24\.04/);
-assert.match(workflow, /public\.ecr\.aws\/supabase\/postgres:17\.6\.1\.143/);
+assert.match(workflow, /public\.ecr\.aws\/supabase\/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453/);
+assert.doesNotMatch(workflow, /S2_T135_POSTGRES_IMAGE:\s+[^\n]*postgres:[0-9]/u);
 assert.match(workflow, /actions\/checkout@[0-9a-f]{40}/u);
 assert.match(workflow, /S2_T148_ENGINE: docker/);
 assert.match(workflow, /run-care-circle-0037-four-digit\.sh/);
@@ -32,4 +33,18 @@ assert.doesNotMatch(rejected.stdout + rejected.stderr, /remote\.invalid/u);
 const evidence = JSON.parse(readFileSync("docs/qa/S2-T157-care-circle-postgres17-ci-evidence-schema.json", "utf8"));
 assert.equal(evidence.status, "READY_FOR_CI_EXECUTION");
 assert.equal(evidence.current_ci_evidence, null);
+
+const control = JSON.parse(readFileSync("supabase/tests/s2-t157-care-circle-postgres17-ci-control.json", "utf8"));
+assert.equal(control.runtime.postgres_image, "public.ecr.aws/supabase/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453");
+assert.match(control.runtime.postgres_image, /@sha256:[0-9a-f]{64}$/u);
+const tagOnly = structuredClone(control);
+tagOnly.runtime.postgres_image = "public.ecr.aws/supabase/postgres:17.6.1.143";
+const temporaryControl = "supabase/tests/.s2-t157-tag-only-control.tmp.json";
+writeFileSync(temporaryControl, JSON.stringify(tagOnly));
+try {
+  const rejectedTag = spawnSync(process.execPath, ["scripts/s2-care-circle-0037-ci-readiness.mjs", "--verify", temporaryControl], { encoding: "utf8" });
+  assert.notEqual(rejectedTag.status, 0);
+} finally {
+  unlinkSync(temporaryControl);
+}
 console.log("S2-T157 PostgreSQL 17 CI workflow is READY_FOR_CI_EXECUTION; no CI proof claimed.");

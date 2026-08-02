@@ -4,7 +4,7 @@
   "workflow": ".github/workflows/s2-t157-care-circle-postgres17-proof.yml",
   "runtime": {
     "runner": "ubuntu-24.04",
-    "postgres_image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "postgres_image": "public.ecr.aws/supabase/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
     "network_mode": "none_for_disposable_proof_container"
   },
   "ordered_sources": [
