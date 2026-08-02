@@ -6,6 +6,7 @@ import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Clock3 from "lucide-react-native/icons/clock-3";
 import Compass from "lucide-react-native/icons/compass";
 import Headphones from "lucide-react-native/icons/headphones";
+import Languages from "lucide-react-native/icons/languages";
 import LogOut from "lucide-react-native/icons/log-out";
 import MapPin from "lucide-react-native/icons/map-pin";
 import ShieldCheck from "lucide-react-native/icons/shield-check";
@@ -38,6 +39,8 @@ export function LumisProfileScreen({
   onNotifications,
   onPersona,
   onContactSupport,
+  onAppLanguage,
+  appLanguageValue,
   onSelectTab,
   onRequestLogout
 }: {
@@ -58,6 +61,9 @@ export function LumisProfileScreen({
   onPersona: () => void;
   /** Routes to SUP-001 (Contact support unavailable). */
   onContactSupport?: () => void;
+  /** Routes to AUTH-013 settings (App language). */
+  onAppLanguage?: () => void;
+  appLanguageValue?: string;
   onSelectTab: (tab: MainTab) => void;
   /** Requests the app-owned, authoritative sign-out confirmation flow. */
   onRequestLogout?: () => void;
@@ -119,6 +125,9 @@ export function LumisProfileScreen({
           </ProfileSection>
 
           <ProfileSection label="PRIVACY & SUPPORT">
+            {onAppLanguage ? (
+              <ProfileRow icon={<Languages color={colors.accent} size={17} />} label="App language" value={appLanguageValue} onPress={onAppLanguage} />
+            ) : null}
             <ProfileRow icon={<Bell color={colors.accent} size={17} />} label="Notifications" onPress={onNotifications} />
             <ProfileRow icon={<ShieldCheck color={colors.accent} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
             <ProfileRow icon={<Headphones color={colors.accent} size={17} />} label="Contact support" onPress={onContactSupport ?? (() => showPendingNotice("Contact support"))} />

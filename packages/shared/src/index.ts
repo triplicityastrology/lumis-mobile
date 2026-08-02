@@ -3,6 +3,7 @@ export * from "./config/products";
 export * from "./config/routes";
 export * from "./config/chat-router";
 export * from "./config/app-language";
+export * from "./config/app-language-state-machine";
 export * from "./config/entitlements";
 export * from "./config/birth-date";
 export * from "./config/account-entitlement";

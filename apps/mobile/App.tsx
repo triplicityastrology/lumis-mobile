@@ -95,6 +95,7 @@ import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { ContactSupportScreen } from "./src/screens/ContactSupportScreen";
+import { LanguageSelectScreen } from "./src/screens/LanguageSelectScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
 import { ChatThinkingIndicator } from "./src/components/ChatThinkingIndicator";
 import {
@@ -181,7 +182,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart" | "support">("splash");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart" | "support" | "appLanguage">("splash");
   // Codex typography: load the bundled Newsreader / Hanken Grotesk / Noto Serif TC
   // weights. The branded splash stays visible until they resolve; on a genuine
   // font-load error we proceed with the system serif/sans fallback rather than
@@ -199,6 +200,10 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState("");
   const [authError, setAuthError] = useState("");
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
+  // AUTH-013 first-launch: force a language choice before Welcome for a signed-out
+  // user with no preference. In-memory only (the language RPC is inactive and no
+  // local store persists it) — the state machine's `first_launch_required`.
+  const [firstLaunchLanguageDone, setFirstLaunchLanguageDone] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [reflectionThreads, setReflectionThreads] = useState<RestoredReflectionThread[]>([]);
   const [mainFocus, setMainFocus] = useState<string | null>(null);
@@ -252,9 +257,9 @@ export default function App() {
     hasProfile: Boolean(profileData),
     isDevelopment: __DEV__,
     modalOpen: logoutDialogOpen,
-    // SUP-001 is a Profile sub-screen; mirror profileTab for founder-test
-    // visibility without widening the Technical FounderTestShellScreen union.
-    screen: screen === "support" ? "profileTab" : screen,
+    // SUP-001 / AUTH-013 settings are Profile sub-screens; mirror profileTab for
+    // founder-test visibility without widening the Technical FounderTestShellScreen union.
+    screen: screen === "support" || screen === "appLanguage" ? "profileTab" : screen,
   });
 
   useEffect(() => {
@@ -642,7 +647,7 @@ export default function App() {
       if (s === "persona") { setScreen(personaReturn); return true; }
       if (s === "preview") { setScreen("profile"); return true; }
       if (s === "noChart") { setScreen("home"); return true; }
-      if (s === "support") { setScreen("profileTab"); return true; }
+      if (s === "support" || s === "appLanguage") { setScreen("profileTab"); return true; }
       if (s === "restoringSpace") { return true; } // block back while restoring
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
         setScreen("home"); return true;
@@ -759,6 +764,25 @@ export default function App() {
   // No `onDone` advance while gating — the real splash below runs once ready.
   if (!fontsReady) {
     return <LumisSplashScreen onDone={() => {}} />;
+  }
+  // AUTH-013 launch state — first-launch language choice before Welcome.
+  if (
+    screen === "home" &&
+    !authStatus?.user &&
+    !hasLocalDemoSession &&
+    !appLanguagePreference &&
+    !firstLaunchLanguageDone
+  ) {
+    return (
+      <LanguageSelectScreen
+        origin="first_launch"
+        initial={appLanguagePreference}
+        onConfirm={(language) => {
+          setAppLanguagePreference(language);
+          setFirstLaunchLanguageDone(true);
+        }}
+      />
+    );
   }
   if (screen === "splash") {
     return <LumisSplashScreen onDone={() => setScreen(pendingAfterSplashRef.current ?? "home")} />;
@@ -1031,6 +1055,8 @@ export default function App() {
         onNotifications={openNotifications}
         onPersona={() => openPersona("profileTab")}
         onContactSupport={() => setScreen("support")}
+        onAppLanguage={() => setScreen("appLanguage")}
+        appLanguageValue={appLanguagePreference === "zh-Hant" ? "繁體中文" : appLanguagePreference === "en" ? "English" : undefined}
         onSelectTab={openMainTab}
         onRequestLogout={requestAuthoritativeLogout}
       />
@@ -1040,6 +1066,22 @@ export default function App() {
   // SUP-001 — Contact support (unavailable). Reached from Profile → Privacy & Support.
   if (screen === "support") {
     return <ContactSupportScreen onBack={() => setScreen("profileTab")} />;
+  }
+
+  // AUTH-013 (settings) — App language. Applied locally only; the language RPC is
+  // inactive, so we never claim remote persistence.
+  if (screen === "appLanguage") {
+    return (
+      <LanguageSelectScreen
+        origin="profile_settings"
+        initial={appLanguagePreference}
+        onConfirm={(language) => {
+          setAppLanguagePreference(language);
+          setScreen("profileTab");
+        }}
+        onBack={() => setScreen("profileTab")}
+      />
+    );
   }
 
   if (screen === "birthDetails") {
