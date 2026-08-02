@@ -1,0 +1,23 @@
+{
+  "schema": "s2_t150_care_circle_native_capture_states_v1",
+  "captures": [
+    { "file": "S2-T145-01-caree-landing.png", "state": "caree_landing" },
+    { "file": "S2-T145-02-four-digit-code-ready.png", "state": "four_digit_code_ready" },
+    { "file": "S2-T145-03-copy-confirmation.png", "state": "copy_confirmation" },
+    { "file": "S2-T145-04-carer-code-entry.png", "state": "carer_code_entry" },
+    { "file": "S2-T145-05-pending-no-authority.png", "state": "pending_no_authority" },
+    { "file": "S2-T145-06-caree-decision.png", "state": "caree_decision" },
+    { "file": "S2-T145-07-active.png", "state": "active" },
+    { "file": "S2-T145-08-paused.png", "state": "paused" },
+    { "file": "S2-T145-09-resumed.png", "state": "resumed" },
+    { "file": "S2-T145-10-carer-self-remove.png", "state": "carer_self_remove" },
+    { "file": "S2-T145-11-cleanup.png", "state": "cleanup" },
+    { "file": "S2-T145-12-expired-code.png", "state": "expired_code" },
+    { "file": "S2-T145-13-generic-invalid-code.png", "state": "generic_invalid_code" }
+  ],
+  "accepted_logical_viewports": [
+    { "width": 388, "height": 786 },
+    { "width": 400, "height": 800 },
+    { "width": 393, "height": 852 }
+  ]
+}
