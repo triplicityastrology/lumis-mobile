@@ -1,0 +1,16 @@
+{
+  "schema": "s2_t147_care_circle_live_session_control_v1",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "default_mode": "zero_network_recovery_safe",
+  "four_digit_seal": "supabase/tests/s2-t146-care-circle-four-digit-parity-seal.json",
+  "remote_checkpoint": ".lumis-local/s2-t143-care-circle-0037-window.json",
+  "deployment_health_receipt": ".lumis-local/care-circle-founder-receipt.json",
+  "session_receipt": ".lumis-local/s2-t147-care-circle-live-session.json",
+  "session_stages": [
+    "accounts_ready",
+    "mobile_launched",
+    "evidence_complete",
+    "cleanup_complete",
+    "qa_key_revoked"
+  ]
+}
