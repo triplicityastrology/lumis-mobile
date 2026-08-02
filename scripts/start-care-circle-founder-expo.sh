@@ -5,12 +5,11 @@ set -euo pipefail
 EXPECTED_ROOT="/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work"
 EXPECTED_REF="bmqhwofmdgebpcihjlnb"
 EXPECTED_URL="https://bmqhwofmdgebpcihjlnb.supabase.co"
-EXPECTED_DEPLOYMENT_GATE="0032,0033,0034,care-circle"
-EXPECTED_HEALTH_GATE="passed"
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 MOBILE_DIR="$ROOT/apps/mobile"
 ENV_FILE="$MOBILE_DIR/.env"
 CONTROL_FILE="$ROOT/supabase/tests/s2-t43-care-circle-function-pat-control.json"
+RECEIPT_FILE="$ROOT/.lumis-local/care-circle-founder-receipt.json"
 PORT="${LUMIS_EXPO_PORT:-8081}"
 
 stop() { printf 'STOP_S2_T105_%s\n' "$1" >&2; exit 1; }
@@ -22,8 +21,7 @@ read_env() {
 [[ "$ROOT" == "$EXPECTED_ROOT" ]] || stop "WORKTREE_MISMATCH"
 [[ -f "$ENV_FILE" ]] || stop "MOBILE_ENV_MISSING"
 [[ -f "$CONTROL_FILE" ]] || stop "FUNCTION_CONTROL_MISSING"
-[[ "${S2_CARE_CIRCLE_DEPLOYMENT_GATE:-}" == "$EXPECTED_DEPLOYMENT_GATE" ]] || stop "DEPLOYMENT_NOT_READY"
-[[ "${S2_CARE_CIRCLE_HEALTH_GATE:-}" == "$EXPECTED_HEALTH_GATE" ]] || stop "FUNCTION_HEALTH_NOT_READY"
+[[ -f "$RECEIPT_FILE" ]] || stop "DEPLOYMENT_HEALTH_RECEIPT_MISSING"
 case "$PORT" in 8081|8082) ;; *) stop "PORT_INVALID" ;; esac
 command -v git >/dev/null 2>&1 || stop "GIT_UNAVAILABLE"
 command -v lsof >/dev/null 2>&1 || stop "LSOF_UNAVAILABLE"
@@ -61,9 +59,18 @@ if (!safe || /sb_secret_|service_role|sbp_/i.test(key)) process.exit(1);
 NODE
 unset PUBLIC_KEY
 
-FUNCTION_SHA="$(node -e 'const c=require(process.argv[1]); process.stdout.write(c.function_sha256)' "$CONTROL_FILE")"
+if ! RECEIPT_METADATA="$(cd "$ROOT" && node scripts/s2-care-circle-founder-receipt.mjs --validate "$RECEIPT_FILE" 2>/dev/null)"; then
+  stop "DEPLOYMENT_HEALTH_RECEIPT_INVALID"
+fi
+FUNCTION_SHA="$(awk -F= '$1 == "function_sha256" { print $2 }' <<< "$RECEIPT_METADATA")"
+FUNCTION_VERSION="$(awk -F= '$1 == "function_version" { print $2 }' <<< "$RECEIPT_METADATA")"
+DEPLOYMENT_STATUS="$(awk -F= '$1 == "deployment_status" { print $2 }' <<< "$RECEIPT_METADATA")"
+HEALTH_STATUS="$(awk -F= '$1 == "health_status" { print $2 }' <<< "$RECEIPT_METADATA")"
+unset RECEIPT_METADATA
 [[ "$FUNCTION_SHA" =~ ^[0-9a-f]{64}$ ]] || stop "FUNCTION_CONTROL_INVALID"
-[[ "${S2_CARE_CIRCLE_DEPLOYED_SHA256:-}" == "$FUNCTION_SHA" ]] || stop "DEPLOYED_CHECKSUM_NOT_READY"
+[[ "$FUNCTION_VERSION" =~ ^[1-9][0-9]*$ ]] || stop "FUNCTION_VERSION_INVALID"
+[[ "$DEPLOYMENT_STATUS" == "verified" ]] || stop "DEPLOYMENT_NOT_READY"
+[[ "$HEALTH_STATUS" == "passed" ]] || stop "FUNCTION_HEALTH_NOT_READY"
 LOCAL_FUNCTION_SHA="$(shasum -a 256 "$ROOT/supabase/functions/care-circle/index.ts" | awk '{print $1}')"
 [[ "$LOCAL_FUNCTION_SHA" == "$FUNCTION_SHA" ]] || stop "LOCAL_FUNCTION_CHECKSUM_MISMATCH"
 
