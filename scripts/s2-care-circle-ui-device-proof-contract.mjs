@@ -8,6 +8,8 @@ const rehearsal = read("apps/mobile/src/dev/CareCircleLocalRehearsal.tsx");
 const liveGate = read("apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingSessionGate.tsx");
 const live = read("apps/mobile/src/dev/FounderCareCircleWorkbench.tsx");
 const recovery = read("apps/mobile/test-workbenches/care-circle-staging/workbenchRecovery.ts");
+const deviceSafety = read("apps/mobile/test-workbenches/care-circle-staging/workbenchDeviceSafety.ts");
+const deviceFixtures = read("apps/mobile/test-workbenches/care-circle-staging/workbenchDeviceSafety.fixtures.ts");
 const manifest = JSON.parse(read("docs/qa/S2-T142-care-circle-device-state-manifest.json"));
 
 assert.match(product, /before 3d8c7a4/);
@@ -38,6 +40,18 @@ assert.match(liveGate, /Open staging Care Circle test controls/);
 assert.match(rehearsal, /position: "absolute"/);
 assert.match(liveGate, /position: "absolute"/);
 assert.equal((screen.match(/<ScrollView/g) ?? []).length, 1);
+assert.match(screen, /useWindowDimensions/);
+assert.match(screen, /Keyboard\.addListener\("keyboardDidShow"/);
+assert.match(screen, /resolveCareCircleProductLayout/);
+assert.match(screen, /returnKeyType="done"/);
+assert.match(deviceSafety, /width < 400 \|\| fontScale >= 1\.35/);
+assert.match(deviceSafety, /input\.keyboardVisible \|\| height < 720/);
+assert.match(deviceFixtures, /iphone_393x852/);
+assert.match(deviceFixtures, /iphone_430x932/);
+assert.match(deviceFixtures, /large_text/);
+assert.match(deviceFixtures, /keyboard_visible/);
+assert.match(deviceFixtures, /short_height/);
+assert.match(deviceFixtures, /productStates\.length, 13/);
 
 for (const productCopy of [
   "YOUR CHECK-INS (YOU ARE THE CAREE)",

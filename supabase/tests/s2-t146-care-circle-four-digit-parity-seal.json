@@ -16,7 +16,7 @@
     { "path": "supabase/functions/care-circle/care-circle.operations.fixtures.json", "sha256": "a982b56c5118b05d9ef3bdaf2e64a34451454ad3e38fad34f2b7963b0c5e4671" },
     { "path": "apps/mobile/src/services/inactiveCareCircleClient.ts", "sha256": "3acef4637ffe003b0aa5c94dc2ea6da444a5887bcdec6cc7a72d15d4563f66d9" },
     { "path": "apps/mobile/src/services/inactiveCareCircleClient.fixtures.ts", "sha256": "ba2f112fff4b40028d2223a6eaa3f852206e73d5b218ce87a347ffe89628019d" },
-    { "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "sha256": "1523b43fabf72288c69e51d11231d1d9d3435d5bd2b1c1f8a01fcdbca2364117" },
+    { "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "sha256": "2db0da0bc9a007c9adba461bad100552b66a256f5576905f85a71be060348cb2" },
     { "path": "apps/mobile/test-workbenches/care-circle-staging/workbenchRecovery.ts", "sha256": "437ba7209dfae3158d77e272f588162e1147b31fbd2c82f19879096bc8da4ad7" },
     { "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "c22e5cd778e71228ea4093125fd227e6a359242309cc1556c388647a84900690" },
     { "path": "scripts/run-s2-care-circle-function-health.zsh", "sha256": "7b67ee69c7c072b80c349e81b7c4ab12a9854a6f3fa519d0e70885bc90286646" },

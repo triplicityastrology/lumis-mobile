@@ -2,6 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import { useEffect, useRef, useState } from "react";
 import {
   BackHandler,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,6 +28,7 @@ import { colors, spacing } from "../../src/theme/tokens";
 import type { WorkbenchCapabilities } from "./stagingWorkbenchPort";
 import {
   createWorkbenchSingleFlight,
+  resolveCareCircleProductLayout,
   resolveWorkbenchBackAction,
   shouldStackWorkbenchActions,
 } from "./workbenchDeviceSafety";
@@ -95,7 +97,7 @@ export function CareCircleStagingWorkbench({
   onCodeCopied?: () => void;
   onBack: () => void;
 }) {
-  const { fontScale } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const actionFlight = useRef(createWorkbenchSingleFlight()).current;
   const role = capabilities.accountRole;
   const [busy, setBusy] = useState<string | null>(null);
@@ -114,6 +116,16 @@ export function CareCircleStagingWorkbench({
   const [retryInput, setRetryInput] = useState<SafeRetryInput | null>(null);
   const [retryRefresh, setRetryRefresh] = useState(false);
   const [productView, setProductView] = useState<"home" | "code" | "enter">("home");
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!pairingCodeExpiresAt) return;
@@ -151,7 +163,13 @@ export function CareCircleStagingWorkbench({
     projectionConfirmed,
     hadRelationship,
   });
-  const stackActions = shouldStackWorkbenchActions(fontScale);
+  const layout = resolveCareCircleProductLayout({
+    width,
+    height,
+    fontScale,
+    keyboardVisible,
+  });
+  const stackActions = shouldStackWorkbenchActions(fontScale) || layout.stackActions;
 
   useEffect(() => {
     onEvidenceState?.({
@@ -394,7 +412,10 @@ export function CareCircleStagingWorkbench({
         style={styles.safe}
       >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          layout.compactPadding && styles.contentCompact,
+        ]}
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
       >
@@ -468,6 +489,7 @@ export function CareCircleStagingWorkbench({
               placeholderTextColor={colors.muted}
               style={styles.productInput}
               textContentType="oneTimeCode"
+              returnKeyType="done"
               value={pairingCodeInput}
             />
             <Action disabled={disabled || pairingCodeInput.length !== 4} label={busy === "submit_pairing_code" ? "Submitting..." : "Send request"} onPress={() => void submitPairingCode()} />
@@ -542,7 +564,7 @@ function RelationshipRow({
           {relationshipStatusLabel(relationship.status)}
         </Text>
       </View>
-      <View style={styles.rowActions}>
+      <View style={[styles.rowActions, styles.rowActionsResponsive]}>
         {actions.map((action) => (
           <Pressable
             accessibilityLabel={`${action.label} ${relationship.otherDisplayName}`}
@@ -621,6 +643,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 48,
   },
+  contentCompact: { paddingHorizontal: 16, paddingTop: 14 },
   emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "#D9B76C", borderRadius: 50, height: 100, justifyContent: "center", marginBottom: 30, width: 100 },
   sectionLabel: { color: "#B8C9D8", fontSize: 12, fontWeight: "800", letterSpacing: 1.4, marginBottom: 12, marginTop: 14 },
   productCard: { backgroundColor: "rgba(28,69,96,0.94)", borderColor: "rgba(147,178,208,0.32)", borderRadius: 28, borderWidth: 1, gap: 14, marginBottom: 24, padding: 20 },
@@ -715,7 +738,7 @@ const styles = StyleSheet.create({
   },
   meta: { color: colors.muted, fontSize: 12, marginTop: 4 },
   errorText: { color: colors.warn, lineHeight: 19 },
-  actionRow: { flexDirection: "row", gap: 8 },
+  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   action: {
     minHeight: 44,
     alignItems: "center",
@@ -736,15 +759,17 @@ const styles = StyleSheet.create({
   relationship: {
     minHeight: 58,
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.lineSoft,
     paddingVertical: 8,
   },
-  relationshipCopy: { flex: 1 },
+  relationshipCopy: { flex: 1, minWidth: 180 },
   relationshipName: { color: colors.ice, fontWeight: "700" },
-  rowActions: { flexDirection: "row", gap: 6 },
+  rowActions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  rowActionsResponsive: { maxWidth: "100%" },
   smallAction: {
     minHeight: 40,
     justifyContent: "center",
