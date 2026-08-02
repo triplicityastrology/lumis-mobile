@@ -1,0 +1,27 @@
+{
+  "control": "S2-T143",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "default_mode": "inert_zero_network",
+  "predecessor_evidence": {
+    "path": "docs/qa/S2-T94-care-circle-staging-migration-execution-evidence.md",
+    "sha256": "e88174081e08ade92a0ec2b373c84a3037fc2d5f599fc12a8f654508a2cf0963"
+  },
+  "locked_files": [
+    { "name": "migration_0037", "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c" },
+    { "name": "rehearsal_packet", "path": "supabase/dashboard-packets/s2-t140/0037_four_digit_care_pairing_codes.rehearsal.sql", "sha256": "2cb116482a1a106e9243d6401d73abb0e29b6b8b5c0f84237ec13cf51118e39e" },
+    { "name": "apply_packet", "path": "supabase/dashboard-packets/s2-t140/0037_four_digit_care_pairing_codes.dashboard.sql", "sha256": "f35ea8b755f4e99923d9f597280c00d3bccfd3d0681a31d55ec793455f2f42f7" },
+    { "name": "pairing_secret_operator", "path": "scripts/run-s2-care-circle-pairing-secret-provision.zsh", "sha256": "9e237d6f41cb7cad49aa485fa2012c3087c4c08011b15135cdae73d5f4b024ec" },
+    { "name": "deployment_operator", "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "c9308cf43d8ca1d820cb69a6aa663606c9b260b08318a970d020492b897a5a1c" },
+    { "name": "health_operator", "path": "scripts/run-s2-care-circle-function-health.zsh", "sha256": "181f513f693f5a045c4728c81552fb998fb06ee897720fc1c3eaf2266f64dc4f" },
+    { "name": "edge_entry", "path": "supabase/functions/care-circle/index.ts", "sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2" },
+    { "name": "edge_boundary", "path": "supabase/functions/care-circle/operation-boundary.ts", "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8" }
+  ],
+  "stages": [
+    "rehearsal_accepted",
+    "migration_0037_recorded",
+    "pairing_secret_verified_and_pat_revoked",
+    "function_deployed_and_pat_revoked",
+    "health_passed",
+    "receipt_sealed"
+  ]
+}
