@@ -409,9 +409,9 @@ export function RestoringSpaceScreen({
           </View>
         </View>
         <View style={styles.authBody}>
-          <Text style={styles.eyebrow}>✦ PRIVATE BY DESIGN</Text>
+          <Text style={styles.eyebrow}>✦ RESTORED ACCOUNT FOUND</Text>
           <Text style={styles.h1}>Your Lumis account</Text>
-          <Text style={styles.body}>Your active chart and Past Reflections can be restored on this account.</Text>
+          <Text style={styles.body}>Your active chart and Past Reflections have been restored on this account.</Text>
 
           {chart ? (
             <View style={styles.authWheel}>
@@ -424,17 +424,20 @@ export function RestoringSpaceScreen({
             <View style={styles.authConfirmChip}>
               <Check color={colors.goodSolid} size={20} strokeWidth={3} />
             </View>
-            <Text style={styles.authConfirmText}>Chart and reflections found</Text>
+            <View style={styles.authConfirmCopy}>
+              <Text style={styles.authConfirmText}>Chart and reflections found</Text>
+              <Text style={styles.authConfirmSub}>Linked to your private account.</Text>
+            </View>
           </View>
 
           <View style={styles.authLockNote}>
             <Lock color={colors.accent} size={15} />
-            <Text style={styles.authLockText}>Your chart and conversations stay private to your account, reachable only through your secure sign-in.</Text>
+            <Text style={styles.authLockText}>Your birth chart and reflections stay linked to this account. Sign in from any device with the same email.</Text>
           </View>
 
           <View style={styles.authActions}>
             <PrimaryButton label="Continue to Lumis" onPress={onGoChat} />
-            {onLogout ? <SoftButton label="Log out" onPress={onLogout} /> : null}
+            {onLogout ? <LinkButton label="Log out" onPress={onLogout} /> : null}
           </View>
         </View>
       </AuthShell>
@@ -718,7 +721,9 @@ const styles = StyleSheet.create({
   authWheel: { alignItems: "center", justifyContent: "center", height: 130, width: 130, marginTop: 22, marginBottom: 6 },
   authConfirmCard: { alignItems: "center", alignSelf: "stretch", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 18, borderWidth: 1, flexDirection: "row", gap: 12, marginTop: 18, paddingHorizontal: 16, paddingVertical: 15 },
   authConfirmChip: { alignItems: "center", backgroundColor: "rgba(123,199,132,0.14)", borderRadius: 19, height: 38, justifyContent: "center", width: 38 },
-  authConfirmText: { color: colors.ice, flex: 1, fontSize: 14, fontWeight: "600" },
+  authConfirmCopy: { flex: 1, gap: 2 },
+  authConfirmText: { color: colors.ice, fontSize: 14, fontWeight: "600" },
+  authConfirmSub: { color: colors.muted, fontSize: 12.5, lineHeight: 17 },
   authLockNote: { alignItems: "flex-start", alignSelf: "stretch", backgroundColor: colors.surface3, borderColor: colors.lineSoft, borderRadius: 14, borderWidth: 1, flexDirection: "row", gap: 10, marginTop: 12, paddingHorizontal: 15, paddingVertical: 14 },
   authLockText: { color: colors.textSoft, flex: 1, fontSize: 12.5, lineHeight: 18.5 },
   authActions: { alignSelf: "stretch", gap: 0, marginTop: 22 },

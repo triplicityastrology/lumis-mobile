@@ -60,7 +60,18 @@ export function LumisBirthProfileScreen({
       return;
     }
     if (!isValidBirthDate(birthDate.trim(), new Date(), runtimeTimeZone())) {
-      setError("Please enter a real birth date as YYYY-MM-DD that is not in the future.");
+      // ONB-005: distinguish a date in the future from an impossible date.
+      const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate.trim());
+      const parsed = parts ? new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3])) : null;
+      const isRealDate =
+        parsed != null &&
+        parsed.getMonth() === Number(parts![2]) - 1 &&
+        parsed.getDate() === Number(parts![3]);
+      setError(
+        isRealDate && parsed!.getTime() > Date.now()
+          ? "Birth date can’t be in the future."
+          : "That date doesn’t look right — please check the day."
+      );
       return;
     }
     setError("");
@@ -69,7 +80,7 @@ export function LumisBirthProfileScreen({
 
   function continueFromTime() {
     if (!timeUnknown && !isValidBirthTime(birthTime.trim())) {
-      setError("Please enter birth time as HH:MM using 24-hour time, or choose unknown time.");
+      setError("That isn’t a valid time — hours 1–12, minutes 00–59.");
       return;
     }
     setError("");
@@ -86,7 +97,12 @@ export function LumisBirthProfileScreen({
     };
     const validation = validateBirthProfileForm(profile);
     if (!validation.isValid) {
-      setError(validation.message ?? "Please check your birth details.");
+      // ONB-005 place state: the birthplace is the field resolved on this step.
+      setError(
+        !profile.birthPlace
+          ? "We couldn’t find that place. Try a nearby town or city."
+          : validation.message ?? "We couldn’t find that place. Try a nearby town or city."
+      );
       return;
     }
     setError("");
@@ -107,7 +123,7 @@ export function LumisBirthProfileScreen({
       </View>
       {error ? (
         <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={flowStyles.error}>
-          <Text style={flowStyles.errorText}>{error}</Text>
+          <Text style={flowStyles.errorText}><Text style={{ fontWeight: "700" }}>Please check this. </Text>{error}</Text>
         </View>
       ) : null}
       <Pressable accessibilityRole="button" style={flowStyles.primaryButton} onPress={continueFromDate}>
@@ -145,7 +161,7 @@ export function LumisBirthProfileScreen({
       </View>
       {error ? (
         <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={flowStyles.error}>
-          <Text style={flowStyles.errorText}>{error}</Text>
+          <Text style={flowStyles.errorText}><Text style={{ fontWeight: "700" }}>Please check this. </Text>{error}</Text>
         </View>
       ) : null}
       <View style={flowStyles.note}>
@@ -210,7 +226,7 @@ export function LumisBirthProfileScreen({
       </View>
       {error ? (
         <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={flowStyles.error}>
-          <Text style={flowStyles.errorText}>{error}</Text>
+          <Text style={flowStyles.errorText}><Text style={{ fontWeight: "700" }}>Please check this. </Text>{error}</Text>
         </View>
       ) : null}
       <View style={flowStyles.note}>
