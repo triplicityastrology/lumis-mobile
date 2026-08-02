@@ -10,7 +10,7 @@ const launcher = readFileSync("scripts/start-persona-comparison-expo.sh", "utf8"
 assert.match(entry, /__DEV__\s*&&\s*process\.env\.EXPO_PUBLIC_PERSONA_COMPARISON_WORKBENCH === "1"/);
 assert.match(entry, /:\s*createElement\(App\)/);
 assert.match(app, /import PersonaComparisonWorkbench from "\.\/src\/dev\/PersonaComparisonWorkbench"/);
-assert.match(app, /__DEV__ && founderTestRoute === "persona"/);
+assert.match(app, /founderTestsAvailable && founderTestRoute === "persona"/);
 assert.doesNotMatch(app, /screen === "personaComparison"|setScreen\("personaComparison"\)/);
 assert.match(`${screen}\n${fixture}`, /Local evidence fixture only\. This is not a live AI response\./);
 assert.match(screen, /accessibilityRole="tab"/);

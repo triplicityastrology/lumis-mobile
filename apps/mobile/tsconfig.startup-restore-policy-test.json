@@ -9,5 +9,10 @@
     "rootDir": "src",
     "types": []
   },
-  "include": ["src/services/startupRestorePolicy.ts", "src/services/startupRestorePolicy.fixtures.ts"]
+  "include": [
+    "src/services/startupRestorePolicy.ts",
+    "src/services/startupRestorePolicy.fixtures.ts",
+    "src/services/founderTestVisibility.ts",
+    "src/services/founderTestVisibility.fixtures.ts"
+  ]
 }

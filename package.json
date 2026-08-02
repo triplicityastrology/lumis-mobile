@@ -168,7 +168,7 @@
     "test:birth-change-quota-refresh": "tsc -p apps/mobile/tsconfig.birth-change-quota-test.json && node .tmp/birth-change-quota-tests/apps/mobile/src/services/birthChangeQuota.fixtures.js && node scripts/birth-change-quota-refresh-contract.mjs",
     "staging:birth-change-quota-reset:dry-run": "node scripts/reset-staging-birth-change-quota.mjs --project-ref bmqhwofmdgebpcihjlnb",
     "test:auth-account-restore": "node scripts/auth-account-restore-contract.mjs && pnpm test:startup-restoration-race",
-    "test:startup-restoration-race": "tsc -p apps/mobile/tsconfig.startup-restore-policy-test.json && node .tmp/startup-restore-policy-tests/services/startupRestorePolicy.fixtures.js && node scripts/startup-restoration-race-contract.mjs",
+    "test:startup-restoration-race": "tsc -p apps/mobile/tsconfig.startup-restore-policy-test.json && node .tmp/startup-restore-policy-tests/services/startupRestorePolicy.fixtures.js && node .tmp/startup-restore-policy-tests/services/founderTestVisibility.fixtures.js && node scripts/startup-restoration-race-contract.mjs",
     "test:account-restoration-evidence": "node scripts/account-restoration-evidence-contract.mjs",
     "test:staging-auth-readiness": "node scripts/staging-auth-readiness-contract.mjs",
     "test:account-deletion-finalizer": "node scripts/account-deletion-finalizer-contract.mjs",

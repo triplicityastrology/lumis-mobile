@@ -60,6 +60,7 @@ import { deleteOwnedReflection } from "./src/services/reflections";
 import { applyConfirmedReflectionDeletion } from "./src/services/reflectionDeletionState";
 import { safeUserErrorMessage } from "./src/services/userFacingErrors";
 import { createAccountRestoreFreshnessGate } from "./src/services/accountRestoreFreshness";
+import { canShowFounderTests } from "./src/services/founderTestVisibility";
 import {
   STARTUP_RESTORE_MAX_RETRIES,
   shouldRetryStartupAccountError,
@@ -236,6 +237,20 @@ export default function App() {
         paddingRight: stableSafeAreaInsets.right
       }
     : null;
+  const founderTestsAvailable = canShowFounderTests({
+    accountLoadStatus,
+    hasChart: Boolean(chartProfile),
+    hasProfile: Boolean(profileData),
+    isDevelopment: __DEV__,
+    modalOpen: logoutDialogOpen,
+    screen,
+  });
+
+  useEffect(() => {
+    if (!founderTestsAvailable && founderTestRoute !== null) {
+      setFounderTestRoute(null);
+    }
+  }, [founderTestRoute, founderTestsAvailable]);
 
   function recordScreenViewportLayout(event: LayoutChangeEvent) {
     const { height, width } = event.nativeEvent.layout;
@@ -1176,7 +1191,7 @@ export default function App() {
         onCancel={() => setLogoutDialogOpen(false)}
         onConfirm={performAuthoritativeSignOut}
       />
-      {__DEV__ && founderTestRoute === "hub" ? (
+      {founderTestsAvailable && founderTestRoute === "hub" ? (
         <View style={styles.devOverlay}>
           <FounderTestHub
             onClose={() => setFounderTestRoute(null)}
@@ -1189,27 +1204,27 @@ export default function App() {
           />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === "reflectionDeletion" ? (
+      {founderTestsAvailable && founderTestRoute === "reflectionDeletion" ? (
         <View style={styles.devOverlay}>
           <FounderReflectionDeletionJourney onBack={() => setFounderTestRoute("hub")} />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === "profileTest" ? (
+      {founderTestsAvailable && founderTestRoute === "profileTest" ? (
         <View style={styles.devOverlay}>
           <FounderProfileTestPanel onBack={() => setFounderTestRoute("hub")} />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === "buildStatus" ? (
+      {founderTestsAvailable && founderTestRoute === "buildStatus" ? (
         <View style={styles.devOverlay}>
           <FounderBuildStatusPanel onBack={() => setFounderTestRoute("hub")} />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === "persona" ? (
+      {founderTestsAvailable && founderTestRoute === "persona" ? (
         <View style={styles.devOverlay}>
           <PersonaComparisonWorkbench onExit={() => setFounderTestRoute("hub")} />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === "quota" ? (
+      {founderTestsAvailable && founderTestRoute === "quota" ? (
         <View style={styles.devOverlay}>
           <QuotaVerificationPanel
             initialEvidence={currentQuotaEvidence()}
@@ -1218,14 +1233,14 @@ export default function App() {
           />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === "careCircle" ? (
+      {founderTestsAvailable && founderTestRoute === "careCircle" ? (
         <View style={styles.devOverlay}>
           <FounderCareCircleWorkbench
             onBack={() => setFounderTestRoute("hub")}
           />
         </View>
       ) : null}
-      {__DEV__ && founderTestRoute === null ? (
+      {founderTestsAvailable && founderTestRoute === null ? (
         <FounderTestHubEntry onPress={() => setFounderTestRoute("hub")} />
       ) : null}
     </View>

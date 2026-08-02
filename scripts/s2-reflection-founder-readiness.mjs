@@ -29,7 +29,7 @@ try {
   const app = readFileSync("apps/mobile/App.tsx", "utf8");
   const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
   const signed = readFileSync("apps/mobile/src/dev/FounderSignedInReflectionDeletionPanel.tsx", "utf8");
-  stopUnless(app.includes('__DEV__ && founderTestRoute === "reflectionDeletion"'), "DEV_ROUTE_MISSING");
+  stopUnless(app.includes('founderTestsAvailable && founderTestRoute === "reflectionDeletion"'), "DEV_ROUTE_MISSING");
   stopUnless(hub.includes("Past Reflections deletion"), "DEV_ROUTE_MISSING");
   stopUnless(signed.includes("REAL SIGNED-IN STAGING MODE"), "SIGNED_IN_ROUTE_NOT_GATED");
 

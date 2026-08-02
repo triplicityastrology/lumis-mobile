@@ -4,7 +4,7 @@ const app = readFileSync("apps/mobile/App.tsx", "utf8");
 const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
 const panel = readFileSync("apps/mobile/src/dev/FounderProfileTestPanel.tsx", "utf8");
 const boundary = readFileSync("apps/mobile/src/dev/profileFounderTestBoundary.ts", "utf8");
-assert.match(app, /__DEV__ && founderTestRoute === "profileTest"/);
+assert.match(app, /founderTestsAvailable && founderTestRoute === "profileTest"/);
 assert.match(hub, /Timed and no-time Profile test/);
 assert.match(panel, /loadSupabaseAccountState/);
 assert.match(panel, /signInWithPassword/);

@@ -6,7 +6,7 @@ const panel = readFileSync("apps/mobile/src/dev/QuotaVerificationPanel.tsx", "ut
 const evidence = readFileSync("apps/mobile/src/dev/quotaVerification.ts", "utf8");
 const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
 
-assert.match(app, /__DEV__ && founderTestRoute === "quota"/);
+assert.match(app, /founderTestsAvailable && founderTestRoute === "quota"/);
 assert.match(app, /loadSupabaseAccountState\(status\.user\.id\)/);
 assert.match(app, /accountState\.successfulBirthDetailChanges/);
 assert.match(app, /onReload=\{reloadQuotaEvidence\}/);

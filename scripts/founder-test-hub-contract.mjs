@@ -6,12 +6,10 @@ const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
 const comparison = readFileSync("apps/mobile/src/dev/PersonaComparisonWorkbench.tsx", "utf8");
 const careCircle = readFileSync("apps/mobile/src/dev/FounderCareCircleWorkbench.tsx", "utf8");
 
-assert.match(app, /__DEV__ && founderTestRoute === "hub"/);
-assert.match(app, /__DEV__ && founderTestRoute === "buildStatus"/);
-assert.match(app, /__DEV__ && founderTestRoute === "persona"/);
-assert.match(app, /__DEV__ && founderTestRoute === "careCircle"/);
-assert.match(app, /__DEV__ && founderTestRoute === "reflectionDeletion"/);
-assert.match(app, /__DEV__ && founderTestRoute === null/);
+for (const route of ["hub", "buildStatus", "persona", "careCircle", "reflectionDeletion"]) {
+  assert.match(app, new RegExp(`founderTestsAvailable && founderTestRoute === "${route}"`));
+}
+assert.match(app, /founderTestsAvailable && founderTestRoute === null/);
 assert.match(hub, /Local fixture, not live AI/);
 assert.match(hub, /Acceptance · Spark · Awareness/);
 assert.match(hub, /onOpenPersonaComparison/);

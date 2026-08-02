@@ -225,7 +225,7 @@ for (const releaseSource of [releaseEntry, releasePreview]) {
     /CareCircleStagingWorkbench|stagingWorkbenchBoundary|test-workbenches/
   );
 }
-assert.match(releaseApp, /__DEV__ && founderTestRoute === "careCircle"/);
+assert.match(releaseApp, /founderTestsAvailable && founderTestRoute === "careCircle"/);
 assert.match(releaseApp, /FounderCareCircleWorkbench/);
 assert.match(founderEntry, /CareCircleStagingSessionGate/);
 assert.match(founderEntry, /CareCircleStagingWorkbench/);

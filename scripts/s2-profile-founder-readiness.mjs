@@ -24,7 +24,7 @@ try {
   const app = readFileSync("apps/mobile/App.tsx", "utf8");
   const hub = readFileSync("apps/mobile/src/dev/FounderTestHub.tsx", "utf8");
   const panel = readFileSync("apps/mobile/src/dev/FounderProfileTestPanel.tsx", "utf8");
-  stopUnless(app.includes('__DEV__ && founderTestRoute === "profileTest"'), "FOUNDER_ROUTE_MISSING");
+  stopUnless(app.includes('founderTestsAvailable && founderTestRoute === "profileTest"'), "FOUNDER_ROUTE_MISSING");
   stopUnless(hub.includes("Timed and no-time Profile test"), "FOUNDER_ROUTE_MISSING");
   stopUnless(panel.includes("Real disposable staging accounts only"), "FOUNDER_ROUTE_NOT_LIVE_GATED");
   stopUnless(panel.includes("resolveProfileFounderTestBoundary"), "FOUNDER_ROUTE_NOT_LIVE_GATED");
