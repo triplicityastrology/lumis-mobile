@@ -1,0 +1,23 @@
+{
+  "control": "S2-T140",
+  "environment": "staging",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "inert_source_only_manual_authorization_required",
+  "history_table": "supabase_migrations.schema_migrations",
+  "history_shape_status": "confirmed_t82_text_shape",
+  "history_columns": [
+    { "name": "version", "data_type": "text", "udt_name": "text", "nullable": "NO", "ordinal": 1 },
+    { "name": "statements", "data_type": "ARRAY", "udt_name": "_text", "nullable": "YES", "ordinal": 2 },
+    { "name": "name", "data_type": "text", "udt_name": "text", "nullable": "YES", "ordinal": 3 }
+  ],
+  "migration": {
+    "version": "0037",
+    "history_name": "four_digit_care_pairing_codes",
+    "migration_path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql",
+    "source_sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c",
+    "care_circle_predecessor_version": "0034",
+    "care_circle_predecessor_name": "reusable_care_pairing_operations",
+    "packet_file": "0037_four_digit_care_pairing_codes.dashboard.sql",
+    "rehearsal_file": "0037_four_digit_care_pairing_codes.rehearsal.sql"
+  }
+}
