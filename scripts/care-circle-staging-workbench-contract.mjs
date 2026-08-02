@@ -231,6 +231,13 @@ assert.match(founderEntry, /CareCircleStagingWorkbench/);
 assert.match(founderEntry, /resolveFounderCareCircleEntryBoundary/);
 assert.match(founderEntry, /createInactiveCareCircleClient\(ports\.operationPort\)/);
 assert.match(founderEntry, /No staging operation was attempted/);
+assert.match(releasePreview, /export function CareCircleProductFrame/);
+assert.match(releasePreview, /export function CareCirclePairingCodeMark/);
+assert.match(releasePreview, /before 3d8c7a4/);
+assert.match(screen, /CareCircleProductFrame/);
+assert.match(screen, /CareCirclePairingCodeMark/);
+assert.match(screen, /title="Care Circle" onBack=\{onBack\}/);
+assert.doesNotMatch(releasePreview, /export function CareCirclePrototypeScreen/);
 
 const releaseTree = listSourceFiles("apps/mobile/src")
   .filter((path) => !path.startsWith("apps/mobile/src/dev/"))

@@ -1,7 +1,7 @@
 import { randomUUID } from "expo-crypto";
 import { registerRootComponent } from "expo";
 import { createElement } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { BackHandler, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaProvider,
   initialWindowMetrics,
@@ -31,6 +31,7 @@ function Root() {
           <CareCircleStagingWorkbench
             capabilities={capabilities}
             client={createInactiveCareCircleClient(ports.operationPort)}
+            onBack={BackHandler.exitApp}
             relationshipPort={ports.relationshipPort}
             requestIdFactory={randomUUID}
             onEvidenceState={journeyPort.onEvidenceState}

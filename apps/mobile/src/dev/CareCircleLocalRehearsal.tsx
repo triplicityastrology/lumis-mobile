@@ -8,7 +8,7 @@ import { advanceSinglePhoneJourney, createSinglePhoneJourney } from "../../test-
 import { createInactiveCareCircleClient } from "../services/inactiveCareCircleClient";
 import { colors, spacing } from "../theme/tokens";
 
-export function CareCircleLocalRehearsal() {
+export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
   const [harness, setHarness] = useState(createLocalCareCircleRehearsal);
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const [role, setRole] = useState<LocalRehearsalRole>("caree");
@@ -80,6 +80,7 @@ export function CareCircleLocalRehearsal() {
         }}
         client={client}
         mode="local_rehearsal"
+        onBack={onBack}
         onEvidenceState={(input) =>
           setJourney((current) => advanceSinglePhoneJourney(current, input))
         }

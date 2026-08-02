@@ -46,8 +46,11 @@ export function CareCirclePreviewScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-// Preserved prototype only. This is intentionally not exported: release
-// navigation may reach CareCirclePreviewScreen and nothing interactive.
+// Preserved prototype only.
+// Recovered from the pre-lock UI retained before 3d8c7a4. Its product
+// presentation primitives are shared with Founder Tests below, while this
+// mock-state prototype remains unexported and release navigation can still
+// reach CareCirclePreviewScreen only.
 function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => void; eligible?: boolean }) {
   const [view, setView] = useState<View_>({ v: "home" });
   const [carers, setCarers] = useState<Carer[]>([
@@ -93,7 +96,7 @@ function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => 
     return (
       <Shell title="My check-in code" onBack={() => setView({ v: "home" })}>
         <View style={s.qrCard}>
-          <QrPlaceholder />
+          <CareCirclePairingCodeMark />
           <Text style={s.qrName}>Ruby</Text>
           {/* DEV-ONLY: the fixed mock code is never shown in a release build so it
               can't read as a live, working code (Care Circle is Preview only). */}
@@ -282,16 +285,29 @@ function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => 
   );
 }
 
-function Shell({ title, onBack, emblem, children }: { title: string; onBack: () => void; emblem?: boolean; children: React.ReactNode }) {
+export function CareCircleProductFrame({
+  title,
+  onBack,
+  children,
+}: {
+  title: string;
+  onBack: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       <ScreenHeader title={title} onBack={onBack} />
-      {/* S1-C02-R1: Preview badge lives in the shared Shell so EVERY Care Circle
-          route (home, QR, scan, confirm, empty/gate) shows it — early-return
-          routes can't bypass it. Fixed under the header, always visible. */}
       <View style={s.previewRow}>
         <PreviewBadge label="Preview · not active yet" />
       </View>
+      {children}
+    </SafeAreaView>
+  );
+}
+
+function Shell({ title, onBack, emblem, children }: { title: string; onBack: () => void; emblem?: boolean; children: React.ReactNode }) {
+  return (
+    <CareCircleProductFrame title={title} onBack={onBack}>
       <ScrollView
         contentContainerStyle={s.content}
         contentInsetAdjustmentBehavior="never"
@@ -305,11 +321,11 @@ function Shell({ title, onBack, emblem, children }: { title: string; onBack: () 
         ) : null}
         {children}
       </ScrollView>
-    </SafeAreaView>
+    </CareCircleProductFrame>
   );
 }
 
-function QrPlaceholder() {
+export function CareCirclePairingCodeMark() {
   const cells = 9;
   const rng = (i: number, j: number) => (i * 3 + j * 7 + i * j) % 3 !== 0;
   return (

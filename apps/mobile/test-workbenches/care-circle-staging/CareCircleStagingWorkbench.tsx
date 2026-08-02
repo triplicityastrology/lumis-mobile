@@ -11,8 +11,10 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
+import {
+  CareCirclePairingCodeMark,
+  CareCircleProductFrame,
+} from "../../src/features/careCircle/CareCircleScreen";
 import type {
   CareCircleClientInput,
   CareCircleClientResult,
@@ -76,6 +78,7 @@ export function CareCircleStagingWorkbench({
   now = () => Date.now(),
   onEvidenceState,
   mode = "staging",
+  onBack,
 }: {
   capabilities: WorkbenchCapabilities;
   client: InactiveCareCircleClient;
@@ -88,6 +91,7 @@ export function CareCircleStagingWorkbench({
     confirmationSource: JourneyConfirmationSource;
   }) => void;
   mode?: "staging" | "local_rehearsal";
+  onBack: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
   const actionFlight = useRef(createWorkbenchSingleFlight()).current;
@@ -359,7 +363,7 @@ export function CareCircleStagingWorkbench({
   const disabled = busy !== null;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <CareCircleProductFrame title="Care Circle" onBack={onBack}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.safe}
@@ -374,11 +378,11 @@ export function CareCircleStagingWorkbench({
             ? "LOCAL REHEARSAL"
             : "STAGING TEST WORKBENCH"}
         </Text>
-        <Text style={styles.title}>Care Circle validation</Text>
+        <Text style={styles.title}>Your Care Circle</Text>
         <Text style={styles.warning}>
           {mode === "local_rehearsal"
-            ? "Synthetic local states only. This is not live backend evidence."
-            : "Disposable staging accounts only. This is not a release feature."}
+            ? "Local rehearsal — not live backend. Synthetic states only."
+            : "Founder staging test with disposable accounts only."}
         </Text>
 
         <View
@@ -468,6 +472,7 @@ export function CareCircleStagingWorkbench({
               </Text>
               {pairingCode && !codeIsExpired ? (
                 <View style={styles.codeArea}>
+                  <CareCirclePairingCodeMark />
                   <Text style={styles.codeLabel}>STAGING PAIRING CODE</Text>
                   <Text selectable style={styles.codeValue}>
                     {pairingCode}
@@ -656,7 +661,7 @@ export function CareCircleStagingWorkbench({
         )}
       </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </CareCircleProductFrame>
   );
 }
 
@@ -828,15 +833,17 @@ const styles = StyleSheet.create({
   noticeError: { borderLeftColor: colors.warn },
   noticeText: { color: colors.textSoft, lineHeight: 19 },
   section: {
+    backgroundColor: "rgba(58,80,118,0.42)",
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
     marginTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    paddingTop: 18,
+    padding: 16,
     gap: 12,
   },
   sectionTitle: { color: colors.ice, fontSize: 18, fontWeight: "700" },
   body: { color: colors.textSoft, fontSize: 13, lineHeight: 19 },
-  codeArea: { paddingVertical: 12 },
+  codeArea: { alignItems: "center", gap: 6, paddingVertical: 12 },
   codeLabel: {
     color: colors.muted,
     fontSize: 10,

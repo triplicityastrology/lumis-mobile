@@ -17,16 +17,7 @@ import { CareCircleLocalRehearsal } from "./CareCircleLocalRehearsal";
 export function FounderCareCircleWorkbench({ onBack }: { onBack: () => void }) {
   const [localRehearsal, setLocalRehearsal] = useState(false);
   if (localRehearsal) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <Header
-          onBack={() => setLocalRehearsal(false)}
-          subtitle="Synthetic states only"
-          title="Care Circle rehearsal"
-        />
-        <CareCircleLocalRehearsal />
-      </SafeAreaView>
-    );
+    return <CareCircleLocalRehearsal onBack={() => setLocalRehearsal(false)} />;
   }
 
   const boundary = resolveFounderCareCircleEntryBoundary({
@@ -60,22 +51,18 @@ export function FounderCareCircleWorkbench({ onBack }: { onBack: () => void }) {
   }
   const ports = createStagingWorkbenchPorts(supabase);
   return (
-    <SafeAreaView style={styles.safe}>
-      <Header onBack={onBack} />
-      <View style={styles.workbench}>
-        <CareCircleStagingSessionGate sessionPort={ports.sessionPort}>
-          {(capabilities, journeyPort) => (
-            <CareCircleStagingWorkbench
-              capabilities={capabilities}
-              client={createInactiveCareCircleClient(ports.operationPort)}
-              onEvidenceState={journeyPort.onEvidenceState}
-              relationshipPort={ports.relationshipPort}
-              requestIdFactory={randomUUID}
-            />
-          )}
-        </CareCircleStagingSessionGate>
-      </View>
-    </SafeAreaView>
+    <CareCircleStagingSessionGate sessionPort={ports.sessionPort}>
+      {(capabilities, journeyPort) => (
+        <CareCircleStagingWorkbench
+          capabilities={capabilities}
+          client={createInactiveCareCircleClient(ports.operationPort)}
+          onBack={onBack}
+          onEvidenceState={journeyPort.onEvidenceState}
+          relationshipPort={ports.relationshipPort}
+          requestIdFactory={randomUUID}
+        />
+      )}
+    </CareCircleStagingSessionGate>
   );
 }
 
@@ -177,7 +164,6 @@ const styles = StyleSheet.create({
   title: { color: colors.ice, fontSize: 17, fontWeight: "800" },
   subtitle: { color: colors.muted, fontSize: 11, marginTop: 2 },
   headerSpacer: { width: 44 },
-  workbench: { flex: 1 },
   blocked: {
     alignItems: "center",
     flex: 1,
