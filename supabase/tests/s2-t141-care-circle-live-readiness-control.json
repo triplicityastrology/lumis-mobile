@@ -1,0 +1,21 @@
+{
+  "control": "S2-T141",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "zero_network_read_only",
+  "locked_sources": [
+    { "name": "migration_0037", "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c" },
+    { "name": "edge_entry", "path": "supabase/functions/care-circle/index.ts", "sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2" },
+    { "name": "edge_boundary", "path": "supabase/functions/care-circle/operation-boundary.ts", "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8" },
+    { "name": "recovered_product_ui", "path": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx", "sha256": "7a111647ecdbb13e9dbf825262d65de10eb238a4ebdf249ccf70b4a1a3879f8b" },
+    { "name": "guided_workbench", "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "sha256": "3f72d6f08a39e4d26b08aa1628c2c3f9772566c972f8aaf46b67bcc06056075a" }
+  ],
+  "required_custom_secret_names": ["CARE_CIRCLE_PAIRING_SECRET"],
+  "required_remote_migration_versions": ["0032", "0033", "0034", "0037"],
+  "required_operator_scripts": [
+    "care-circle:deploy-inactive",
+    "care-circle:function-health",
+    "care-circle:bootstrap-two-account",
+    "start:care-circle-founder",
+    "founder-test:cleanup"
+  ]
+}

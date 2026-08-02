@@ -1,45 +1,41 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { resolveCareCircleFounderReadiness } from "./lib/care-circle-founder-readiness.mjs";
 
-const MIGRATION_EVIDENCE = "docs/qa/S2-T94-care-circle-staging-migration-execution-evidence.md";
-const DEPLOYMENT_EVIDENCE = "docs/qa/S2-T95-care-circle-function-deployment-attempt.md";
+const CONTROL = "supabase/tests/s2-t141-care-circle-live-readiness-control.json";
+const MIGRATION_NOTE = "docs/qa/S2-T140-care-circle-0037-dashboard-readiness.md";
 
 try {
-  if (process.argv.length !== 2) throw new Error("STOP_S2_T123_ARGUMENTS_INVALID");
-  const migrationEvidence = readFileSync(MIGRATION_EVIDENCE, "utf8");
-  const deploymentEvidence = readFileSync(DEPLOYMENT_EVIDENCE, "utf8");
+  if (process.argv.length !== 2) stop("ARGUMENTS_INVALID");
+  const control = JSON.parse(readFileSync(CONTROL, "utf8"));
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+  if (control.project_ref !== "bmqhwofmdgebpcihjlnb") stop("PROJECT_CONTROL_INVALID");
+  if (control.execution_default !== "zero_network_read_only") stop("MODE_INVALID");
+  if (JSON.stringify(control.required_remote_migration_versions) !== JSON.stringify(["0032", "0033", "0034", "0037"])) stop("MIGRATION_CHAIN_INVALID");
+  if (JSON.stringify(control.required_custom_secret_names) !== JSON.stringify(["CARE_CIRCLE_PAIRING_SECRET"])) stop("SECRET_SCOPE_INVALID");
 
-  const migrationsRecorded =
-    /Execution order: `0032` -> `0033` -> `0034`/.test(migrationEvidence)
-    && /Transaction results: passed, passed, passed/.test(migrationEvidence)
-    && /Final parity row count: 3/.test(migrationEvidence)
-    && /Unexpected versions in the controlled query: 0/.test(migrationEvidence);
-  const functionVerified =
-    /Deployment attempted: yes/.test(deploymentEvidence)
-    && /Function deployment verified: yes/.test(deploymentEvidence);
-  const functionNotRecorded =
-    /Fresh temporary PAT available: no/.test(deploymentEvidence)
-    && /Deployment attempted: no/.test(deploymentEvidence);
-  if (!functionVerified && !functionNotRecorded) {
-    throw new Error("STOP_S2_T123_DEPLOYMENT_EVIDENCE_AMBIGUOUS");
+  for (const entry of control.locked_sources) {
+    const actual = createHash("sha256").update(readFileSync(entry.path)).digest("hex");
+    if (actual !== entry.sha256) stop("SOURCE_DRIFT");
   }
-
-  const requiredScripts = [
-    "care-circle:function-health",
-    "care-circle:bootstrap-two-account",
-    "start:care-circle-founder",
+  if (control.required_operator_scripts.some((name) => typeof packageJson.scripts?.[name] !== "string")) stop("OPERATOR_MISSING");
+  for (const required of [
     "care-circle:founder-session",
-    "founder-test:cleanup",
-  ];
-  if (requiredScripts.some((name) => typeof packageJson.scripts?.[name] !== "string")) {
-    throw new Error("STOP_S2_T123_OPERATOR_MISSING");
+    "test:s2-care-circle-function-health",
+    "test:s2-care-circle-two-account-operator",
+  ]) {
+    if (typeof packageJson.scripts?.[required] !== "string") stop("EVIDENCE_BOUNDARY_MISSING");
   }
+
+  const migrationNote = readFileSync(MIGRATION_NOTE, "utf8");
+  const migrationRecorded = /0037 parity recorded: yes/u.test(migrationNote);
+  if (!migrationRecorded && !/Status: source-only, inert, unrun/u.test(migrationNote)) stop("MIGRATION_EVIDENCE_AMBIGUOUS");
 
   const result = resolveCareCircleFounderReadiness({
-    migrationsParity: migrationsRecorded ? "recorded" : "not_recorded",
-    functionDeployment: functionVerified ? "verified" : "not_recorded",
+    migration0037Parity: migrationRecorded ? "recorded" : "not_recorded",
+    customSecret: "not_recorded",
+    functionDeployment: "not_recorded",
     functionHealth: "not_run",
     bootstrap: "source_ready",
     launcher: "source_ready",
@@ -47,22 +43,26 @@ try {
   });
 
   process.stdout.write([
-    "S2_T123_CARE_CIRCLE_FOUNDER_READINESS",
-    `migrations_parity=${result.migrationsParity}`,
+    "S2_T141_CARE_CIRCLE_LIVE_READINESS",
+    `migration_0037=${result.migration0037Parity}`,
+    `custom_pairing_secret=${result.customSecret}`,
     `function_deployment=${result.functionDeployment}`,
-    "function_marker=expected_source_locked",
     `function_health=${result.functionHealth}`,
     `two_account_bootstrap=${result.bootstrap}`,
-    `normal_expo_launcher=${result.launcher}`,
+    `recovered_product_route=${result.launcher}`,
     `evidence_cleanup=${result.evidenceCleanup}`,
+    "local_rehearsal=available_non_live",
     `next_safe_action=${result.nextAction}`,
     "network_calls=0 credentials_requested=0 live_success_inferred=0",
   ].join("\n") + "\n");
 } catch (error) {
-  const code =
-    error instanceof Error && /^STOP_S2_T123_[A-Z0-9_]+$/.test(error.message)
-      ? error.message
-      : "STOP_S2_T123_UNKNOWN";
+  const code = error instanceof Error && /^STOP_S2_T141_[A-Z0-9_]+$/u.test(error.message)
+    ? error.message
+    : "STOP_S2_T141_UNKNOWN";
   process.stderr.write(`${code}\n`);
   process.exitCode = 1;
+}
+
+function stop(reason) {
+  throw new Error(`STOP_S2_T141_${reason}`);
 }
