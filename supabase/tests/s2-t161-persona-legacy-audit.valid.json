@@ -1,0 +1,32 @@
+{
+  "schema": "s2_t161_persona_legacy_selection_audit_v1",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "project_classification": "staging_test_only",
+  "authority": "business_systems_v1.1_reconciliation_v0.2_and_s2_t159",
+  "packet_sha256": "93afa88fd4997fbb96c45303e23b4d42a3b94bcdf8f020042dfb3cb75c863593",
+  "transaction_mode": "read_only_rolled_back",
+  "boundaries": [
+    {
+      "boundary_name": "chat_message_request_snapshots",
+      "stable_code_records": 0,
+      "accepted_legacy_alias_records": 0,
+      "unknown_label_only_records": 0,
+      "null_empty_records": 0
+    },
+    {
+      "boundary_name": "chat_threads",
+      "stable_code_records": 0,
+      "accepted_legacy_alias_records": 0,
+      "unknown_label_only_records": 0,
+      "null_empty_records": 0
+    },
+    {
+      "boundary_name": "users",
+      "stable_code_records": 0,
+      "accepted_legacy_alias_records": 0,
+      "unknown_label_only_records": 0,
+      "null_empty_records": 0
+    }
+  ],
+  "migration_authorized": false
+}
