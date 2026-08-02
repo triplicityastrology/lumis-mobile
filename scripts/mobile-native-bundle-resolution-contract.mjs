@@ -20,7 +20,7 @@ assert.deepEqual(invalid.unresolved, [missingSpecifier]);
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 assert.equal(
   packageJson.scripts["test:mobile-native-bundle-contract"],
-  "node scripts/mobile-native-bundle-resolution-contract.mjs && node scripts/founder-mobile-readiness-doctor-contract.mjs"
+  "node scripts/mobile-native-bundle-resolution-contract.mjs && node scripts/founder-mobile-readiness-doctor-contract.mjs && pnpm test:s2-profile-founder-readiness && pnpm test:s2-reflection-founder-readiness"
 );
 assert.match(packageJson.scripts["test:all-local"], /test:mobile-native-bundle-contract/);
 assert.equal(packageJson.scripts["verify:mobile-native-bundle"], "zsh scripts/run-mobile-native-bundle-smoke.zsh");
