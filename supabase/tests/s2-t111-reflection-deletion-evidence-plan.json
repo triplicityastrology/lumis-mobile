@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "required_migration": "0036",
+  "accounts": ["owner", "cross_owner"],
+  "checks": [
+    "tagged_target_and_unrelated_fixtures_created",
+    "cross_owner_delete_denied",
+    "anonymous_delete_denied",
+    "owner_delete_confirmed",
+    "target_messages_cascade_confirmed",
+    "unrelated_owner_and_cross_owner_fixtures_preserved",
+    "same_request_replay_idempotent",
+    "conflicting_request_identity_denied",
+    "run_scoped_accounts_and_rows_cleanup_zero"
+  ],
+  "retained_evidence": ["redacted_run_id", "check_names", "aggregate_counts"],
+  "prohibited_evidence": ["email", "user_id", "thread_id", "message_content", "token", "secret", "url", "row_payload"],
+  "execution_default": "local_validation_only"
+}

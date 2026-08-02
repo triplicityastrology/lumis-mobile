@@ -1,0 +1,28 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { discoverReflectionEvidenceUsers, expectedReflectionEvidenceEmail, validateReflectionEvidencePair, validateReflectionEvidenceSetup } from "./lib/reflection-deletion-evidence-operator.mjs";
+
+const runId = "s2t111-20260801t120000z-abcdef12";
+const valid = { runId, projectRef: "bmqhwofmdgebpcihjlnb", ownerEmail: expectedReflectionEvidenceEmail(runId, "owner"), crossOwnerEmail: expectedReflectionEvidenceEmail(runId, "cross_owner"), ownerPassword: "owner-password-123456!", crossOwnerPassword: "cross-password-123456!" };
+assert.doesNotThrow(() => validateReflectionEvidenceSetup(valid));
+assert.throws(() => validateReflectionEvidenceSetup({ ...valid, ownerEmail: "real@example.com" }), /STOP_S2_T111_/);
+const users = Array.from({ length: 1_205 }, (_, index) => ({ id: `u-${index}`, user_metadata: {} }));
+users[1100] = { id: "owner", user_metadata: { s2_evidence_suite: "s2t111", s2_evidence_run_id: runId, s2_evidence_role: "owner" } };
+users[1204] = { id: "cross", user_metadata: { s2_evidence_suite: "s2t111", s2_evidence_run_id: runId, s2_evidence_role: "cross_owner" } };
+const found = await discoverReflectionEvidenceUsers(async (page, size) => ({ users: users.slice((page - 1) * size, page * size), total: users.length, lastPage: Math.ceil(users.length / size) }), runId);
+assert.equal(validateReflectionEvidencePair(found).length, 2);
+const plan = JSON.parse(readFileSync("supabase/tests/s2-t111-reflection-deletion-evidence-plan.json", "utf8"));
+assert.equal(plan.required_migration, "0036");
+assert.equal(plan.checks.length, 9);
+const runner = readFileSync("scripts/s2-reflection-deletion-evidence.mjs", "utf8");
+const wrapper = readFileSync("scripts/run-s2-reflection-deletion-evidence.zsh", "utf8");
+for (const proof of ["crossAttempt", "anonymous", 'first.data !== "deleted"', "chat_messages", 'replay.data !== "already_deleted"', "conflict.error", "removeUsers"]) assert.ok(runner.includes(proof));
+assert.doesNotMatch(runner, /console\.|error\.message|stack|JSON\.stringify\(error/);
+assert.match(wrapper, /stty -echo/);
+assert.match(wrapper, /trap cleanup EXIT HUP INT TERM/);
+const preflight = spawnSync("zsh", ["scripts/run-s2-reflection-deletion-evidence.zsh"], { encoding: "utf8" });
+assert.equal(preflight.status, 0, preflight.stderr);
+assert.match(preflight.stdout, /READY_FOR_0036_TEST_KEY/);
+assert.match(preflight.stdout, /network_calls=0 credentials_requested=0 fixtures_created=0/);
+console.log("S2-T111 reflection deletion evidence harness contracts passed; no fixture was created.");

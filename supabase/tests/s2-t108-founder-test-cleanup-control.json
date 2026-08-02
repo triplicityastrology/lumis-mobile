@@ -1,0 +1,34 @@
+{
+  "control": "S2-T108",
+  "environment": "staging",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "local_validation_only",
+  "credential_transport": "hidden_transient_sb_secret_only",
+  "supported_scopes": [
+    {
+      "scope": "exact_s2t75_run_accounts",
+      "authority": "auth_user_metadata_exact_run_pair",
+      "cleanup": "delete_exact_two_disposable_users_and_owner_cascades"
+    },
+    {
+      "scope": "account_owned_care_circle_rows",
+      "authority": "exact_run_user_ids",
+      "cleanup": "owner_cascade_and_zero_count_verification"
+    },
+    {
+      "scope": "account_owned_test_reflections_and_charts",
+      "authority": "exact_run_user_ids",
+      "cleanup": "owner_cascade_and_zero_count_verification"
+    }
+  ],
+  "unsupported_scopes": [
+    {
+      "scope": "standalone_staging_reflections_or_charts",
+      "reason": "no_approved_run_tag_or_cleanup_rpc"
+    },
+    {
+      "scope": "device_local_demo_artifacts",
+      "reason": "terminal_operator_has_no_device_local_storage_authority"
+    }
+  ]
+}

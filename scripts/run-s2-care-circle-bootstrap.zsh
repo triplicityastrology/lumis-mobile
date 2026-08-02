@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-readonly ROOT="/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work"
+readonly ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 readonly PROJECT_REF="bmqhwofmdgebpcihjlnb"
 ACTION="preflight"
 RUN_ID=""

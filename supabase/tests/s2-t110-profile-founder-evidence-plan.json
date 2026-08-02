@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "accounts": ["timed", "no_time"],
+  "checks": [
+    "timed_onboarding_real_supabase_profile",
+    "timed_summary_includes_houses_asc_mc",
+    "timed_cold_restore_same_active_version",
+    "timed_prof2_creates_new_active_and_preserves_history",
+    "no_time_onboarding_real_supabase_profile",
+    "no_time_summary_omits_houses_asc_mc_and_structural_moon",
+    "no_time_cold_restore_same_active_version",
+    "no_time_prof2_preserves_no_time_suppression_and_history",
+    "owner_reads_and_cross_user_denial",
+    "exact_two_account_cleanup_zero"
+  ],
+  "prohibited_evidence": [
+    "email", "user_id", "birth_data", "coordinates", "chart_json",
+    "provider_payload", "token", "secret", "request_url"
+  ],
+  "execution_default": "local_validation_only"
+}

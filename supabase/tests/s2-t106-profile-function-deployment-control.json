@@ -1,0 +1,32 @@
+{
+  "control": "S2-T106",
+  "environment": "staging",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "local_validation_only",
+  "supabase_cli_version": "2.109.1",
+  "function_name": "profile",
+  "function_path": "supabase/functions/profile/index.ts",
+  "function_sha256": "cbb5ef5452e64bb1f21d908052de2540fddc1db8e42cead8964104c927f725fe",
+  "minimum_safe_function_commit": "98084660ed2320894674495080acff8a8c6a4c88",
+  "required_configuration_names": [
+    "CHART_WORKER_SIGNING_SECRET",
+    "CHART_WORKER_URL",
+    "LUMIS_ENV",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_URL"
+  ],
+  "supporting_files": [
+    { "path": "packages/astrology/src/chart-worker-contract.ts", "sha256": "baa002fde6dce82462146f9613e0a4fd2e7067d51b865c3bb042766a0252fe2d" },
+    { "path": "packages/astrology/src/chart-worker-config.ts", "sha256": "f64707451bf0f3f38492e3c3bdf85daa9f029cb8033600c6d5b2badfed07e771" },
+    { "path": "packages/astrology/src/chart-sanitizer.ts", "sha256": "2f04846df6c50a61a4abca1e573480d5fba5336f95b7877a6efc1722d8452e03" },
+    { "path": "packages/astrology/src/natal-chart-lifecycle.ts", "sha256": "b4b344151dce1fe1c2571bfda92786ad1d32f76de626a34e27256b9bfd9e6f4b" },
+    { "path": "packages/astrology/src/profile-preflight.ts", "sha256": "af6e5e0f18207400e8fffae93e081b88392f8a3bcc094cbfc278610f619e31ce" },
+    { "path": "packages/shared/src/types/chart.ts", "sha256": "186b766cd2a93219a05ee4159f3524e1ccd56fc652f3ccd4731ea947e230c6ab" },
+    { "path": "packages/shared/src/config/birth-date.ts", "sha256": "47ee7a16d895665bf13a640ad1cece55b852e99f5ff512b647041bec267ce301" },
+    { "path": "supabase/functions/_shared/cors.ts", "sha256": "e4ea6680fbb157a84a060c26f31b5795f9fbea00d239cbf78a2a3596bf7ef3f9" }
+  ],
+  "recovery_mode": "redeploy_same_reviewed_live_worker_package_only",
+  "token_transport": "transient_environment_only",
+  "revoke_after_operation": true
+}

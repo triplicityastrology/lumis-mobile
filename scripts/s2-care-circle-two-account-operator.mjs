@@ -75,6 +75,11 @@ async function cleanup(client) {
     ["care_operation_requests", ["user_id"]],
     ["care_check_settings", ["user_id"]],
     ["care_checkin_rounds", ["caree_user_id"]],
+    ["chat_threads", ["user_id"]],
+    ["chat_messages", ["user_id"]],
+    ["ai_profiles", ["user_id"]],
+    ["birth_data", ["user_id"]],
+    ["birth_data_history", ["user_id"]],
     ["account_entitlements", ["user_id"]],
     ["users", ["id"]]
   ]) {

@@ -1,0 +1,23 @@
+{
+  "control": "S2-T107",
+  "environment": "staging",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "execution_default": "inert_source_only_manual_authorization_required",
+  "history_table": "supabase_migrations.schema_migrations",
+  "history_shape_status": "confirmed_t82_text_shape",
+  "history_columns": [
+    { "name": "version", "data_type": "text", "udt_name": "text", "nullable": "NO", "ordinal": 1 },
+    { "name": "statements", "data_type": "ARRAY", "udt_name": "_text", "nullable": "YES", "ordinal": 2 },
+    { "name": "name", "data_type": "text", "udt_name": "text", "nullable": "YES", "ordinal": 3 }
+  ],
+  "migration": {
+    "version": "0036",
+    "history_name": "owner_safe_reflection_deletion",
+    "migration_path": "supabase/migrations/0036_owner_safe_reflection_deletion.sql",
+    "source_sha256": "889a8177e2051af3745a2d3850b8e932011f3605cd933f1c1bce46a4629af1bf",
+    "required_remote_predecessor_version": "0035",
+    "required_remote_predecessor_name": "app_language_preference",
+    "packet_file": "0036_owner_safe_reflection_deletion.dashboard.sql",
+    "rehearsal_file": "0036_owner_safe_reflection_deletion.rehearsal.sql"
+  }
+}

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-ROOT="/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work"
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 PROJECT_REF="bmqhwofmdgebpcihjlnb"
 ACTION="${1:-preflight}"
 RUN_ID="${2:-}"
