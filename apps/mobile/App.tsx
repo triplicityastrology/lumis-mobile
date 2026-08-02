@@ -89,6 +89,8 @@ import { DiceRitualScreen } from "./src/features/dice/DiceRitualScreen";
 import { NotificationCenterScreen } from "./src/features/notifications/NotificationCenterScreen";
 import { CareCirclePreviewScreen } from "./src/features/careCircle/CareCircleScreen";
 import { BirthDetailsChangeScreen } from "./src/features/birthDetails/BirthDetailsChangeScreen";
+import { useFonts } from "expo-font";
+import { FONT_ASSETS } from "./src/theme/typography";
 import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
@@ -179,6 +181,12 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 
 export default function App() {
   const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart">("splash");
+  // Codex typography: load the bundled Newsreader / Hanken Grotesk / Noto Serif TC
+  // weights. The branded splash stays visible until they resolve; on a genuine
+  // font-load error we proceed with the system serif/sans fallback rather than
+  // trapping the user on the splash.
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
+  const fontsReady = fontsLoaded || Boolean(fontError);
   const stableSafeAreaInsets = useSafeAreaInsets();
   const [restoreResult, setRestoreResult] = useState<"loading" | "foundChart" | "noChart" | "failed">("loading");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -743,6 +751,11 @@ export default function App() {
   // the app root (below), so navigating never remounts the heavy CelestialBackground
   // SVG — this is what removes the transition "kick". Screen logic is unchanged.
   const renderScreen = () => {
+  // Hold the branded splash until the bundled fonts finish loading (or fail).
+  // No `onDone` advance while gating — the real splash below runs once ready.
+  if (!fontsReady) {
+    return <LumisSplashScreen onDone={() => {}} />;
+  }
   if (screen === "splash") {
     return <LumisSplashScreen onDone={() => setScreen(pendingAfterSplashRef.current ?? "home")} />;
   }
