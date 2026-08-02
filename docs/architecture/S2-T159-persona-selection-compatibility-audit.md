@@ -4,13 +4,13 @@ Status: inactive source/schema discovery only. No migration, data rewrite, UI re
 
 ## Canonical compatibility map
 
-| Public selection | Persisted legacy key | Stable backend role code |
-| --- | --- | --- |
-| Acceptance | `acceptance` | `empathetic_peer` |
-| Spark | `spark` | `harmonious_catalyst` |
-| Awareness | `awareness` | `saturnian_anchor` |
+| Current label | Historical label | Persisted legacy key | Stable backend role code |
+| --- | --- | --- | --- |
+| Ordinary Person | Acceptance | `acceptance` | `empathetic_peer` |
+| Friend | Spark | `spark` | `harmonious_catalyst` |
+| Mentor | Awareness | `awareness` | `saturnian_anchor` |
 
-Public names remain Acceptance, Spark, and Awareness. Existing rows and historical request snapshots keep their legacy keys. New behavior calculation and prompt assembly use the stable backend role code.
+Current labels resolve to stable role codes at the compatibility boundary. Existing Acceptance, Spark, and Awareness evidence, rows, and historical request snapshots remain unchanged and keep their legacy keys. New behavior calculation and prompt assembly use the stable backend role code.
 
 ## Boundary inventory
 
@@ -42,4 +42,3 @@ No migration is required now. The existing schema deliberately stores a three-va
 - Profile and Chat Edge Function request/mapping boundaries under `supabase/functions`.
 - Every migration containing `persona_style`: `0002`, `0006`, `0008`, `0009`, `0011`, `0017`, `0020`, and `0022`.
 - Repository event/analytics searches for Persona-bearing tracking or event payloads.
-

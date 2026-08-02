@@ -9,6 +9,26 @@ const confirmedMoon = { status: "available", proof: "confirmed_birth_time", sign
 const endpointMoon = { status: "available", proof: "local_day_single_sign", sign: 4, localDayStartSign: 4, localDayEndSign: 4 } as const;
 const unconfirmedMoon = { status: "unconfirmed" } as const;
 
+for (const [currentLabel, stableRoleCode] of [
+  ["Ordinary Person", "empathetic_peer"],
+  ["Friend", "harmonious_catalyst"],
+  ["Mentor", "saturnian_anchor"],
+] as const) {
+  const result = calculatePersonaProfile({ roleCode: currentLabel, sunSign: 2, moon: confirmedMoon, mercurySign: 12 });
+  assert.equal(result.ok, true, `${currentLabel} resolves`);
+  if (result.ok) assert.equal(result.roleCode, stableRoleCode, `${currentLabel} uses stable role code`);
+}
+
+for (const [historicalLabel, stableRoleCode] of [
+  ["Acceptance", "empathetic_peer"],
+  ["Spark", "harmonious_catalyst"],
+  ["Awareness", "saturnian_anchor"],
+] as const) {
+  const result = calculatePersonaProfile({ roleCode: historicalLabel, sunSign: 2, moon: confirmedMoon, mercurySign: 12 });
+  assert.equal(result.ok, true, `${historicalLabel} remains compatible`);
+  if (result.ok) assert.equal(result.roleCode, stableRoleCode, `${historicalLabel} historical evidence remains stable`);
+}
+
 const awareness = calculatePersonaProfile({ roleCode: "Awareness", sunSign: 1, moon: confirmedMoon, mercurySign: 12 });
 assert.equal(awareness.ok, true);
 if (awareness.ok) {

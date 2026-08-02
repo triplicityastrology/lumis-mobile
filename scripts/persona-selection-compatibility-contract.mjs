@@ -46,6 +46,9 @@ for (const relativePath of matrix.stable_role_code_files) {
 }
 
 const calculator = fs.readFileSync(path.join(root, "packages/shared/src/config/persona-calculator.ts"), "utf8");
+assert.match(calculator, /"Ordinary Person":\s*"empathetic_peer"/);
+assert.match(calculator, /Friend:\s*"harmonious_catalyst"/);
+assert.match(calculator, /Mentor:\s*"saturnian_anchor"/);
 assert.match(calculator, /Acceptance:\s*"empathetic_peer"/);
 assert.match(calculator, /Spark:\s*"harmonious_catalyst"/);
 assert.match(calculator, /Awareness:\s*"saturnian_anchor"/);
@@ -71,5 +74,8 @@ const audit = fs.readFileSync(path.join(root, "docs/architecture/S2-T159-persona
 assert.match(audit, /No migration is required now\./);
 assert.match(audit, /Historical rows, fixtures, and evidence are not rewritten/);
 assert.match(audit, /No active general analytics SDK or Persona analytics pipeline was found/);
+assert.match(audit, /Ordinary Person \| Acceptance \| `acceptance` \| `empathetic_peer`/);
+assert.match(audit, /Friend \| Spark \| `spark` \| `harmonious_catalyst`/);
+assert.match(audit, /Mentor \| Awareness \| `awareness` \| `saturnian_anchor`/);
 
 console.log("S2-T159 persona selection compatibility contract passed.");

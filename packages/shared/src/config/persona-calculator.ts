@@ -4,7 +4,9 @@ export type PersonaRoleCode =
   | "empathetic_peer"
   | "harmonious_catalyst"
   | "saturnian_anchor";
-export type PersonaRoleInput = PersonaRoleCode | "Acceptance" | "Spark" | "Awareness";
+export type PersonaRoleInput = PersonaRoleCode |
+  "Ordinary Person" | "Friend" | "Mentor" |
+  "Acceptance" | "Spark" | "Awareness";
 export type PersonaFactor = "ASC" | "Sun" | "Moon" | "Mercury" | "Saturn";
 export type PersonaSourceRuleCode =
   | "acceptance_moon_from_customer_sun"
@@ -166,6 +168,9 @@ function resolveRoleCode(value: string): PersonaRoleCode | null {
     empathetic_peer: "empathetic_peer",
     harmonious_catalyst: "harmonious_catalyst",
     saturnian_anchor: "saturnian_anchor",
+    "Ordinary Person": "empathetic_peer",
+    Friend: "harmonious_catalyst",
+    Mentor: "saturnian_anchor",
     Acceptance: "empathetic_peer",
     Spark: "harmonious_catalyst",
     Awareness: "saturnian_anchor",
