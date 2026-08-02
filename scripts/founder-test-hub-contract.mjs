@@ -18,7 +18,7 @@ assert.match(hub, /onOpenPersonaComparison/);
 assert.match(hub, /onOpenCareCircle/);
 assert.match(hub, /onOpenBuildStatus/);
 assert.match(hub, /Current build and feature status/);
-assert.match(hub, /Deployment gate required/);
+assert.match(hub, /Local rehearsal available/);
 assert.match(hub, /Past Reflections deletion test/);
 assert.match(comparison, /Back to Founder Test Hub/);
 assert.match(comparison, /onExit/);
@@ -28,5 +28,7 @@ assert.match(careCircle, /EXPO_PUBLIC_CARE_CIRCLE_STAGING_DEPLOYMENT_READY/);
 assert.match(careCircle, /No staging operation was attempted/);
 assert.match(careCircle, /const supabase = getSupabaseClient\(\)/);
 assert.match(careCircle, /createStagingWorkbenchPorts\(supabase\)/);
+assert.match(careCircle, /CareCircleLocalRehearsal/);
+assert.match(careCircle, /Open local rehearsal/);
 
 console.log("normal-Expo Founder Test Hub contract passed");

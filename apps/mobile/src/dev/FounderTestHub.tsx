@@ -61,7 +61,7 @@ export function FounderTestHub({
           <View style={styles.rowCopy}>
             <Text style={styles.rowTitle}>Care Circle staging test</Text>
             <Text style={styles.rowDetail}>One iPhone · Caree ↔ Carer</Text>
-            <Text style={styles.fixtureLabel}>Deployment gate required</Text>
+            <Text style={styles.fixtureLabel}>Local rehearsal available · live test remains gated</Text>
           </View>
           <ChevronRight color={colors.muted} size={20} />
         </Pressable>

@@ -23,6 +23,8 @@ const outcomeIntegrity = read(`${root}/workbenchOutcomeIntegrity.ts`);
 const outcomeFixture = read(`${root}/workbenchOutcomeIntegrity.fixtures.ts`);
 const evidenceSummary = read(`${root}/workbenchEvidenceSummary.ts`);
 const evidenceSummaryFixture = read(`${root}/workbenchEvidenceSummary.fixtures.ts`);
+const localRehearsal = read(`${root}/localCareCircleRehearsal.ts`);
+const localRehearsalScreen = read("apps/mobile/src/dev/CareCircleLocalRehearsal.tsx");
 const entry = read(`${root}/index.tsx`);
 const founderEntry = read("apps/mobile/src/dev/FounderCareCircleWorkbench.tsx");
 const metro = read(`${root}/metro.config.js`);
@@ -110,6 +112,16 @@ assert.match(evidenceSummaryFixture, /request-ready state is not evidence/);
 assert.match(evidenceSummaryFixture, /summary items expose safe fields only/);
 assert.match(screen, /capabilities\.accountRole/);
 assert.match(screen, /Test identity is fixed by this signed-in account/);
+assert.match(screen, /mode === "local_rehearsal"/);
+assert.match(localRehearsalScreen, /Local rehearsal — not live backend/);
+assert.match(localRehearsalScreen, /Use synthetic/);
+assert.match(localRehearsalScreen, /item === "caree" \? "Caree" : "Carer"/);
+assert.match(localRehearsalScreen, /Confirm synthetic cleanup/);
+assert.match(localRehearsalScreen, /Reset rehearsal/);
+assert.doesNotMatch(
+  localRehearsal,
+  /supabase|fetch\s*\(|AsyncStorage|SecureStore|functions\.invoke|https?:\/\//i
+);
 assert.match(port, /account_mode/);
 assert.match(portFixture, /backend account mode fixes the test identity/);
 for (const step of [
@@ -221,7 +233,7 @@ assert.match(founderEntry, /createInactiveCareCircleClient\(ports\.operationPort
 assert.match(founderEntry, /No staging operation was attempted/);
 
 const releaseTree = listSourceFiles("apps/mobile/src")
-  .filter((path) => path !== "apps/mobile/src/dev/FounderCareCircleWorkbench.tsx")
+  .filter((path) => !path.startsWith("apps/mobile/src/dev/"))
   .map(read)
   .join("\n");
 assert.doesNotMatch(

@@ -75,6 +75,7 @@ export function CareCircleStagingWorkbench({
   requestIdFactory,
   now = () => Date.now(),
   onEvidenceState,
+  mode = "staging",
 }: {
   capabilities: WorkbenchCapabilities;
   client: InactiveCareCircleClient;
@@ -86,6 +87,7 @@ export function CareCircleStagingWorkbench({
     evidenceName: WorkbenchProgressName;
     confirmationSource: JourneyConfirmationSource;
   }) => void;
+  mode?: "staging" | "local_rehearsal";
 }) {
   const { fontScale } = useWindowDimensions();
   const actionFlight = useRef(createWorkbenchSingleFlight()).current;
@@ -367,10 +369,16 @@ export function CareCircleStagingWorkbench({
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.eyebrow}>STAGING TEST WORKBENCH</Text>
+        <Text style={styles.eyebrow}>
+          {mode === "local_rehearsal"
+            ? "LOCAL REHEARSAL"
+            : "STAGING TEST WORKBENCH"}
+        </Text>
         <Text style={styles.title}>Care Circle validation</Text>
         <Text style={styles.warning}>
-          Disposable staging accounts only. This is not a release feature.
+          {mode === "local_rehearsal"
+            ? "Synthetic local states only. This is not live backend evidence."
+            : "Disposable staging accounts only. This is not a release feature."}
         </Text>
 
         <View

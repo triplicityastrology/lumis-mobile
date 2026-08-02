@@ -1,6 +1,7 @@
 import { randomUUID } from "expo-crypto";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import ShieldCheck from "lucide-react-native/icons/shield-check";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,8 +12,23 @@ import { createStagingWorkbenchPorts } from "../../test-workbenches/care-circle-
 import { createInactiveCareCircleClient } from "../services/inactiveCareCircleClient";
 import { getSupabaseClient, getSupabaseConfig } from "../services/supabase";
 import { colors, spacing } from "../theme/tokens";
+import { CareCircleLocalRehearsal } from "./CareCircleLocalRehearsal";
 
 export function FounderCareCircleWorkbench({ onBack }: { onBack: () => void }) {
+  const [localRehearsal, setLocalRehearsal] = useState(false);
+  if (localRehearsal) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Header
+          onBack={() => setLocalRehearsal(false)}
+          subtitle="Synthetic states only"
+          title="Care Circle rehearsal"
+        />
+        <CareCircleLocalRehearsal />
+      </SafeAreaView>
+    );
+  }
+
   const boundary = resolveFounderCareCircleEntryBoundary({
     flag: process.env.EXPO_PUBLIC_CARE_CIRCLE_STAGING_WORKBENCH,
     projectRef: process.env.EXPO_PUBLIC_SUPABASE_PROJECT_REF,
@@ -24,7 +40,13 @@ export function FounderCareCircleWorkbench({ onBack }: { onBack: () => void }) {
   });
 
   if (!boundary.enabled) {
-    return <BlockedState message={safeReadinessMessage(boundary.code)} onBack={onBack} />;
+    return (
+      <BlockedState
+        message={safeReadinessMessage(boundary.code)}
+        onBack={onBack}
+        onOpenRehearsal={() => setLocalRehearsal(true)}
+      />
+    );
   }
 
   const supabase = getSupabaseClient();
@@ -57,7 +79,15 @@ export function FounderCareCircleWorkbench({ onBack }: { onBack: () => void }) {
   );
 }
 
-function BlockedState({ message, onBack }: { message: string; onBack: () => void }) {
+function BlockedState({
+  message,
+  onBack,
+  onOpenRehearsal,
+}: {
+  message: string;
+  onBack: () => void;
+  onOpenRehearsal?: () => void;
+}) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header onBack={onBack} />
@@ -72,12 +102,30 @@ function BlockedState({ message, onBack }: { message: string; onBack: () => void
         <Text style={styles.blockedDetail}>
           No staging operation was attempted.
         </Text>
+        {onOpenRehearsal ? (
+          <Pressable
+            accessibilityLabel="Open local Care Circle rehearsal"
+            accessibilityRole="button"
+            onPress={onOpenRehearsal}
+            style={styles.rehearsalButton}
+          >
+            <Text style={styles.rehearsalText}>Open local rehearsal</Text>
+          </Pressable>
+        ) : null}
       </View>
     </SafeAreaView>
   );
 }
 
-function Header({ onBack }: { onBack: () => void }) {
+function Header({
+  onBack,
+  subtitle = "Disposable accounts only",
+  title = "Care Circle staging test",
+}: {
+  onBack: () => void;
+  subtitle?: string;
+  title?: string;
+}) {
   return (
     <View style={styles.header}>
       <Pressable
@@ -89,8 +137,8 @@ function Header({ onBack }: { onBack: () => void }) {
         <ArrowLeft color={colors.ice} size={20} />
       </Pressable>
       <View style={styles.headerCopy}>
-        <Text style={styles.title}>Care Circle staging test</Text>
-        <Text style={styles.subtitle}>Disposable accounts only</Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
       <View style={styles.headerSpacer} />
     </View>
@@ -151,4 +199,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   blockedDetail: { color: colors.muted, fontSize: 12, marginTop: spacing.xs },
+  rehearsalButton: {
+    backgroundColor: colors.gold,
+    justifyContent: "center",
+    marginTop: spacing.md,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+  },
+  rehearsalText: { color: colors.navy950, fontWeight: "800" },
 });
