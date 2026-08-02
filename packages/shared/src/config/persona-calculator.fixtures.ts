@@ -1,58 +1,59 @@
 import assert from "node:assert/strict";
 import { calculatePersonaProfile, offsetSign } from "./persona-calculator";
 
-assert.equal(offsetSign(12, 2), 2);
+assert.equal(offsetSign(12, 6), 6, "Pisces plus six is Virgo");
 assert.equal(offsetSign(8, 6), 2);
 assert.equal(offsetSign(0, 2), null);
 
-assert.deepEqual(calculatePersonaProfile({ roleCode: "saturnian_anchor", sunSign: 1, moonSign: 8, mercurySign: 1 }), {
-  ok: true, ruleVersion: "v1", roleCode: "saturnian_anchor",
-  calculatedProfile: [
-    { factor: "ASC", signNumber: 10, sign: "Capricorn", source: "fixed_role", offset: 0 },
-    { factor: "Sun", signNumber: 3, sign: "Gemini", source: "customer_sun", offset: 2 },
-    { factor: "Saturn", signNumber: 10, sign: "Capricorn", source: "customer_moon", offset: 2 },
-    { factor: "Mercury", signNumber: 7, sign: "Libra", source: "customer_mercury", offset: 6 }
-  ], fallbacksApplied: []
-});
+const confirmedMoon = { status: "available", proof: "confirmed_birth_time", sign: 8 } as const;
+const endpointMoon = { status: "available", proof: "local_day_single_sign", sign: 4, localDayStartSign: 4, localDayEndSign: 4 } as const;
+const unconfirmedMoon = { status: "unconfirmed" } as const;
 
-assert.deepEqual(calculatePersonaProfile({ roleCode: "empathetic_peer", moonSign: 4, mercurySign: 6 }), {
-  ok: true, ruleVersion: "v1", roleCode: "empathetic_peer",
-  calculatedProfile: [
-    { factor: "ASC", signNumber: 4, sign: "Cancer", source: "fixed_role", offset: 0 },
-    { factor: "Moon", signNumber: 4, sign: "Cancer", source: "customer_moon", offset: 0 },
-    { factor: "Mercury", signNumber: 10, sign: "Capricorn", source: "customer_mercury", offset: 4 }
-  ], fallbacksApplied: []
-});
-
-assert.deepEqual(calculatePersonaProfile({ roleCode: "harmonious_catalyst", sunSign: 2, mercurySign: 8 }), {
-  ok: true, ruleVersion: "v1", roleCode: "harmonious_catalyst",
-  calculatedProfile: [
-    { factor: "ASC", signNumber: 3, sign: "Gemini", source: "fixed_role", offset: 0 },
-    { factor: "Sun", signNumber: 4, sign: "Cancer", source: "customer_sun", offset: 2 },
-    { factor: "Mercury", signNumber: 10, sign: "Capricorn", source: "customer_mercury", offset: 2 }
-  ], fallbacksApplied: []
-});
-
-const missingMoon = calculatePersonaProfile({ roleCode: "saturnian_anchor", sunSign: 5, moonSign: null, mercurySign: 12 });
-assert.equal(missingMoon.ok, true);
-if (missingMoon.ok) {
-  // Worked Example 4 prints Gemini (3), but the v1 formula and both offset tables require 12 + 6 = 6 (Virgo).
-  assert.deepEqual(missingMoon.calculatedProfile.map(({ factor, signNumber }) => [factor, signNumber]), [
-    ["ASC", 10], ["Sun", 7], ["Mercury", 6]
+const awareness = calculatePersonaProfile({ roleCode: "Awareness", sunSign: 1, moon: confirmedMoon, mercurySign: 12 });
+assert.equal(awareness.ok, true);
+if (awareness.ok) {
+  assert.equal(awareness.roleCode, "saturnian_anchor", "legacy label resolves to stable role code");
+  assert.deepEqual(awareness.calculatedProfile.map(({ factor, sign, source }) => [factor, sign, source]), [
+    ["ASC", "Capricorn", "fixed_role"],
+    ["Sun", "Gemini", "customer_sun"],
+    ["Saturn", "Capricorn", "customer_moon"],
+    ["Mercury", "Virgo", "customer_mercury"],
   ]);
-  assert.deepEqual(missingMoon.fallbacksApplied, ["stable_boundary"]);
 }
 
-assert.deepEqual(calculatePersonaProfile({ roleCode: "empathetic_peer", moonSign: null, mercurySign: 6 }), {
-  ok: true, ruleVersion: "v1", roleCode: "empathetic_peer",
-  calculatedProfile: [
-    { factor: "ASC", signNumber: 4, sign: "Cancer", source: "fixed_role", offset: 0 },
-    { factor: "Mercury", signNumber: 10, sign: "Capricorn", source: "customer_mercury", offset: 4 }
-  ], fallbacksApplied: ["neutral_emotional_attunement"]
-});
+const acceptanceEndpoint = calculatePersonaProfile({ roleCode: "empathetic_peer", sunSign: 2, moon: endpointMoon, mercurySign: 6 });
+assert.equal(acceptanceEndpoint.ok, true);
+if (acceptanceEndpoint.ok) {
+  assert.equal(acceptanceEndpoint.provenance.customerMoonProof, "local_day_single_sign");
+  assert.deepEqual(acceptanceEndpoint.sourceRulesApplied, []);
+}
 
-assert.deepEqual(calculatePersonaProfile({ roleCode: "harmonious_catalyst", mercurySign: 8 }), { ok: false, code: "PERSONA_SUN_REQUIRED" });
-assert.deepEqual(calculatePersonaProfile({ roleCode: "empathetic_peer", moonSign: 4 }), { ok: false, code: "PERSONA_MERCURY_REQUIRED" });
-assert.deepEqual(calculatePersonaProfile({ roleCode: "empathetic_peer", moonSign: 13, mercurySign: 6 }), { ok: false, code: "PERSONA_INPUT_INVALID" });
+for (const [roleCode, expectedFactor, expectedSign, expectedRule] of [
+  ["empathetic_peer", "Moon", "Leo", "acceptance_moon_from_customer_sun"],
+  ["harmonious_catalyst", "Moon", "Sagittarius", "spark_moon_from_customer_sun_trine"],
+  ["saturnian_anchor", "Saturn", "Libra", "awareness_saturn_from_customer_sun_sextile"],
+] as const) {
+  const result = calculatePersonaProfile({ roleCode, sunSign: 5, moon: unconfirmedMoon, mercurySign: 12 });
+  assert.equal(result.ok, true, roleCode);
+  if (result.ok) {
+    const derived = result.calculatedProfile.find(({ factor }) => factor === expectedFactor);
+    assert.equal(derived?.sign, expectedSign, roleCode);
+    assert.equal(derived?.source, "customer_sun", roleCode);
+    assert.equal(derived?.sourceRuleCode, expectedRule, roleCode);
+    assert.deepEqual(result.sourceRulesApplied, [expectedRule], roleCode);
+  }
+}
 
-process.stdout.write("deterministic persona calculator fixtures passed\n");
+const sparkAvailable = calculatePersonaProfile({ roleCode: "Spark", sunSign: 2, moon: confirmedMoon, mercurySign: 8 });
+assert.equal(sparkAvailable.ok, true);
+if (sparkAvailable.ok) assert.deepEqual(sparkAvailable.calculatedProfile.map(({ factor }) => factor), ["ASC", "Sun", "Moon", "Mercury"]);
+
+const unavailable = { ok: false, code: "customer_chart_unavailable", action: "stop_persona_generation_and_retry" } as const;
+assert.deepEqual(calculatePersonaProfile({ roleCode: "Acceptance", sunSign: 2, moon: confirmedMoon, mercurySign: null }), unavailable);
+assert.deepEqual(calculatePersonaProfile({ roleCode: "Spark", sunSign: null, moon: unconfirmedMoon, mercurySign: 8 }), unavailable);
+assert.deepEqual(calculatePersonaProfile({ roleCode: "Awareness", sunSign: 2, moon: { status: "available", proof: "local_day_single_sign", sign: 4, localDayStartSign: 4, localDayEndSign: 5 }, mercurySign: 8 }), unavailable);
+assert.deepEqual(calculatePersonaProfile({ roleCode: "Acceptance", sunSign: 2, moon: { status: "available", proof: "noon", sign: 4 }, mercurySign: 8 }), unavailable);
+assert.deepEqual(calculatePersonaProfile({ roleCode: "unknown", sunSign: 2, moon: unconfirmedMoon, mercurySign: 8 }), { ok: false, code: "PERSONA_INPUT_INVALID" });
+assert.deepEqual(calculatePersonaProfile({ roleCode: "Acceptance", sunSign: 2, moon: unconfirmedMoon, mercurySign: 8, extra: true }), { ok: false, code: "PERSONA_INPUT_INVALID" });
+
+process.stdout.write("final deterministic persona decision fixtures passed\n");
