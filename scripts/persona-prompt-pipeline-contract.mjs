@@ -15,4 +15,3 @@ assert.doesNotMatch(source, /fetch\s*\(|createClient|Deno\.env|console\.|openai|
 assert.doesNotMatch(app, /persona-prompt-pipeline-v1/u);
 
 console.log("inactive server-only Persona prompt pipeline contract passed");
-

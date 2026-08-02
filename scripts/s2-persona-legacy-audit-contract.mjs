@@ -34,4 +34,3 @@ assert.match(inert.stdout, /WAITING_FOR_S2_T161_READ_ONLY_EVIDENCE/);
 assert.match(inert.stdout, /network_calls=0 sql_executed=false migration_authorized=false/);
 
 console.log("S2-T161 Persona legacy selection audit packet remains count-only, read-only, and inert.");
-

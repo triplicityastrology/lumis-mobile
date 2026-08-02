@@ -17,4 +17,3 @@ try {
   process.stderr.write(`${code}\n`);
   process.exitCode = 1;
 }
-

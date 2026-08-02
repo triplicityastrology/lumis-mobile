@@ -63,4 +63,3 @@ from classifications
 order by boundary_name;
 
 rollback;
-

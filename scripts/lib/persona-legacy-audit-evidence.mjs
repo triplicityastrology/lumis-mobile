@@ -1,5 +1,5 @@
 export const EXPECTED_PROJECT_REF = "bmqhwofmdgebpcihjlnb";
-export const EXPECTED_PACKET_SHA256 = "93afa88fd4997fbb96c45303e23b4d42a3b94bcdf8f020042dfb3cb75c863593";
+export const EXPECTED_PACKET_SHA256 = "5ee1a01e2c16611801869e5061d09aaca9ed65538d97b3dcc8d769f1ba1b3a8c";
 
 const ROOT_KEYS = ["schema", "project_ref", "project_classification", "authority", "packet_sha256", "transaction_mode", "boundaries", "migration_authorized"];
 const BOUNDARY_KEYS = ["boundary_name", "stable_code_records", "accepted_legacy_alias_records", "unknown_label_only_records", "null_empty_records"];

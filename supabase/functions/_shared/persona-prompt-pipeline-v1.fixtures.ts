@@ -69,4 +69,3 @@ function equal(actual: unknown, expected: unknown, label: string): void {
 function truthy(value: unknown, label: string): void {
   if (!value) throw new Error(`${label}: assertion failed`);
 }
-

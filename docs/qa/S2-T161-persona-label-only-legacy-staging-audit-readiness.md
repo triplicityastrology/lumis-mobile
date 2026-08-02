@@ -7,4 +7,3 @@ This packet implements only the discovery requested by Business Systems v1.1 / A
 Future evidence must match `s2_t161_persona_legacy_selection_audit_v1`, exact staging ref, exact packet checksum, the three closed boundary names, non-negative integer counts, `read_only_rolled_back`, and `migration_authorized: false`.
 
 An accepted envelope informs a later migration decision. It does not authorise a migration, rewrite historical evidence, activate Persona behavior, or change current product labels.
-
