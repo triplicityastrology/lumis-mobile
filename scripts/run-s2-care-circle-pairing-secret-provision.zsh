@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 set -euo pipefail
+unsetopt bg_nice
 
 readonly ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 readonly EXPECTED_REF="bmqhwofmdgebpcihjlnb"
@@ -12,6 +13,9 @@ MODE="preflight"
 PAT_READY=""
 PROVISION_APPROVED=""
 TTY_STATE=""
+SECRET_FIFO=""
+SECRET_FIFO_DIR=""
+SECRET_WRITER_PID=""
 
 while (( $# > 0 )); do
   case "$1" in
@@ -24,8 +28,14 @@ done
 
 cleanup() {
   if [[ -n "$TTY_STATE" ]]; then stty "$TTY_STATE" </dev/tty 2>/dev/null || true; fi
+  if [[ -n "$SECRET_WRITER_PID" ]]; then
+    kill "$SECRET_WRITER_PID" 2>/dev/null || true
+    wait "$SECRET_WRITER_PID" 2>/dev/null || true
+  fi
+  if [[ -n "$SECRET_FIFO" && -p "$SECRET_FIFO" ]]; then rm -f -- "$SECRET_FIFO"; fi
+  if [[ -n "$SECRET_FIFO_DIR" && -d "$SECRET_FIFO_DIR" ]]; then rmdir -- "$SECRET_FIFO_DIR" 2>/dev/null || true; fi
   unset SUPABASE_ACCESS_TOKEN PAIRING_SECRET SECRET_LIST_JSON COMMAND_OUTPUT
-  unset COMMAND_STATUS CLASSIFICATION REVOKE_CONFIRMED REVOCATION_OUTPUT
+  unset COMMAND_STATUS CLASSIFICATION REVOKE_CONFIRMED REVOCATION_OUTPUT SECRET_FIFO SECRET_FIFO_DIR SECRET_WRITER_PID
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -66,12 +76,36 @@ export SUPABASE_ACCESS_TOKEN
 PAIRING_SECRET="$(openssl rand -hex 32 2>/dev/null)" || { print -u2 -- "STOP_S2_T130_LOCAL_GENERATION_FAILED"; exit 1; }
 [[ "$PAIRING_SECRET" =~ '^[0-9a-f]{64}$' ]] || { print -u2 -- "STOP_S2_T130_LOCAL_GENERATION_FAILED"; exit 1; }
 
+SECRET_FIFO_DIR="$(mktemp -d "${TMPDIR:-/private/tmp}/lumis-care-circle-secret.XXXXXX")" || {
+  print -u2 -- "STOP_S2_T130_SECRET_HANDOFF_FAILED"; exit 1;
+}
+chmod 700 "$SECRET_FIFO_DIR" || { print -u2 -- "STOP_S2_T130_SECRET_HANDOFF_FAILED"; exit 1; }
+SECRET_FIFO="$SECRET_FIFO_DIR/value.fifo"
+mkfifo -m 600 "$SECRET_FIFO" || { print -u2 -- "STOP_S2_T130_SECRET_HANDOFF_FAILED"; exit 1; }
+(
+  umask 077
+  print -r -- "${SECRET_NAME}=${PAIRING_SECRET}" > "$SECRET_FIFO"
+) &
+SECRET_WRITER_PID=$!
+unset PAIRING_SECRET
+
 set +e
 COMMAND_OUTPUT="$("$PNPM" dlx "supabase@$PINNED_CLI" secrets set \
-  --project-ref "$EXPECTED_REF" "$SECRET_NAME=$PAIRING_SECRET" 2>&1)"
+  --project-ref "$EXPECTED_REF" --env-file "$SECRET_FIFO" 2>&1)"
 COMMAND_STATUS=$?
+wait "$SECRET_WRITER_PID" 2>/dev/null
+SECRET_WRITER_STATUS=$?
 set -e
-unset PAIRING_SECRET
+SECRET_WRITER_PID=""
+rm -f -- "$SECRET_FIFO"
+SECRET_FIFO=""
+rmdir -- "$SECRET_FIFO_DIR"
+SECRET_FIFO_DIR=""
+if (( SECRET_WRITER_STATUS != 0 )); then
+  unset COMMAND_OUTPUT
+  print -u2 -- "STOP_S2_T130_SECRET_HANDOFF_FAILED"
+  exit 1
+fi
 if (( COMMAND_STATUS != 0 )); then
   CLASSIFICATION="$(print -rn -- "$COMMAND_OUTPUT" | node scripts/classify-supabase-config-command.mjs "$COMMAND_STATUS")"
   unset COMMAND_OUTPUT
