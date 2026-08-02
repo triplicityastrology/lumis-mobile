@@ -1,0 +1,23 @@
+{
+  "schema": "s2_t157_care_circle_postgres17_ci_control_v1",
+  "status": "READY_FOR_CI_EXECUTION",
+  "workflow": ".github/workflows/s2-t157-care-circle-postgres17-proof.yml",
+  "runtime": {
+    "runner": "ubuntu-24.04",
+    "postgres_image": "public.ecr.aws/supabase/postgres:17.6.1.143",
+    "network_mode": "none_for_disposable_proof_container"
+  },
+  "ordered_sources": [
+    { "path": "supabase/migrations/0032_care_circle_backend_foundation.sql", "sha256": "9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e" },
+    { "path": "supabase/migrations/0033_inactive_notification_foundation.sql", "sha256": "0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d" },
+    { "path": "supabase/migrations/0034_reusable_care_pairing_operations.sql", "sha256": "466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb" },
+    { "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c" }
+  ],
+  "proof_sources": [
+    { "path": "supabase/tests/s2-t135-four-digit-pairing.sql", "sha256": "13cfd2400be5bb71cce2eafe62f152fae0abe74f0c75cf730650e150cc749236" },
+    { "path": "supabase/tests/s2-t139-four-digit-throttle-setup.sql", "sha256": "62ec724b9faf06641858f7ed0954aefcf89d387d6bc52d8388c87b9a588b150c" },
+    { "path": "supabase/tests/s2-t139-four-digit-throttle-verify.sql", "sha256": "f89b19f7c36102901419627a7ac88b7791cc553b4e0ba23f10d3275303861ac5" },
+    { "path": "scripts/run-care-circle-0037-four-digit.sh", "sha256": "84cab1fd92e61ab43ec915238c7a891979ba54a23dd77d07f28df9d907fe88ae" },
+    { "path": "scripts/run-care-circle-0037-docker.sh", "sha256": "12ad63ca10181be79c6f74bc64abfac43153c98ec6a5e807b3ec6449a30b0ac1" }
+  ]
+}

@@ -1,0 +1,31 @@
+name: S2-T157 Care Circle PostgreSQL 17 proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres17-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      S2_T148_ENGINE: docker
+      S2_T135_POSTGRES_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.143
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Reject remote database context
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD DATABASE_URL PGHOST PGDATABASE PGUSER PGPASSWORD; do
+            [[ -z "${!name:-}" ]] || { printf 'STOP_S2_T157_REMOTE_DATABASE_CONTEXT_PRESENT\n' >&2; exit 1; }
+          done
+      - name: Validate reviewed proof inputs
+        run: node scripts/s2-care-circle-0037-ci-readiness.mjs --verify
+      - name: Run disposable PostgreSQL 17 proof
+        run: bash scripts/run-care-circle-0037-four-digit.sh
+      - name: Confirm no source mutation
+        run: git diff --exit-code
