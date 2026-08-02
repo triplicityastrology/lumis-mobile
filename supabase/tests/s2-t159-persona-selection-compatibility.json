@@ -1,0 +1,45 @@
+{
+  "schema": "s2_t159_persona_selection_compatibility_v1",
+  "status": "audit_only_inactive",
+  "mapping": {
+    "acceptance": "empathetic_peer",
+    "spark": "harmonious_catalyst",
+    "awareness": "saturnian_anchor"
+  },
+  "legacy_label_persistence_files": [
+    "supabase/migrations/0002_profile_chat_persistence.sql",
+    "supabase/migrations/0006_profile_onboarding_transaction.sql",
+    "supabase/migrations/0008_onboarding_chart_history.sql",
+    "supabase/migrations/0009_chat_turn_persistence_rpc.sql",
+    "supabase/migrations/0011_explicit_reflection_thread.sql",
+    "supabase/migrations/0017_persona_policy_and_entitlement_events.sql",
+    "supabase/migrations/0020_backend_runtime_guardrails.sql",
+    "supabase/migrations/0022_chat_idempotency_context.sql"
+  ],
+  "legacy_label_interface_files": [
+    "apps/mobile/src/services/accountState.ts",
+    "apps/mobile/src/services/chat.ts",
+    "apps/mobile/src/services/localDemoSession.ts",
+    "apps/mobile/src/services/profile.ts",
+    "supabase/functions/chat-message/index.ts"
+  ],
+  "display_only_files": [
+    "apps/mobile/App.tsx",
+    "apps/mobile/src/copy/lumis.ts",
+    "apps/mobile/src/dev/personaComparisonFixture.ts",
+    "apps/mobile/src/screens/LumisProfileScreen.tsx",
+    "packages/shared/src/terminology/lumis.ts"
+  ],
+  "stable_role_code_files": [
+    "packages/shared/src/config/persona-calculator.ts",
+    "supabase/functions/_shared/persona-behavior-v1.ts"
+  ],
+  "unknown_boundaries": [],
+  "new_write_rule": {
+    "canonical_field": "persona_role_code",
+    "label_only_persistence_allowed": false,
+    "historical_rewrite_required": false,
+    "migration_required_now": false
+  }
+}
+
