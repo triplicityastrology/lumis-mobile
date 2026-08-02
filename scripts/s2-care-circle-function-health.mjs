@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 
 import {
   CARE_CIRCLE_HEALTH_PROJECT_REF,
@@ -17,6 +18,7 @@ class HealthStop {
 }
 
 try {
+  validateFourDigitSeal();
   const args = parseArgs(process.argv.slice(2));
   const control = JSON.parse(readFileSync(CONTROL_PATH, "utf8"));
   stopUnless(args.projectRef === CARE_CIRCLE_HEALTH_PROJECT_REF, "WRONG_PROJECT");

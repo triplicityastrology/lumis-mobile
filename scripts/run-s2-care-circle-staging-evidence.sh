@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+cd "$ROOT"
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
+
 project_ref="${SUPABASE_PROJECT_REF:-bmqhwofmdgebpcihjlnb}"
 mode="${1:-}"
 run_id=""

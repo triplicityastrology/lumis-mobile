@@ -32,6 +32,7 @@ trap cleanup_environment EXIT HUP INT TERM
   exit 1
 }
 
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
 node scripts/s2-care-circle-bootstrap-descendant-authority.mjs >/dev/null
 
 if [[ "$ACTION" == "preflight" ]]; then

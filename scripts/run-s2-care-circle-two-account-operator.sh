@@ -16,6 +16,7 @@ cleanup() {
 trap cleanup EXIT INT TERM HUP
 
 [[ "$PWD" == "$ROOT" ]] || { printf 'STOP_S2_T75_WRONG_WORKTREE\n' >&2; exit 1; }
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
 
 if [[ "$ACTION" == "preflight" ]]; then
   node scripts/s2-care-circle-two-account-operator.mjs --project-ref "$PROJECT_REF"

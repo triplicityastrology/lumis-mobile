@@ -40,6 +40,7 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 cd "$ROOT"
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
 [[ "$(git status --porcelain=v1)" == "" ]] || { print -u2 -- "STOP_S2_T130_TREE_DIRTY"; exit 1; }
 [[ -f supabase/.temp/project-ref ]] || { print -u2 -- "STOP_S2_T130_PROJECT_REF_MISMATCH"; exit 1; }
 [[ "$(tr -d '[:space:]' < supabase/.temp/project-ref)" == "$EXPECTED_REF" ]] || {

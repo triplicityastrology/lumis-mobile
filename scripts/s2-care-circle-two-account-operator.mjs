@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 
 import {
   discoverExactRunUsers,
@@ -11,6 +12,7 @@ import {
 let args = { execute: false, action: "", projectRef: "", runId: "" };
 let runId = "not-started";
 try {
+  validateFourDigitSeal();
   args = parseArgs(process.argv.slice(2));
   runId = args.runId || "not-started";
   if (!args.execute) {

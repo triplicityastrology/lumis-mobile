@@ -15,6 +15,7 @@ while (( $# > 0 )); do
 done
 
 cd "$ROOT"
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
 if [[ ! -f "$RECEIPT" ]] || ! node scripts/s2-care-circle-founder-receipt.mjs --validate "$RECEIPT" >/dev/null 2>&1; then
   print -- "S2_T144_NOT_READY"
   print -- "reason=deployment_health_receipt_required"

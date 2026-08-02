@@ -31,7 +31,15 @@ export function validateFourDigitSeal(path = DEFAULT_SEAL_PATH) {
     "apps/mobile/src/services/inactiveCareCircleClient.ts",
     "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx",
     "scripts/run-s2-care-circle-pat-deploy.zsh",
-    "scripts/run-s2-care-circle-function-health.zsh"
+    "scripts/run-s2-care-circle-pairing-secret-provision.zsh",
+    "scripts/run-s2-care-circle-function-health.zsh",
+    "scripts/s2-care-circle-function-health.mjs",
+    "scripts/run-s2-care-circle-bootstrap.zsh",
+    "scripts/run-s2-care-circle-two-account-evidence.zsh",
+    "scripts/run-s2-care-circle-two-account-operator.sh",
+    "scripts/s2-care-circle-two-account-operator.mjs",
+    "scripts/run-s2-care-circle-staging-evidence.sh",
+    "scripts/s2-care-circle-staging-evidence.mjs"
   ]) stopUnless(paths.has(required), "REQUIRED_SOURCE_MISSING");
 
   validateFourDigitPolicySources({

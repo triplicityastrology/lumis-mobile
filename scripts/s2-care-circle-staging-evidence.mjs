@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 
 import {
   runRedactedEvidenceMain,
@@ -32,6 +33,7 @@ await runRedactedEvidenceMain(
     boundaryCode: "CARE_EVIDENCE_INTERNAL_FAILURE"
   },
   async () => {
+validateFourDigitSeal();
 const args = parseEvidenceArgs(
   process.argv.slice(2),
   "Care Circle staging"

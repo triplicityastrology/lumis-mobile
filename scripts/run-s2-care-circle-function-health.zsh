@@ -26,6 +26,7 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 cd "$ROOT"
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
 if [[ "$MODE" != "execute" ]]; then
   node scripts/s2-care-circle-function-health.mjs --project-ref "$PROJECT_REF"
   exit 0

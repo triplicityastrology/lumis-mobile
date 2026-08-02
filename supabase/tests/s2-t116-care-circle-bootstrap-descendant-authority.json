@@ -7,8 +7,8 @@
   "account_modes": { "caree": "standard", "carer": "carer_only" },
   "run_id_pattern": "^s2t75-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}$",
   "locked_operator_files": [
-    { "path": "scripts/run-s2-care-circle-bootstrap.zsh", "sha256": "e6b29d5ee6a7ab7d24a3083cb646375b25a2bb9026db1d6bd1a59f89c6aa16fe" },
-    { "path": "scripts/s2-care-circle-two-account-operator.mjs", "sha256": "24f26189187163f2fa24339e3d9be28014025c1120e36b3bd7997cec1fcb46ec" },
+    { "path": "scripts/run-s2-care-circle-bootstrap.zsh", "sha256": "b62102314ea36b2e7d10c712557e4ef118cbec2f787400ef037064235d5197c4" },
+    { "path": "scripts/s2-care-circle-two-account-operator.mjs", "sha256": "7630adc8ea66c3a93646133ebc79203bef837e97570167fd4dd91336ca71cb3e" },
     { "path": "scripts/lib/care-circle-two-account-operator.mjs", "sha256": "b9776dedaa5069d63688147a720ccadd38ca4db7e1db992d28e929decb511ff6" }
   ]
 }
