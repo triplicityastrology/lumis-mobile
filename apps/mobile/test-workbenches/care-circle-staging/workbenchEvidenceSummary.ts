@@ -1,4 +1,5 @@
 import type {
+  JourneyConfirmationSource,
   SinglePhoneJourneyStage,
   WorkbenchAccountRole,
 } from "./singlePhoneJourney";
@@ -45,6 +46,7 @@ export function recordConfirmedWorkbenchEvidence(
     journeyStage: SinglePhoneJourneyStage;
     accountRole: WorkbenchAccountRole;
     evidenceName: WorkbenchProgressName;
+    confirmationSource: JourneyConfirmationSource;
   }
 ): WorkbenchEvidenceSummary {
   const confirmed = resolveConfirmedEvidenceName(input);
@@ -66,7 +68,13 @@ function resolveConfirmedEvidenceName(input: {
   journeyStage: SinglePhoneJourneyStage;
   accountRole: WorkbenchAccountRole;
   evidenceName: WorkbenchProgressName;
+  confirmationSource: JourneyConfirmationSource;
 }): WorkbenchEvidenceName | null {
+  const expectedSource =
+    input.journeyStage === "caree_create_code"
+      ? "operation_result"
+      : "safe_projection";
+  if (input.confirmationSource !== expectedSource) return null;
   if (
     input.journeyStage === "caree_create_code" &&
     input.accountRole === "caree" &&

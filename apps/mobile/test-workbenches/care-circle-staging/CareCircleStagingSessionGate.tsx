@@ -27,6 +27,7 @@ import {
   advanceSinglePhoneJourney,
   createSinglePhoneJourney,
 } from "./singlePhoneJourney";
+import type { JourneyConfirmationSource } from "./singlePhoneJourney";
 import type { WorkbenchProgressName } from "./workbenchProgress";
 import {
   createWorkbenchEvidenceSummary,
@@ -50,6 +51,7 @@ export function CareCircleStagingSessionGate({
       onEvidenceState(input: {
         accountRole: "caree" | "carer";
         evidenceName: WorkbenchProgressName;
+        confirmationSource: JourneyConfirmationSource;
       }): void;
     }
   ) => ReactNode;
@@ -172,9 +174,15 @@ export function CareCircleStagingSessionGate({
               Carer {session.capabilities.canActAsCarer ? "enabled" : "blocked"}
             </Text>
             <Text accessibilityLiveRegion="polite" style={styles.journeyTitle}>
-              {flow.journey.label}
+              Current: {flow.journey.label}
             </Text>
             <Text style={styles.sessionMeta}>{flow.journey.guidance}</Text>
+            <Text style={styles.journeyNext}>{flow.journey.nextLabel}</Text>
+            <Text style={styles.sessionMeta}>
+              Advances only after {flow.journey.requiredConfirmation === "safe_projection"
+                ? "a refreshed participant-safe projection"
+                : "a verified backend operation result"}.
+            </Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -388,6 +396,7 @@ const styles = StyleSheet.create({
   sessionTitle: { color: colors.ice, fontSize: 13, fontWeight: "700" },
   sessionMeta: { color: colors.muted, fontSize: 11, marginTop: 3 },
   journeyTitle: { color: colors.gold, fontSize: 12, fontWeight: "700", marginTop: 6 },
+  journeyNext: { color: colors.textSoft, fontSize: 11, fontWeight: "700", marginTop: 4 },
   signOut: {
     minHeight: 44,
     justifyContent: "center",

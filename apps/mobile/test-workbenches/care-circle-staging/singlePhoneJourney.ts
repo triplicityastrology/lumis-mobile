@@ -1,6 +1,10 @@
 import type { WorkbenchProgressName } from "./workbenchProgress";
 
 export type WorkbenchAccountRole = "caree" | "carer";
+export type JourneyConfirmationSource =
+  | "operation_result"
+  | "safe_projection"
+  | "unconfirmed";
 export type SinglePhoneJourneyStage =
   | "caree_create_code"
   | "carer_submit_code"
@@ -17,6 +21,8 @@ export type SinglePhoneJourney = {
   guidance: string;
   expectedRole: WorkbenchAccountRole | "operator";
   evidenceName: `single_phone_${SinglePhoneJourneyStage}`;
+  nextLabel: string;
+  requiredConfirmation: Exclude<JourneyConfirmationSource, "unconfirmed">;
 };
 
 export function createSinglePhoneJourney(): SinglePhoneJourney {
@@ -24,14 +30,21 @@ export function createSinglePhoneJourney(): SinglePhoneJourney {
     "caree_create_code",
     "Step 1 · Caree creates code",
     "Sign in as the disposable Caree and create the reusable one-hour code.",
-    "caree"
+    "caree",
+    "Next: switch to the disposable Carer and submit the code.",
+    "operation_result"
   );
 }
 
 export function advanceSinglePhoneJourney(
   current: SinglePhoneJourney,
-  input: { accountRole: WorkbenchAccountRole; evidenceName: WorkbenchProgressName }
+  input: {
+    accountRole: WorkbenchAccountRole;
+    evidenceName: WorkbenchProgressName;
+    confirmationSource: JourneyConfirmationSource;
+  }
 ): SinglePhoneJourney {
+  if (input.confirmationSource !== current.requiredConfirmation) return current;
   if (
     current.stage === "caree_create_code" &&
     input.accountRole === "caree" &&
@@ -41,7 +54,9 @@ export function advanceSinglePhoneJourney(
       "carer_submit_code",
       "Step 2 · Carer submits code",
       "Switch account, sign in as the disposable Carer, submit the code, and confirm pending means no authority.",
-      "carer"
+      "carer",
+      "Next: switch to the Caree and review the pending request.",
+      "safe_projection"
     );
   }
   if (
@@ -53,7 +68,9 @@ export function advanceSinglePhoneJourney(
       "caree_accept",
       "Step 3 · Caree accepts",
       "Switch account, sign in as the disposable Caree, refresh requests, and accept the pending Carer.",
-      "caree"
+      "caree",
+      "Next: switch to the Carer and verify Active.",
+      "safe_projection"
     );
   }
   if (
@@ -65,7 +82,9 @@ export function advanceSinglePhoneJourney(
       "carer_verify_active",
       "Step 4 · Carer verifies active",
       "Switch account, sign in as the disposable Carer, and refresh until the participant-safe projection confirms Active.",
-      "carer"
+      "carer",
+      "Next: switch to the Caree and pause Care Circle.",
+      "safe_projection"
     );
   }
   if (
@@ -77,7 +96,9 @@ export function advanceSinglePhoneJourney(
       "caree_pause",
       "Step 5 · Caree pauses",
       "Switch account, sign in as the disposable Caree, pause Care Circle, and wait for confirmed Paused state.",
-      "caree"
+      "caree",
+      "Next: remain as Caree and resume Care Circle.",
+      "safe_projection"
     );
   }
   if (
@@ -89,7 +110,9 @@ export function advanceSinglePhoneJourney(
       "caree_resume",
       "Step 6 · Caree resumes",
       "Remain signed in as the Caree, resume Care Circle, and wait for confirmed Active state.",
-      "caree"
+      "caree",
+      "Next: switch to the Carer and remove the relationship.",
+      "safe_projection"
     );
   }
   if (
@@ -101,7 +124,9 @@ export function advanceSinglePhoneJourney(
       "carer_remove",
       "Step 7 · Carer removes self",
       "Switch account, sign in as the disposable Carer, refresh, and choose Remove myself.",
-      "carer"
+      "carer",
+      "Next: confirm relationship and account cleanup.",
+      "safe_projection"
     );
   }
   if (
@@ -113,7 +138,9 @@ export function advanceSinglePhoneJourney(
       "operator_cleanup_required",
       "Final · Operator cleanup required",
       "Switch account to sign out, then run the approved two-account cleanup. Completion is truthful only after Auth and run-row counts are zero.",
-      "operator"
+      "operator",
+      "Next: retain only the redacted completion checks.",
+      "safe_projection"
     );
   }
   return current;
@@ -123,7 +150,9 @@ function journey(
   stage: SinglePhoneJourneyStage,
   label: string,
   guidance: string,
-  expectedRole: WorkbenchAccountRole | "operator"
+  expectedRole: WorkbenchAccountRole | "operator",
+  nextLabel: string,
+  requiredConfirmation: Exclude<JourneyConfirmationSource, "unconfirmed">
 ): SinglePhoneJourney {
   return {
     stage,
@@ -131,5 +160,7 @@ function journey(
     guidance,
     expectedRole,
     evidenceName: `single_phone_${stage}`,
+    nextLabel,
+    requiredConfirmation,
   };
 }

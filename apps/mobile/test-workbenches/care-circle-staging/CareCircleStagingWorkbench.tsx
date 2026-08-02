@@ -33,6 +33,7 @@ import {
 } from "./workbenchRecovery";
 import { confirmWorkbenchOutcome } from "./workbenchOutcomeIntegrity";
 import type { WorkbenchProgressName } from "./workbenchProgress";
+import type { JourneyConfirmationSource } from "./singlePhoneJourney";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -83,6 +84,7 @@ export function CareCircleStagingWorkbench({
   onEvidenceState?: (input: {
     accountRole: "caree" | "carer";
     evidenceName: WorkbenchProgressName;
+    confirmationSource: JourneyConfirmationSource;
   }) => void;
 }) {
   const { fontScale } = useWindowDimensions();
@@ -137,8 +139,20 @@ export function CareCircleStagingWorkbench({
     onEvidenceState?.({
       accountRole: capabilities.accountRole,
       evidenceName: progress.evidenceName,
+      confirmationSource:
+        progress.evidenceName === "caree_code_ready" && Boolean(pairingCode)
+          ? "operation_result"
+          : projectionConfirmed
+            ? "safe_projection"
+            : "unconfirmed",
     });
-  }, [capabilities.accountRole, onEvidenceState, progress.evidenceName]);
+  }, [
+    capabilities.accountRole,
+    onEvidenceState,
+    pairingCode,
+    progress.evidenceName,
+    projectionConfirmed,
+  ]);
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener(

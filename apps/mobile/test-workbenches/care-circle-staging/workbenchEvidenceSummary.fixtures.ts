@@ -11,6 +11,7 @@ summary = recordConfirmedWorkbenchEvidence(summary, {
   journeyStage: "caree_create_code",
   accountRole: "caree",
   evidenceName: "caree_ready",
+  confirmationSource: "unconfirmed",
 });
 equal(confirmedCount(summary), 0, "request-ready state is not evidence");
 
@@ -19,36 +20,43 @@ for (const input of [
     journeyStage: "caree_create_code",
     accountRole: "caree",
     evidenceName: "caree_code_ready",
+    confirmationSource: "operation_result",
   },
   {
     journeyStage: "carer_submit_code",
     accountRole: "carer",
     evidenceName: "carer_pending_no_authority",
+    confirmationSource: "safe_projection",
   },
   {
     journeyStage: "caree_accept",
     accountRole: "caree",
     evidenceName: "active",
+    confirmationSource: "safe_projection",
   },
   {
     journeyStage: "caree_pause",
     accountRole: "caree",
     evidenceName: "paused",
+    confirmationSource: "safe_projection",
   },
   {
     journeyStage: "caree_resume",
     accountRole: "caree",
     evidenceName: "active",
+    confirmationSource: "safe_projection",
   },
   {
     journeyStage: "carer_remove",
     accountRole: "carer",
     evidenceName: "removed",
+    confirmationSource: "safe_projection",
   },
   {
     journeyStage: "operator_cleanup_required",
     accountRole: "carer",
     evidenceName: "relationship_cleanup_complete",
+    confirmationSource: "safe_projection",
   },
 ] as const) {
   summary = recordConfirmedWorkbenchEvidence(summary, input);
@@ -59,6 +67,7 @@ const unchanged = recordConfirmedWorkbenchEvidence(summary, {
   journeyStage: "caree_accept",
   accountRole: "carer",
   evidenceName: "active",
+  confirmationSource: "safe_projection",
 });
 equal(unchanged, summary, "wrong role cannot record Caree acceptance");
 
@@ -72,6 +81,14 @@ equal(
 
 const reset = createWorkbenchEvidenceSummary();
 equal(confirmedCount(reset), 0, "reset clears evidence");
+
+const unconfirmedSummary = recordConfirmedWorkbenchEvidence(reset, {
+  journeyStage: "carer_submit_code",
+  accountRole: "carer",
+  evidenceName: "carer_pending_no_authority",
+  confirmationSource: "unconfirmed",
+});
+equal(confirmedCount(unconfirmedSummary), 0, "unrefreshed projection cannot record evidence");
 
 console.log("Care Circle workbench evidence-summary fixtures passed");
 
