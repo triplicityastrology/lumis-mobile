@@ -420,8 +420,8 @@ export function CareCircleStagingWorkbench({
       >
         <Text style={styles.eyebrow}>
           {mode === "local_rehearsal"
-            ? "LOCAL REHEARSAL"
-            : "STAGING TEST WORKBENCH"}
+            ? "LOCAL REHEARSAL · NOT LIVE"
+            : "FOUNDER TEST · DISPOSABLE ACCOUNTS"}
         </Text>
         <Text style={styles.title}>Your Care Circle</Text>
         <Text style={styles.warning}>
@@ -457,8 +457,7 @@ export function CareCircleStagingWorkbench({
                 ]}
               >
                 <Text style={styles.roleText}>
-                  {item === "caree" ? "Caree" : "Carer"}
-                  {roleAllowed ? " enabled" : " blocked"}
+                  {item === "caree" ? "Caree account" : "Carer account"}
                 </Text>
               </Pressable>
             );
@@ -506,7 +505,7 @@ export function CareCircleStagingWorkbench({
               {pairingCode && !codeIsExpired ? (
                 <View style={styles.codeArea}>
                   <CareCirclePairingCodeMark />
-                  <Text style={styles.codeLabel}>STAGING PAIRING CODE</Text>
+                  <Text style={styles.codeLabel}>PAIRING CODE</Text>
                   <Text selectable style={styles.codeValue}>
                     {pairingCode}
                   </Text>
@@ -878,7 +877,7 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: colors.line,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     marginTop: 24,
     padding: 16,

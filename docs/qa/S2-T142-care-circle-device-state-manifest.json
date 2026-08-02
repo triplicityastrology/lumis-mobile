@@ -1,0 +1,29 @@
+{
+  "task": "S2-T142",
+  "presentation_authority": "recovered_pre_lock_product_ui_before_3d8c7a4",
+  "shared_product_frame": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx#CareCircleProductFrame",
+  "rehearsal_and_live_surface": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx",
+  "release_activation": "inactive",
+  "native_capture": {
+    "status": "blocked",
+    "reason_code": "NATIVE_IOS_SIMULATOR_TOOLCHAIN_UNAVAILABLE",
+    "observed_command": "xcrun simctl list devices booted",
+    "observed_result": "simctl unavailable",
+    "web_substitution_used": false
+  },
+  "states": [
+    { "name": "caree_landing", "proof": "product_frame_and_caree_account" },
+    { "name": "four_digit_code_ready", "proof": "pairing_code_ready_operation" },
+    { "name": "copy_confirmation", "proof": "clipboard_success_notice" },
+    { "name": "carer_entry", "proof": "four_digit_numeric_input" },
+    { "name": "pending_no_authority", "proof": "safe_projection_pending_caree_acceptance" },
+    { "name": "caree_accept_decline", "proof": "pending_relationship_product_actions" },
+    { "name": "active", "proof": "safe_projection_active" },
+    { "name": "paused", "proof": "safe_projection_paused" },
+    { "name": "resumed", "proof": "safe_projection_resumed" },
+    { "name": "carer_self_removal", "proof": "confirmed_remove_operation_and_projection" },
+    { "name": "removed_cleanup", "proof": "zero_relationship_cleanup_confirmation" },
+    { "name": "expired_code", "proof": "local_expiry_and_safe_recovery" },
+    { "name": "generic_invalid_code", "proof": "generic_invalid_expired_revoked_recovery" }
+  ]
+}
