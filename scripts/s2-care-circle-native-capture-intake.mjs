@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { renderContactSheet, validateCaptureBuffers } from "./lib/care-circle-native-capture-intake.mjs";
+import { renderContactSheet, validateCaptureBuffers, validateHumanVerdict } from "./lib/care-circle-native-capture-intake.mjs";
 
 const ROOT = process.cwd();
 const CAPTURE_ROOT = resolve(ROOT, ".lumis-local/s2-t150-care-circle-native-captures");
@@ -27,17 +27,21 @@ try {
   const ordered = CONTROL.captures.map(({ file }) => ({ file, buffer: readFileSync(resolve(CAPTURE_ROOT, file)) }));
   const captures = validateCaptureBuffers(ordered, CONTROL);
   const references = REFERENCES.map((reference) => ({ ...reference, sha256: createHash("sha256").update(readFileSync(reference.path)).digest("hex") }));
+  const humanVerdict = validateHumanVerdict({ status: "pending" });
   const manifest = {
-    schema: "s2_t150_care_circle_native_evidence_v1",
-    capture_kind: "founder_native_ios",
+    schema: "s2_t154_care_circle_device_capture_material_v1",
+    capture_kind: "founder_submitted_device_capture_material",
+    native_capture_proven: false,
+    requires_human_device_verification: true,
+    human_verdict: humanVerdict,
     visual_similarity_assessed: false,
     captures,
     comparison_references: references,
   };
   mkdirSync(OUTPUT_ROOT, { recursive: true, mode: 0o700 });
   writeFileSync(resolve(OUTPUT_ROOT, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o600 });
-  writeFileSync(resolve(OUTPUT_ROOT, "contact-sheet.html"), renderContactSheet(captures, CAPTURE_ROOT, references), { mode: 0o600 });
-  process.stdout.write(`S2_T150_NATIVE_CAPTURE_PACK_READY\ncapture_count=13 visual_similarity_assessed=false\noutput_folder=${OUTPUT_ROOT}\n`);
+  writeFileSync(resolve(OUTPUT_ROOT, "contact-sheet.html"), renderContactSheet(captures, CAPTURE_ROOT, references, humanVerdict), { mode: 0o600 });
+  process.stdout.write(`S2_T154_FOUNDER_CAPTURE_MATERIAL_READY\ncapture_count=13 native_capture_proven=false human_verdict=pending visual_similarity_assessed=false\noutput_folder=${OUTPUT_ROOT}\n`);
 } catch (error) {
   const code = error instanceof Error && /^STOP_S2_T150_[A-Z0-9_]+$/u.test(error.message) ? error.message : "STOP_S2_T150_INTAKE_FAILED";
   process.stderr.write(`${code}\n`); process.exitCode = 1;

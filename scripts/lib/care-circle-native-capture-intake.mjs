@@ -52,16 +52,26 @@ export function validateCaptureBuffers(entries, control) {
       scale: viewport.scale,
       full_frame_safe_area_bounds: { x: 0, y: 0, width: image.width, height: image.height },
       sha256,
+      provenance_classification: "founder_submitted_unverified",
+      native_capture_proven: false,
     };
   });
 }
 
-export function renderContactSheet(captures, captureRoot, references) {
+export function validateHumanVerdict(verdict) {
+  stopUnless(verdict && typeof verdict === "object" && !Array.isArray(verdict), "HUMAN_VERDICT_INVALID");
+  stopUnless(Object.keys(verdict).length === 1 && Object.hasOwn(verdict, "status"), "HUMAN_VERDICT_FIELDS_INVALID");
+  stopUnless(["pending", "accepted", "returned"].includes(verdict.status), "HUMAN_VERDICT_STATUS_INVALID");
+  return { status: verdict.status };
+}
+
+export function renderContactSheet(captures, captureRoot, references, humanVerdict = { status: "pending" }) {
+  const verdict = validateHumanVerdict(humanVerdict);
   const cards = [
     ...references.map((item) => card(item.label, item.path, "Comparison reference only")),
     ...captures.map((item) => card(item.state, `${captureRoot}/${item.file}`, `${item.width}x${item.height}`)),
   ].join("\n");
-  return `<!doctype html><meta charset="utf-8"><title>Care Circle native evidence</title><style>body{font-family:system-ui;background:#0b1728;color:#fff;margin:24px}h1{font-size:24px}.note{color:#d9c48d}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card{background:#16273d;border:1px solid #38506d;padding:12px}.card img{display:block;width:100%;height:420px;object-fit:contain;background:#050b13}.card p{overflow-wrap:anywhere}</style><h1>Care Circle native capture evidence</h1><p class="note">Human comparison required. This sheet does not claim visual similarity.</p><div class="grid">${cards}</div>`;
+  return `<!doctype html><meta charset="utf-8"><title>Care Circle device-capture material</title><style>body{font-family:system-ui;background:#0b1728;color:#fff;margin:24px}h1{font-size:24px}.note{color:#d9c48d}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}.card{background:#16273d;border:1px solid #38506d;padding:12px}.card img{display:block;width:100%;height:420px;object-fit:contain;background:#050b13}.card p{overflow-wrap:anywhere}</style><h1>Care Circle Founder-submitted device-capture material</h1><p class="note">Human device and visual verification required. Verdict: ${escapeHtml(verdict.status)}. Structural intake does not prove native provenance or visual similarity.</p><div class="grid">${cards}</div>`;
 }
 
 function card(label, path, detail) {

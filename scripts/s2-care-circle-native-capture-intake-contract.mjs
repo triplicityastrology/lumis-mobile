@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
-import { renderContactSheet, validateCaptureBuffers } from "./lib/care-circle-native-capture-intake.mjs";
+import { renderContactSheet, validateCaptureBuffers, validateHumanVerdict } from "./lib/care-circle-native-capture-intake.mjs";
 
 const control = JSON.parse(readFileSync("supabase/tests/s2-t150-care-circle-native-capture-states.json", "utf8"));
 function png(width, height, unique, label = "") {
@@ -14,15 +14,23 @@ function png(width, height, unique, label = "") {
 const entries = control.captures.map(({ file }, index) => ({ file, buffer: png(1179, 2556, index + 1) }));
 const valid = validateCaptureBuffers(entries, control);
 assert.equal(valid.length, 13); assert.equal(valid[0].scale, 3); assert.deepEqual(valid[0].logical_viewport, { width: 393, height: 852 });
+assert.equal(valid.every(({ native_capture_proven }) => native_capture_proven === false), true);
+assert.equal(valid.every(({ provenance_classification }) => provenance_classification === "founder_submitted_unverified"), true);
 assert.throws(() => validateCaptureBuffers(entries.slice(0, 12), control), /STOP_S2_T150_CAPTURE_COUNT_INVALID/);
 assert.throws(() => validateCaptureBuffers(entries.map((item, index) => index === 1 ? { ...item, buffer: entries[0].buffer } : item), control), /STOP_S2_T150_DUPLICATE_CAPTURE/);
 assert.throws(() => validateCaptureBuffers(entries.map((item, index) => index === 1 ? { ...item, buffer: png(1179, 2556, 2, "static web") } : item), control), /STOP_S2_T150_NON_NATIVE_LABEL_DETECTED/);
 assert.throws(() => validateCaptureBuffers(entries.map((item, index) => index === 1 ? { ...item, buffer: png(1000, 1000, 2) } : item), control), /STOP_S2_T150_CAPTURE_ORIENTATION_INVALID/);
+assert.deepEqual(validateHumanVerdict({ status: "pending" }), { status: "pending" });
+assert.deepEqual(validateHumanVerdict({ status: "accepted" }), { status: "accepted" });
+assert.deepEqual(validateHumanVerdict({ status: "returned" }), { status: "returned" });
+assert.throws(() => validateHumanVerdict({ status: "native_proven" }), /STOP_S2_T150_HUMAN_VERDICT_STATUS_INVALID/);
+assert.throws(() => validateHumanVerdict({ status: "accepted", source: "script" }), /STOP_S2_T150_HUMAN_VERDICT_FIELDS_INVALID/);
 const html = renderContactSheet(valid, "/safe/captures", [{ label: "Reference", path: "/safe/reference.png" }]);
-assert.match(html, /Human comparison required/); assert.match(html, /visual similarity/u);
+assert.match(html, /Human device and visual verification required/); assert.match(html, /Verdict: pending/); assert.match(html, /does not prove native provenance or visual similarity/u);
 
 const source = readFileSync("scripts/s2-care-circle-native-capture-intake.mjs", "utf8");
 assert.doesNotMatch(source, /fetch\(|https?:\/\/|sharp|writeFileSync\([^,]*CAPTURE_ROOT/iu);
+assert.doesNotMatch(source, /capture_kind:\s*"founder_native_ios"|native_capture_proven:\s*true/iu);
 const inert = spawnSync(process.execPath, ["scripts/s2-care-circle-native-capture-intake.mjs"], { encoding: "utf8" });
 assert.equal(inert.status, 0, inert.stderr); assert.match(inert.stdout, /^WAITING_FOR_FOUNDER_NATIVE_CAPTURES/mu); assert.match(inert.stdout, /filesystem_writes=0/u);
 console.log("S2-T150 native Care Circle capture intake contracts passed; default remained inert.");

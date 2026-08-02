@@ -1,5 +1,9 @@
 {
   "schema": "s2_t150_care_circle_native_capture_states_v1",
+  "intake_classification": "founder_submitted_device_capture_material",
+  "human_verdict_states": ["pending", "accepted", "returned"],
+  "automatic_native_proof": false,
+  "automatic_visual_similarity": false,
   "captures": [
     { "file": "S2-T145-01-caree-landing.png", "state": "caree_landing" },
     { "file": "S2-T145-02-four-digit-code-ready.png", "state": "four_digit_code_ready" },
