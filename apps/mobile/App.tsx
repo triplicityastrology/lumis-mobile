@@ -96,6 +96,7 @@ import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
 import { ContactSupportScreen } from "./src/screens/ContactSupportScreen";
 import { LanguageSelectScreen } from "./src/screens/LanguageSelectScreen";
+import { loadLocalAppLanguage, saveLocalAppLanguage } from "./src/services/appLanguageLocalStore";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
 import { ChatThinkingIndicator } from "./src/components/ChatThinkingIndicator";
 import {
@@ -201,9 +202,10 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [hasLocalDemoSession, setHasLocalDemoSession] = useState(false);
   // AUTH-013 first-launch: force a language choice before Welcome for a signed-out
-  // user with no preference. In-memory only (the language RPC is inactive and no
-  // local store persists it) — the state machine's `first_launch_required`.
-  const [firstLaunchLanguageDone, setFirstLaunchLanguageDone] = useState(false);
+  // user with no saved preference. The choice persists locally (expo-secure-store),
+  // so the gate is genuinely one-time and never reappears on cold start.
+  // `languageBootstrapped` holds the gate until the persisted value has loaded.
+  const [languageBootstrapped, setLanguageBootstrapped] = useState(false);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [reflectionThreads, setReflectionThreads] = useState<RestoredReflectionThread[]>([]);
   const [mainFocus, setMainFocus] = useState<string | null>(null);
@@ -261,6 +263,24 @@ export default function App() {
     // founder-test visibility without widening the Technical FounderTestShellScreen union.
     screen: screen === "support" || screen === "appLanguage" ? "profileTab" : screen,
   });
+
+  // AUTH-013: load the locally-persisted language choice once, so a returning
+  // user skips the first-launch selector. Account-restored preferences win over
+  // this local value (set later by account restoration).
+  useEffect(() => {
+    let active = true;
+    loadLocalAppLanguage()
+      .then((saved) => {
+        if (!active) return;
+        if (saved) setAppLanguagePreference((current) => current ?? saved);
+      })
+      .finally(() => {
+        if (active) setLanguageBootstrapped(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!founderTestsAvailable && founderTestRoute !== null) {
@@ -767,11 +787,11 @@ export default function App() {
   }
   // AUTH-013 launch state — first-launch language choice before Welcome.
   if (
+    languageBootstrapped &&
     screen === "home" &&
     !authStatus?.user &&
     !hasLocalDemoSession &&
-    !appLanguagePreference &&
-    !firstLaunchLanguageDone
+    !appLanguagePreference
   ) {
     return (
       <LanguageSelectScreen
@@ -779,7 +799,7 @@ export default function App() {
         initial={appLanguagePreference}
         onConfirm={(language) => {
           setAppLanguagePreference(language);
-          setFirstLaunchLanguageDone(true);
+          void saveLocalAppLanguage(language);
         }}
       />
     );
@@ -1077,6 +1097,7 @@ export default function App() {
         initial={appLanguagePreference}
         onConfirm={(language) => {
           setAppLanguagePreference(language);
+          void saveLocalAppLanguage(language);
           setScreen("profileTab");
         }}
         onBack={() => setScreen("profileTab")}
