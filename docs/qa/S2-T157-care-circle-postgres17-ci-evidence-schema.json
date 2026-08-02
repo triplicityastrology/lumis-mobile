@@ -1,17 +1,22 @@
 {
-  "schema": "s2_t157_care_circle_postgres17_ci_evidence_v1",
+  "schema": "s2_t162_care_circle_postgres17_ci_evidence_v2",
   "status": "READY_FOR_CI_EXECUTION",
   "allowed_statuses": ["READY_FOR_CI_EXECUTION", "CI_PROOF_PASSED", "CI_PROOF_RETURNED"],
   "required_future_fields": [
-    "source_commit",
-    "workflow_run_id",
-    "postgres_major",
-    "migration_order_passed",
-    "four_digit_contract_passed",
-    "concurrent_throttle_passed",
+    "github.repository",
+    "github.ref",
+    "github.commit",
+    "github.run_id",
+    "github.run_attempt",
+    "workflow.path",
+    "workflow.sha256",
+    "postgres_version",
+    "migrations",
+    "assertions",
     "rollback_passed",
     "cleanup_confirmed"
   ],
+  "required_authenticity": "github_artifact_attestation_verified_by_gh_cli",
   "current_ci_evidence": null,
   "production_or_staging_data_used": false
 }

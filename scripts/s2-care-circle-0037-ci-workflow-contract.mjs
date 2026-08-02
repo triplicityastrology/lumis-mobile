@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -9,6 +10,12 @@ assert.match(workflow, /ubuntu-24\.04/);
 assert.match(workflow, /public\.ecr\.aws\/supabase\/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453/);
 assert.doesNotMatch(workflow, /S2_T135_POSTGRES_IMAGE:\s+[^\n]*postgres:[0-9]/u);
 assert.match(workflow, /actions\/checkout@[0-9a-f]{40}/u);
+assert.match(workflow, /actions\/attest@[0-9a-f]{40}/u);
+assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}/u);
+assert.doesNotMatch(workflow, /actions\/(?:checkout|attest|upload-artifact)@v[0-9]/u);
+assert.match(workflow, /id-token: write/u);
+assert.match(workflow, /attestations: write/u);
+assert.match(workflow, /s2-care-circle-postgres17-ci-artifact\.mjs/u);
 assert.match(workflow, /S2_T148_ENGINE: docker/);
 assert.match(workflow, /run-care-circle-0037-four-digit\.sh/);
 assert.doesNotMatch(workflow, /secrets\.|supabase\.co|--linked|project-ref|DATABASE_URL:/u);
@@ -37,6 +44,13 @@ assert.equal(evidence.current_ci_evidence, null);
 const control = JSON.parse(readFileSync("supabase/tests/s2-t157-care-circle-postgres17-ci-control.json", "utf8"));
 assert.equal(control.runtime.postgres_image, "public.ecr.aws/supabase/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453");
 assert.match(control.runtime.postgres_image, /@sha256:[0-9a-f]{64}$/u);
+assert.equal(control.workflow_sha256, "3a5d2edf5780216abac14a3a7f0004c106e0e53c4bb8de3f0120c2adc222f4d2");
+assert.equal(createHash("sha256").update(workflow).digest("hex"), control.workflow_sha256);
+assert.deepEqual(control.pinned_actions, {
+  checkout: "11bd71901bbe5b1630ceea73d27597364c9af683",
+  attest: "508db95dd578ae2727ebd6217d5ba78e4fbda05d",
+  upload_artifact: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+});
 const tagOnly = structuredClone(control);
 tagOnly.runtime.postgres_image = "public.ecr.aws/supabase/postgres:17.6.1.143";
 const temporaryControl = "supabase/tests/.s2-t157-tag-only-control.tmp.json";

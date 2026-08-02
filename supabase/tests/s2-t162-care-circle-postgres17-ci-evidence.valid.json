@@ -1,9 +1,17 @@
 {
-  "schema": "s2_t162_care_circle_postgres17_ci_evidence_v1",
+  "schema": "s2_t162_care_circle_postgres17_ci_evidence_v2",
   "status": "CI_PROOF_PASSED",
-  "workflow_source_commit": "07b18e530158a6dab260d6f447680cb3ef0f4720",
-  "workflow_path": ".github/workflows/s2-t157-care-circle-postgres17-proof.yml",
-  "workflow_sha256": "50576da9c6b392a97ef558950937f2ef3ab0c43183914175710f9ba5f8f078ce",
+  "github": {
+    "repository": "triplicityastrology/lumis-mobile",
+    "ref": "refs/heads/sprint1-fable-ui-stabilization",
+    "commit": "1111111111111111111111111111111111111111",
+    "run_id": "987654321",
+    "run_attempt": 1
+  },
+  "workflow": {
+    "path": ".github/workflows/s2-t157-care-circle-postgres17-proof.yml",
+    "sha256": "3a5d2edf5780216abac14a3a7f0004c106e0e53c4bb8de3f0120c2adc222f4d2"
+  },
   "runner": "ubuntu-24.04",
   "postgres_version": "17.6",
   "postgres_image": "public.ecr.aws/supabase/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",

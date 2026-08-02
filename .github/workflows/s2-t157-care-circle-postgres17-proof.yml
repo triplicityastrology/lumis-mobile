@@ -5,6 +5,9 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   postgres17-proof:
@@ -29,3 +32,16 @@ jobs:
         run: bash scripts/run-care-circle-0037-four-digit.sh
       - name: Confirm no source mutation
         run: git diff --exit-code
+      - name: Build closed proof artifact
+        run: node scripts/s2-care-circle-postgres17-ci-artifact.mjs --write "$RUNNER_TEMP/s2-t162-care-circle-postgres17-proof.json"
+      - name: Attest closed proof artifact
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d
+        with:
+          subject-path: ${{ runner.temp }}/s2-t162-care-circle-postgres17-proof.json
+      - name: Upload closed proof artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: s2-t162-care-circle-postgres17-proof
+          path: ${{ runner.temp }}/s2-t162-care-circle-postgres17-proof.json
+          if-no-files-found: error
+          retention-days: 7
