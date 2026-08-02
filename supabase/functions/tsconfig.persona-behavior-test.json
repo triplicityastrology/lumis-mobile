@@ -11,6 +11,8 @@
   "include": [
     "_shared/persona-behavior-mapping-v1.ts",
     "_shared/persona-behavior-v1.ts",
-    "_shared/persona-behavior-v1.fixtures.ts"
+    "_shared/persona-behavior-v1.fixtures.ts",
+    "_shared/persona-prompt-pipeline-v1.ts",
+    "_shared/persona-prompt-pipeline-v1.fixtures.ts"
   ]
 }
