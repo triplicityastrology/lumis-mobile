@@ -5,6 +5,8 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "setup:check": "node scripts/mobile-setup-doctor.mjs",
+    "founder:doctor": "node scripts/founder-mobile-readiness-doctor.mjs",
+    "test:founder-doctor": "node scripts/founder-mobile-readiness-doctor-contract.mjs",
     "start:normal-expo": "bash scripts/start-normal-expo.sh",
     "start:care-circle-founder": "bash scripts/start-care-circle-founder-expo.sh",
     "start:persona-comparison": "bash scripts/start-persona-comparison-expo.sh",
@@ -135,7 +137,7 @@
     "test:worker-live": "node scripts/cloudflare-worker-smoke.mjs",
     "test:external-sync": "node scripts/external-sync-contract.mjs",
     "test:mobile-ui": "node scripts/mobile-ui-contract.mjs",
-    "test:mobile-native-bundle-contract": "node scripts/mobile-native-bundle-resolution-contract.mjs",
+    "test:mobile-native-bundle-contract": "node scripts/mobile-native-bundle-resolution-contract.mjs && node scripts/founder-mobile-readiness-doctor-contract.mjs",
     "verify:mobile-native-bundle": "zsh scripts/run-mobile-native-bundle-smoke.zsh",
     "test:s1t04-six-screen-rework": "node scripts/s1t04-six-screen-rework-contract.mjs",
     "test:opaque-surfaces": "node scripts/opaque-mobile-surfaces-contract.mjs",

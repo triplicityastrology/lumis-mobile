@@ -73,5 +73,19 @@ printf 'Starting the normal Lumis app on port %s. Keep this Terminal open; press
 printf 'Care Circle workbench is not enabled by this command.\n'
 
 cd "$ROOT"
+mkdir -p "$ROOT/.lumis-local"
+MARKER_COMMIT="$COMMIT" MARKER_PORT="$PORT" node -e '
+  const fs = require("node:fs");
+  fs.writeFileSync(
+    ".lumis-local/normal-expo-session.json",
+    JSON.stringify({
+      schema: "lumis_normal_expo_session_v1",
+      source_commit: process.env.MARKER_COMMIT,
+      port: Number(process.env.MARKER_PORT)
+    }) + "\n",
+    { mode: 0o600 }
+  );
+'
+unset MARKER_COMMIT MARKER_PORT
 export EXPO_PUBLIC_LUMIS_SOURCE_COMMIT="$COMMIT"
 exec pnpm --dir "$MOBILE_DIR" exec expo start --tunnel --port "$PORT" --clear
