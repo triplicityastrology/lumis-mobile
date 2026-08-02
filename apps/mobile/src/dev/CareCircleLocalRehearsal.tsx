@@ -54,21 +54,13 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
           careCirclePaused: harness.snapshot().paused,
         }}
         client={client}
-        onBack={onBack}
+        onBack={() => setTestPanelVisible(true)}
         onEvidenceState={(input) =>
           setJourney((current) => advanceSinglePhoneJourney(current, input))
         }
         relationshipPort={harness.relationshipPort(role)}
         requestIdFactory={randomUUID}
       />
-      <Pressable
-        accessibilityLabel="Open local Care Circle test controls"
-        accessibilityRole="button"
-        onPress={() => setTestPanelVisible(true)}
-        style={styles.testPill}
-      >
-        <Text style={styles.testPillText}>LOCAL TEST · {role === "caree" ? "CAREE" : "CARER"}</Text>
-      </Pressable>
       <Modal animationType="fade" onRequestClose={() => setTestPanelVisible(false)} transparent visible={testPanelVisible}>
         <View style={styles.scrim}>
           <View style={styles.panel}>
@@ -100,6 +92,7 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
           <Text style={styles.secondaryText}>Start over</Text>
         </Pressable>
             <Pressable accessibilityRole="button" onPress={() => setTestPanelVisible(false)} style={styles.close}><Text style={styles.secondaryText}>Close</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={onBack} style={styles.close}><Text style={styles.secondaryText}>Back to Founder Tests</Text></Pressable>
           </View>
         </View>
       </Modal>
@@ -131,8 +124,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  testPill: { backgroundColor: "rgba(10,35,47,0.94)", borderColor: colors.gold, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, position: "absolute", right: spacing.md, top: 58, zIndex: 20 },
-  testPillText: { color: colors.goldLight, fontSize: 10, fontWeight: "800" },
   scrim: { alignItems: "center", backgroundColor: "rgba(2,10,18,0.7)", flex: 1, justifyContent: "center", padding: spacing.lg },
   panel: { backgroundColor: colors.surface, borderColor: colors.gold, borderRadius: 18, borderWidth: 1, gap: spacing.sm, maxWidth: 420, padding: spacing.lg, width: "100%" },
   secondary: {

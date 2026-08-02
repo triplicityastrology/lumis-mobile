@@ -84,7 +84,7 @@ assert.match(sessionGate, /key=\{sessionEpoch\}/);
 assert.match(sessionGate, /advanceSinglePhoneJourney/);
 assert.match(sessionGate, /Current: \{flow\.journey\.label\}/);
 assert.match(sessionGate, /flow\.journey\.nextLabel/);
-assert.match(sessionGate, /Open staging Care Circle test controls/);
+assert.match(sessionGate, /onOpenTestControls/);
 assert.match(singlePhoneJourney, /confirmationSource/);
 assert.match(singlePhoneJourney, /input\.confirmationSource !== current\.requiredConfirmation/);
 assert.match(sessionGate, /Preview Test Summary/);
@@ -111,11 +111,13 @@ for (const evidenceName of [
 assert.match(evidenceSummaryFixture, /request-ready state is not evidence/);
 assert.match(evidenceSummaryFixture, /summary items expose safe fields only/);
 assert.match(screen, /capabilities\.accountRole/);
-assert.match(localRehearsalScreen, /Open local Care Circle test controls/);
+assert.match(localRehearsalScreen, /onBack=\{\(\) => setTestPanelVisible\(true\)\}/);
 assert.match(localRehearsalScreen, /Local rehearsal only\. No live backend or staging evidence\./);
 assert.match(localRehearsalScreen, /item === "caree" \? "Use Caree" : "Use Carer"/);
 assert.match(localRehearsalScreen, /Confirm cleanup/);
 assert.match(localRehearsalScreen, /Start over/);
+assert.doesNotMatch(localRehearsalScreen, /LOCAL TEST|testPill/);
+assert.doesNotMatch(sessionGate, /FOUNDER TEST ·|testPill/);
 assert.doesNotMatch(
   localRehearsal,
   /supabase|fetch\s*\(|AsyncStorage|SecureStore|functions\.invoke|https?:\/\//i
@@ -136,7 +138,7 @@ for (const step of [
 }
 assert.match(singlePhoneJourney, /counts are zero/);
 assert.match(singlePhoneJourneyFixture, /wrong identity cannot advance/);
-assert.match(sessionGate, /FOUNDER TEST ·/);
+assert.doesNotMatch(sessionGate, /FOUNDER TEST ·/);
 assert.match(screen, /capabilities\.canActAsCaree/);
 assert.match(screen, /capabilities\.canActAsCarer/);
 assert.match(outcomeIntegrity, /Pending Caree acceptance confirmed/);
@@ -205,7 +207,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(screen, /disabled: disabled \|\| atCapacity/);
 assert.match(screen, /lifetime > 11 \* 60 \* 1000/);
-assert.match(screen, /ten-minute staging window/);
+assert.match(screen, /pairing code is ready for ten minutes/);
 assert.match(screen, /setPairingCodeInput\(""\)/);
 assert.match(screen, /setPairingCode\(null\)/);
 assert.match(screen, /PEOPLE YOU CARE FOR/);

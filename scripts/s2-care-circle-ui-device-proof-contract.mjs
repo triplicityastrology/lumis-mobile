@@ -11,6 +11,7 @@ const recovery = read("apps/mobile/test-workbenches/care-circle-staging/workbenc
 const deviceSafety = read("apps/mobile/test-workbenches/care-circle-staging/workbenchDeviceSafety.ts");
 const deviceFixtures = read("apps/mobile/test-workbenches/care-circle-staging/workbenchDeviceSafety.fixtures.ts");
 const manifest = JSON.parse(read("docs/qa/S2-T142-care-circle-device-state-manifest.json"));
+const visualChecklist = JSON.parse(read("docs/qa/S2-T169-care-circle-visual-difference-checklist.json"));
 
 assert.match(product, /75ee368 -> 9e31edc -> 467a3f9 -> db26a54/);
 assert.match(product, /export function CareCircleProductFrame/);
@@ -37,10 +38,10 @@ for (const rejected of [
   assert.doesNotMatch(`${screen}\n${rehearsal}\n${liveGate}`, new RegExp(rejected));
 }
 assert.doesNotMatch(screen, /CareCircleFounderGuidance|founderGuidance/);
-assert.match(rehearsal, /Open local Care Circle test controls/);
-assert.match(liveGate, /Open staging Care Circle test controls/);
-assert.match(rehearsal, /position: "absolute"/);
-assert.match(liveGate, /position: "absolute"/);
+assert.match(rehearsal, /onBack=\{\(\) => setTestPanelVisible\(true\)\}/);
+assert.match(liveGate, /onOpenTestControls/);
+assert.doesNotMatch(rehearsal, /LOCAL TEST|testPill|position: "absolute"/);
+assert.doesNotMatch(liveGate, /FOUNDER TEST ·|testPill/);
 assert.equal((screen.match(/<ScrollView/g) ?? []).length, 1);
 assert.match(screen, /useWindowDimensions/);
 assert.match(screen, /Keyboard\.addListener\("keyboardDidShow"/);
@@ -75,7 +76,9 @@ assert.match(screen, /active: "Active · accepted by Caree"/);
 assert.match(screen, /paused \? "Resume" : "Pause"/);
 assert.match(screen, /label: "Leave"/);
 assert.match(recovery, /invalid, expired, or revoked/);
-assert.match(screen, /backgroundColor: "rgba\(58,80,118,0\.42\)"/);
+assert.match(screen, /backgroundColor: "rgba\(58,80,118,0\.30\)"/);
+assert.match(screen, /safe: \{ flex: 1, backgroundColor: "transparent" \}/);
+assert.doesNotMatch(screen, /Reusable pairing code ready for this ten-minute staging window|Backend response received|Participant-safe staging|Refresh status/);
 assert.match(screen, /borderRadius: 18/);
 assert.match(screen, /height: 48/);
 
@@ -87,6 +90,14 @@ assert.deepEqual(manifest.reference_images, [
   "/Users/rubyku/Downloads/IMG_9417.PNG",
 ]);
 assert.deepEqual(manifest.recovered_lineage, ["75ee368", "9e31edc", "467a3f9", "db26a54", "3d8c7a4"]);
+assert.equal(visualChecklist.schema, "s2_t169_care_circle_visual_difference_v1");
+assert.equal(visualChecklist.checks.length, 8);
+assert.equal(visualChecklist.native_retest_required, true);
+assert.equal(visualChecklist.automated_similarity_claim, false);
+assert.deepEqual(visualChecklist.returned_device_captures, [
+  "/Users/rubyku/Downloads/IMG_9420.PNG",
+  "/Users/rubyku/Downloads/IMG_9421.PNG",
+]);
 assert.deepEqual(manifest.states.map(({ name }) => name), [
   "caree_landing", "four_digit_code_ready", "copy_confirmation", "carer_entry",
   "pending_no_authority", "caree_accept_decline", "active", "paused", "resumed",

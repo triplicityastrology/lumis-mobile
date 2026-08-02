@@ -57,6 +57,7 @@ export function CareCircleStagingSessionGate({
         confirmationSource: JourneyConfirmationSource;
       }): void;
       onCodeCopied(): void;
+      onOpenTestControls(): void;
     }
   ) => ReactNode;
   sessionPort: WorkbenchSessionPort;
@@ -186,18 +187,11 @@ export function CareCircleStagingSessionGate({
                 evidence: recordConfirmedCodeCopy(current.evidence),
               }));
             },
+            onOpenTestControls() {
+              setTestPanelVisible(true);
+            },
           })}
         </View>
-        <Pressable
-          accessibilityLabel="Open staging Care Circle test controls"
-          accessibilityRole="button"
-          onPress={() => setTestPanelVisible(true)}
-          style={styles.testPill}
-        >
-          <Text style={styles.testPillText}>
-            FOUNDER TEST · {session.capabilities.accountRole.toUpperCase()}
-          </Text>
-        </Pressable>
         <Modal
           animationType="fade"
           onRequestClose={() => setTestPanelVisible(false)}
@@ -442,19 +436,6 @@ function EvidenceSummary({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
   signedIn: { flex: 1, backgroundColor: colors.navy950 },
-  testPill: {
-    backgroundColor: "rgba(10,35,47,0.94)",
-    borderColor: colors.gold,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    position: "absolute",
-    right: spacing.md,
-    top: 58,
-    zIndex: 20,
-  },
-  testPillText: { color: colors.goldLight, fontSize: 10, fontWeight: "800" },
   scrim: {
     alignItems: "center",
     backgroundColor: "rgba(2,10,18,0.7)",

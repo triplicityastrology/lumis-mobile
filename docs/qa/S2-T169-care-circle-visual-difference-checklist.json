@@ -1,0 +1,24 @@
+{
+  "schema": "s2_t169_care_circle_visual_difference_v1",
+  "viewport": { "pixel_width": 1179, "pixel_height": 2556, "logical_points": "393x852" },
+  "approved_references": [
+    "/Users/rubyku/Downloads/IMG_9418.PNG",
+    "/Users/rubyku/Downloads/IMG_9417.PNG"
+  ],
+  "returned_device_captures": [
+    "/Users/rubyku/Downloads/IMG_9420.PNG",
+    "/Users/rubyku/Downloads/IMG_9421.PNG"
+  ],
+  "checks": [
+    { "id": "continuous_celestial_canvas", "returned_defect": "opaque content sheet below header", "required": "teal celestial gradient and stars remain visible behind header, scroll content, and safe area" },
+    { "id": "product_frame_only", "returned_defect": "LOCAL TEST and staging status chrome inside product pixels", "required": "test controls open only after leaving the product frame" },
+    { "id": "glass_relationship_cards", "returned_defect": "near-opaque navy relationship cards", "required": "historical translucent blue glass with hairline border" },
+    { "id": "compact_actions", "returned_defect": "oversized solid blue stacked controls", "required": "compact translucent paired actions at normal text size" },
+    { "id": "historical_hands_emblem", "returned_defect": "excess vertical separation around emblem", "required": "48-point translucent gold hands emblem with compact spacing" },
+    { "id": "compact_type_and_spacing", "returned_defect": "large administrative layout and helper prose", "required": "historical compact section labels, rows, spacing, and product-only copy" },
+    { "id": "scanner_surface", "returned_defect": "administrative code panel replaces scanner composition", "required": "celestial scanner frame plus four-digit manual fallback" },
+    { "id": "safe_area_single_scroll", "returned_defect": "hard layer boundary and distorted product viewport", "required": "one full-height safe-area scroll owner over the continuous sky" }
+  ],
+  "native_retest_required": true,
+  "automated_similarity_claim": false
+}

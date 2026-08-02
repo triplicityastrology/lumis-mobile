@@ -261,7 +261,7 @@ export function CareCircleStagingWorkbench({
         setPairingCodeExpiresAt(null);
         setNotice({
           tone: "error",
-          text: "The staging pairing code expiry could not be verified.",
+          text: "The pairing code expiry could not be verified.",
         });
         return result;
       }
@@ -269,14 +269,14 @@ export function CareCircleStagingWorkbench({
       setPairingCodeExpiresAt(result.expiresAt);
       setNotice({
         tone: "success",
-        text: "Reusable pairing code ready for this ten-minute staging window.",
+        text: "Your pairing code is ready for ten minutes.",
       });
       return result;
     }
 
     setNotice({
       tone: "info",
-      text: "Backend response received. Confirming the participant-safe state...",
+      text: "Confirming your Care Circle...",
     });
     return result;
   }
@@ -297,7 +297,7 @@ export function CareCircleStagingWorkbench({
       if (announce) {
         setNotice({
           tone: "info",
-          text: "Participant-safe staging relationships refreshed.",
+          text: "Care Circle updated.",
         });
       }
       return projection;
@@ -420,7 +420,7 @@ export function CareCircleStagingWorkbench({
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
       >
-        {notice ? (
+        {notice?.tone === "error" ? (
           <View
             accessibilityLiveRegion={notice.tone === "error" ? "assertive" : "polite"}
             style={[
@@ -532,7 +532,6 @@ export function CareCircleStagingWorkbench({
               <Action disabled={disabled || !capabilities.canActAsCarer} label="Scan or enter someone's code" onPress={() => setProductView("enter")} secondary />
               <Text style={styles.helper}>Enter a code someone shows you. They must accept before the link becomes active.</Text>
             </View>
-            <Action disabled={disabled} label={busy === "refresh_relationships" ? "Refreshing..." : "Refresh status"} onPress={() => void refreshRelationships()} secondary />
             <SafetyNote text="Care Circle is for gentle check-ins only. It cannot guarantee push delivery, urgent response, or emergency support." />
           </>
         )}
@@ -634,18 +633,18 @@ function relationshipStatusLabel(
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.navy950 },
+  safe: { flex: 1, backgroundColor: "transparent" },
   content: { alignSelf: "center", maxWidth: 480, padding: spacing.lg, paddingBottom: 48, width: "100%" },
   contentCompact: { paddingHorizontal: 16, paddingTop: 14 },
   emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", marginBottom: 18, width: 48 },
   sectionLabel: { color: colors.muted, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.8, marginBottom: 10, marginTop: 14 },
-  productCard: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 12, marginBottom: 24, padding: 16 },
+  productCard: { backgroundColor: "rgba(58,80,118,0.30)", borderColor: "rgba(173,196,224,0.24)", borderRadius: 18, borderWidth: 1, gap: 12, marginBottom: 24, padding: 16 },
   scheduleRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
   scheduleChip: { backgroundColor: "rgba(201,169,110,0.14)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   scheduleChipText: { color: colors.goldLight, fontSize: 12, fontWeight: "700" },
   scheduleNext: { color: colors.textSoft, flex: 1, fontSize: 12, minWidth: 150 },
   helper: { color: colors.muted, fontSize: 11.5, lineHeight: 18, textAlign: "center" },
-  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(215,185,120,0.55)", borderRadius: 22, borderWidth: 1.5, gap: 12, maxWidth: 360, padding: 24, width: "100%" },
+  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(58,80,118,0.30)", borderColor: "rgba(215,185,120,0.55)", borderRadius: 22, borderWidth: 1.5, gap: 12, maxWidth: 360, padding: 24, width: "100%" },
   codeOwner: { color: colors.ice, fontFamily: "Georgia", fontSize: 17 },
   codeBox: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.1)", borderColor: "rgba(215,185,120,0.4)", borderRadius: 12, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 8 },
   expiryChip: { backgroundColor: "rgba(201,169,110,0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
@@ -741,7 +740,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
   },
   actionSecondary: {
-    backgroundColor: "rgba(69,99,145,0.92)",
+    backgroundColor: "rgba(69,99,145,0.48)",
     borderWidth: 1,
     borderColor: colors.line,
   },
