@@ -10,7 +10,8 @@
   },
   "ordered_device_steps": [
     "caree_sign_in",
-    "caree_create_one_hour_pairing_code",
+    "caree_create_ten_minute_pairing_code",
+    "caree_copy_pairing_code",
     "caree_switch_account",
     "carer_sign_in",
     "carer_submit_pairing_code",
@@ -39,8 +40,7 @@
   ],
   "evidence": [
     "redacted_run_id",
-    "ordered_check_names",
-    "safe_status_codes",
-    "two_account_cleanup_count"
+    "closed_boolean_summary",
+    "two_account_cleanup_zero_count"
   ]
 }
