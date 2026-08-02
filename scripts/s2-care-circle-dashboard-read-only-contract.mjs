@@ -45,7 +45,7 @@ try {
   assert.equal(unsafe.stderr, "STOP_S2_T71_FIELD_SHAPE_INVALID\n");
   assert.doesNotMatch(unsafe.stderr, /private|stack|Error|at file:/i);
   assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:s2-care-circle-dashboard-read-only/);
-  assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+  assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr");
 
   process.stdout.write("S2-T71 read-only Dashboard evidence contract passed\n");
 } finally {

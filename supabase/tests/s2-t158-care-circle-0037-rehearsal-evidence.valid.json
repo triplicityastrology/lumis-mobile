@@ -8,7 +8,7 @@
   "migration": {
     "version": "0037",
     "name": "four_digit_care_pairing_codes",
-    "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c"
+    "sha256": "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d"
   },
   "residue": {
     "schema_objects": 0,
@@ -20,7 +20,7 @@
   "attestation": {
     "schema": "s2_t164_rehearsal_attestation_v1",
     "operator_id": "s2_t140_0037_dashboard_rollback_rehearsal",
-    "operator_sha256": "2cb116482a1a106e9243d6401d73abb0e29b6b8b5c0f84237ec13cf51118e39e",
+    "operator_sha256": "68af532ed66d4b6025e217ae069bd3b3da46bf53ea6a9a8ddae1db5767cbfcd2",
     "session_nonce": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   }
 }

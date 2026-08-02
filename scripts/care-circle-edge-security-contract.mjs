@@ -23,6 +23,6 @@ assert.doesNotMatch(
 assert.match(packageJson.scripts["test:care-circle-edge-security"], /operation-boundary\.fixtures/);
 assert.match(packageJson.scripts["test:care-circle-regression-static"], /test:care-circle-edge-security/);
 assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:care-circle-regression-static/);
-assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr");
 
 console.log("Care Circle Edge security contract passed");

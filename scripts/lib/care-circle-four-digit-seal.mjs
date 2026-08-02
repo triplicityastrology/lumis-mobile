@@ -10,6 +10,8 @@ export function validateFourDigitSeal(path = DEFAULT_SEAL_PATH) {
   stopUnless(seal.migration_version === "0037", "MIGRATION_VERSION_INVALID");
   stopUnless(seal.pairing_code_format === "four_numeric_digits", "CODE_FORMAT_INVALID");
   stopUnless(seal.expiry_seconds === 600, "EXPIRY_INVALID");
+  stopUnless(seal.reservation_seconds === 3600, "RESERVATION_INVALID");
+  stopUnless(seal.hourly_pool_capacity === 10000, "POOL_CAPACITY_INVALID");
   stopUnless(seal.attempt_limit === 5 && seal.attempt_window_seconds === 600, "THROTTLE_INVALID");
   stopUnless(seal.custom_secret_name === "CARE_CIRCLE_PAIRING_SECRET", "SECRET_NAME_INVALID");
   stopUnless(Array.isArray(seal.locked_sources) && seal.locked_sources.length >= 12, "SOURCE_SET_INCOMPLETE");
@@ -56,7 +58,7 @@ export function validateFourDigitSeal(path = DEFAULT_SEAL_PATH) {
 }
 
 export function validateFourDigitPolicySources({ migration, edge, client, mobile }) {
-  stopUnless(/interval '10 minutes'/.test(migration) && /attempt_count between 0 and 5/.test(migration), "MIGRATION_POLICY_MISSING");
+  stopUnless(/interval '10 minutes'/.test(migration) && /interval '60 minutes'/.test(migration) && /care_pairing_code_reservations/.test(migration) && /attempt_count between 0 and 5/.test(migration), "MIGRATION_POLICY_MISSING");
   stopUnless(/\^\\d\{4\}\$/.test(edge) && /PAIRING_CODE_PATTERN = \/\^\\d\{4\}\$\//.test(client), "FOUR_DIGIT_CONTRACT_MISSING");
   stopUnless(/maxLength=\{4\}/.test(mobile) && /keyboardType="number-pad"/.test(mobile) && /Pairing code copied/.test(mobile), "MOBILE_BOUNDARY_MISSING");
   stopUnless(!/one[- ]hour|60[- ]minute|LUMIS123|[A-Z]{4}[0-9]{4}/i.test(`${edge}\n${client}\n${mobile}`), "STALE_CODE_POLICY");

@@ -99,7 +99,8 @@ begin
   end;
 
   update public.care_link_codes
-  set issued_at = now() - interval '20 minutes',
+  set status = 'expired',
+      issued_at = now() - interval '20 minutes',
       expires_at = now() - interval '10 minutes'
   where caree_user_id = '10000000-0000-4000-8000-000000000001';
   begin
@@ -113,6 +114,36 @@ begin
   exception when sqlstate 'P0001' then
     if sqlerrm <> '48004' then raise; end if;
   end;
+
+  begin
+    insert into public.care_link_codes (caree_user_id, code_hash, issued_at, expires_at)
+    values (
+      '10000000-0000-4000-8000-000000000002',
+      v_hash,
+      transaction_timestamp(),
+      transaction_timestamp() + interval '10 minutes'
+    );
+    raise exception 'S2_T171_STALE_QR_REASSIGNED_DURING_QUARANTINE';
+  exception when unique_violation then null;
+  end;
+
+  update public.care_pairing_code_reservations
+  set issued_at = transaction_timestamp() - interval '61 minutes',
+      reserved_until = transaction_timestamp() - interval '1 minute'
+  where code_hash = v_hash;
+
+  insert into public.care_link_codes (caree_user_id, code_hash, issued_at, expires_at)
+  values (
+    '10000000-0000-4000-8000-000000000002',
+    v_hash,
+    transaction_timestamp(),
+    transaction_timestamp() + interval '10 minutes'
+  );
+
+  if (select caree_user_id from public.care_pairing_code_reservations where code_hash = v_hash)
+      <> '10000000-0000-4000-8000-000000000002'::uuid then
+    raise exception 'S2_T171_POST_QUARANTINE_REUSE_FAILED';
+  end if;
 end;
 $$;
 

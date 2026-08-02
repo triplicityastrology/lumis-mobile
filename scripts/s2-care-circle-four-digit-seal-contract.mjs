@@ -14,7 +14,7 @@ assert.deepEqual(JSON.parse(readFileSync("supabase/tests/s2-t43-care-circle-func
 ]);
 
 const policy = {
-  migration: "interval '10 minutes'; attempt_count between 0 and 5",
+  migration: "interval '10 minutes'; interval '60 minutes'; care_pairing_code_reservations; attempt_count between 0 and 5",
   edge: "const code = /^\\d{4}$/;",
   client: "const PAIRING_CODE_PATTERN = /^\\d{4}$/;",
   mobile: 'maxLength={4} keyboardType="number-pad" Pairing code copied'

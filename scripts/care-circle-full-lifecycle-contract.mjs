@@ -32,6 +32,6 @@ assert.equal(
   "bash scripts/run-care-circle-local-db-integration.sh"
 );
 assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:care-circle-full-lifecycle-contract/);
-assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr");
 
 console.log("Care Circle full local lifecycle contract passed");

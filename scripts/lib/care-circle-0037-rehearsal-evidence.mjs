@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 
 export const REHEARSAL_EVIDENCE_SCHEMA = "s2_t158_care_circle_0037_rehearsal_evidence_v1";
-export const REHEARSAL_MIGRATION_SHA256 = "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c";
-export const REHEARSAL_OPERATOR_SHA256 = "2cb116482a1a106e9243d6401d73abb0e29b6b8b5c0f84237ec13cf51118e39e";
+export const REHEARSAL_MIGRATION_SHA256 = "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d";
+export const REHEARSAL_OPERATOR_SHA256 = "68af532ed66d4b6025e217ae069bd3b3da46bf53ea6a9a8ddae1db5767cbfcd2";
 export const REHEARSAL_OPERATOR_ID = "s2_t140_0037_dashboard_rollback_rehearsal";
 
 export function validateRehearsalEvidence(value, trustedSession) {

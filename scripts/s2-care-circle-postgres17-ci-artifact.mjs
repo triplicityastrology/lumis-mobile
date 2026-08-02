@@ -9,7 +9,7 @@ const MIGRATIONS = [
   ["0032", "9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e"],
   ["0033", "0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d"],
   ["0034", "466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb"],
-  ["0037", "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c"],
+  ["0037", "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d"],
 ];
 
 try {
@@ -45,6 +45,9 @@ try {
       migration_order_passed: true,
       expiry_passed: true,
       active_code_uniqueness_passed: true,
+      reservation_quarantine_passed: true,
+      stale_qr_non_reassignment_passed: true,
+      concurrent_collision_passed: true,
       hash_only_persistence_passed: true,
       replay_conflict_passed: true,
       generic_failure_passed: true,

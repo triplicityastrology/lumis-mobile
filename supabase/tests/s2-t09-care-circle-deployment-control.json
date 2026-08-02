@@ -21,7 +21,7 @@
     },
     {
       "name": "care-circle Edge Function",
-      "sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2",
+      "sha256": "1e090ef500d3081d8115eb7695deecb531c46cbbd0e785ff902eaaeeda5a7dca",
       "previous_sha256": "3834deb7ab98a35ec7ce87ba091c4acd7c99944d24552f4c5de955ab5e186989",
       "checksum_change_reason": "S2-T135 four-digit collision retry and generic pairing failure",
       "supporting_files": [
@@ -34,7 +34,7 @@
   ],
   "pre_function_migration_gate": {
     "name": "0037_four_digit_care_pairing_codes.sql",
-    "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c",
+    "sha256": "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d",
     "status": "source_only_not_deployed",
     "function_deployment_blocked_until_parity": true
   },

@@ -3,8 +3,8 @@
   "project_ref": "bmqhwofmdgebpcihjlnb",
   "execution_default": "zero_network_read_only",
   "locked_sources": [
-    { "name": "migration_0037", "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c" },
-    { "name": "edge_entry", "path": "supabase/functions/care-circle/index.ts", "sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2" },
+    { "name": "migration_0037", "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d" },
+    { "name": "edge_entry", "path": "supabase/functions/care-circle/index.ts", "sha256": "1e090ef500d3081d8115eb7695deecb531c46cbbd0e785ff902eaaeeda5a7dca" },
     { "name": "edge_boundary", "path": "supabase/functions/care-circle/operation-boundary.ts", "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8" },
     { "name": "recovered_product_ui", "path": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx", "sha256": "c4e3078b11930c499f2fad9eabcfb44516e59cb70c3ca3a37f6800bba970343d" },
     { "name": "guided_workbench", "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "sha256": "34388a5b469e912ed23058d9f9437be89c81918bdf7885bcc7ff4cbd6ced2ec9" }

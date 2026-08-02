@@ -20,6 +20,6 @@ assert.match(compatibility, /pgrst_ddl_watch/);
 assert.doesNotMatch(compatibility, /disable row level security/);
 assert.match(packageJson.scripts["test:care-circle-regression-static"], /test:care-circle-0032-postgres17-contract/);
 assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:care-circle-regression-static/);
-assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr");
 
 console.log("Care Circle 0032 PostgreSQL 17 retention contract passed");

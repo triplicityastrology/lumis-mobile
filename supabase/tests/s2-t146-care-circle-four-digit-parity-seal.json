@@ -4,12 +4,14 @@
   "migration_version": "0037",
   "pairing_code_format": "four_numeric_digits",
   "expiry_seconds": 600,
+  "reservation_seconds": 3600,
+  "hourly_pool_capacity": 10000,
   "attempt_limit": 5,
   "attempt_window_seconds": 600,
   "custom_secret_name": "CARE_CIRCLE_PAIRING_SECRET",
   "locked_sources": [
-    { "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c" },
-    { "path": "supabase/functions/care-circle/index.ts", "sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2" },
+    { "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d" },
+    { "path": "supabase/functions/care-circle/index.ts", "sha256": "1e090ef500d3081d8115eb7695deecb531c46cbbd0e785ff902eaaeeda5a7dca" },
     { "path": "supabase/functions/care-circle/operation-boundary.ts", "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8" },
     { "path": "supabase/functions/_shared/cors.ts", "sha256": "e4ea6680fbb157a84a060c26f31b5795f9fbea00d239cbf78a2a3596bf7ef3f9" },
     { "path": "supabase/functions/care-circle/operation-boundary.fixtures.ts", "sha256": "9b2c7566a6ecc12effd258335f5bb3e460192c5a822ddd3a63ef28a0890c94b0" },
@@ -34,7 +36,7 @@
     { "path": "scripts/s2-care-circle-two-account-operator.mjs", "sha256": "7630adc8ea66c3a93646133ebc79203bef837e97570167fd4dd91336ca71cb3e" },
     { "path": "scripts/run-s2-care-circle-staging-evidence.sh", "sha256": "da3e8c96ee3be5a54650e07bdbc7144c211d2b21a47417aed7a5e8ac28cd6e38" },
     { "path": "scripts/s2-care-circle-staging-evidence.mjs", "sha256": "eae0088d301cfe17e9c6f7488a94d129363c222c50420f1caca66d72d7113f00" },
-    { "path": "supabase/tests/s2-t43-care-circle-function-pat-control.json", "sha256": "cfbd700808e60fd33bace0f7c302efaaecfaa555c64537e2d837ec3d4f3b8cca" },
-    { "path": "supabase/tests/s2-t48-care-circle-function-config-control.json", "sha256": "1289bb8e7a5a59b65bcadcda47d8d5f38f1c23d0c2cfea9f3dc214376a98d07d" }
+    { "path": "supabase/tests/s2-t43-care-circle-function-pat-control.json", "sha256": "be34995919ca4923a431c8797bb91446ccd1fcf13d0f7f43c20c913e17b0dcc8" },
+    { "path": "supabase/tests/s2-t48-care-circle-function-config-control.json", "sha256": "4e4f18f11943037619da08d5aa511aa545dcb1c8eaaa5c392bb14804ed847511" }
   ]
 }

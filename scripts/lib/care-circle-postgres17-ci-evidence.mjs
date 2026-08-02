@@ -14,12 +14,12 @@ const MIGRATIONS = [
   ["0032", "9d5dfdeab0975c9c8d923495bd5a17fa26ea5c26ef05ba4f036ac506b087a79e"],
   ["0033", "0996ecd9fcf6e4fb2b083d980e69a0c2dd042107bc8e753fdd43f79d0bcb0a1d"],
   ["0034", "466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb"],
-  ["0037", "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c"],
+  ["0037", "45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d"],
 ];
 const ROOT_KEYS = ["schema", "status", "github", "workflow", "runner", "postgres_version", "postgres_image", "migrations", "assertions", "network_calls", "remote_data_used"];
 const GITHUB_KEYS = ["repository", "ref", "commit", "run_id", "run_attempt"];
 const WORKFLOW_KEYS = ["path", "sha256"];
-const ASSERTION_KEYS = ["migration_order_passed", "expiry_passed", "active_code_uniqueness_passed", "hash_only_persistence_passed", "replay_conflict_passed", "generic_failure_passed", "concurrent_throttle_passed", "rollback_passed", "cleanup_confirmed"];
+const ASSERTION_KEYS = ["migration_order_passed", "expiry_passed", "active_code_uniqueness_passed", "reservation_quarantine_passed", "stale_qr_non_reassignment_passed", "concurrent_collision_passed", "hash_only_persistence_passed", "replay_conflict_passed", "generic_failure_passed", "concurrent_throttle_passed", "rollback_passed", "cleanup_confirmed"];
 const VERIFIED = Symbol("verified-github-attestation");
 
 export function validatePostgres17CiEvidence(value) {

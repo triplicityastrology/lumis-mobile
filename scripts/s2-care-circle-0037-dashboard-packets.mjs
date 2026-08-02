@@ -63,7 +63,7 @@ function buildPacket(commit) {
     "  select coalesce(jsonb_agg(jsonb_build_array(version,name) order by version),'[]'::jsonb) into v_history from supabase_migrations.schema_migrations;",
     `  if v_history is distinct from '${expectedHistory}'::jsonb then raise exception 'S2_T140_STOP_REMOTE_PARITY_MISMATCH' using errcode='P0001'; end if;`,
     `  if not exists (select 1 from supabase_migrations.schema_migrations where version='0034' and name='${entry.care_circle_predecessor_name}') then raise exception 'S2_T140_STOP_0034_REQUIRED' using errcode='P0001'; end if;`,
-    "  if to_regclass('public.care_pairing_attempt_windows') is not null or exists (select 1 from supabase_migrations.schema_migrations where version='0037') then raise exception 'S2_T140_STOP_0037_RESIDUE_PRESENT' using errcode='P0001'; end if;",
+    "  if to_regclass('public.care_pairing_attempt_windows') is not null or to_regclass('public.care_pairing_code_reservations') is not null or exists (select 1 from supabase_migrations.schema_migrations where version='0037') then raise exception 'S2_T140_STOP_0037_RESIDUE_PRESENT' using errcode='P0001'; end if;",
     "end $s2_t140_preflight$;",
     "-- S2_T140_EXECUTABLE_MIGRATION_BODY_BEGIN",
     body,
@@ -71,13 +71,13 @@ function buildPacket(commit) {
     "insert into supabase_migrations.schema_migrations (version, statements, name)",
     `values ('0037',array[$s2_t140_source$${source.trim()}$s2_t140_source$]::text[],'${entry.history_name}');`,
     "do $s2_t140_postcheck$ begin",
-    "  if to_regclass('public.care_pairing_attempt_windows') is null or (select count(*) from supabase_migrations.schema_migrations where version='0037' and name='four_digit_care_pairing_codes') <> 1 then raise exception 'S2_T140_STOP_POSTCHECK_FAILED' using errcode='P0001'; end if;",
+    "  if to_regclass('public.care_pairing_attempt_windows') is null or to_regclass('public.care_pairing_code_reservations') is null or (select count(*) from supabase_migrations.schema_migrations where version='0037' and name='four_digit_care_pairing_codes') <> 1 then raise exception 'S2_T140_STOP_POSTCHECK_FAILED' using errcode='P0001'; end if;",
     "end $s2_t140_postcheck$;",
     commit ? "commit;" : "rollback;",
   ];
   if (!commit) lines.push(
     "do $s2_t140_zero_residue$ begin",
-    "  if to_regclass('public.care_pairing_attempt_windows') is not null or exists (select 1 from supabase_migrations.schema_migrations where version='0037') then raise exception 'S2_T140_STOP_REHEARSAL_RESIDUE' using errcode='P0001'; end if;",
+    "  if to_regclass('public.care_pairing_attempt_windows') is not null or to_regclass('public.care_pairing_code_reservations') is not null or exists (select 1 from supabase_migrations.schema_migrations where version='0037') then raise exception 'S2_T140_STOP_REHEARSAL_RESIDUE' using errcode='P0001'; end if;",
     "end $s2_t140_zero_residue$;"
   );
   return `${lines.join("\n")}\n`;

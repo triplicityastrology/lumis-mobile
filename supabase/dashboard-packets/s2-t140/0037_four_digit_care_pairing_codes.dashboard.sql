@@ -1,6 +1,6 @@
 -- S2-T140 Dashboard apply packet: 0037
 -- Approved staging ref: bmqhwofmdgebpcihjlnb
--- Exact source SHA-256: 3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c
+-- Exact source SHA-256: 45ef4469f72ad5188f6f66fede61717eac4b9f4fd598daccc3eafa003d3dd46d
 -- SOURCE_ONLY_UNRUN: visually verify the exact Dashboard project before use.
 begin;
 do $s2_t140_preflight$
@@ -12,7 +12,7 @@ begin
   select coalesce(jsonb_agg(jsonb_build_array(version,name) order by version),'[]'::jsonb) into v_history from supabase_migrations.schema_migrations;
   if v_history is distinct from '[["0001","initial_schema"],["0002","profile_chat_persistence"],["0003","care_notifications_usage"],["0004","birth_details_change_policy"],["0005","starter_grant_guard"],["0006","profile_onboarding_transaction"],["0007","lock_migration_reports_access"],["0008","onboarding_chart_history"],["0009","chat_turn_persistence_rpc"],["0010","strip_legacy_raw_provider_response"],["0011","explicit_reflection_thread"],["0012","external_sync_delivery_ledger"],["0013","account_deletion_external_sync"],["0014","authoritative_account_entitlements"],["0015","entitlement_provider_privacy"],["0016","trusted_birth_location_resolver"],["0017","persona_policy_and_entitlement_events"],["0018","remove_misleading_care_max_index"],["0019","dice_throws"],["0020","backend_runtime_guardrails"],["0021","runtime_observability_and_schedules"],["0022","chat_idempotency_context"],["0023","strict_sync_retention_and_provider_attempts"],["0024","provider_attempt_concurrency_and_payload_allowlist"],["0025","runtime_scheduler_status"],["0026","birth_details_regeneration"],["0027","entitlement_event_integrity_repair"],["0028","safe_account_deletion_status_refresh"],["0029","safe_account_deletion_enqueue_result"],["0030","safe_salesforce_deletion_subject_json"],["0032","care_circle_backend_foundation"],["0033","inactive_notification_foundation"],["0034","reusable_care_pairing_operations"]]'::jsonb then raise exception 'S2_T140_STOP_REMOTE_PARITY_MISMATCH' using errcode='P0001'; end if;
   if not exists (select 1 from supabase_migrations.schema_migrations where version='0034' and name='reusable_care_pairing_operations') then raise exception 'S2_T140_STOP_0034_REQUIRED' using errcode='P0001'; end if;
-  if to_regclass('public.care_pairing_attempt_windows') is not null or exists (select 1 from supabase_migrations.schema_migrations where version='0037') then raise exception 'S2_T140_STOP_0037_RESIDUE_PRESENT' using errcode='P0001'; end if;
+  if to_regclass('public.care_pairing_attempt_windows') is not null or to_regclass('public.care_pairing_code_reservations') is not null or exists (select 1 from supabase_migrations.schema_migrations where version='0037') then raise exception 'S2_T140_STOP_0037_RESIDUE_PRESENT' using errcode='P0001'; end if;
 end $s2_t140_preflight$;
 -- S2_T140_EXECUTABLE_MIGRATION_BODY_BEGIN
 alter table public.care_link_codes drop constraint if exists care_link_codes_window_check;
@@ -20,6 +20,56 @@ alter table public.care_link_codes add constraint care_link_codes_window_check
   check (expires_at > issued_at and expires_at <= issued_at + interval '10 minutes');
 drop index if exists public.care_link_codes_hash_idx;
 create unique index care_link_codes_active_hash_idx on public.care_link_codes(code_hash) where status='active';
+
+create table if not exists public.care_pairing_code_reservations (
+  code_hash text primary key check (code_hash ~ '^[0-9a-f]{64}$'),
+  caree_user_id uuid references public.users(id) on delete set null,
+  issued_at timestamptz not null,
+  reserved_until timestamptz not null,
+  check (reserved_until = issued_at + interval '60 minutes')
+);
+alter table public.care_pairing_code_reservations enable row level security;
+revoke all on public.care_pairing_code_reservations from public, anon, authenticated;
+grant all on public.care_pairing_code_reservations to service_role;
+comment on table public.care_pairing_code_reservations is
+  'Service-only hash reservation. Four-digit values remain unavailable for 60 minutes after issue; no raw code is stored.';
+
+create or replace function public.reserve_care_pairing_code_hash_backend()
+returns trigger language plpgsql security definer set search_path=public as $$
+declare v_claimed_hash text;
+begin
+  insert into public.care_pairing_code_reservations (
+    code_hash,
+    caree_user_id,
+    issued_at,
+    reserved_until
+  ) values (
+    new.code_hash,
+    new.caree_user_id,
+    new.issued_at,
+    new.issued_at + interval '60 minutes'
+  )
+  on conflict (code_hash) do update set
+    caree_user_id = excluded.caree_user_id,
+    issued_at = excluded.issued_at,
+    reserved_until = excluded.reserved_until
+  where care_pairing_code_reservations.reserved_until <= transaction_timestamp()
+  returning code_hash into v_claimed_hash;
+
+  if v_claimed_hash is null then
+    raise unique_violation using message = 'CARE_PAIRING_CODE_RESERVED';
+  end if;
+  return new;
+end; $$;
+revoke all on function public.reserve_care_pairing_code_hash_backend() from public,anon,authenticated;
+
+drop trigger if exists reserve_care_pairing_code_hash on public.care_link_codes;
+create trigger reserve_care_pairing_code_hash
+before insert on public.care_link_codes
+for each row execute function public.reserve_care_pairing_code_hash_backend();
+
+comment on function public.reserve_care_pairing_code_hash_backend() is
+  'Atomically reserves one of 10,000 four-digit values for 60 minutes. Scaling beyond 10,000 issues per rolling hour requires six digits.';
 
 create table if not exists public.care_pairing_attempt_windows (
   actor_user_id uuid primary key references public.users(id) on delete cascade,
@@ -70,6 +120,56 @@ alter table public.care_link_codes add constraint care_link_codes_window_check
 drop index if exists public.care_link_codes_hash_idx;
 create unique index care_link_codes_active_hash_idx on public.care_link_codes(code_hash) where status='active';
 
+create table if not exists public.care_pairing_code_reservations (
+  code_hash text primary key check (code_hash ~ '^[0-9a-f]{64}$'),
+  caree_user_id uuid references public.users(id) on delete set null,
+  issued_at timestamptz not null,
+  reserved_until timestamptz not null,
+  check (reserved_until = issued_at + interval '60 minutes')
+);
+alter table public.care_pairing_code_reservations enable row level security;
+revoke all on public.care_pairing_code_reservations from public, anon, authenticated;
+grant all on public.care_pairing_code_reservations to service_role;
+comment on table public.care_pairing_code_reservations is
+  'Service-only hash reservation. Four-digit values remain unavailable for 60 minutes after issue; no raw code is stored.';
+
+create or replace function public.reserve_care_pairing_code_hash_backend()
+returns trigger language plpgsql security definer set search_path=public as $$
+declare v_claimed_hash text;
+begin
+  insert into public.care_pairing_code_reservations (
+    code_hash,
+    caree_user_id,
+    issued_at,
+    reserved_until
+  ) values (
+    new.code_hash,
+    new.caree_user_id,
+    new.issued_at,
+    new.issued_at + interval '60 minutes'
+  )
+  on conflict (code_hash) do update set
+    caree_user_id = excluded.caree_user_id,
+    issued_at = excluded.issued_at,
+    reserved_until = excluded.reserved_until
+  where care_pairing_code_reservations.reserved_until <= transaction_timestamp()
+  returning code_hash into v_claimed_hash;
+
+  if v_claimed_hash is null then
+    raise unique_violation using message = 'CARE_PAIRING_CODE_RESERVED';
+  end if;
+  return new;
+end; $$;
+revoke all on function public.reserve_care_pairing_code_hash_backend() from public,anon,authenticated;
+
+drop trigger if exists reserve_care_pairing_code_hash on public.care_link_codes;
+create trigger reserve_care_pairing_code_hash
+before insert on public.care_link_codes
+for each row execute function public.reserve_care_pairing_code_hash_backend();
+
+comment on function public.reserve_care_pairing_code_hash_backend() is
+  'Atomically reserves one of 10,000 four-digit values for 60 minutes. Scaling beyond 10,000 issues per rolling hour requires six digits.';
+
 create table if not exists public.care_pairing_attempt_windows (
   actor_user_id uuid primary key references public.users(id) on delete cascade,
   window_started_at timestamptz not null default now(),
@@ -112,6 +212,6 @@ for each row execute function public.set_care_pairing_code_ten_minute_expiry();
 comment on table public.care_pairing_attempt_windows is 'Service-only attempt throttle; contains no raw pairing code.';
 commit;$s2_t140_source$]::text[],'four_digit_care_pairing_codes');
 do $s2_t140_postcheck$ begin
-  if to_regclass('public.care_pairing_attempt_windows') is null or (select count(*) from supabase_migrations.schema_migrations where version='0037' and name='four_digit_care_pairing_codes') <> 1 then raise exception 'S2_T140_STOP_POSTCHECK_FAILED' using errcode='P0001'; end if;
+  if to_regclass('public.care_pairing_attempt_windows') is null or to_regclass('public.care_pairing_code_reservations') is null or (select count(*) from supabase_migrations.schema_migrations where version='0037' and name='four_digit_care_pairing_codes') <> 1 then raise exception 'S2_T140_STOP_POSTCHECK_FAILED' using errcode='P0001'; end if;
 end $s2_t140_postcheck$;
 commit;

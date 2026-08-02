@@ -92,6 +92,13 @@ Deno.serve(async (request) => {
         );
         ({ data, error } = await serviceClient.rpc(operation.rpc, operation.params));
       }
+      if (error?.code === "23505") {
+        return safeError(
+          503,
+          "CARE_CIRCLE_CODE_POOL_UNAVAILABLE",
+          "A pairing code is not available. Try again later."
+        );
+      }
     }
 
     if (error) return mapRpcError(error);

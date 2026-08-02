@@ -5,6 +5,56 @@ alter table public.care_link_codes add constraint care_link_codes_window_check
 drop index if exists public.care_link_codes_hash_idx;
 create unique index care_link_codes_active_hash_idx on public.care_link_codes(code_hash) where status='active';
 
+create table if not exists public.care_pairing_code_reservations (
+  code_hash text primary key check (code_hash ~ '^[0-9a-f]{64}$'),
+  caree_user_id uuid references public.users(id) on delete set null,
+  issued_at timestamptz not null,
+  reserved_until timestamptz not null,
+  check (reserved_until = issued_at + interval '60 minutes')
+);
+alter table public.care_pairing_code_reservations enable row level security;
+revoke all on public.care_pairing_code_reservations from public, anon, authenticated;
+grant all on public.care_pairing_code_reservations to service_role;
+comment on table public.care_pairing_code_reservations is
+  'Service-only hash reservation. Four-digit values remain unavailable for 60 minutes after issue; no raw code is stored.';
+
+create or replace function public.reserve_care_pairing_code_hash_backend()
+returns trigger language plpgsql security definer set search_path=public as $$
+declare v_claimed_hash text;
+begin
+  insert into public.care_pairing_code_reservations (
+    code_hash,
+    caree_user_id,
+    issued_at,
+    reserved_until
+  ) values (
+    new.code_hash,
+    new.caree_user_id,
+    new.issued_at,
+    new.issued_at + interval '60 minutes'
+  )
+  on conflict (code_hash) do update set
+    caree_user_id = excluded.caree_user_id,
+    issued_at = excluded.issued_at,
+    reserved_until = excluded.reserved_until
+  where care_pairing_code_reservations.reserved_until <= transaction_timestamp()
+  returning code_hash into v_claimed_hash;
+
+  if v_claimed_hash is null then
+    raise unique_violation using message = 'CARE_PAIRING_CODE_RESERVED';
+  end if;
+  return new;
+end; $$;
+revoke all on function public.reserve_care_pairing_code_hash_backend() from public,anon,authenticated;
+
+drop trigger if exists reserve_care_pairing_code_hash on public.care_link_codes;
+create trigger reserve_care_pairing_code_hash
+before insert on public.care_link_codes
+for each row execute function public.reserve_care_pairing_code_hash_backend();
+
+comment on function public.reserve_care_pairing_code_hash_backend() is
+  'Atomically reserves one of 10,000 four-digit values for 60 minutes. Scaling beyond 10,000 issues per rolling hour requires six digits.';
+
 create table if not exists public.care_pairing_attempt_windows (
   actor_user_id uuid primary key references public.users(id) on delete cascade,
   window_started_at timestamptz not null default now(),

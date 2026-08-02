@@ -35,7 +35,7 @@ try {
   assert.equal(rejected.stderr, "STOP_S2_T72_FIELD_SHAPE_INVALID\n");
   assert.doesNotMatch(rejected.stderr, /not-allowed|stack|Error|at file:/i);
   assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:s2-care-circle-two-account-launch/);
-  assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+  assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr");
   assert.match(launcher, /deletes exactly two disposable accounts/);
   assert.doesNotMatch(launcher, /cleanup (?:passed|complete|verified)/i);
 

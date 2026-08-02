@@ -52,7 +52,8 @@ for (const sourceRequirement of [
   [screen, /pause_care/],
   [screen, /resume_care/],
   [screen, /remove_relationship/],
-  [screen, /Refresh status/],
+  [screen, /refreshRelationships\(false\)/],
+  [screen, /Retry refresh/],
   [port, /list_care_relationships/],
   [port, /relationship_status/],
   [client, /pending_caree_acceptance/]

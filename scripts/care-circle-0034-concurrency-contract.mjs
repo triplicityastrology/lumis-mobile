@@ -27,6 +27,6 @@ assert.equal(
 );
 assert.match(packageJson.scripts["test:care-circle-regression-static"], /test:care-circle-0034-concurrency-contract/);
 assert.match(packageJson.scripts["test:care-circle-aggregate-static"], /test:care-circle-regression-static/);
-assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static");
+assert.equal(packageJson.scripts["pretest:all-local"], "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr");
 
 console.log("Care Circle 0034 independent concurrency contract passed");

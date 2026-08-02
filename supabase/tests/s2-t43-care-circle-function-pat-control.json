@@ -5,7 +5,7 @@
   "execution_default": "local_validation_only",
   "supabase_cli_version": "2.109.1",
   "function_name": "care-circle",
-  "function_sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2",
+  "function_sha256": "1e090ef500d3081d8115eb7695deecb531c46cbbd0e785ff902eaaeeda5a7dca",
   "previous_function_sha256": "3834deb7ab98a35ec7ce87ba091c4acd7c99944d24552f4c5de955ab5e186989",
   "supporting_files": [
     {
