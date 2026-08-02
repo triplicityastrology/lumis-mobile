@@ -1,0 +1,17 @@
+{
+  "control": "S2-T145",
+  "approved_ancestor": "43ac4fa2273aa4ae1baf7b78b52116fb21d9a64b",
+  "expected_worktree": "/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work",
+  "protected_sources": [
+    { "path": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx", "sha256": "089cc04d0d544bf55df7cb9cc75bcc5da8b88fe10f212338cc8c98378bf0074e" },
+    { "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "sha256": "1523b43fabf72288c69e51d11231d1d9d3435d5bd2b1c1f8a01fcdbca2364117" },
+    { "path": "apps/mobile/src/dev/CareCircleLocalRehearsal.tsx", "sha256": "1caed80dd1502767e48298e309580f3bd32f5af06cb3719d1aba614a77edaa4f" },
+    { "path": "apps/mobile/src/dev/FounderCareCircleWorkbench.tsx", "sha256": "b9524cf0af5eae4cd14a7f2ffc3b229713cbaffbdc2b03d058e7004b0c70ccca" },
+    { "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingSessionGate.tsx", "sha256": "3b2ef0ab86b01be1c7f1f40d3e16684e243e96373c223d3c43f82d228a4ca4b8" }
+  ],
+  "portrait_viewports": [
+    { "name": "reference_4_55_44", "width": 388, "height": 786 },
+    { "name": "reference_4_55_58", "width": 400, "height": 800 },
+    { "name": "founder_rejected_device", "width": 393, "height": 852 }
+  ]
+}
