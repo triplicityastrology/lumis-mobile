@@ -89,7 +89,7 @@ assert.ok(
   signedInRestore.indexOf("return;") < signedInRestore.indexOf("loadLocalDemoSession()"),
   "a signed-in restore failure cannot fall through to local fixture/session state"
 );
-const startupRestorePolicy = readFileSync(
+const startupRestorePolicy = await readFile(
   "apps/mobile/src/services/startupRestorePolicy.ts",
   "utf8"
 );
