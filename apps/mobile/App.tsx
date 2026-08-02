@@ -94,6 +94,7 @@ import { FONT_ASSETS } from "./src/theme/typography";
 import { LumisSplashScreen } from "./src/screens/LumisSplashScreen";
 import { DICE_RITUAL_ENABLED } from "./src/features/dice/featureFlag";
 import { LumisHomeScreen } from "./src/screens/LumisHomeScreen";
+import { ContactSupportScreen } from "./src/screens/ContactSupportScreen";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
 import { ChatThinkingIndicator } from "./src/components/ChatThinkingIndicator";
 import {
@@ -180,7 +181,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart">("splash");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart" | "support">("splash");
   // Codex typography: load the bundled Newsreader / Hanken Grotesk / Noto Serif TC
   // weights. The branded splash stays visible until they resolve; on a genuine
   // font-load error we proceed with the system serif/sans fallback rather than
@@ -251,7 +252,9 @@ export default function App() {
     hasProfile: Boolean(profileData),
     isDevelopment: __DEV__,
     modalOpen: logoutDialogOpen,
-    screen,
+    // SUP-001 is a Profile sub-screen; mirror profileTab for founder-test
+    // visibility without widening the Technical FounderTestShellScreen union.
+    screen: screen === "support" ? "profileTab" : screen,
   });
 
   useEffect(() => {
@@ -639,6 +642,7 @@ export default function App() {
       if (s === "persona") { setScreen(personaReturn); return true; }
       if (s === "preview") { setScreen("profile"); return true; }
       if (s === "noChart") { setScreen("home"); return true; }
+      if (s === "support") { setScreen("profileTab"); return true; }
       if (s === "restoringSpace") { return true; } // block back while restoring
       if (s === "chat" || s === "insights" || s === "dice" || s === "profileTab") {
         setScreen("home"); return true;
@@ -1026,10 +1030,16 @@ export default function App() {
         onCareCircle={() => setScreen("care")}
         onNotifications={openNotifications}
         onPersona={() => openPersona("profileTab")}
+        onContactSupport={() => setScreen("support")}
         onSelectTab={openMainTab}
         onRequestLogout={requestAuthoritativeLogout}
       />
     );
+  }
+
+  // SUP-001 — Contact support (unavailable). Reached from Profile → Privacy & Support.
+  if (screen === "support") {
+    return <ContactSupportScreen onBack={() => setScreen("profileTab")} />;
   }
 
   if (screen === "birthDetails") {

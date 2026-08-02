@@ -37,6 +37,7 @@ export function LumisProfileScreen({
   onCareCircle,
   onNotifications,
   onPersona,
+  onContactSupport,
   onSelectTab,
   onRequestLogout
 }: {
@@ -55,6 +56,8 @@ export function LumisProfileScreen({
   onCareCircle: () => void;
   onNotifications: () => void;
   onPersona: () => void;
+  /** Routes to SUP-001 (Contact support unavailable). */
+  onContactSupport?: () => void;
   onSelectTab: (tab: MainTab) => void;
   /** Requests the app-owned, authoritative sign-out confirmation flow. */
   onRequestLogout?: () => void;
@@ -118,7 +121,7 @@ export function LumisProfileScreen({
           <ProfileSection label="PRIVACY & SUPPORT">
             <ProfileRow icon={<Bell color={colors.accent} size={17} />} label="Notifications" onPress={onNotifications} />
             <ProfileRow icon={<ShieldCheck color={colors.accent} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
-            <ProfileRow icon={<Headphones color={colors.accent} size={17} />} label="Contact support" onPress={() => showPendingNotice("Contact support")} />
+            <ProfileRow icon={<Headphones color={colors.accent} size={17} />} label="Contact support" onPress={onContactSupport ?? (() => showPendingNotice("Contact support"))} />
             <ProfileRow danger icon={<Trash2 color={colors.warnSolid} size={17} />} label="Delete account" unavailable onPress={() => showPendingNotice("Account deletion")} />
           </ProfileSection>
 
