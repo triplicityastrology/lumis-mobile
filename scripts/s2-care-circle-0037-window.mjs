@@ -53,9 +53,10 @@ function verifyRehearsalReceipt(expectedEvidenceSha256) {
   if (!existsSync(REHEARSAL_RECEIPT_PATH)) stop("REHEARSAL_ENVELOPE_REQUIRED");
   const receipt = JSON.parse(readFileSync(REHEARSAL_RECEIPT_PATH, "utf8"));
   const keys = Object.keys(receipt).sort();
-  if (JSON.stringify(keys) !== JSON.stringify(["digest", "evidence_sha256", "schema", "status"])) stop("REHEARSAL_RECEIPT_INVALID");
+  if (JSON.stringify(keys) !== JSON.stringify(["attestation_digest", "digest", "evidence_sha256", "operator_sha256", "schema", "session_nonce_sha256", "status"])) stop("REHEARSAL_RECEIPT_INVALID");
   if (receipt.schema !== "s2_t158_care_circle_0037_rehearsal_receipt_v1" || receipt.status !== "accepted" || receipt.evidence_sha256 !== expectedEvidenceSha256) stop("REHEARSAL_RECEIPT_INVALID");
-  const core = { schema: receipt.schema, status: receipt.status, evidence_sha256: receipt.evidence_sha256 };
+  if (!/^[0-9a-f]{64}$/u.test(receipt.attestation_digest) || !/^[0-9a-f]{64}$/u.test(receipt.operator_sha256) || !/^[0-9a-f]{64}$/u.test(receipt.session_nonce_sha256)) stop("REHEARSAL_RECEIPT_INVALID");
+  const core = { schema: receipt.schema, status: receipt.status, evidence_sha256: receipt.evidence_sha256, operator_sha256: receipt.operator_sha256, session_nonce_sha256: receipt.session_nonce_sha256, attestation_digest: receipt.attestation_digest };
   if (receipt.digest !== sha(Buffer.from(JSON.stringify(core)))) stop("REHEARSAL_RECEIPT_INVALID");
 }
 

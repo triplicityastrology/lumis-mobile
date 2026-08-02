@@ -16,5 +16,11 @@
   },
   "rollback_result": "passed",
   "rows_exposed": false,
-  "private_values_exposed": false
+  "private_values_exposed": false,
+  "attestation": {
+    "schema": "s2_t164_rehearsal_attestation_v1",
+    "operator_id": "s2_t140_0037_dashboard_rollback_rehearsal",
+    "operator_sha256": "2cb116482a1a106e9243d6401d73abb0e29b6b8b5c0f84237ec13cf51118e39e",
+    "session_nonce": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
 }

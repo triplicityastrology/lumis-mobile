@@ -21,7 +21,7 @@
     { "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "c22e5cd778e71228ea4093125fd227e6a359242309cc1556c388647a84900690" },
     { "path": "scripts/run-s2-care-circle-function-health.zsh", "sha256": "7b67ee69c7c072b80c349e81b7c4ab12a9854a6f3fa519d0e70885bc90286646" },
     { "path": "scripts/s2-care-circle-function-health.mjs", "sha256": "677793aba0db10b1f74b3610b88bb94452894bdb56927a2d4d2c314fbf3a5268" },
-    { "path": "scripts/s2-care-circle-0037-window.mjs", "sha256": "feda3965ed7bd32dab0fd5449dea154fb08c4fca1cba47825382832fcdd20273" },
+    { "path": "scripts/s2-care-circle-0037-window.mjs", "sha256": "d62da608f17cdc3fd50fb6bed6b385447571635cf320e8b296dd411c1195bc32" },
     { "path": "scripts/s2-care-circle-founder-readiness.mjs", "sha256": "6af99647ab9a57457c61e859d03f8589901973fa474b6e1281d9f90394daf534" },
     { "path": "scripts/run-s2-care-circle-pairing-secret-provision.zsh", "sha256": "dfa636b067bda66d09214fbacf253aa3d1576faf140f00ed258adfc8df6c3aa2" },
     { "path": "scripts/run-s2-care-circle-bootstrap.zsh", "sha256": "b62102314ea36b2e7d10c712557e4ef118cbec2f787400ef037064235d5197c4" },
