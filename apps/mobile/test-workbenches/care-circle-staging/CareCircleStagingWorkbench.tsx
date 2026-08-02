@@ -511,7 +511,7 @@ export function CareCircleStagingWorkbench({
               <Action disabled={disabled || !capabilities.canActAsCarer} label="Scan or enter someone's code" onPress={() => setProductView("enter")} secondary />
               <Text style={styles.helper}>Enter a code someone shows you. They must accept before the link becomes active.</Text>
             </View>
-            <Action disabled={disabled} label={busy === "refresh_relationships" ? "Refreshing..." : "Refresh Care Circle"} onPress={() => void refreshRelationships()} secondary />
+            <Action disabled={disabled} label={busy === "refresh_relationships" ? "Refreshing..." : "Refresh status"} onPress={() => void refreshRelationships()} secondary />
             <SafetyNote text="Care Circle is for gentle check-ins only. It cannot guarantee push delivery, urgent response, or emergency support." />
           </>
         )}
