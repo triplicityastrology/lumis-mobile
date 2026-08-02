@@ -1,0 +1,30 @@
+{
+  "schema": "s2_t146_care_circle_four_digit_parity_v1",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "migration_version": "0037",
+  "pairing_code_format": "four_numeric_digits",
+  "expiry_seconds": 600,
+  "attempt_limit": 5,
+  "attempt_window_seconds": 600,
+  "custom_secret_name": "CARE_CIRCLE_PAIRING_SECRET",
+  "locked_sources": [
+    { "path": "supabase/migrations/0037_four_digit_care_pairing_codes.sql", "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c" },
+    { "path": "supabase/functions/care-circle/index.ts", "sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2" },
+    { "path": "supabase/functions/care-circle/operation-boundary.ts", "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8" },
+    { "path": "supabase/functions/_shared/cors.ts", "sha256": "e4ea6680fbb157a84a060c26f31b5795f9fbea00d239cbf78a2a3596bf7ef3f9" },
+    { "path": "supabase/functions/care-circle/operation-boundary.fixtures.ts", "sha256": "9b2c7566a6ecc12effd258335f5bb3e460192c5a822ddd3a63ef28a0890c94b0" },
+    { "path": "supabase/functions/care-circle/care-circle.operations.fixtures.json", "sha256": "a982b56c5118b05d9ef3bdaf2e64a34451454ad3e38fad34f2b7963b0c5e4671" },
+    { "path": "apps/mobile/src/services/inactiveCareCircleClient.ts", "sha256": "3acef4637ffe003b0aa5c94dc2ea6da444a5887bcdec6cc7a72d15d4563f66d9" },
+    { "path": "apps/mobile/src/services/inactiveCareCircleClient.fixtures.ts", "sha256": "ba2f112fff4b40028d2223a6eaa3f852206e73d5b218ce87a347ffe89628019d" },
+    { "path": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "sha256": "1523b43fabf72288c69e51d11231d1d9d3435d5bd2b1c1f8a01fcdbca2364117" },
+    { "path": "apps/mobile/test-workbenches/care-circle-staging/workbenchRecovery.ts", "sha256": "437ba7209dfae3158d77e272f588162e1147b31fbd2c82f19879096bc8da4ad7" },
+    { "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "c22e5cd778e71228ea4093125fd227e6a359242309cc1556c388647a84900690" },
+    { "path": "scripts/run-s2-care-circle-function-health.zsh", "sha256": "181f513f693f5a045c4728c81552fb998fb06ee897720fc1c3eaf2266f64dc4f" },
+    { "path": "scripts/s2-care-circle-function-health.mjs", "sha256": "65391d91e74da229b8f7aea21274a8457721bbaa8f24deea9056cc4c8878a387" },
+    { "path": "scripts/s2-care-circle-0037-window.mjs", "sha256": "a8289017f6fa569f339258d7fd97658569a20466e27de1accca60b2ce8a26f14" },
+    { "path": "scripts/s2-care-circle-founder-readiness.mjs", "sha256": "6af99647ab9a57457c61e859d03f8589901973fa474b6e1281d9f90394daf534" },
+    { "path": "scripts/run-s2-care-circle-pairing-secret-provision.zsh", "sha256": "9e237d6f41cb7cad49aa485fa2012c3087c4c08011b15135cdae73d5f4b024ec" },
+    { "path": "supabase/tests/s2-t43-care-circle-function-pat-control.json", "sha256": "cfbd700808e60fd33bace0f7c302efaaecfaa555c64537e2d837ec3d4f3b8cca" },
+    { "path": "supabase/tests/s2-t48-care-circle-function-config-control.json", "sha256": "1289bb8e7a5a59b65bcadcda47d8d5f38f1c23d0c2cfea9f3dc214376a98d07d" }
+  ]
+}

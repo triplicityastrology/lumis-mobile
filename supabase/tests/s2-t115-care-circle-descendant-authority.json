@@ -4,10 +4,10 @@
   "approved_technical_ancestor": "c06efb6a0169f5d332d34f915470c17b94b1f9c8",
   "execution_default": "local_validation_only",
   "locked_operator_files": [
-    { "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "c9308cf43d8ca1d820cb69a6aa663606c9b260b08318a970d020492b897a5a1c" },
+    { "path": "scripts/run-s2-care-circle-pat-deploy.zsh", "sha256": "c22e5cd778e71228ea4093125fd227e6a359242309cc1556c388647a84900690" },
     { "path": "scripts/s2-care-circle-function-pat-preflight.mjs", "sha256": "5e59267a915b183707fe166f3f8fa0e216bfa953ea7d4a59c51a644bb7b2d9ed" },
     { "path": "scripts/s2-care-circle-final-parity-preflight.mjs", "sha256": "db955adde7d961628b6a5a9366a0986c1f0678cc68cd1d7a4efa86e53757633d" },
-    { "path": "scripts/lib/care-circle-final-parity.mjs", "sha256": "cd99dd69e51e3e26c6b7b81b286962308206085aba301360af3a2e33af077932" },
+    { "path": "scripts/lib/care-circle-final-parity.mjs", "sha256": "5a67920e885ff53c75145d3a61ca59ec42877dd7f08fd610448bcd0748bc26b1" },
     { "path": "scripts/s2-care-circle-function-config-preflight.mjs", "sha256": "08051382ec7bf55e777d1e5feca69955ae125d27c2589fab6e1e4c079d5f7fe9" },
     { "path": "scripts/validate-supabase-secret-names.mjs", "sha256": "ff5d2505fc427f0185dfcfc40b9e7428225fbf23427f04a08d951c30bc151e36" },
     { "path": "scripts/classify-supabase-config-command.mjs", "sha256": "b6378c17ac087fd2c989c491ffd0b00d789e56a74b24f7c292396bfef3bfebfa" },

@@ -11,6 +11,10 @@
     {
       "path": "supabase/functions/care-circle/operation-boundary.ts",
       "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8"
+    },
+    {
+      "path": "supabase/functions/_shared/cors.ts",
+      "sha256": "e4ea6680fbb157a84a060c26f31b5795f9fbea00d239cbf78a2a3596bf7ef3f9"
     }
   ],
   "required_remote_migration_versions": ["0032", "0033", "0034", "0037"],

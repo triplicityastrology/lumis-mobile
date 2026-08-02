@@ -28,8 +28,10 @@ assert.equal(control.supabase_cli_version, "2.109.1");
 assert.equal(control.function_name, "care-circle");
 assert.match(control.function_sha256, /^[0-9a-f]{64}$/);
 assert.match(control.previous_function_sha256, /^[0-9a-f]{64}$/);
-assert.equal(control.supporting_files.length, 1);
-assert.match(control.supporting_files[0].sha256, /^[0-9a-f]{64}$/);
+assert.equal(control.supporting_files.length, 2);
+for (const supportingFile of control.supporting_files) {
+  assert.match(supportingFile.sha256, /^[0-9a-f]{64}$/);
+}
 assert.deepEqual(control.minimum_permissions, [
   "edge_functions_read",
   "edge_functions_write"

@@ -2,12 +2,14 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { resolveCareCircleFounderReadiness } from "./lib/care-circle-founder-readiness.mjs";
+import { validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 
 const CONTROL = "supabase/tests/s2-t141-care-circle-live-readiness-control.json";
 const MIGRATION_NOTE = "docs/qa/S2-T140-care-circle-0037-dashboard-readiness.md";
 
 try {
   if (process.argv.length !== 2) stop("ARGUMENTS_INVALID");
+  validateFourDigitSeal();
   const control = JSON.parse(readFileSync(CONTROL, "utf8"));
   const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
   if (control.project_ref !== "bmqhwofmdgebpcihjlnb") stop("PROJECT_CONTROL_INVALID");

@@ -34,6 +34,7 @@ if [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]]; then
 fi
 
 cd "$ROOT"
+node scripts/s2-care-circle-four-digit-seal.mjs --check >/dev/null
 node scripts/s2-care-circle-final-parity-preflight.mjs \
   --project-ref "$EXPECTED_REF" >/dev/null
 node scripts/s2-care-circle-clean-descendant-authority.mjs \

@@ -2,12 +2,14 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import { appendCheckpoint, nextStage, validateCheckpoint } from "./lib/care-circle-0037-window.mjs";
+import { validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 
 const CONTROL_PATH = "supabase/tests/s2-t143-care-circle-0037-window-control.json";
 const CHECKPOINT_PATH = ".lumis-local/s2-t143-care-circle-0037-window.json";
 const RECEIPT_PATH = ".lumis-local/s2-t143-care-circle-0037-window-receipt.json";
 
 try {
+  validateFourDigitSeal();
   const control = JSON.parse(readFileSync(CONTROL_PATH, "utf8"));
   verifySource(control);
   const checkpoint = readCheckpoint(control);
