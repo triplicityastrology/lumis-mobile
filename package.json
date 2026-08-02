@@ -67,7 +67,7 @@
     "test:s2-care-circle-native-capture-intake": "node scripts/s2-care-circle-native-capture-intake-contract.mjs",
     "test:s2-care-circle-founder-readiness": "node scripts/s2-care-circle-founder-readiness-contract.mjs",
     "test:s2-care-circle-ui-device-proof": "node scripts/s2-care-circle-ui-device-proof-contract.mjs",
-    "test:s2-care-circle-product-capture": "node scripts/s2-care-circle-product-capture-contract.mjs",
+    "test:s2-care-circle-product-capture": "node scripts/s2-care-circle-product-capture-contract.mjs && node scripts/care-circle-capture-launch-boundary-contract.mjs",
     "care-circle:founder-readiness": "node scripts/s2-care-circle-founder-readiness.mjs",
     "test:s2-care-circle-founder-receipt": "node scripts/s2-care-circle-founder-receipt-contract.mjs",
     "care-circle:founder-receipt": "node scripts/s2-care-circle-founder-receipt.mjs",

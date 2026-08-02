@@ -1,6 +1,7 @@
 {
   "control": "S2-T145",
   "approved_ancestor": "43ac4fa2273aa4ae1baf7b78b52116fb21d9a64b",
+  "layout_ancestor": "767edd85d46f92de6e0ca6fcc099986907deaf37",
   "expected_worktree": "/Users/rubyku/Documents/Mobile App/lumis-mobile-s1t04-work",
   "protected_sources": [
     { "path": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx", "sha256": "089cc04d0d544bf55df7cb9cc75bcc5da8b88fe10f212338cc8c98378bf0074e" },
