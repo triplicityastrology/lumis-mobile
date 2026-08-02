@@ -10,6 +10,8 @@
   },
   "include": [
     "care-circle/operation-boundary.ts",
-    "care-circle/operation-boundary.fixtures.ts"
+    "care-circle/operation-boundary.fixtures.ts",
+    "care-circle/local-edge-contract-runner.ts",
+    "care-circle/local-edge-contract-runner.fixtures.ts"
   ]
 }
