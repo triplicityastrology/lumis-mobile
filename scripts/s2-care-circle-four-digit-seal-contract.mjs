@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { validateFourDigitPolicySources, validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 
 const seal = validateFourDigitSeal();
-assert.equal(seal.locked_sources.length, 24);
+assert.equal(seal.locked_sources.length, 25);
 assert.deepEqual(JSON.parse(readFileSync("supabase/tests/s2-t43-care-circle-function-pat-control.json", "utf8")).supporting_files.map(({ path }) => path), [
   "supabase/functions/care-circle/operation-boundary.ts",
   "supabase/functions/_shared/cors.ts"

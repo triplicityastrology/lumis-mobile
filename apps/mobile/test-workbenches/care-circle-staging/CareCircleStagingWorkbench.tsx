@@ -16,6 +16,7 @@ import {
 import {
   CareCirclePairingCodeMark,
   CareCircleProductFrame,
+  CareCircleScannerFrame,
 } from "../../src/features/careCircle/CareCircleScreen";
 import { LineMotif, SafetyNote } from "../../src/components/states/StateKit";
 import type {
@@ -450,7 +451,7 @@ export function CareCircleStagingWorkbench({
           <>
             <View style={styles.codeCard}>
               <CareCirclePairingCodeMark />
-              <Text style={styles.codeOwner}>Your check-in code</Text>
+              <Text style={styles.codeOwner}>My check-in code</Text>
               {pairingCode && !codeIsExpired ? (
                 <>
                   <View style={styles.codeBox}>
@@ -474,10 +475,8 @@ export function CareCircleStagingWorkbench({
           </>
         ) : productView === "enter" ? (
           <>
-            <View style={styles.entryHero}>
-              <CareCirclePairingCodeMark />
-              <Text style={styles.codeExplain}>Enter the Caree's four-digit code. Your request stays pending until they accept it.</Text>
-            </View>
+            <CareCircleScannerFrame hint="Point at the Caree's check-in code" />
+            <Text style={styles.scanFallback}>Or enter their four-digit code</Text>
             <TextInput
               accessibilityLabel="Caree pairing code"
               autoCorrect={false}
@@ -498,7 +497,7 @@ export function CareCircleStagingWorkbench({
         ) : (
           <>
             <View style={styles.emblem}><LineMotif name="hands" size={30} /></View>
-            <Text style={styles.sectionLabel}>YOUR CHECK-INS (YOU ARE THE CAREE)</Text>
+            <Text style={styles.sectionLabel}>YOUR CHECK-INS</Text>
             <View style={styles.productCard}>
               <View style={styles.scheduleRow}>
                 <View style={styles.scheduleChip}><Text style={styles.scheduleChipText}>{paused ? "Paused" : "Every 2 days"}</Text></View>
@@ -506,7 +505,7 @@ export function CareCircleStagingWorkbench({
               </View>
               {pending.map((relationship) => (
                 <RelationshipRow key={relationship.relationshipId} relationship={relationship} actions={[
-                  { label: atCapacity ? "Test sixth rejection" : "Accept", disabled, onPress: () => void actOnRelationship("accept_relationship", relationship.relationshipId) },
+                  { label: "Accept", disabled, onPress: () => void actOnRelationship("accept_relationship", relationship.relationshipId) },
                   { label: "Decline", disabled, onPress: () => void actOnRelationship("decline_relationship", relationship.relationshipId) },
                 ]} />
               ))}
@@ -522,7 +521,7 @@ export function CareCircleStagingWorkbench({
               </View>
               <Text style={styles.helper}>Show this to a new Carer to enter. Up to 5 accepted Carers.</Text>
             </View>
-            <Text style={styles.sectionLabel}>PEOPLE YOU CARE FOR (YOU ARE THE CARER)</Text>
+            <Text style={styles.sectionLabel}>PEOPLE YOU CARE FOR</Text>
             <View style={styles.productCard}>
               {carerRelationships.map((relationship) => (
                 <RelationshipRow key={relationship.relationshipId} relationship={relationship} actions={relationship.status === "pending_caree_acceptance" || relationship.status === "active" ? [
@@ -636,30 +635,24 @@ function relationshipStatusLabel(
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
-  content: {
-    width: "100%",
-    maxWidth: 480,
-    alignSelf: "center",
-    padding: spacing.lg,
-    paddingBottom: 48,
-  },
+  content: { alignSelf: "center", maxWidth: 480, padding: spacing.lg, paddingBottom: 48, width: "100%" },
   contentCompact: { paddingHorizontal: 16, paddingTop: 14 },
-  emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "#D9B76C", borderRadius: 50, height: 100, justifyContent: "center", marginBottom: 30, width: 100 },
-  sectionLabel: { color: "#B8C9D8", fontSize: 12, fontWeight: "800", letterSpacing: 1.4, marginBottom: 12, marginTop: 14 },
-  productCard: { backgroundColor: "rgba(28,69,96,0.94)", borderColor: "rgba(147,178,208,0.32)", borderRadius: 28, borderWidth: 1, gap: 14, marginBottom: 24, padding: 20 },
-  scheduleRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  scheduleChip: { backgroundColor: "rgba(217,183,108,0.18)", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 },
-  scheduleChipText: { color: "#E4C476", fontSize: 16, fontWeight: "800" },
-  scheduleNext: { color: "#CAD8E5", flex: 1, fontSize: 14, minWidth: 160 },
-  helper: { color: "#B4C7D7", fontSize: 13, lineHeight: 20, textAlign: "center" },
-  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(35,72,99,0.96)", borderColor: "rgba(217,183,108,0.58)", borderRadius: 28, borderWidth: 1, gap: 14, maxWidth: 380, padding: 28, width: "100%" },
-  codeOwner: { color: colors.ice, fontFamily: "Georgia", fontSize: 22 },
-  codeBox: { alignItems: "center", backgroundColor: "rgba(217,183,108,0.1)", borderColor: "rgba(217,183,108,0.44)", borderRadius: 14, borderWidth: 1, paddingHorizontal: 24, paddingVertical: 10 },
-  expiryChip: { backgroundColor: "rgba(217,183,108,0.16)", borderColor: "rgba(217,183,108,0.5)", borderRadius: 999, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 7 },
-  expiryText: { color: colors.goldLight, fontSize: 13, fontWeight: "700" },
-  codeExplain: { color: "#D1DDE7", fontSize: 16, lineHeight: 25, marginVertical: 22, textAlign: "center" },
-  entryHero: { alignItems: "center", marginTop: 8 },
-  productInput: { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(217,183,108,0.5)", borderRadius: 14, borderWidth: 1, color: colors.ice, fontSize: 24, letterSpacing: 8, minHeight: 58, paddingHorizontal: 16, textAlign: "center" },
+  emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", marginBottom: 18, width: 48 },
+  sectionLabel: { color: colors.muted, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.8, marginBottom: 10, marginTop: 14 },
+  productCard: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 12, marginBottom: 24, padding: 16 },
+  scheduleRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  scheduleChip: { backgroundColor: "rgba(201,169,110,0.14)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  scheduleChipText: { color: colors.goldLight, fontSize: 12, fontWeight: "700" },
+  scheduleNext: { color: colors.textSoft, flex: 1, fontSize: 12, minWidth: 150 },
+  helper: { color: colors.muted, fontSize: 11.5, lineHeight: 18, textAlign: "center" },
+  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(215,185,120,0.55)", borderRadius: 22, borderWidth: 1.5, gap: 12, maxWidth: 360, padding: 24, width: "100%" },
+  codeOwner: { color: colors.ice, fontFamily: "Georgia", fontSize: 17 },
+  codeBox: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.1)", borderColor: "rgba(215,185,120,0.4)", borderRadius: 12, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 8 },
+  expiryChip: { backgroundColor: "rgba(201,169,110,0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  expiryText: { color: colors.goldLight, fontSize: 11.5, fontWeight: "600" },
+  codeExplain: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginVertical: 16, textAlign: "center" },
+  scanFallback: { color: colors.textSoft, fontSize: 13, marginBottom: 12, marginTop: 16, textAlign: "center" },
+  productInput: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: 12, borderWidth: 1, color: colors.ice, fontSize: 22, letterSpacing: 8, minHeight: 52, paddingHorizontal: 14, textAlign: "center" },
   eyebrow: {
     color: colors.gold,
     fontSize: 11,
@@ -767,14 +760,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   relationshipCopy: { flex: 1, minWidth: 180 },
-  relationshipName: { color: colors.ice, fontWeight: "700" },
+  relationshipName: { color: colors.ice, fontSize: 14, fontWeight: "600" },
   rowActions: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   rowActionsResponsive: { maxWidth: "100%" },
   smallAction: {
     minHeight: 40,
     justifyContent: "center",
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -783,7 +776,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 12,
     color: colors.ice,
     paddingHorizontal: 12,
   },

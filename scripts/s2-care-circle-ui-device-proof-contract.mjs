@@ -12,12 +12,14 @@ const deviceSafety = read("apps/mobile/test-workbenches/care-circle-staging/work
 const deviceFixtures = read("apps/mobile/test-workbenches/care-circle-staging/workbenchDeviceSafety.fixtures.ts");
 const manifest = JSON.parse(read("docs/qa/S2-T142-care-circle-device-state-manifest.json"));
 
-assert.match(product, /before 3d8c7a4/);
+assert.match(product, /75ee368 -> 9e31edc -> 467a3f9 -> db26a54/);
 assert.match(product, /export function CareCircleProductFrame/);
 assert.match(product, /productBackground/);
-assert.match(product, /#0B3340/);
+assert.match(product, /<CelestialBackground variant="care" \/>/);
+assert.match(product, /export function CareCircleScannerFrame/);
 assert.match(screen, /CareCircleProductFrame/);
 assert.match(screen, /CareCirclePairingCodeMark/);
+assert.match(screen, /CareCircleScannerFrame/);
 assert.match(screen, /productBackground/);
 assert.match(screen, /showPreviewBadge=\{false\}/);
 assert.match(rehearsal, /<CareCircleStagingWorkbench/);
@@ -54,8 +56,8 @@ assert.match(deviceFixtures, /short_height/);
 assert.match(deviceFixtures, /productStates\.length, 13/);
 
 for (const productCopy of [
-  "YOUR CHECK-INS (YOU ARE THE CAREE)",
-  "PEOPLE YOU CARE FOR (YOU ARE THE CARER)",
+  "YOUR CHECK-INS",
+  "PEOPLE YOU CARE FOR",
   "Show my check-in code",
   "Scan or enter someone's code",
   "My check-in code",
@@ -66,16 +68,25 @@ for (const productCopy of [
 assert.match(screen, /Pairing code copied/);
 assert.match(screen, /keyboardType="number-pad"/);
 assert.match(screen, /maxLength=\{4\}/);
-assert.match(screen, /label: atCapacity \? "Test sixth rejection" : "Accept"/);
+assert.match(screen, /label: "Accept"/);
+assert.doesNotMatch(screen, /Test sixth rejection|LUMIS123|Simulate scan/u);
 assert.match(screen, /label: "Decline"/);
 assert.match(screen, /active: "Active · accepted by Caree"/);
 assert.match(screen, /paused \? "Resume" : "Pause"/);
 assert.match(screen, /label: "Leave"/);
 assert.match(recovery, /invalid, expired, or revoked/);
+assert.match(screen, /backgroundColor: "rgba\(58,80,118,0\.42\)"/);
+assert.match(screen, /borderRadius: 18/);
+assert.match(screen, /height: 48/);
 
 assert.equal(manifest.release_activation, "inactive");
 assert.equal(manifest.native_capture.web_substitution_used, false);
 assert.equal(manifest.native_capture.status, "blocked");
+assert.deepEqual(manifest.reference_images, [
+  "/Users/rubyku/Downloads/IMG_9418.PNG",
+  "/Users/rubyku/Downloads/IMG_9417.PNG",
+]);
+assert.deepEqual(manifest.recovered_lineage, ["75ee368", "9e31edc", "467a3f9", "db26a54", "3d8c7a4"]);
 assert.deepEqual(manifest.states.map(({ name }) => name), [
   "caree_landing", "four_digit_code_ready", "copy_confirmation", "carer_entry",
   "pending_no_authority", "caree_accept_decline", "active", "paused", "resumed",

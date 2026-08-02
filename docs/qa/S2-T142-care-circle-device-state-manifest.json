@@ -1,7 +1,11 @@
 {
   "task": "S2-T142",
   "presentation_authority": "recovered_pre_lock_product_ui_before_3d8c7a4",
-  "recovered_lineage": ["467a3f9", "3d8c7a4"],
+  "recovered_lineage": ["75ee368", "9e31edc", "467a3f9", "db26a54", "3d8c7a4"],
+  "reference_images": [
+    "/Users/rubyku/Downloads/IMG_9418.PNG",
+    "/Users/rubyku/Downloads/IMG_9417.PNG"
+  ],
   "shared_product_frame": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx#CareCircleProductFrame",
   "rehearsal_and_live_surface": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx",
   "release_activation": "inactive",

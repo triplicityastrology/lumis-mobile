@@ -29,6 +29,7 @@ export function validateFourDigitSeal(path = DEFAULT_SEAL_PATH) {
     "supabase/functions/care-circle/operation-boundary.ts",
     "supabase/functions/_shared/cors.ts",
     "apps/mobile/src/services/inactiveCareCircleClient.ts",
+    "apps/mobile/src/features/careCircle/CareCircleScreen.tsx",
     "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx",
     "scripts/run-s2-care-circle-pat-deploy.zsh",
     "scripts/run-s2-care-circle-pairing-secret-provision.zsh",

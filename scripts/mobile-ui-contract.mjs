@@ -525,13 +525,14 @@ assert.doesNotMatch(
 // S1-C03 preview-safety: no Emergency contact row in the Profile Care Circle group.
 assert.doesNotMatch(profileScreenSource, /Emergency contact/);
 // S1-C03 preview-safety: Care Circle stays Preview-labelled on every route (the
-// badge lives in the shared product frame), and the fixed LUMIS123 code + Simulate scan
-// control are DEV-only — never visible or callable in a release build.
+// badge lives in the shared product frame), and the fixed four-digit sample
+// control is DEV-only — never visible or callable in a release build.
 assert.match(careCircleSource, /export function CareCircleProductFrame\(\{[\s\S]*?<PreviewBadge label="Preview · not active yet" \/>/);
 assert.match(careCircleSource, /function Shell\(\{[\s\S]*?<CareCircleProductFrame/);
 assert.match(careCircleSource, /function simulateScan\(code\?: string\) \{\s*if \(!__DEV__\) return;/);
 assert.match(careCircleSource, /\{__DEV__ \? \(\s*<View style=\{s\.codeBox\}>/);
-assert.match(careCircleSource, /\{__DEV__ \? \(\s*<>[\s\S]*?Simulate scan/);
+assert.match(careCircleSource, /\{__DEV__ \? \(\s*<>[\s\S]*?Use DEV sample/);
+assert.doesNotMatch(careCircleSource, /LUMIS123|Simulate scan/);
 assert.match(profileScreenSource, /showPendingNotice\("Account deletion"\)/);
 assert.match(profileScreenSource, /will be connected after its security review is complete/);
 assert.match(profileScreenSource, /value=\{formatMainFocus\(mainFocus\)\}/);

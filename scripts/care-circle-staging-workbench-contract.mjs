@@ -143,7 +143,8 @@ assert.match(outcomeIntegrity, /Pending Caree acceptance confirmed/);
 assert.match(screen, /Pending Caree acceptance · no authority/);
 assert.match(screen, /Up to 5 accepted Carers/);
 assert.match(screen, /atCapacity = accepted\.length >= 5/);
-assert.match(screen, /Test sixth rejection/);
+assert.match(screen, /label: "Accept"/);
+assert.doesNotMatch(screen, /Test sixth rejection/);
 assert.match(outcomeIntegrity, /Backend capacity rejection confirmed/);
 for (const evidenceState of [
   "signed_out",
@@ -231,7 +232,7 @@ assert.match(founderEntry, /createInactiveCareCircleClient\(ports\.operationPort
 assert.match(founderEntry, /No staging operation was attempted/);
 assert.match(releasePreview, /export function CareCircleProductFrame/);
 assert.match(releasePreview, /export function CareCirclePairingCodeMark/);
-assert.match(releasePreview, /before 3d8c7a4/);
+assert.match(releasePreview, /before the export lock in 3d8c7a4/);
 assert.match(screen, /CareCircleProductFrame/);
 assert.match(screen, /CareCirclePairingCodeMark/);
 assert.match(screen, /productBackground/);

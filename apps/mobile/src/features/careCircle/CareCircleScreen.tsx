@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from "react-native";
@@ -7,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Rect } from "react-native-svg";
 
 import { colors, radii, spacing } from "../../theme/tokens";
+import { CelestialBackground } from "../../components/CelestialBackground";
 import {
   BrandButton, GhostButton, LineMotif, PreviewBadge, QuietEmptyState, SafetyNote, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
@@ -23,7 +23,7 @@ import {
 const SAFETY = "Care Circle is for gentle check-ins only. It cannot guarantee push delivery, urgent response, or emergency support.";
 const MAX_CARERS = 5;
 // The caree displays this code; a carer scans or types it to add the caree.
-const MY_CHECKIN_CODE = "LUMIS123";
+const DEV_PAIRING_CODE = "4827";
 
 type Carer = { id: string; name: string; status: "Active" | "Pending" };
 type Caree = { id: string; name: string; lastStatus: string };
@@ -47,11 +47,9 @@ export function CareCirclePreviewScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-// Preserved prototype only.
-// Recovered from the pre-lock UI retained before 3d8c7a4. Its product
-// presentation primitives are shared with Founder Tests below, while this
-// mock-state prototype remains unexported and release navigation can still
-// reach CareCirclePreviewScreen only.
+// Preserved prototype only. Lineage: 75ee368 -> 9e31edc -> 467a3f9 -> db26a54,
+// before the export lock in 3d8c7a4. Founder Tests reuse this presentation;
+// release navigation can still reach CareCirclePreviewScreen only.
 function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => void; eligible?: boolean }) {
   const [view, setView] = useState<View_>({ v: "home" });
   const [carers, setCarers] = useState<Carer[]>([
@@ -65,11 +63,11 @@ function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => 
   const [removeTarget, setRemoveTarget] = useState<Carer | null>(null);
 
   // The carer scans/enters the caree's code; on success we confirm the caree.
-  // DEV-ONLY: the fixed mock code (LUMIS123) never establishes a link in a
+  // DEV-ONLY: the fixed four-digit sample never establishes a link in a
   // release build — Care Circle is Preview only, so nothing here is callable live.
   function simulateScan(code?: string) {
     if (!__DEV__) return;
-    if (code && code.toUpperCase() !== MY_CHECKIN_CODE) {
+    if (code && code !== DEV_PAIRING_CODE) {
       setScanError("invalid");
       return;
     }
@@ -104,7 +102,7 @@ function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => 
           {__DEV__ ? (
             <View style={s.codeBox}>
               <Text style={s.codeLabel}>OR ENTER CODE</Text>
-              <Text style={s.codeValue}>{MY_CHECKIN_CODE}</Text>
+              <Text style={s.codeValue}>{DEV_PAIRING_CODE}</Text>
             </View>
           ) : null}
           <View style={s.expiryChip}><Text style={s.expiryText}>Expires in 4:59</Text></View>
@@ -121,33 +119,35 @@ function CareCirclePrototypeScreen({ onBack, eligible = true }: { onBack: () => 
   if (view.v === "scan") {
     return (
       <Shell title="Add someone to care for" onBack={() => { setView({ v: "home" }); setScanError(""); }}>
-        <View style={s.viewfinder}>
-          <ViewfinderMask />
-          <Text style={s.viewfinderHint}>Point at their check-in code</Text>
-        </View>
+        <CareCircleScannerFrame hint="Point at their check-in code" />
         {scanError === "invalid" ? (
           <Text style={s.scanErr}>This code isn't valid. Ask them to refresh it.</Text>
         ) : scanError === "expired" ? (
           <Text style={s.scanErr}>This code has expired.</Text>
         ) : null}
         <Text style={s.explainSmall}>Care Circle is in preview — linking isn't active yet. Scanning will be available once it goes live.</Text>
-        {/* DEV-ONLY: the mock manual-code entry and Simulate scan control are
+        {/* DEV-ONLY: the mock manual-code entry and sample-code control are
             compiled out of release builds so the Preview scan flow can never
             appear live or trusted, and the fixed code is not callable. */}
         {__DEV__ ? (
           <>
             <View style={s.manualRow}>
               <TextInput
-                autoCapitalize="characters"
-                onChangeText={setManualCode}
-                placeholder="Enter their code"
+                keyboardType="number-pad"
+                maxLength={4}
+                onChangeText={(value) => setManualCode(value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="Enter 4-digit code"
                 placeholderTextColor={colors.muted}
                 style={s.manualInput}
                 value={manualCode}
               />
               <SoftButton label="Submit" onPress={() => simulateScan(manualCode)} />
             </View>
-            <BrandButton label={`Simulate scan (${MY_CHECKIN_CODE})`} onPress={() => simulateScan(MY_CHECKIN_CODE)} style={{ marginTop: 12 }} />
+            <BrandButton
+              label={`Use DEV sample (${DEV_PAIRING_CODE})`}
+              onPress={() => simulateScan(DEV_PAIRING_CODE)}
+              style={{ marginTop: 12 }}
+            />
           </>
         ) : null}
       </Shell>
@@ -311,9 +311,10 @@ export function CareCircleProductFrame({
       </SafeAreaView>
   );
   return productBackground ? (
-    <LinearGradient colors={["#0B3340", "#114B50", "#56B5A4"]} style={s.safe}>
+    <View style={s.productBackground}>
+      <CelestialBackground variant="care" />
       {content}
-    </LinearGradient>
+    </View>
   ) : content;
 }
 
@@ -391,6 +392,19 @@ export function CareCirclePairingCodeMark() {
   );
 }
 
+export function CareCircleScannerFrame({ hint }: { hint: string }) {
+  return (
+    <View
+      accessibilityLabel={hint}
+      accessibilityRole="image"
+      style={s.viewfinder}
+    >
+      <ViewfinderMask />
+      <Text style={s.viewfinderHint}>{hint}</Text>
+    </View>
+  );
+}
+
 function ViewfinderMask() {
   return (
     <Svg width={200} height={200} viewBox="0 0 200 200">
@@ -401,6 +415,7 @@ function ViewfinderMask() {
 
 const s = StyleSheet.create({
   safe: { backgroundColor: "transparent", flex: 1 },
+  productBackground: { backgroundColor: "#081C22", flex: 1 },
   content: { padding: spacing.lg, paddingBottom: 40 },
   emblemWrap: { alignItems: "center", marginBottom: 18 },
   emblem: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
