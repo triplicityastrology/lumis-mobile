@@ -30,6 +30,7 @@ import {
 import type { JourneyConfirmationSource } from "./singlePhoneJourney";
 import type { WorkbenchProgressName } from "./workbenchProgress";
 import {
+  buildSelectableWorkbenchSummary,
   createWorkbenchEvidenceSummary,
   listWorkbenchEvidence,
   recordConfirmedWorkbenchEvidence,
@@ -68,6 +69,7 @@ export function CareCircleStagingSessionGate({
     journey: createSinglePhoneJourney(),
     evidence: createWorkbenchEvidenceSummary(),
   }));
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const signedOutProgress = resolveWorkbenchProgress({ authenticated: false });
 
   useEffect(() => {
@@ -201,13 +203,17 @@ export function CareCircleStagingSessionGate({
           </Text>
         ) : null}
         <EvidenceSummary
+          buildMarker={process.env.EXPO_PUBLIC_LUMIS_SOURCE_COMMIT}
           evidence={flow.evidence}
-          onReset={() =>
+          onReset={() => {
+            setSummaryVisible(false);
             setFlow({
               journey: createSinglePhoneJourney(),
               evidence: createWorkbenchEvidenceSummary(),
-            })
-          }
+            });
+          }}
+          onTogglePreview={() => setSummaryVisible((value) => !value)}
+          summaryVisible={summaryVisible}
         />
         <View key={sessionEpoch} style={styles.workbench}>
           {children(session.capabilities, {
@@ -336,14 +342,24 @@ export function CareCircleStagingSessionGate({
 }
 
 function EvidenceSummary({
+  buildMarker,
   evidence,
   onReset,
+  onTogglePreview,
+  summaryVisible,
 }: {
+  buildMarker: string | undefined;
   evidence: ReturnType<typeof createWorkbenchEvidenceSummary>;
   onReset: () => void;
+  onTogglePreview: () => void;
+  summaryVisible: boolean;
 }) {
   const items = listWorkbenchEvidence(evidence);
   const confirmed = items.filter((item) => item.confirmed).length;
+  const selectableSummary = buildSelectableWorkbenchSummary({
+    buildMarker,
+    evidence,
+  });
   return (
     <View
       accessibilityLabel={`Founder evidence summary. ${confirmed} of ${items.length} checks confirmed.`}
@@ -374,6 +390,26 @@ function EvidenceSummary({
           {item.confirmed ? "Confirmed" : "Not confirmed"} · {item.label}
         </Text>
       ))}
+      <Pressable
+        accessibilityLabel={summaryVisible ? "Hide selectable test summary" : "Preview selectable test summary"}
+        accessibilityRole="button"
+        onPress={onTogglePreview}
+        style={styles.previewEvidence}
+      >
+        <Text style={styles.secondaryText}>
+          {summaryVisible ? "Hide Summary" : "Preview Test Summary"}
+        </Text>
+      </Pressable>
+      {summaryVisible ? (
+        <View style={styles.summaryPreview}>
+          <Text style={styles.sessionMeta}>
+            Select this closed, redacted summary to copy it manually.
+          </Text>
+          <Text accessibilityLabel="Selectable redacted Care Circle test summary" selectable style={styles.summaryText}>
+            {selectableSummary}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -428,6 +464,26 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     paddingHorizontal: spacing.xs,
+  },
+  previewEvidence: {
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    minHeight: 44,
+    marginTop: spacing.xs,
+  },
+  summaryPreview: {
+    backgroundColor: colors.navy950,
+    borderColor: colors.line,
+    borderWidth: 1,
+    marginTop: spacing.xs,
+    padding: spacing.sm,
+  },
+  summaryText: {
+    color: colors.textSoft,
+    fontFamily: Platform.select({ ios: "Menlo", android: "monospace" }),
+    fontSize: 11,
+    lineHeight: 17,
+    marginTop: spacing.xs,
   },
   workbench: { flex: 1 },
   content: {

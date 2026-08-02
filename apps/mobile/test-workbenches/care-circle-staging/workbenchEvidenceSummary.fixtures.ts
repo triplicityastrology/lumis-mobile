@@ -1,4 +1,5 @@
 import {
+  buildSelectableWorkbenchSummary,
   createWorkbenchEvidenceSummary,
   listWorkbenchEvidence,
   recordConfirmedWorkbenchEvidence,
@@ -89,6 +90,45 @@ const unconfirmedSummary = recordConfirmedWorkbenchEvidence(reset, {
   confirmationSource: "unconfirmed",
 });
 equal(confirmedCount(unconfirmedSummary), 0, "unrefreshed projection cannot record evidence");
+
+const selectable = buildSelectableWorkbenchSummary({
+  buildMarker: "b063cfe6d5f6392a4bf60c4ebed741a97973add8",
+  evidence: summary,
+});
+equal(
+  selectable,
+  [
+    "lumis_care_circle_test_summary_v1",
+    "build_marker=b063cfe6d5f6392a4bf60c4ebed741a97973add8",
+    "code_ready=confirmed",
+    "pending_no_authority=confirmed",
+    "accepted_active=confirmed",
+    "paused=confirmed",
+    "resumed=confirmed",
+    "self_removed=confirmed",
+    "relationship_cleanup=confirmed",
+  ].join("\n"),
+  "selectable summary has only the closed safe fields"
+);
+equal(
+  buildSelectableWorkbenchSummary({
+    buildMarker: "unsafe marker",
+    evidence: reset,
+  }).includes("build_marker=unavailable"),
+  true,
+  "unsafe build marker is not echoed"
+);
+
+let unsafeSchemaRejected = false;
+try {
+  buildSelectableWorkbenchSummary({
+    buildMarker: "b063cfe",
+    evidence: { ...reset, raw_error: true } as typeof reset,
+  });
+} catch {
+  unsafeSchemaRejected = true;
+}
+equal(unsafeSchemaRejected, true, "extra evidence fields fail closed");
 
 console.log("Care Circle workbench evidence-summary fixtures passed");
 

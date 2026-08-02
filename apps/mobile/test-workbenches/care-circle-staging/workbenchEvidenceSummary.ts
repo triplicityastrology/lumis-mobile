@@ -24,6 +24,8 @@ export type WorkbenchEvidenceItem = {
   confirmed: boolean;
 };
 
+export const WORKBENCH_SUMMARY_SCHEMA = "lumis_care_circle_test_summary_v1";
+
 const LABELS: Record<WorkbenchEvidenceName, string> = {
   code_ready: "Reusable code ready",
   pending_no_authority: "Pending with no authority",
@@ -62,6 +64,28 @@ export function listWorkbenchEvidence(
     label: LABELS[name],
     confirmed: summary[name],
   }));
+}
+
+export function buildSelectableWorkbenchSummary(input: {
+  buildMarker: string | undefined;
+  evidence: WorkbenchEvidenceSummary;
+}): string {
+  const buildMarker =
+    typeof input.buildMarker === "string" && /^[0-9a-f]{7,40}$/u.test(input.buildMarker)
+      ? input.buildMarker
+      : "unavailable";
+  const evidenceKeys = Object.keys(input.evidence).sort();
+  const expectedKeys = [...WORKBENCH_EVIDENCE_NAMES].sort();
+  if (JSON.stringify(evidenceKeys) !== JSON.stringify(expectedKeys)) {
+    throw new Error("CARE_CIRCLE_SUMMARY_SCHEMA_INVALID");
+  }
+  return [
+    WORKBENCH_SUMMARY_SCHEMA,
+    `build_marker=${buildMarker}`,
+    ...WORKBENCH_EVIDENCE_NAMES.map(
+      (name) => `${name}=${input.evidence[name] ? "confirmed" : "not_confirmed"}`
+    ),
+  ].join("\n");
 }
 
 function resolveConfirmedEvidenceName(input: {

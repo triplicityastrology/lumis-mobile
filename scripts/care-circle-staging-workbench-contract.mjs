@@ -86,6 +86,12 @@ assert.match(sessionGate, /flow\.journey\.nextLabel/);
 assert.match(sessionGate, /refreshed participant-safe projection/);
 assert.match(singlePhoneJourney, /confirmationSource/);
 assert.match(singlePhoneJourney, /input\.confirmationSource !== current\.requiredConfirmation/);
+assert.match(sessionGate, /Preview Test Summary/);
+assert.match(sessionGate, /selectable style=\{styles\.summaryText\}/);
+assert.match(evidenceSummary, /lumis_care_circle_test_summary_v1/);
+assert.match(evidenceSummary, /build_marker/);
+assert.doesNotMatch(evidenceSummary, /timestamp|email|user_id|pairing_code|url|raw_error/i);
+assert.doesNotMatch(sessionGate, /Clipboard|setStringAsync/);
 assert.match(sessionGate, /Reset Evidence/);
 assert.match(sessionGate, /recordConfirmedWorkbenchEvidence/);
 assert.doesNotMatch(sessionGate, /Clipboard|setStringAsync|Share\.share/);
@@ -102,10 +108,6 @@ for (const evidenceName of [
 }
 assert.match(evidenceSummaryFixture, /request-ready state is not evidence/);
 assert.match(evidenceSummaryFixture, /summary items expose safe fields only/);
-assert.doesNotMatch(
-  evidenceSummary,
-  /pairingCode|relationshipId|accountId|userId|email|token|url|error|response/i
-);
 assert.match(screen, /capabilities\.accountRole/);
 assert.match(screen, /Test identity is fixed by this signed-in account/);
 assert.match(port, /account_mode/);
