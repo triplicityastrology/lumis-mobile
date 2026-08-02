@@ -89,15 +89,19 @@ assert.ok(
   signedInRestore.indexOf("return;") < signedInRestore.indexOf("loadLocalDemoSession()"),
   "a signed-in restore failure cannot fall through to local fixture/session state"
 );
-assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 3/);
+const startupRestorePolicy = readFileSync(
+  "apps/mobile/src/services/startupRestorePolicy.ts",
+  "utf8"
+);
+assert.match(startupRestorePolicy, /STARTUP_RESTORE_MAX_RETRIES = 3/);
 assert.match(
-  app,
-  /STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS \* retryCount/,
+  startupRestorePolicy,
+  /STARTUP_RESTORE_RETRY_DELAY_MS \* \(retryCount \+ 1\)/,
   "transient startup recovery must use a bounded backoff inside the splash window"
 );
 assert.match(
   app,
-  /async function loadStartupAccountState[\s\S]*isTransientAccountRestoreError\(error\)[\s\S]*retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/,
+  /async function loadStartupAccountState[\s\S]*shouldRetryStartupAccountError\(error, retryCount\)[\s\S]*startupRetryDelay\(retryCount - 1\)/,
   "cold-start recovery must retry only explicit transient failures and remain bounded"
 );
 assert.match(

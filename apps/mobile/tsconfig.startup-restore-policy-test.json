@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/startup-restore-policy-tests",
+    "rootDir": "src",
+    "types": []
+  },
+  "include": ["src/services/startupRestorePolicy.ts", "src/services/startupRestorePolicy.fixtures.ts"]
+}

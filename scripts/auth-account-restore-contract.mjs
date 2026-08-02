@@ -977,23 +977,27 @@ assert.doesNotMatch(
   /requiredError[\s\S]{0,120}balanceResult|firstError/,
   "optional enrichment cannot reject an otherwise authoritative chart"
 );
-assert.match(app, /const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 3/);
-assert.match(app, /const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600/);
+const startupRestorePolicy = readFileSync(
+  "apps/mobile/src/services/startupRestorePolicy.ts",
+  "utf8"
+);
+assert.match(startupRestorePolicy, /STARTUP_RESTORE_MAX_RETRIES = 3/);
+assert.match(startupRestorePolicy, /STARTUP_RESTORE_RETRY_DELAY_MS = 600/);
 const startupLoader = extractRange(
   app,
   "async function loadStartupAccountState",
   "async function loadStartupAuthStatus"
 );
 assert.match(startupLoader, /return await loadSupabaseAccountState\(userId\)/);
-assert.match(startupLoader, /isTransientAccountRestoreError\(error\)/);
+assert.match(startupLoader, /shouldRetryStartupAccountError\(error, retryCount\)/);
 assert.match(
   startupLoader,
-  /retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/,
+  /startupRetryDelay\(retryCount - 1\)/,
   "startup restoration must stop after the bounded hydration window"
 );
 assert.match(
   startupLoader,
-  /setTimeout\(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS \* retryCount\)/,
+  /setTimeout\(resolve, startupRetryDelay\(retryCount - 1\)\)/,
   "bounded backoff must remain inside the loading state while native networking settles"
 );
 assert.doesNotMatch(
@@ -1006,9 +1010,10 @@ const startupAuthLoader = extractRange(
   "async function loadStartupAuthStatus",
   "function ChartPreviewScreen"
 );
-assert.match(startupAuthLoader, /return await getAuthStatus\(\)/);
+assert.match(startupAuthLoader, /const status = await getAuthStatus\(\)/);
+assert.match(startupAuthLoader, /shouldRetryStartupAuthStatus\(status, retryCount\)/);
 assert.match(startupAuthLoader, /isTransientAuthStatusError\(error\)/);
-assert.match(startupAuthLoader, /retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES/);
+assert.match(startupAuthLoader, /retryCount >= STARTUP_RESTORE_MAX_RETRIES/);
 assert.doesNotMatch(
   startupAuthLoader,
   /loadLocalDemoSession|setAuthStatus\(\s*\{|setScreen\("noChart"\)/,

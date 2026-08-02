@@ -43,7 +43,6 @@ import {
 } from "./src/services/profile";
 import {
   AccountRestoreError,
-  isTransientAccountRestoreError,
   loadSupabaseAccountState,
   type RestoredReflectionThread,
   type SupabaseAccountState
@@ -61,6 +60,12 @@ import { deleteOwnedReflection } from "./src/services/reflections";
 import { applyConfirmedReflectionDeletion } from "./src/services/reflectionDeletionState";
 import { safeUserErrorMessage } from "./src/services/userFacingErrors";
 import { createAccountRestoreFreshnessGate } from "./src/services/accountRestoreFreshness";
+import {
+  STARTUP_RESTORE_MAX_RETRIES,
+  shouldRetryStartupAccountError,
+  shouldRetryStartupAuthStatus,
+  startupRetryDelay,
+} from "./src/services/startupRestorePolicy";
 import {
   clearLocalDemoSession,
   type LocalDemoChatTurn,
@@ -131,8 +136,6 @@ type CareCircleItem = {
 
 const STARTER_CREDITS = 50;
 const BIRTH_DETAIL_CHANGE_LIMIT = 3;
-const STARTUP_ACCOUNT_RESTORE_MAX_RETRIES = 3;
-const STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS = 600;
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
   "Help me understand one repeating pattern.",
@@ -1553,15 +1556,14 @@ async function loadStartupAccountState(userId: string): Promise<SupabaseAccountS
       return await loadSupabaseAccountState(userId);
     } catch (error) {
       if (
-        !isTransientAccountRestoreError(error) ||
-        retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES
+        !shouldRetryStartupAccountError(error, retryCount)
       ) {
         throw error;
       }
 
       retryCount += 1;
       await new Promise<void>((resolve) => {
-        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS * retryCount);
+        setTimeout(resolve, startupRetryDelay(retryCount - 1));
       });
     }
   }
@@ -1572,18 +1574,23 @@ async function loadStartupAuthStatus(): Promise<AuthStatus> {
 
   while (true) {
     try {
-      return await getAuthStatus();
+      const status = await getAuthStatus();
+      if (!shouldRetryStartupAuthStatus(status, retryCount)) return status;
+      retryCount += 1;
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, startupRetryDelay(retryCount - 1));
+      });
     } catch (error) {
       if (
         !isTransientAuthStatusError(error) ||
-        retryCount >= STARTUP_ACCOUNT_RESTORE_MAX_RETRIES
+        retryCount >= STARTUP_RESTORE_MAX_RETRIES
       ) {
         throw error;
       }
 
       retryCount += 1;
       await new Promise<void>((resolve) => {
-        setTimeout(resolve, STARTUP_ACCOUNT_RESTORE_RETRY_DELAY_MS * retryCount);
+        setTimeout(resolve, startupRetryDelay(retryCount - 1));
       });
     }
   }

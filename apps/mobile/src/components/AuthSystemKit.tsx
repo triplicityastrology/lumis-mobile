@@ -456,9 +456,9 @@ export function RestoringSpaceScreen({
         ) : (
           <>
             <SkyWheelLoader />
-            <Text style={styles.eyebrow}>RESTORING YOUR SKY</Text>
-            <Text style={styles.h2}>Restoring your Lumis space…</Text>
-            <Text style={styles.small}>Finding your chart and conversations.</Text>
+            <Text style={styles.eyebrow}>SECURE ACCOUNT</Text>
+            <Text style={styles.h2}>Restoring your space</Text>
+            <Text style={styles.small}>Reconnecting your account, chart, and conversations.</Text>
           </>
         )}
       </View>

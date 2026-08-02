@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const app = readFileSync("apps/mobile/App.tsx", "utf8");
+const kit = readFileSync("apps/mobile/src/components/AuthSystemKit.tsx", "utf8");
+const policy = readFileSync("apps/mobile/src/services/startupRestorePolicy.ts", "utf8");
+assert.match(app, /loadStartupAuthStatus\(\)[\s\S]*restoreAccountForStatus\(status, true, true\)/);
+assert.match(app, /shouldRetryStartupAuthStatus\(status, retryCount\)/);
+assert.match(app, /shouldRetryStartupAccountError\(error, retryCount\)/);
+assert.match(app, /accountRestoreFreshnessRef\.current\.begin\(\)/);
+assert.match(app, /if \(!restoreTicket\.isCurrent\(\)\) return/);
+assert.doesNotMatch(policy, /ACCOUNT_DATA_INCOMPLETE/);
+assert.doesNotMatch(policy, /ACCOUNT_AUTH_REQUIRED/);
+assert.match(policy, /ACCOUNT_DATA_TEMPORARILY_UNAVAILABLE/);
+assert.match(kit, /Restoring your space/);
+assert.match(kit, /result === "failed"/);
+assert.match(kit, /Back to account/);
+assert.doesNotMatch(kit, /Generating your chart/);
+console.log("cold-start restoration race contract passed");
