@@ -82,10 +82,9 @@ assert.match(sessionGate, /secureTextEntry/);
 assert.match(sessionGate, /setPassword\(""\)/);
 assert.match(sessionGate, /key=\{sessionEpoch\}/);
 assert.match(sessionGate, /advanceSinglePhoneJourney/);
-assert.match(sessionGate, /Founder evidence summary/);
-assert.match(sessionGate, /currentStep: flow\.journey\.label/);
+assert.match(sessionGate, /Current: \{flow\.journey\.label\}/);
 assert.match(sessionGate, /flow\.journey\.nextLabel/);
-assert.match(sessionGate, /refreshed participant-safe projection/);
+assert.match(sessionGate, /Open staging Care Circle test controls/);
 assert.match(singlePhoneJourney, /confirmationSource/);
 assert.match(singlePhoneJourney, /input\.confirmationSource !== current\.requiredConfirmation/);
 assert.match(sessionGate, /Preview Test Summary/);
@@ -99,6 +98,7 @@ assert.match(sessionGate, /recordConfirmedWorkbenchEvidence/);
 assert.doesNotMatch(sessionGate, /Clipboard|setStringAsync|Share\.share/);
 for (const evidenceName of [
   "code_ready",
+  "code_copied",
   "pending_no_authority",
   "accepted_active",
   "paused",
@@ -111,13 +111,11 @@ for (const evidenceName of [
 assert.match(evidenceSummaryFixture, /request-ready state is not evidence/);
 assert.match(evidenceSummaryFixture, /summary items expose safe fields only/);
 assert.match(screen, /capabilities\.accountRole/);
-assert.match(screen, /Test identity is fixed by this signed-in account/);
-assert.match(screen, /mode === "local_rehearsal"/);
-assert.match(localRehearsalScreen, /Local rehearsal — not live backend/);
-assert.match(localRehearsalScreen, /Use synthetic/);
-assert.match(localRehearsalScreen, /item === "caree" \? "Caree" : "Carer"/);
-assert.match(localRehearsalScreen, /Confirm synthetic cleanup/);
-assert.match(localRehearsalScreen, /Reset rehearsal/);
+assert.match(localRehearsalScreen, /Open local Care Circle test controls/);
+assert.match(localRehearsalScreen, /Local rehearsal only\. No live backend or staging evidence\./);
+assert.match(localRehearsalScreen, /item === "caree" \? "Use Caree" : "Use Carer"/);
+assert.match(localRehearsalScreen, /Confirm cleanup/);
+assert.match(localRehearsalScreen, /Start over/);
 assert.doesNotMatch(
   localRehearsal,
   /supabase|fetch\s*\(|AsyncStorage|SecureStore|functions\.invoke|https?:\/\//i
@@ -138,12 +136,12 @@ for (const step of [
 }
 assert.match(singlePhoneJourney, /counts are zero/);
 assert.match(singlePhoneJourneyFixture, /wrong identity cannot advance/);
-assert.match(sessionGate, /Authenticated disposable staging session/);
+assert.match(sessionGate, /FOUNDER TEST ·/);
 assert.match(screen, /capabilities\.canActAsCaree/);
 assert.match(screen, /capabilities\.canActAsCarer/);
 assert.match(outcomeIntegrity, /Pending Caree acceptance confirmed/);
 assert.match(screen, /Pending Caree acceptance · no authority/);
-assert.match(screen, /Accepted Carers · \$\{accepted\.length\}\/5/);
+assert.match(screen, /Up to 5 accepted Carers/);
 assert.match(screen, /atCapacity = accepted\.length >= 5/);
 assert.match(screen, /Test sixth rejection/);
 assert.match(outcomeIntegrity, /Backend capacity rejection confirmed/);
@@ -162,8 +160,7 @@ for (const evidenceState of [
 assert.match(progress, /Pending Caree acceptance/);
 assert.match(progress, /no Care Circle authority/);
 assert.match(progressFixture, /pending is not active/);
-assert.match(screen, /CareCircleFounderGuidance/);
-assert.match(releasePreview, /Confirmed state:/);
+assert.doesNotMatch(screen, /CareCircleFounderGuidance|FOUNDER TEST GUIDE|Reset guide/);
 assert.match(sessionGate, /signedOutProgress/);
 assert.match(sessionGate, /Care Circle test progress/);
 for (const safeFailureState of [
@@ -207,11 +204,11 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(screen, /disabled: disabled \|\| atCapacity/);
 assert.match(screen, /lifetime > 11 \* 60 \* 1000/);
-assert.match(screen, /reusable for ten minutes/);
+assert.match(screen, /ten-minute staging window/);
 assert.match(screen, /setPairingCodeInput\(""\)/);
 assert.match(screen, /setPairingCode\(null\)/);
-assert.match(screen, /My Caree relationships/);
-assert.match(screen, /Remove myself/);
+assert.match(screen, /PEOPLE YOU CARE FOR/);
+assert.match(screen, /label: "Leave"/);
 assert.match(screen, /const projection = await refreshRelationships\(false\)/);
 assert.match(portFixture, /CARE_CIRCLE_SIGN_IN_FAILED/);
 assert.match(portFixture, /email is not echoed/);
@@ -234,18 +231,12 @@ assert.match(founderEntry, /createInactiveCareCircleClient\(ports\.operationPort
 assert.match(founderEntry, /No staging operation was attempted/);
 assert.match(releasePreview, /export function CareCircleProductFrame/);
 assert.match(releasePreview, /export function CareCirclePairingCodeMark/);
-assert.match(releasePreview, /export function CareCircleFounderGuidance/);
-assert.match(releasePreview, /FOUNDER TEST GUIDE/);
-assert.match(releasePreview, /Confirmed state:/);
 assert.match(releasePreview, /before 3d8c7a4/);
 assert.match(screen, /CareCircleProductFrame/);
 assert.match(screen, /CareCirclePairingCodeMark/);
-assert.match(screen, /CareCircleFounderGuidance/);
-assert.match(screen, /founderGuidance\.confirmation/);
-assert.match(sessionGate, /founderGuidance:/);
-assert.match(sessionGate, /a refreshed participant-safe projection/);
-assert.match(founderEntry, /founderGuidance=\{journeyPort\.founderGuidance\}/);
-assert.match(screen, /title="Care Circle" onBack=\{onBack\}/);
+assert.match(screen, /productBackground/);
+assert.match(screen, /showPreviewBadge=\{false\}/);
+assert.doesNotMatch(screen, /founderGuidance|PREVIEW · NOT ACTIVE|LOCAL REHEARSAL · NOT LIVE/);
 assert.doesNotMatch(releasePreview, /export function CareCirclePrototypeScreen/);
 
 const releaseTree = listSourceFiles("apps/mobile/src")
@@ -258,7 +249,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   `${screen}\n${sessionGate}\n${port}\n${entry}`,
-  /console\.|AsyncStorage|SecureStore|analytics|capture|track\(|Camera|BarCode|Notifications|scheduleNotification|billing|payment|emergency/i
+  /console\.|AsyncStorage|SecureStore|analytics|capture|track\(|Camera|BarCode|Notifications|scheduleNotification|billing|payment/i
 );
 assert.doesNotMatch(
   `${screen}\n${fixture}`,

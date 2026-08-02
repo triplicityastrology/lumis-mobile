@@ -13,10 +13,10 @@ import {
   useWindowDimensions,
 } from "react-native";
 import {
-  CareCircleFounderGuidance,
   CareCirclePairingCodeMark,
   CareCircleProductFrame,
 } from "../../src/features/careCircle/CareCircleScreen";
+import { LineMotif, SafetyNote } from "../../src/components/states/StateKit";
 import type {
   CareCircleClientInput,
   CareCircleClientResult,
@@ -79,8 +79,7 @@ export function CareCircleStagingWorkbench({
   requestIdFactory,
   now = () => Date.now(),
   onEvidenceState,
-  founderGuidance,
-  mode = "staging",
+  onCodeCopied,
   onBack,
 }: {
   capabilities: WorkbenchCapabilities;
@@ -93,20 +92,12 @@ export function CareCircleStagingWorkbench({
     evidenceName: WorkbenchProgressName;
     confirmationSource: JourneyConfirmationSource;
   }) => void;
-  founderGuidance?: {
-    confirmation: string;
-    currentStep: string;
-    nextStep: string;
-    onReset: () => void;
-  };
-  mode?: "staging" | "local_rehearsal";
+  onCodeCopied?: () => void;
   onBack: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
   const actionFlight = useRef(createWorkbenchSingleFlight()).current;
-  const [role, setRole] = useState<"caree" | "carer">(
-    capabilities.accountRole
-  );
+  const role = capabilities.accountRole;
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -122,6 +113,7 @@ export function CareCircleStagingWorkbench({
   const [hadRelationship, setHadRelationship] = useState(false);
   const [retryInput, setRetryInput] = useState<SafeRetryInput | null>(null);
   const [retryRefresh, setRetryRefresh] = useState(false);
+  const [productView, setProductView] = useState<"home" | "code" | "enter">("home");
 
   useEffect(() => {
     if (!pairingCodeExpiresAt) return;
@@ -198,25 +190,6 @@ export function CareCircleStagingWorkbench({
     );
     return () => subscription.remove();
   }, [actionFlight, pairingCodeInput]);
-
-  function switchRole(nextRole: "caree" | "carer") {
-    if (
-      (nextRole === "caree" && !capabilities.canActAsCaree) ||
-      (nextRole === "carer" && !capabilities.canActAsCarer)
-    ) {
-      return;
-    }
-    setRole(nextRole);
-    setPairingCode(null);
-    setPairingCodeExpiresAt(null);
-    setPairingCodeInput("");
-    setRelationships([]);
-    setNotice(null);
-    setProjectionConfirmed(false);
-    setHadRelationship(false);
-    setRetryInput(null);
-    setRetryRefresh(false);
-  }
 
   async function runAction(
     input: CareCircleClientInput
@@ -331,10 +304,13 @@ export function CareCircleStagingWorkbench({
       setPairingCode(null);
       setPairingCodeExpiresAt(null);
     }
-    await runAction({
+    const result = await runAction({
       action: rotation ? "rotate_pairing_code" : "create_pairing_code",
       clientRequestId: requestIdFactory(),
     });
+    if (result.ok && result.code === "CARE_CIRCLE_PAIRING_CODE_READY") {
+      setProductView("code");
+    }
   }
 
   async function copyPairingCode() {
@@ -345,6 +321,7 @@ export function CareCircleStagingWorkbench({
         tone: "success",
         text: "Pairing code copied. It remains valid only until the shown expiry.",
       });
+      onCodeCopied?.();
     } catch {
       setNotice({
         tone: "error",
@@ -361,6 +338,7 @@ export function CareCircleStagingWorkbench({
       clientRequestId: requestIdFactory(),
       pairingCode: transientCode,
     });
+    setProductView("home");
   }
 
   async function actOnRelationship(
@@ -398,17 +376,19 @@ export function CareCircleStagingWorkbench({
 
   const disabled = busy !== null;
 
+  const frameTitle = productView === "code"
+    ? "My check-in code"
+    : productView === "enter"
+      ? "Add someone to care for"
+      : "Care Circle";
+
   return (
-    <CareCircleProductFrame title="Care Circle" onBack={onBack}>
-      {founderGuidance ? (
-        <CareCircleFounderGuidance
-          confirmation={founderGuidance.confirmation}
-          confirmedState={progress.label}
-          currentStep={founderGuidance.currentStep}
-          nextStep={founderGuidance.nextStep}
-          onReset={founderGuidance.onReset}
-        />
-      ) : null}
+    <CareCircleProductFrame
+      onBack={productView === "home" ? onBack : () => setProductView("home")}
+      productBackground
+      showPreviewBadge={false}
+      title={frameTitle}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.safe}
@@ -418,56 +398,6 @@ export function CareCircleStagingWorkbench({
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.eyebrow}>
-          {mode === "local_rehearsal"
-            ? "LOCAL REHEARSAL · NOT LIVE"
-            : "FOUNDER TEST · DISPOSABLE ACCOUNTS"}
-        </Text>
-        <Text style={styles.title}>Your Care Circle</Text>
-        <Text style={styles.warning}>
-          {mode === "local_rehearsal"
-            ? "Local rehearsal — not live backend. Synthetic states only."
-            : "Founder staging test with disposable accounts only."}
-        </Text>
-
-          <View
-            style={[styles.roleRow, stackActions && styles.actionColumn]}
-            accessibilityRole="tablist"
-          >
-          {(["caree", "carer"] as const).map((item) => {
-            const roleAllowed =
-              item === capabilities.accountRole &&
-              (item === "caree"
-                ? capabilities.canActAsCaree
-                : capabilities.canActAsCarer);
-            return (
-              <Pressable
-                accessibilityRole="tab"
-                accessibilityState={{
-                  disabled: disabled || !roleAllowed,
-                  selected: role === item,
-                }}
-                disabled={disabled || !roleAllowed}
-                key={item}
-                onPress={() => switchRole(item)}
-                style={[
-                  styles.roleButton,
-                  role === item && styles.roleSelected,
-                  !roleAllowed && styles.disabled,
-                ]}
-              >
-                <Text style={styles.roleText}>
-                  {item === "caree" ? "Caree account" : "Carer account"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text style={styles.body}>
-          Test identity is fixed by this signed-in account. Use Switch account
-          to change between the disposable Caree and Carer.
-        </Text>
-
         {notice ? (
           <View
             accessibilityLiveRegion={notice.tone === "error" ? "assertive" : "polite"}
@@ -495,230 +425,99 @@ export function CareCircleStagingWorkbench({
           </View>
         ) : null}
 
-        {role === "caree" ? (
+        {productView === "code" ? (
           <>
-            <Section title="Reusable pairing code">
-              <Text style={styles.body}>
-                A newly created or rotated code is reusable for ten minutes.
-                Rotation blocks new submissions with the previous code.
-              </Text>
+            <View style={styles.codeCard}>
+              <CareCirclePairingCodeMark />
+              <Text style={styles.codeOwner}>Your check-in code</Text>
               {pairingCode && !codeIsExpired ? (
-                <View style={styles.codeArea}>
-                  <CareCirclePairingCodeMark />
-                  <Text style={styles.codeLabel}>PAIRING CODE</Text>
-                  <Text selectable style={styles.codeValue}>
-                    {pairingCode}
-                  </Text>
-                  <Action
-                    disabled={disabled}
-                    label="Copy code"
-                    onPress={() => void copyPairingCode()}
-                    secondary
-                  />
-                  <Text style={styles.meta}>
-                    Expires {formatStagingTime(pairingCodeExpiresAt)}
-                  </Text>
-                </View>
-              ) : pairingCodeExpiresAt ? (
-                <Text style={styles.errorText}>
-                  This code has expired and cannot accept new submissions.
-                </Text>
-              ) : null}
-              <View style={[styles.actionRow, stackActions && styles.actionColumn]}>
-                <Action
-                  disabled={disabled}
-                  label="Create code"
-                  onPress={() => void createOrRotateCode(false)}
-                />
-                <Action
-                  disabled={disabled}
-                  label="Rotate code"
-                  onPress={() => void createOrRotateCode(true)}
-                  secondary
-                />
-              </View>
-            </Section>
-
-            <Section title="Pending Caree acceptance">
-              <Text style={styles.body}>
-                Pending requests have no active Care Circle authority.
-              </Text>
-              <Action
-                disabled={disabled}
-                label={busy === "refresh_relationships" ? "Loading..." : "Refresh requests"}
-                onPress={() => void refreshRelationships()}
-                secondary
-              />
-              {pending.length === 0 ? (
-                <Text style={styles.empty}>No pending requests loaded.</Text>
+                <>
+                  <View style={styles.codeBox}>
+                    <Text style={styles.codeLabel}>ENTER CODE</Text>
+                    <Text selectable style={styles.codeValue}>{pairingCode}</Text>
+                  </View>
+                  <View style={styles.expiryChip}>
+                    <Text style={styles.expiryText}>Expires {formatStagingTime(pairingCodeExpiresAt)}</Text>
+                  </View>
+                  <Action disabled={disabled} label="Copy code" onPress={() => void copyPairingCode()} secondary />
+                </>
               ) : (
-                pending.map((relationship) => (
-                  <RelationshipRow
-                    key={relationship.relationshipId}
-                    relationship={relationship}
-                    actions={[
-                      {
-                        label: atCapacity ? "Test sixth rejection" : "Accept",
-                        disabled,
-                        onPress: () =>
-                          void actOnRelationship(
-                            "accept_relationship",
-                            relationship.relationshipId
-                          ),
-                      },
-                      {
-                        label: "Decline",
-                        disabled,
-                        onPress: () =>
-                          void actOnRelationship(
-                            "decline_relationship",
-                            relationship.relationshipId
-                          ),
-                      },
-                    ]}
-                  />
-                ))
+                <Text style={styles.errorText}>This code has expired. Refresh it before sharing.</Text>
               )}
-            </Section>
-
-            <Section title={`Accepted Carers · ${accepted.length}/5`}>
-              <Text style={styles.body}>
-                Five accepted Carers is the maximum. The backend remains authoritative.
-              </Text>
-              {accepted.map((relationship) => (
-                <RelationshipRow
-                  key={relationship.relationshipId}
-                  relationship={relationship}
-                  actions={[
-                    {
-                      label: "Remove",
-                      disabled,
-                      onPress: () =>
-                        void actOnRelationship(
-                          "remove_relationship",
-                          relationship.relationshipId
-                        ),
-                    },
-                  ]}
-                />
-              ))}
-              <Action
-                disabled={disabled}
-                label={paused ? "Resume Care Circle" : "Pause Care Circle"}
-                onPress={() =>
-                  void runAndConfirm(
-                    paused
-                      ? {
-                          action: "resume_care",
-                          clientRequestId: requestIdFactory(),
-                        }
-                      : {
-                          action: "pause_care",
-                          clientRequestId: requestIdFactory(),
-                          pausedUntil: new Date(
-                            now() + 24 * 60 * 60 * 1000
-                          ).toISOString(),
-                        }
-                  )
-                }
-                secondary
-              />
-            </Section>
+            </View>
+            <Text style={styles.codeExplain}>
+              Let someone you trust enter this code to request a Care Circle link. You can accept or decline their request.
+            </Text>
+            <Action disabled={disabled} label="Refresh code" onPress={() => void createOrRotateCode(true)} secondary />
+            <SafetyNote text="Care Circle is for gentle check-ins only. It cannot guarantee push delivery, urgent response, or emergency support." />
+          </>
+        ) : productView === "enter" ? (
+          <>
+            <View style={styles.entryHero}>
+              <CareCirclePairingCodeMark />
+              <Text style={styles.codeExplain}>Enter the Caree's four-digit code. Your request stays pending until they accept it.</Text>
+            </View>
+            <TextInput
+              accessibilityLabel="Caree pairing code"
+              autoCorrect={false}
+              editable={!disabled}
+              keyboardType="number-pad"
+              maxLength={4}
+              onChangeText={(value) => setPairingCodeInput(value.replace(/\D/g, "").slice(0, 4))}
+              placeholder="4-digit code"
+              placeholderTextColor={colors.muted}
+              style={styles.productInput}
+              textContentType="oneTimeCode"
+              value={pairingCodeInput}
+            />
+            <Action disabled={disabled || pairingCodeInput.length !== 4} label={busy === "submit_pairing_code" ? "Submitting..." : "Send request"} onPress={() => void submitPairingCode()} />
+            <SafetyNote text="A request gives no Care Circle authority until the Caree accepts it." />
           </>
         ) : (
           <>
-            <Section title="Submit Caree pairing code">
-              <Text style={styles.body}>
-                Submission creates a pending request only. The Caree must accept
-                it before this account receives any Care Circle authority.
-              </Text>
-              <TextInput
-                accessibilityLabel="Staging pairing code"
-                autoCorrect={false}
-                editable={!disabled}
-                keyboardType="number-pad"
-                maxLength={4}
-                onChangeText={(value) =>
-                  setPairingCodeInput(value.replace(/\D/g, "").slice(0, 4))
-                }
-                placeholder="4-digit Caree code"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-                textContentType="oneTimeCode"
-                value={pairingCodeInput}
-              />
-              <Action
-                disabled={disabled || pairingCodeInput.length !== 4}
-                label={
-                  busy === "submit_pairing_code"
-                    ? "Submitting..."
-                    : "Submit code"
-                }
-                onPress={() => void submitPairingCode()}
-              />
-            </Section>
-            <Section title="My Caree relationships">
-              <Text style={styles.body}>
-                Pending means no active authority. Active appears only after
-                Caree acceptance.
-              </Text>
-              <Action
-                disabled={disabled}
-                label={
-                  busy === "refresh_relationships"
-                    ? "Loading..."
-                    : "Refresh status"
-                }
-                onPress={() => void refreshRelationships()}
-                secondary
-              />
-              {carerRelationships.length === 0 ? (
-                <Text style={styles.empty}>No relationships loaded.</Text>
-              ) : (
-                carerRelationships.map((relationship) => (
-                  <RelationshipRow
-                    actions={
-                      relationship.status === "pending_caree_acceptance" ||
-                      relationship.status === "active"
-                        ? [
-                            {
-                              label: "Remove myself",
-                              disabled,
-                              onPress: () =>
-                                void actOnRelationship(
-                                  "remove_relationship",
-                                  relationship.relationshipId
-                                ),
-                            },
-                          ]
-                        : []
-                    }
-                    key={relationship.relationshipId}
-                    relationship={relationship}
-                  />
-                ))
-              )}
-            </Section>
+            <View style={styles.emblem}><LineMotif name="hands" size={30} /></View>
+            <Text style={styles.sectionLabel}>YOUR CHECK-INS (YOU ARE THE CAREE)</Text>
+            <View style={styles.productCard}>
+              <View style={styles.scheduleRow}>
+                <View style={styles.scheduleChip}><Text style={styles.scheduleChipText}>{paused ? "Paused" : "Every 2 days"}</Text></View>
+                <Text style={styles.scheduleNext}>{paused ? "Check-ins paused" : "Next check-in: tomorrow, 10:00"}</Text>
+              </View>
+              {pending.map((relationship) => (
+                <RelationshipRow key={relationship.relationshipId} relationship={relationship} actions={[
+                  { label: atCapacity ? "Test sixth rejection" : "Accept", disabled, onPress: () => void actOnRelationship("accept_relationship", relationship.relationshipId) },
+                  { label: "Decline", disabled, onPress: () => void actOnRelationship("decline_relationship", relationship.relationshipId) },
+                ]} />
+              ))}
+              {accepted.map((relationship) => (
+                <RelationshipRow key={relationship.relationshipId} relationship={relationship} actions={[
+                  { label: "Remove", disabled, onPress: () => void actOnRelationship("remove_relationship", relationship.relationshipId) },
+                ]} />
+              ))}
+              {pending.length === 0 && accepted.length === 0 ? <Text style={styles.empty}>No Carers linked yet.</Text> : null}
+              <View style={[styles.actionRow, stackActions && styles.actionColumn]}>
+                <Action disabled={disabled || !capabilities.canActAsCaree} label="Show my check-in code" onPress={() => pairingCode && !codeIsExpired ? setProductView("code") : void createOrRotateCode(false)} secondary />
+                <Action disabled={disabled || !capabilities.canActAsCaree} label={paused ? "Resume" : "Pause"} onPress={() => void runAndConfirm(paused ? { action: "resume_care", clientRequestId: requestIdFactory() } : { action: "pause_care", clientRequestId: requestIdFactory(), pausedUntil: new Date(now() + 24 * 60 * 60 * 1000).toISOString() })} secondary />
+              </View>
+              <Text style={styles.helper}>Show this to a new Carer to enter. Up to 5 accepted Carers.</Text>
+            </View>
+            <Text style={styles.sectionLabel}>PEOPLE YOU CARE FOR (YOU ARE THE CARER)</Text>
+            <View style={styles.productCard}>
+              {carerRelationships.map((relationship) => (
+                <RelationshipRow key={relationship.relationshipId} relationship={relationship} actions={relationship.status === "pending_caree_acceptance" || relationship.status === "active" ? [
+                  { label: "Leave", disabled, onPress: () => void actOnRelationship("remove_relationship", relationship.relationshipId) },
+                ] : []} />
+              ))}
+              {carerRelationships.length === 0 ? <Text style={styles.empty}>You are not caring for anyone yet.</Text> : null}
+              <Action disabled={disabled || !capabilities.canActAsCarer} label="Scan or enter someone's code" onPress={() => setProductView("enter")} secondary />
+              <Text style={styles.helper}>Enter a code someone shows you. They must accept before the link becomes active.</Text>
+            </View>
+            <Action disabled={disabled} label={busy === "refresh_relationships" ? "Refreshing..." : "Refresh Care Circle"} onPress={() => void refreshRelationships()} secondary />
+            <SafetyNote text="Care Circle is for gentle check-ins only. It cannot guarantee push delivery, urgent response, or emergency support." />
           </>
         )}
       </ScrollView>
       </KeyboardAvoidingView>
     </CareCircleProductFrame>
-  );
-}
-
-function Section({
-  children,
-  title,
-}: {
-  children: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
   );
 }
 
@@ -786,7 +585,7 @@ function Action({
         disabled && styles.disabled,
       ]}
     >
-      <Text style={styles.actionText}>{label}</Text>
+      <Text style={[styles.actionText, !secondary && styles.actionTextPrimary]}>{label}</Text>
     </Pressable>
   );
 }
@@ -822,6 +621,22 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 48,
   },
+  emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "#D9B76C", borderRadius: 50, height: 100, justifyContent: "center", marginBottom: 30, width: 100 },
+  sectionLabel: { color: "#B8C9D8", fontSize: 12, fontWeight: "800", letterSpacing: 1.4, marginBottom: 12, marginTop: 14 },
+  productCard: { backgroundColor: "rgba(28,69,96,0.94)", borderColor: "rgba(147,178,208,0.32)", borderRadius: 28, borderWidth: 1, gap: 14, marginBottom: 24, padding: 20 },
+  scheduleRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  scheduleChip: { backgroundColor: "rgba(217,183,108,0.18)", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 },
+  scheduleChipText: { color: "#E4C476", fontSize: 16, fontWeight: "800" },
+  scheduleNext: { color: "#CAD8E5", flex: 1, fontSize: 14, minWidth: 160 },
+  helper: { color: "#B4C7D7", fontSize: 13, lineHeight: 20, textAlign: "center" },
+  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(35,72,99,0.96)", borderColor: "rgba(217,183,108,0.58)", borderRadius: 28, borderWidth: 1, gap: 14, maxWidth: 380, padding: 28, width: "100%" },
+  codeOwner: { color: colors.ice, fontFamily: "Georgia", fontSize: 22 },
+  codeBox: { alignItems: "center", backgroundColor: "rgba(217,183,108,0.1)", borderColor: "rgba(217,183,108,0.44)", borderRadius: 14, borderWidth: 1, paddingHorizontal: 24, paddingVertical: 10 },
+  expiryChip: { backgroundColor: "rgba(217,183,108,0.16)", borderColor: "rgba(217,183,108,0.5)", borderRadius: 999, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 7 },
+  expiryText: { color: colors.goldLight, fontSize: 13, fontWeight: "700" },
+  codeExplain: { color: "#D1DDE7", fontSize: 16, lineHeight: 25, marginVertical: 22, textAlign: "center" },
+  entryHero: { alignItems: "center", marginTop: 8 },
+  productInput: { backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(217,183,108,0.5)", borderRadius: 14, borderWidth: 1, color: colors.ice, fontSize: 24, letterSpacing: 8, minHeight: 58, paddingHorizontal: 16, textAlign: "center" },
   eyebrow: {
     color: colors.gold,
     fontSize: 11,
@@ -910,11 +725,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gold,
   },
   actionSecondary: {
-    backgroundColor: colors.surfaceRaised,
+    backgroundColor: "rgba(69,99,145,0.92)",
     borderWidth: 1,
     borderColor: colors.line,
   },
-  actionText: { color: colors.navy950, fontWeight: "800" },
+  actionText: { color: colors.ice, fontWeight: "800", textAlign: "center" },
+  actionTextPrimary: { color: colors.navy950 },
   disabled: { opacity: 0.45 },
   empty: { color: colors.muted, fontStyle: "italic" },
   relationship: {

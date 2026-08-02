@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { CareCircleStagingWorkbench } from "../../test-workbenches/care-circle-staging/CareCircleStagingWorkbench";
 import { createLocalCareCircleRehearsal, type LocalRehearsalRole } from "../../test-workbenches/care-circle-staging/localCareCircleRehearsal";
@@ -13,6 +13,7 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
   const [sessionEpoch, setSessionEpoch] = useState(0);
   const [role, setRole] = useState<LocalRehearsalRole>("caree");
   const [journey, setJourney] = useState(createSinglePhoneJourney);
+  const [testPanelVisible, setTestPanelVisible] = useState(false);
   const client = useMemo(
     () => createInactiveCareCircleClient(harness.operationPort(role)),
     [harness, role]
@@ -44,30 +45,6 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
 
   return (
     <View style={styles.shell}>
-      <View accessibilityLiveRegion="polite" style={styles.banner}>
-        <Text accessibilityRole="header" style={styles.title}>
-          Local rehearsal — not live backend
-        </Text>
-        <Text style={styles.body}>
-          Disposable synthetic states only. Nothing here is staging evidence.
-        </Text>
-      </View>
-      <View accessibilityRole="tablist" style={styles.switcher}>
-        {(["caree", "carer"] as const).map((item) => (
-          <Pressable
-            accessibilityLabel={`Use synthetic ${item === "caree" ? "Caree" : "Carer"} account`}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: role === item }}
-            key={item}
-            onPress={() => switchAccount(item)}
-            style={[styles.switchButton, role === item && styles.selected]}
-          >
-            <Text style={styles.switchText}>
-              Synthetic {item === "caree" ? "Caree" : "Carer"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
       <CareCircleStagingWorkbench
         key={`${role}-${sessionEpoch}`}
         capabilities={{
@@ -77,13 +54,6 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
           careCirclePaused: harness.snapshot().paused,
         }}
         client={client}
-        founderGuidance={{
-          confirmation: `${journey.guidance} This guide advances only after ${journey.requiredConfirmation === "safe_projection" ? "a refreshed participant-safe projection" : "a confirmed operation result"}.`,
-          currentStep: journey.label,
-          nextStep: journey.nextLabel,
-          onReset: reset,
-        }}
-        mode="local_rehearsal"
         onBack={onBack}
         onEvidenceState={(input) =>
           setJourney((current) => advanceSinglePhoneJourney(current, input))
@@ -91,41 +61,58 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
         relationshipPort={harness.relationshipPort(role)}
         requestIdFactory={randomUUID}
       />
-      <View style={styles.footer}>
+      <Pressable
+        accessibilityLabel="Open local Care Circle test controls"
+        accessibilityRole="button"
+        onPress={() => setTestPanelVisible(true)}
+        style={styles.testPill}
+      >
+        <Text style={styles.testPillText}>LOCAL TEST · {role === "caree" ? "CAREE" : "CARER"}</Text>
+      </Pressable>
+      <Modal animationType="fade" onRequestClose={() => setTestPanelVisible(false)} transparent visible={testPanelVisible}>
+        <View style={styles.scrim}>
+          <View style={styles.panel}>
+            <Text accessibilityRole="header" style={styles.title}>Founder test controls</Text>
+            <Text style={styles.body}>Local rehearsal only. No live backend or staging evidence.</Text>
+            <Text style={styles.step}>Current: {journey.label}</Text>
+            <Text style={styles.body}>Next: {journey.nextLabel}</Text>
+            <View accessibilityRole="tablist" style={styles.switcher}>
+              {(["caree", "carer"] as const).map((item) => (
+                <Pressable accessibilityRole="tab" accessibilityState={{ selected: role === item }} key={item} onPress={() => { switchAccount(item); setTestPanelVisible(false); }} style={[styles.switchButton, role === item && styles.selected]}>
+                  <Text style={styles.switchText}>{item === "caree" ? "Use Caree" : "Use Carer"}</Text>
+                </Pressable>
+              ))}
+            </View>
         <Pressable
-          accessibilityLabel="Confirm synthetic relationship cleanup"
+          accessibilityLabel="Confirm local relationship cleanup"
           accessibilityRole="button"
           onPress={confirmCleanup}
           style={styles.secondary}
         >
-          <Text style={styles.secondaryText}>Confirm synthetic cleanup</Text>
+          <Text style={styles.secondaryText}>Confirm cleanup</Text>
         </Pressable>
         <Pressable
-          accessibilityLabel="Reset local Care Circle rehearsal"
+          accessibilityLabel="Start the local Care Circle test over"
           accessibilityRole="button"
           onPress={reset}
           style={styles.secondary}
         >
-          <Text style={styles.secondaryText}>Reset rehearsal</Text>
+          <Text style={styles.secondaryText}>Start over</Text>
         </Pressable>
-      </View>
+            <Pressable accessibilityRole="button" onPress={() => setTestPanelVisible(false)} style={styles.close}><Text style={styles.secondaryText}>Close</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   shell: { flex: 1 },
-  banner: {
-    backgroundColor: colors.surface,
-    borderColor: colors.gold,
-    borderWidth: 1,
-    gap: 6,
-    margin: spacing.md,
-    padding: spacing.md,
-  },
   title: { color: colors.goldLight, fontSize: 18, fontWeight: "800" },
   body: { color: colors.textSoft, fontSize: 13, lineHeight: 19 },
-  switcher: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md },
+  step: { color: colors.ice, fontSize: 16, fontWeight: "800", marginTop: spacing.sm },
+  switcher: { flexDirection: "row", gap: spacing.sm },
   switchButton: {
     borderColor: colors.line,
     borderWidth: 1,
@@ -144,12 +131,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
-  footer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
+  testPill: { backgroundColor: "rgba(10,35,47,0.94)", borderColor: colors.gold, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, position: "absolute", right: spacing.md, top: 58, zIndex: 20 },
+  testPillText: { color: colors.goldLight, fontSize: 10, fontWeight: "800" },
+  scrim: { alignItems: "center", backgroundColor: "rgba(2,10,18,0.7)", flex: 1, justifyContent: "center", padding: spacing.lg },
+  panel: { backgroundColor: colors.surface, borderColor: colors.gold, borderRadius: 18, borderWidth: 1, gap: spacing.sm, maxWidth: 420, padding: spacing.lg, width: "100%" },
   secondary: {
     borderColor: colors.line,
     borderWidth: 1,
@@ -158,4 +143,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   secondaryText: { color: colors.textSoft, fontWeight: "700" },
+  close: { alignItems: "center", justifyContent: "center", minHeight: 48 },
 });

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from "react-native";
@@ -289,20 +290,31 @@ export function CareCircleProductFrame({
   title,
   onBack,
   children,
+  showPreviewBadge = true,
+  productBackground = false,
 }: {
   title: string;
   onBack: () => void;
   children: React.ReactNode;
+  showPreviewBadge?: boolean;
+  productBackground?: boolean;
 }) {
-  return (
-    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
-      <ScreenHeader title={title} onBack={onBack} />
-      <View style={s.previewRow}>
-        <PreviewBadge label="Preview · not active yet" />
-      </View>
-      {children}
-    </SafeAreaView>
+  const content = (
+      <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
+        <ScreenHeader title={title} onBack={onBack} />
+        {showPreviewBadge ? (
+          <View style={s.previewRow}>
+            <PreviewBadge label="Preview · not active yet" />
+          </View>
+        ) : null}
+        {children}
+      </SafeAreaView>
   );
+  return productBackground ? (
+    <LinearGradient colors={["#0B3340", "#114B50", "#56B5A4"]} style={s.safe}>
+      {content}
+    </LinearGradient>
+  ) : content;
 }
 
 export function CareCircleFounderGuidance({

@@ -7,6 +7,7 @@ import type { WorkbenchProgressName } from "./workbenchProgress";
 
 export const WORKBENCH_EVIDENCE_NAMES = [
   "code_ready",
+  "code_copied",
   "pending_no_authority",
   "accepted_active",
   "paused",
@@ -28,6 +29,7 @@ export const WORKBENCH_SUMMARY_SCHEMA = "lumis_care_circle_test_summary_v1";
 
 const LABELS: Record<WorkbenchEvidenceName, string> = {
   code_ready: "Reusable code ready",
+  code_copied: "Pairing code copied",
   pending_no_authority: "Pending with no authority",
   accepted_active: "Caree accepted and active",
   paused: "Care Circle paused",
@@ -54,6 +56,13 @@ export function recordConfirmedWorkbenchEvidence(
   const confirmed = resolveConfirmedEvidenceName(input);
   if (!confirmed || current[confirmed]) return current;
   return { ...current, [confirmed]: true };
+}
+
+export function recordConfirmedCodeCopy(
+  current: WorkbenchEvidenceSummary
+): WorkbenchEvidenceSummary {
+  if (!current.code_ready || current.code_copied) return current;
+  return { ...current, code_copied: true };
 }
 
 export function listWorkbenchEvidence(

@@ -1,6 +1,7 @@
 {
   "task": "S2-T142",
   "presentation_authority": "recovered_pre_lock_product_ui_before_3d8c7a4",
+  "recovered_lineage": ["467a3f9", "3d8c7a4"],
   "shared_product_frame": "apps/mobile/src/features/careCircle/CareCircleScreen.tsx#CareCircleProductFrame",
   "rehearsal_and_live_surface": "apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx",
   "release_activation": "inactive",
@@ -10,6 +11,13 @@
     "observed_command": "xcrun simctl list devices booted",
     "observed_result": "simctl unavailable",
     "web_substitution_used": false
+  },
+  "founder_facing_invariants": {
+    "product_viewport_has_single_scroll_owner": true,
+    "preview_badge_hidden": true,
+    "scaffold_header_tabs_guide_footer_absent": true,
+    "test_controls_are_external_overlay": true,
+    "four_digit_copy_flow_present": true
   },
   "states": [
     { "name": "caree_landing", "proof": "product_frame_and_caree_account" },

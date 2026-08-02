@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BackHandler,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -34,6 +35,7 @@ import {
   createWorkbenchEvidenceSummary,
   listWorkbenchEvidence,
   recordConfirmedWorkbenchEvidence,
+  recordConfirmedCodeCopy,
 } from "./workbenchEvidenceSummary";
 
 type SessionView =
@@ -54,12 +56,7 @@ export function CareCircleStagingSessionGate({
         evidenceName: WorkbenchProgressName;
         confirmationSource: JourneyConfirmationSource;
       }): void;
-      founderGuidance: {
-        confirmation: string;
-        currentStep: string;
-        nextStep: string;
-        onReset: () => void;
-      };
+      onCodeCopied(): void;
     }
   ) => ReactNode;
   sessionPort: WorkbenchSessionPort;
@@ -76,6 +73,7 @@ export function CareCircleStagingSessionGate({
     evidence: createWorkbenchEvidenceSummary(),
   }));
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const [testPanelVisible, setTestPanelVisible] = useState(false);
   const signedOutProgress = resolveWorkbenchProgress({ authenticated: false });
 
   useEffect(() => {
@@ -171,60 +169,8 @@ export function CareCircleStagingSessionGate({
   if (session.status === "signed_in") {
     return (
       <View style={styles.signedIn}>
-        <View style={styles.sessionBar}>
-          <View style={styles.sessionCopy}>
-            <Text style={styles.sessionTitle}>
-              Authenticated disposable staging session
-            </Text>
-            <Text style={styles.sessionMeta}>
-              Caree {session.capabilities.canActAsCaree ? "enabled" : "blocked"}
-              {" · "}
-              Carer {session.capabilities.canActAsCarer ? "enabled" : "blocked"}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busy}
-            onPress={() => void signOut()}
-            style={[styles.signOut, busy && styles.disabled]}
-          >
-            <Text style={styles.secondaryText}>
-              {busy ? "Signing out..." : "Switch account"}
-            </Text>
-          </Pressable>
-        </View>
-        {notice ? (
-          <Text accessibilityLiveRegion="assertive" style={styles.signedInNotice}>
-            {notice}
-          </Text>
-        ) : null}
-        <EvidenceSummary
-          buildMarker={process.env.EXPO_PUBLIC_LUMIS_SOURCE_COMMIT}
-          evidence={flow.evidence}
-          onReset={() => {
-            setSummaryVisible(false);
-            setFlow({
-              journey: createSinglePhoneJourney(),
-              evidence: createWorkbenchEvidenceSummary(),
-            });
-          }}
-          onTogglePreview={() => setSummaryVisible((value) => !value)}
-          summaryVisible={summaryVisible}
-        />
         <View key={sessionEpoch} style={styles.workbench}>
           {children(session.capabilities, {
-            founderGuidance: {
-              confirmation: `${flow.journey.guidance} This guide advances only after ${flow.journey.requiredConfirmation === "safe_projection" ? "a refreshed participant-safe projection" : "a confirmed backend operation result"}.`,
-              currentStep: flow.journey.label,
-              nextStep: flow.journey.nextLabel,
-              onReset() {
-                setSummaryVisible(false);
-                setFlow({
-                  journey: createSinglePhoneJourney(),
-                  evidence: createWorkbenchEvidenceSummary(),
-                });
-              },
-            },
             onEvidenceState(input) {
               setFlow((current) => ({
                 journey: advanceSinglePhoneJourney(current.journey, input),
@@ -234,8 +180,79 @@ export function CareCircleStagingSessionGate({
                 }),
               }));
             },
+            onCodeCopied() {
+              setFlow((current) => ({
+                ...current,
+                evidence: recordConfirmedCodeCopy(current.evidence),
+              }));
+            },
           })}
         </View>
+        <Pressable
+          accessibilityLabel="Open staging Care Circle test controls"
+          accessibilityRole="button"
+          onPress={() => setTestPanelVisible(true)}
+          style={styles.testPill}
+        >
+          <Text style={styles.testPillText}>
+            FOUNDER TEST · {session.capabilities.accountRole.toUpperCase()}
+          </Text>
+        </Pressable>
+        <Modal
+          animationType="fade"
+          onRequestClose={() => setTestPanelVisible(false)}
+          transparent
+          visible={testPanelVisible}
+        >
+          <View style={styles.scrim}>
+            <View style={styles.testPanel}>
+              <Text accessibilityRole="header" style={styles.testPanelTitle}>
+                Founder test controls
+              </Text>
+              <Text style={styles.sessionMeta}>
+                Current: {flow.journey.label}
+              </Text>
+              <Text style={styles.sessionMeta}>
+                Next: {flow.journey.nextLabel}
+              </Text>
+              {notice ? (
+                <Text accessibilityLiveRegion="assertive" style={styles.signedInNotice}>
+                  {notice}
+                </Text>
+              ) : null}
+              <EvidenceSummary
+                buildMarker={process.env.EXPO_PUBLIC_LUMIS_SOURCE_COMMIT}
+                evidence={flow.evidence}
+                onReset={() => {
+                  setSummaryVisible(false);
+                  setFlow({
+                    journey: createSinglePhoneJourney(),
+                    evidence: createWorkbenchEvidenceSummary(),
+                  });
+                }}
+                onTogglePreview={() => setSummaryVisible((value) => !value)}
+                summaryVisible={summaryVisible}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => void signOut()}
+                style={[styles.secondary, busy && styles.disabled]}
+              >
+                <Text style={styles.secondaryText}>
+                  {busy ? "Signing out..." : "Switch account"}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setTestPanelVisible(false)}
+                style={styles.secondary}
+              >
+                <Text style={styles.secondaryText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -251,7 +268,7 @@ export function CareCircleStagingSessionGate({
         contentInsetAdjustmentBehavior="never"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.eyebrow}>STAGING TEST WORKBENCH</Text>
+        <Text style={styles.eyebrow}>DISPOSABLE STAGING SIGN-IN</Text>
         <Text style={styles.title}>Disposable account sign-in</Text>
         <Text style={styles.body}>
           Use only a disposable staging account created for Care Circle
@@ -425,6 +442,38 @@ function EvidenceSummary({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.navy950 },
   signedIn: { flex: 1, backgroundColor: colors.navy950 },
+  testPill: {
+    backgroundColor: "rgba(10,35,47,0.94)",
+    borderColor: colors.gold,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    position: "absolute",
+    right: spacing.md,
+    top: 58,
+    zIndex: 20,
+  },
+  testPillText: { color: colors.goldLight, fontSize: 10, fontWeight: "800" },
+  scrim: {
+    alignItems: "center",
+    backgroundColor: "rgba(2,10,18,0.7)",
+    flex: 1,
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  testPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.gold,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: spacing.sm,
+    maxHeight: "88%",
+    maxWidth: 420,
+    padding: spacing.lg,
+    width: "100%",
+  },
+  testPanelTitle: { color: colors.goldLight, fontSize: 18, fontWeight: "800" },
   sessionBar: {
     minHeight: 62,
     flexDirection: "row",

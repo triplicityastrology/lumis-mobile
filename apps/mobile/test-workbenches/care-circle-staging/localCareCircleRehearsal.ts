@@ -59,7 +59,7 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
           relationships: relationship === "none" ? [] : [{
             relationshipId: RELATIONSHIP_ID,
             participantRole: role,
-            otherDisplayName: role === "caree" ? "Synthetic Carer" : "Synthetic Caree",
+            otherDisplayName: role === "caree" ? "Mei (test)" : "Alex (test)",
             status: relationship,
           }],
         };

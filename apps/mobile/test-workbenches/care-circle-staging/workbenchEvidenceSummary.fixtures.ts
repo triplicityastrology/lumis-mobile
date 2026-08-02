@@ -3,6 +3,7 @@ import {
   createWorkbenchEvidenceSummary,
   listWorkbenchEvidence,
   recordConfirmedWorkbenchEvidence,
+  recordConfirmedCodeCopy,
 } from "./workbenchEvidenceSummary";
 
 let summary = createWorkbenchEvidenceSummary();
@@ -63,6 +64,8 @@ for (const input of [
   summary = recordConfirmedWorkbenchEvidence(summary, input);
 }
 equal(confirmedCount(summary), 7, "confirmed journey records all safe checks");
+summary = recordConfirmedCodeCopy(summary);
+equal(confirmedCount(summary), 8, "confirmed copy records one closed boolean check");
 
 const unchanged = recordConfirmedWorkbenchEvidence(summary, {
   journeyStage: "caree_accept",
@@ -73,7 +76,7 @@ const unchanged = recordConfirmedWorkbenchEvidence(summary, {
 equal(unchanged, summary, "wrong role cannot record Caree acceptance");
 
 const items = listWorkbenchEvidence(summary);
-equal(items.length, 7, "summary has a closed check list");
+equal(items.length, 8, "summary has a closed check list");
 equal(
   Object.keys(items[0] ?? {}).sort().join(","),
   "confirmed,label,name",
@@ -101,6 +104,7 @@ equal(
     "lumis_care_circle_test_summary_v1",
     "build_marker=b063cfe6d5f6392a4bf60c4ebed741a97973add8",
     "code_ready=confirmed",
+    "code_copied=confirmed",
     "pending_no_authority=confirmed",
     "accepted_active=confirmed",
     "paused=confirmed",
