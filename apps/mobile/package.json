@@ -18,6 +18,7 @@
     "@supabase/supabase-js": "^2.52.0",
     "expo": "^54.0.36",
     "expo-blur": "^15.0.8",
+    "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.9",
     "expo-haptics": "^15.0.8",
     "expo-linear-gradient": "^15.0.8",

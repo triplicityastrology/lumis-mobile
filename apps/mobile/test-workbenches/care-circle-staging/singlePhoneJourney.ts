@@ -29,7 +29,7 @@ export function createSinglePhoneJourney(): SinglePhoneJourney {
   return journey(
     "caree_create_code",
     "Step 1 · Caree creates code",
-    "Sign in as the disposable Caree and create the reusable one-hour code.",
+    "Sign in as the disposable Caree and create the reusable ten-minute code.",
     "caree",
     "Next: switch to the disposable Carer and submit the code.",
     "operation_result"

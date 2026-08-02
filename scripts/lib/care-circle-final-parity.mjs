@@ -7,8 +7,8 @@ const REQUIRED_MIGRATIONS = [
   ["0034_reusable_care_pairing_operations.sql", "466821a3a92a1f75543cf265d2d2c4e3dcb3f850ee79efd77df3269cd4797ceb"]
 ];
 const REQUIRED_EDGE_FILES = [
-  ["supabase/functions/care-circle/index.ts", "3834deb7ab98a35ec7ce87ba091c4acd7c99944d24552f4c5de955ab5e186989"],
-  ["supabase/functions/care-circle/operation-boundary.ts", "746e60e1ff1ee40f9b37eb665879e3011e933b3007325f5d059076d0e6e3c80a"],
+  ["supabase/functions/care-circle/index.ts", "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2"],
+  ["supabase/functions/care-circle/operation-boundary.ts", "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8"],
   ["supabase/functions/_shared/cors.ts", "e4ea6680fbb157a84a060c26f31b5795f9fbea00d239cbf78a2a3596bf7ef3f9"]
 ];
 const REQUIRED_HISTORY_COLUMNS = [

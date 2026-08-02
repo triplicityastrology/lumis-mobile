@@ -5,7 +5,6 @@ import {
   type CareCircleAction,
   type CareCircleRequest,
   normalizePairingCode,
-  PAIRING_CODE_ALPHABET,
   projectSafeCareCircleResponse,
   validateCareCircleRequest
 } from "./operation-boundary.ts";
@@ -67,12 +66,33 @@ Deno.serve(async (request) => {
   );
 
   try {
-    const operation = await buildOperation(
+    if (validatedBody.action === "pairing_code_submit") {
+      const { data: attempt, error: attemptError } = await serviceClient.rpc(
+        "register_care_pairing_attempt_backend",
+        { p_actor_user_id: actorUserId }
+      );
+      if (attemptError || !attempt || attempt.allowed !== true) {
+        return safeError(410, "48004", "This pairing code is not valid or has expired.");
+      }
+    }
+    let operation = await buildOperation(
       validatedBody,
       actorUserId,
       configuration.pairingSecret
     );
-    const { data, error } = await serviceClient.rpc(operation.rpc, operation.params);
+    let { data, error } = await serviceClient.rpc(operation.rpc, operation.params);
+
+    if (validatedBody.action === "pairing_code_create") {
+      for (let attempt = 1; error?.code === "23505" && attempt < 10; attempt += 1) {
+        operation = await buildOperation(
+          validatedBody,
+          actorUserId,
+          configuration.pairingSecret,
+          attempt
+        );
+        ({ data, error } = await serviceClient.rpc(operation.rpc, operation.params));
+      }
+    }
 
     if (error) return mapRpcError(error);
 
@@ -115,7 +135,8 @@ function getConfiguration(): Configuration | null {
 async function buildOperation(
   body: CareCircleRequest,
   actorUserId: string,
-  pairingSecret: string
+  pairingSecret: string,
+  pairingAttempt = 0
 ): Promise<{
   rpc: string;
   params: Record<string, unknown>;
@@ -130,7 +151,7 @@ async function buildOperation(
   if (body.action === "pairing_code_create") {
     const pairingCode = await derivePairingCode(
       actorUserId,
-      requestId,
+      `${requestId}:${pairingAttempt}`,
       pairingSecret
     );
     const codeHash = await fingerprintPairingCode(pairingCode, pairingSecret);
@@ -238,7 +259,7 @@ function mapRpcError(error: RpcError): Response {
   const messages: Record<string, { status: number; message: string }> = {
     "48004": {
       status: 410,
-      message: "This pairing code is not valid. Ask the Caree to refresh it."
+      message: "This pairing code is not valid or has expired."
     },
     "48005": {
       status: 409,
@@ -296,14 +317,8 @@ async function derivePairingCode(
     secret,
     `pairing-code-display\n${actorUserId}\n${requestId}`
   );
-  const characters = [...bytes.slice(0, 12)].map(
-    (byte) => PAIRING_CODE_ALPHABET[byte % PAIRING_CODE_ALPHABET.length]
-  );
-  return [
-    characters.slice(0, 4).join(""),
-    characters.slice(4, 8).join(""),
-    characters.slice(8, 12).join("")
-  ].join("-");
+  const value = ((bytes[0] << 8) | bytes[1]) % 10_000;
+  return value.toString().padStart(4, "0");
 }
 
 async function fingerprintPairingCode(

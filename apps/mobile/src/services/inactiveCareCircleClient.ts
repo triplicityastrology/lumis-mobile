@@ -122,8 +122,7 @@ export type InactiveCareCircleClient = {
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PAIRING_CODE_PATTERN =
-  /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-?[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-?[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/i;
+const PAIRING_CODE_PATTERN = /^\d{4}$/;
 
 const FAILURE_MESSAGES: Record<CareCircleClientFailureCode, string> = {
   CARE_CIRCLE_INPUT_INVALID: "Check the Care Circle request and try again.",

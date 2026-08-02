@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import { useEffect, useRef, useState } from "react";
 import {
   BackHandler,
@@ -113,6 +114,17 @@ export function CareCircleStagingWorkbench({
   const [hadRelationship, setHadRelationship] = useState(false);
   const [retryInput, setRetryInput] = useState<SafeRetryInput | null>(null);
   const [retryRefresh, setRetryRefresh] = useState(false);
+
+  useEffect(() => {
+    if (!pairingCodeExpiresAt) return;
+    const remaining = Date.parse(pairingCodeExpiresAt) - now();
+    if (remaining <= 0) {
+      setPairingCode(null);
+      return;
+    }
+    const timeout = setTimeout(() => setPairingCode(null), remaining);
+    return () => clearTimeout(timeout);
+  }, [now, pairingCodeExpiresAt]);
 
   const careeRelationships = relationships.filter(
     (relationship) => relationship.participantRole === "caree"
@@ -244,7 +256,7 @@ export function CareCircleStagingWorkbench({
 
     if (result.code === "CARE_CIRCLE_PAIRING_CODE_READY") {
       const lifetime = Date.parse(result.expiresAt) - now();
-      if (lifetime <= 0 || lifetime > 61 * 60 * 1000) {
+      if (lifetime <= 0 || lifetime > 11 * 60 * 1000) {
         setPairingCode(null);
         setPairingCodeExpiresAt(null);
         setNotice({
@@ -257,7 +269,7 @@ export function CareCircleStagingWorkbench({
       setPairingCodeExpiresAt(result.expiresAt);
       setNotice({
         tone: "success",
-        text: "Reusable pairing code ready for this one-hour staging window.",
+        text: "Reusable pairing code ready for this ten-minute staging window.",
       });
       return result;
     }
@@ -315,6 +327,22 @@ export function CareCircleStagingWorkbench({
       action: rotation ? "rotate_pairing_code" : "create_pairing_code",
       clientRequestId: requestIdFactory(),
     });
+  }
+
+  async function copyPairingCode() {
+    if (!pairingCode || codeIsExpired) return;
+    try {
+      await Clipboard.setStringAsync(pairingCode);
+      setNotice({
+        tone: "success",
+        text: "Pairing code copied. It remains valid only until the shown expiry.",
+      });
+    } catch {
+      setNotice({
+        tone: "error",
+        text: "The pairing code could not be copied. You can enter it manually.",
+      });
+    }
   }
 
   async function submitPairingCode() {
@@ -467,7 +495,7 @@ export function CareCircleStagingWorkbench({
           <>
             <Section title="Reusable pairing code">
               <Text style={styles.body}>
-                A newly created or rotated code is reusable for one hour.
+                A newly created or rotated code is reusable for ten minutes.
                 Rotation blocks new submissions with the previous code.
               </Text>
               {pairingCode && !codeIsExpired ? (
@@ -477,6 +505,12 @@ export function CareCircleStagingWorkbench({
                   <Text selectable style={styles.codeValue}>
                     {pairingCode}
                   </Text>
+                  <Action
+                    disabled={disabled}
+                    label="Copy code"
+                    onPress={() => void copyPairingCode()}
+                    secondary
+                  />
                   <Text style={styles.meta}>
                     Expires {formatStagingTime(pairingCodeExpiresAt)}
                   </Text>
@@ -596,17 +630,21 @@ export function CareCircleStagingWorkbench({
               </Text>
               <TextInput
                 accessibilityLabel="Staging pairing code"
-                autoCapitalize="characters"
                 autoCorrect={false}
                 editable={!disabled}
-                onChangeText={setPairingCodeInput}
-                placeholder="Enter the Caree staging code"
+                keyboardType="number-pad"
+                maxLength={4}
+                onChangeText={(value) =>
+                  setPairingCodeInput(value.replace(/\D/g, "").slice(0, 4))
+                }
+                placeholder="4-digit Caree code"
                 placeholderTextColor={colors.muted}
                 style={styles.input}
+                textContentType="oneTimeCode"
                 value={pairingCodeInput}
               />
               <Action
-                disabled={disabled || pairingCodeInput.trim().length === 0}
+                disabled={disabled || pairingCodeInput.length !== 4}
                 label={
                   busy === "submit_pairing_code"
                     ? "Submitting..."

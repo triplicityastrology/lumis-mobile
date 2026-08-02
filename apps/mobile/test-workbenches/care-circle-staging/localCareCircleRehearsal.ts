@@ -5,7 +5,7 @@ export type LocalRehearsalRole = "caree" | "carer";
 
 const RELATIONSHIP_ID = "10000000-0000-4000-8000-000000000001";
 const CODE_ID = "20000000-0000-4000-8000-000000000002";
-const PAIRING_CODE = "CARE-2345-6789";
+const PAIRING_CODE = "2468";
 type RelationshipState = "none" | "pending_caree_acceptance" | "active" | "removed_by_carer";
 
 export function createLocalCareCircleRehearsal(now = () => Date.now()) {
@@ -20,7 +20,7 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
           case "pairing_code_create":
             if (role !== "caree") return denied();
             codeReady = true;
-            return { ok: true, pairing_code: PAIRING_CODE, code_id: CODE_ID, expires_at: new Date(now() + 60 * 60 * 1000).toISOString() };
+            return { ok: true, pairing_code: PAIRING_CODE, code_id: CODE_ID, expires_at: new Date(now() + 10 * 60 * 1000).toISOString() };
           case "pairing_code_submit":
             if (role !== "carer" || !codeReady || request.pairing_code !== PAIRING_CODE) return { error: { code: "48004" } };
             relationship = "pending_caree_acceptance";

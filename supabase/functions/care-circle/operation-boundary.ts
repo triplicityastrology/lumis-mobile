@@ -26,7 +26,6 @@ export type ValidationFailure = {
 
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-export const PAIRING_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 const ACTIONS: CareCircleAction[] = [
   "pairing_code_create",
@@ -160,14 +159,8 @@ export function projectSafeCareCircleResponse(
 
 export function normalizePairingCode(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const normalized = value.toUpperCase().replace(/[-\s]/g, "");
-  if (
-    normalized.length !== 12
-    || [...normalized].some((character) => !PAIRING_CODE_ALPHABET.includes(character))
-  ) {
-    return null;
-  }
-  return normalized;
+  const normalized = value.replace(/\s/g, "");
+  return /^\d{4}$/.test(normalized) ? normalized : null;
 }
 
 function requireUuid(value: unknown): asserts value is string {
@@ -195,7 +188,7 @@ function invalidPairingCode(): ValidationFailure {
     ok: false,
     status: 410,
     code: "48004",
-    message: "This pairing code is not valid. Ask the Caree to refresh it."
+    message: "This pairing code is not valid or has expired."
   };
 }
 

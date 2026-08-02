@@ -123,7 +123,7 @@ assert.throws(() => model.acceptAtCapacity(5), /48012/);
 
 assert.equal(
   packageJson.scripts["test:care-circle-operations"],
-  "node scripts/care-circle-operations-contract.mjs"
+  "node scripts/care-circle-operations-contract.mjs && pnpm test:care-circle-four-digit"
 );
 assert.match(
   packageJson.scripts["test:all-local"],

@@ -62,6 +62,21 @@ for (const entry of control.deployment_order) {
   }
 }
 
+assert.equal(
+  control.pre_function_migration_gate.name,
+  "0037_four_digit_care_pairing_codes.sql"
+);
+assert.equal(
+  control.pre_function_migration_gate.function_deployment_blocked_until_parity,
+  true
+);
+assert.equal(
+  createHash("sha256")
+    .update(readFileSync("supabase/migrations/0037_four_digit_care_pairing_codes.sql"))
+    .digest("hex"),
+  control.pre_function_migration_gate.sha256
+);
+
 for (const gate of [
   "exact_staging_ref",
   "migration_checksum_match",
@@ -71,6 +86,7 @@ for (const gate of [
   "staging_backup_evidence",
   "dry_run_exact_order",
   "migration_parity",
+  "four_digit_pairing_migration_parity",
   "function_version_capture",
   "unauthenticated_denial"
 ]) {

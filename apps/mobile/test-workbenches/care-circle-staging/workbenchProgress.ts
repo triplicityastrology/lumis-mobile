@@ -108,11 +108,11 @@ export function resolveWorkbenchProgress(input: {
     return progress(
       "caree_code_ready",
       "Caree code ready",
-      "The reusable one-hour code is ready for a disposable Carer."
+      "The reusable ten-minute code is ready for a disposable Carer."
     );
   }
   return role === "caree"
-    ? progress("caree_ready", "Caree ready", "Create a one-hour pairing code.")
+    ? progress("caree_ready", "Caree ready", "Create a ten-minute pairing code.")
     : progress("carer_ready", "Carer ready", "Submit the Caree pairing code.");
 }
 

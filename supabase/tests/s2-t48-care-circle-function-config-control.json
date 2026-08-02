@@ -3,12 +3,12 @@
   "project_ref": "bmqhwofmdgebpcihjlnb",
   "function_name": "care-circle",
   "function_path": "supabase/functions/care-circle/index.ts",
-  "function_sha256": "3834deb7ab98a35ec7ce87ba091c4acd7c99944d24552f4c5de955ab5e186989",
-  "previous_function_sha256": "19dad48d318a442b75d3830eb3d2e5dcd9443453275c83d7001c5ece9bc64ce8",
+  "function_sha256": "ecf5a066e7eef4c5b18ef996d029a2dbeacf70a589845a1d49e9e88a981b49e2",
+  "previous_function_sha256": "3834deb7ab98a35ec7ce87ba091c4acd7c99944d24552f4c5de955ab5e186989",
   "supporting_files": [
     {
       "path": "supabase/functions/care-circle/operation-boundary.ts",
-      "sha256": "746e60e1ff1ee40f9b37eb665879e3011e933b3007325f5d059076d0e6e3c80a"
+      "sha256": "33046b779a55f4e901d993bad6e6907995bfb497c8eda585dbd1f6d68ec3a7d8"
     }
   ],
   "source_authorized_runtime_names": [

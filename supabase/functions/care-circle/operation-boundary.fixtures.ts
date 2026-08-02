@@ -21,7 +21,7 @@ assert.equal(validateCareCircleRequest({
   action: "relationship_accept",
   client_request_id: requestId,
   relationship_id: relationshipId,
-  pairing_code: "2345-6789-ABCD"
+  pairing_code: "2468"
 }).ok, false);
 assert.equal(validateCareCircleRequest({
   action: "relationship_accept",
@@ -52,13 +52,13 @@ assert.deepEqual(projectSafeCareCircleResponse("pairing_code_create", {
   code_id: codeId,
   expires_at: "2030-01-01T00:00:00.000Z",
   code_hash: "not-projected"
-}, "2345-6789-ABCD"), {
+}, "2468"), {
   ok: true,
   status: "active",
   idempotent: false,
   code_id: codeId,
   expires_at: "2030-01-01T00:00:00.000Z",
-  pairing_code: "2345-6789-ABCD"
+  pairing_code: "2468"
 });
 
 assert.throws(
