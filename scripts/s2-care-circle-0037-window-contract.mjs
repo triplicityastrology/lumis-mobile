@@ -15,6 +15,7 @@ assert.throws(() => validateCheckpoint({ ...checkpoint, digest: "b".repeat(64) }
 const source = readFileSync("scripts/s2-care-circle-0037-window.mjs", "utf8");
 assert.doesNotMatch(source, /fetch\s*\(|https?:\/\/|SUPABASE_ACCESS_TOKEN|SERVICE_ROLE|pairing_code|response_body|endpoint/i);
 assert.match(source, /--accepted/);
+assert.match(source, /REHEARSAL_ENVELOPE_REQUIRED/);
 assert.match(source, /flag: "wx"/);
 const run = spawnSync(process.execPath, ["scripts/s2-care-circle-0037-window.mjs"], { encoding: "utf8" });
 assert.equal(run.status, 0, run.stderr);

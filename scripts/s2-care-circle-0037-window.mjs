@@ -7,6 +7,7 @@ import { validateFourDigitSeal } from "./lib/care-circle-four-digit-seal.mjs";
 const CONTROL_PATH = "supabase/tests/s2-t143-care-circle-0037-window-control.json";
 const CHECKPOINT_PATH = ".lumis-local/s2-t143-care-circle-0037-window.json";
 const RECEIPT_PATH = ".lumis-local/s2-t143-care-circle-0037-window-receipt.json";
+const REHEARSAL_RECEIPT_PATH = ".lumis-local/s2-t158-care-circle-0037-rehearsal-receipt.json";
 
 try {
   validateFourDigitSeal();
@@ -27,6 +28,7 @@ try {
       "network_calls=0 credentials_requested=0 filesystem_writes=0",
     ].join("\n") + "\n");
   } else {
+    if (args.stage === "rehearsal_accepted") verifyRehearsalReceipt(args.evidenceSha256);
     const next = appendCheckpoint(checkpoint, args.stage, args.evidenceSha256, control);
     mkdirSync(".lumis-local", { recursive: true, mode: 0o700 });
     writeFileSync(CHECKPOINT_PATH, JSON.stringify(next, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
@@ -45,6 +47,16 @@ try {
   const code = error instanceof Error && /^STOP_S2_T143_[A-Z0-9_]+$/u.test(error.message) ? error.message : "STOP_S2_T143_UNKNOWN";
   process.stderr.write(`${code}\n`);
   process.exitCode = 1;
+}
+
+function verifyRehearsalReceipt(expectedEvidenceSha256) {
+  if (!existsSync(REHEARSAL_RECEIPT_PATH)) stop("REHEARSAL_ENVELOPE_REQUIRED");
+  const receipt = JSON.parse(readFileSync(REHEARSAL_RECEIPT_PATH, "utf8"));
+  const keys = Object.keys(receipt).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(["digest", "evidence_sha256", "schema", "status"])) stop("REHEARSAL_RECEIPT_INVALID");
+  if (receipt.schema !== "s2_t158_care_circle_0037_rehearsal_receipt_v1" || receipt.status !== "accepted" || receipt.evidence_sha256 !== expectedEvidenceSha256) stop("REHEARSAL_RECEIPT_INVALID");
+  const core = { schema: receipt.schema, status: receipt.status, evidence_sha256: receipt.evidence_sha256 };
+  if (receipt.digest !== sha(Buffer.from(JSON.stringify(core)))) stop("REHEARSAL_RECEIPT_INVALID");
 }
 
 function verifySource(control) {

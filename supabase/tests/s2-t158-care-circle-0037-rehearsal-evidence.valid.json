@@ -1,0 +1,20 @@
+{
+  "schema": "s2_t158_care_circle_0037_rehearsal_evidence_v1",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "project_classification": "staging_test_only",
+  "evidence_kind": "dashboard_rollback_rehearsal_redacted",
+  "predecessor_versions": ["0032", "0033", "0034"],
+  "history_parity": "matched",
+  "migration": {
+    "version": "0037",
+    "name": "four_digit_care_pairing_codes",
+    "sha256": "3a5deda8546d5255e51c0cece16e67687cd71a63743f923a49aebf94f2f5852c"
+  },
+  "residue": {
+    "schema_objects": 0,
+    "history_rows": 0
+  },
+  "rollback_result": "passed",
+  "rows_exposed": false,
+  "private_values_exposed": false
+}
