@@ -76,6 +76,7 @@ import {
 import { ChartInsightsScreen } from "./src/screens/ChartInsightsScreen";
 import { LogoutDialog, NoChartFoundScreen, RestoringSpaceScreen } from "./src/components/AuthSystemKit";
 import { BrandPrimaryButton } from "./src/components/BrandPrimaryButton";
+import { SoftButton } from "./src/components/states/StateKit";
 import { CelestialBackground } from "./src/components/CelestialBackground";
 import { FrostedCard } from "./src/components/FrostedCard";
 import { GeneratingView } from "./src/components/GeneratingView";
@@ -1762,6 +1763,31 @@ function ChartPreviewScreen({
     );
   }
 
+  // CHART-004 — chart-generation error. A real backend failure is preserved; the
+  // birth details are still saved and nothing has been charged (truthful copy).
+  if (submitError) {
+    return (
+      <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.safe}>
+        <StatusBar style="light" />
+        <ScrollView contentContainerStyle={styles.chartErrorContent} showsVerticalScrollIndicator={false}>
+          <Text style={styles.chartErrorEyebrow}>✦ CHART NOT COMPLETED</Text>
+          <Text style={styles.chartErrorTitle}>We couldn't finish your chart.</Text>
+          <Text style={styles.chartErrorLead}>
+            Something interrupted the calculation. Your birth details are still saved — nothing has been charged.
+          </Text>
+          <FrostedCard style={styles.chartErrorCard} radius={18}>
+            <Text style={styles.chartErrorCardLabel}>YOUR SAVED DETAILS</Text>
+            <SummaryRow label="Birth date" value={profileData.birthDate} />
+            <SummaryRow label="Birth time" value={profileData.timeUnknown ? "Unknown" : profileData.birthTime} />
+            <SummaryRow label="Birthplace" value={profileData.birthPlace} />
+          </FrostedCard>
+          <BrandPrimaryButton label="Try again" onPress={handleGenerateChartProfile} style={styles.codexCta} />
+          <SoftButton label="Edit birth details" onPress={onStartOver} style={styles.codexSoft} />
+        </ScrollView>
+      </SafeAreaViewCtx>
+    );
+  }
+
   return (
     <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.safe}>
       <StatusBar style="dark" />
@@ -1783,10 +1809,10 @@ function ChartPreviewScreen({
           <View style={styles.previewWheel}>
             <ChartWheel />
           </View>
-          <Text style={styles.kicker}>Chart preview</Text>
-          <Text style={styles.formTitle}>Ready to generate {profileData.name}'s chart.</Text>
+          <Text style={styles.kicker}>✦ BEFORE WE CREATE YOUR CHART</Text>
+          <Text style={styles.formTitle}>Does this look right?</Text>
           <Text style={styles.formIntro}>
-            Review the details below. Lumis will use them to calculate your chart and create your profile.
+            You'll be able to change these later — each change regenerates your chart.
           </Text>
         </View>
 
@@ -1797,8 +1823,16 @@ function ChartPreviewScreen({
             label="Birth time"
             value={profileData.timeUnknown ? "Unknown - no birth time precision" : profileData.birthTime}
           />
-          <SummaryRow label="Birth place" value={profileData.birthPlace} />
+          <SummaryRow label="Birthplace" value={profileData.birthPlace} />
         </View>
+
+        {profileData.timeUnknown ? (
+          <View style={styles.infoNote}>
+            <Text style={styles.infoNoteText}>
+              Because your birth time is unknown, Lumis will hide your Ascendant, Midheaven and house-based placements. Sun, Moon and planetary sign positions still appear.
+            </Text>
+          </View>
+        ) : null}
 
         {!previewValidation.isValid ? (
           <View style={styles.errorCard}>
@@ -1814,18 +1848,13 @@ function ChartPreviewScreen({
           </View>
         ) : null}
 
-        <Pressable
-          style={[styles.fullPrimaryButton, !canGenerate && styles.disabledButton]}
+        <BrandPrimaryButton
+          label="Create my chart"
           onPress={handleGenerateChartProfile}
           disabled={!canGenerate}
-        >
-          <Text style={styles.fullPrimaryButtonText}>
-            Create my chart
-          </Text>
-        </Pressable>
-        <Pressable style={styles.ghostButton} onPress={onStartOver}>
-          <Text style={styles.ghostButtonText}>Start over</Text>
-        </Pressable>
+          style={styles.codexCta}
+        />
+        <SoftButton label="Edit birth details" onPress={onStartOver} style={styles.codexSoft} />
       </ScrollView>
     </SafeAreaViewCtx>
   );
@@ -4332,6 +4361,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14
   },
+  // Codex note tier (rgba surface-3 @ 50%) + Codex CTA spacing.
+  infoNote: {
+    backgroundColor: "rgba(19,35,58,0.5)",
+    borderColor: "rgba(255,255,255,0.05)",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14
+  },
+  infoNoteText: {
+    color: "#C4CEDB",
+    fontFamily: "HankenGrotesk-Medium",
+    fontSize: 12.5,
+    lineHeight: 19
+  },
+  codexCta: { marginTop: 4 },
+  codexSoft: { marginTop: 10 },
+  chartErrorContent: { flexGrow: 1, gap: 14, justifyContent: "center", paddingBottom: 32, paddingHorizontal: 24, paddingTop: 24 },
+  chartErrorEyebrow: { color: "#D7B978", fontFamily: "HankenGrotesk-Bold", fontSize: 10, letterSpacing: 2.2 },
+  chartErrorTitle: { color: "#F0F4F8", fontFamily: "Newsreader-Medium", fontSize: 28, lineHeight: 33 },
+  chartErrorLead: { color: "#C4CEDB", fontFamily: "HankenGrotesk-Regular", fontSize: 15.5, lineHeight: 24 },
+  chartErrorCard: { gap: 2, padding: 18 },
+  chartErrorCardLabel: { color: "#8A9BB0", fontFamily: "HankenGrotesk-Bold", fontSize: 10.5, letterSpacing: 1.47, marginBottom: 6 },
   errorText: {
     color: "#923124",
     fontSize: 13,
