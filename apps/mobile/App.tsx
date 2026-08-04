@@ -2093,17 +2093,40 @@ function PersonaStyleScreen({
             })}
           </View>
 
-          {saveError ? <View style={styles.errorCard}><Text style={styles.errorText}>{saveError}</Text></View> : null}
+          {/* PERS-003 — persona save error. The active persona is unchanged; retry
+              or cancel and keep the current Lumis. Truthful signed-off copy. */}
+          {saveError ? (
+            <View accessibilityLiveRegion="assertive" accessibilityRole="alert" style={styles.personaSaveError}>
+              <Text style={styles.personaSaveErrorText}>
+                <Text style={styles.personaSaveErrorPrefix}>Please check this. </Text>
+                We couldn't save your Lumis choice. Your active persona hasn't changed. Please try again.
+              </Text>
+            </View>
+          ) : null}
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={isSaving}
-            onPress={handleEnterChat}
-            style={[styles.personaContinue, isSaving && styles.disabledButton]}
-          >
-            <Text style={styles.personaContinueText}>{isSaving ? "Saving your Persona..." : "Enter your sanctuary"}</Text>
-            <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
-          </Pressable>
+          {saveError ? (
+            <>
+              <BrandPrimaryButton
+                label={isSaving ? "Saving…" : "Retry saving"}
+                busy={isSaving}
+                onPress={handleEnterChat}
+                style={styles.codexCtaPersona}
+              />
+              <Pressable accessibilityRole="button" onPress={onBack} style={styles.personaCancelBtn} disabled={isSaving}>
+                <Text style={styles.personaCancelText}>Cancel — keep current Lumis</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSaving}
+              onPress={handleEnterChat}
+              style={[styles.personaContinue, isSaving && styles.disabledButton]}
+            >
+              <Text style={styles.personaContinueText}>{isSaving ? "Saving your Persona..." : "Enter your sanctuary"}</Text>
+              <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
+            </Pressable>
+          )}
         </ScrollView>
       </SafeAreaViewCtx>
     );
@@ -3509,6 +3532,20 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 4
   },
+  // PERS-003 — persona save-error warn banner + cancel text button.
+  personaSaveError: {
+    backgroundColor: "rgba(227,142,124,0.12)",
+    borderColor: "rgba(227,142,124,0.40)",
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 4,
+    padding: 14
+  },
+  personaSaveErrorText: { color: "#F0C9C0", fontFamily: "HankenGrotesk-Medium", fontSize: 13, lineHeight: 19 },
+  personaSaveErrorPrefix: { color: "#E38E7C", fontFamily: "HankenGrotesk-Bold" },
+  codexCtaPersona: { marginTop: 14 },
+  personaCancelBtn: { alignItems: "center", justifyContent: "center", marginTop: 8, minHeight: 44 },
+  personaCancelText: { color: "#8A9BB0", fontFamily: "HankenGrotesk-SemiBold", fontSize: 14 },
   personaContinue: {
     alignItems: "center",
     backgroundColor: "#F1C86F",

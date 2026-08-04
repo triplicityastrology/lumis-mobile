@@ -77,7 +77,7 @@ assert.match(profile, /rowIcon: \{[\s\S]*backgroundColor: "rgba\(26,53,80,0\.60\
 assert.match(profile, /rowFirst: \{ borderTopWidth: 0 \}/, "PROF-001 first row has no top divider");
 assert.match(profile, /heroBadgeText: \{ color: colors\.accent/, "PROF-001 gold hero pill");
 assert.doesNotMatch(profile, /Prime member/, "PROF-001 must not fabricate a paid membership claim");
-assert.match(profile, /label="Delete account" unavailable/, "PROF-001 keeps Delete account unavailable");
+assert.match(profile, /label="Delete account"[\s\S]{0,120}unavailable/, "PROF-001 keeps Delete account unavailable");
 assert.match(profile, /Preview only\. Check-ins and carer links are not active yet\./, "PROF-001 Care Circle stays preview-only");
 // Log out stays destructive/warn (not gold).
 assert.match(profile, /logoutButton: \{[\s\S]*borderColor: colors\.warnSolid/, "PROF-001 logout stays warn-tinted");

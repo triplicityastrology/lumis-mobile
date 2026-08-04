@@ -7,6 +7,7 @@ import Clock3 from "lucide-react-native/icons/clock-3";
 import Compass from "lucide-react-native/icons/compass";
 import Headphones from "lucide-react-native/icons/headphones";
 import Languages from "lucide-react-native/icons/languages";
+import Lock from "lucide-react-native/icons/lock";
 import LogOut from "lucide-react-native/icons/log-out";
 import MapPin from "lucide-react-native/icons/map-pin";
 import ShieldCheck from "lucide-react-native/icons/shield-check";
@@ -124,14 +125,43 @@ export function LumisProfileScreen({
             />
           </ProfileSection>
 
-          <ProfileSection label="PRIVACY & SUPPORT">
+          <ProfileSection label="PREFERENCES">
             {onAppLanguage ? (
               <ProfileRow icon={<Languages color={colors.accent} size={17} />} label="App language" value={appLanguageValue} onPress={onAppLanguage} />
             ) : null}
             <ProfileRow icon={<Bell color={colors.accent} size={17} />} label="Notifications" onPress={onNotifications} />
-            <ProfileRow icon={<ShieldCheck color={colors.accent} size={17} />} label="Data Sanctuary & Support" onPress={() => setNotice("Your birth data and reflections remain linked to your private account.")} />
-            <ProfileRow icon={<Headphones color={colors.accent} size={17} />} label="Contact support" onPress={onContactSupport ?? (() => showPendingNotice("Contact support"))} />
-            <ProfileRow danger icon={<Trash2 color={colors.warnSolid} size={17} />} label="Delete account" unavailable onPress={() => showPendingNotice("Account deletion")} />
+          </ProfileSection>
+
+          {/* PROF-007 — Privacy & Support notice. Informational rows; unavailable
+              actions are explicitly marked; no async loading until a real
+              destination is wired. Existing behaviour/destinations preserved. */}
+          <ProfileSection label="PRIVACY & SUPPORT" note="These sections are informational. No async loading indicators are used until a real destination is wired.">
+            <ProfileRow
+              icon={<ShieldCheck color={colors.accent} size={17} />}
+              label="Data sanctuary"
+              sub="Your birth details and reflections are private. Lumis will never sell, share or profile you."
+              showChevron={false}
+            />
+            <ProfileRow
+              icon={<Lock color={colors.accent} size={17} />}
+              label="How your account is secured"
+              sub="Signed in with email magic link. No password to leak."
+              showChevron={false}
+            />
+            <ProfileRow
+              icon={<Headphones color={colors.accent} size={17} />}
+              label="Contact support"
+              sub="A support channel isn't available in this build."
+              onPress={onContactSupport ?? (() => showPendingNotice("Contact support"))}
+            />
+            <ProfileRow
+              danger
+              icon={<Trash2 color={colors.warnSolid} size={17} />}
+              label="Delete account"
+              sub="Account deletion is not yet available in this build."
+              unavailable
+              onPress={() => showPendingNotice("Account deletion")}
+            />
           </ProfileSection>
 
           {notice ? <Pressable onPress={() => setNotice("")} style={styles.notice}><Text style={styles.noticeText}>{notice}</Text><Text style={styles.noticeDismiss}>Dismiss</Text></Pressable> : null}
@@ -192,6 +222,7 @@ type ProfileRowProps = {
   first?: boolean;
   icon: ReactNode;
   label: string;
+  sub?: string;
   onPress?: () => void;
   showChevron?: boolean;
   value?: string;
@@ -203,6 +234,7 @@ function ProfileRow({
   first = false,
   icon,
   label,
+  sub,
   onPress,
   showChevron = true,
   value,
@@ -218,7 +250,10 @@ function ProfileRow({
       style={[styles.row, first && styles.rowFirst]}
     >
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>{icon}</View>
-      <View style={styles.rowCopy}><Text style={[styles.rowLabel, danger && styles.dangerText, unavailable && styles.rowLabelMuted]}>{label}</Text></View>
+      <View style={styles.rowCopy}>
+        <Text style={[styles.rowLabel, danger && styles.dangerText, unavailable && styles.rowLabelMuted]}>{label}</Text>
+        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+      </View>
       {unavailable ? (
         <UnavailablePill />
       ) : (
@@ -267,6 +302,7 @@ const styles = StyleSheet.create({
   rowIconDanger: { backgroundColor: "rgba(227,142,124,0.14)" },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: colors.ice, fontSize: 13, fontWeight: "600" },
+  rowSub: { color: colors.muted, fontSize: 11.5, lineHeight: 16, marginTop: 3 },
   rowLabelMuted: { color: colors.muted },
   rowValue: { color: colors.muted, fontSize: 10.5, marginTop: 3 },
   rowTrailing: { color: colors.textSoft, flexShrink: 1, fontSize: 11.5, lineHeight: 16, maxWidth: "48%", textAlign: "right" },
