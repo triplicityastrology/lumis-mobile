@@ -9,6 +9,9 @@ import { colors, radii, spacing } from "../../theme/tokens";
 import {
   BellGlyph, GhostButton, PreviewBadge, QuietEmptyState, RetryCard, ScreenHeader, SkeletonRow, SoftButton
 } from "../../components/states/StateKit";
+import { BrandPrimaryButton } from "../../components/BrandPrimaryButton";
+import { ChatThinkingIndicator } from "../../components/ChatThinkingIndicator";
+import { type as textRole } from "../../theme/typography";
 
 /**
  * Release notification boundary. Care Circle delivery and actions are not
@@ -45,7 +48,10 @@ const MOCK: NotifItem[] = [
 ];
 
 type DemoMode = "loading" | "error" | "empty" | "populated";
-type ReleasePreviewMode = "empty" | "populated";
+// Release preview stream states. NOTIF-002 (loading) and NOTIF-004 (error/retry)
+// are the signed-off states for the preview-only notification stream; delivery
+// stays inactive — these render local preview state only, no backend fetch.
+type ReleasePreviewMode = "loading" | "error" | "empty" | "populated";
 
 type PreviewNotifItem = Pick<NotifItem, "id" | "type" | "title" | "context" | "time">;
 
@@ -166,12 +172,14 @@ export function NotificationCenterScreen({
   return (
     <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.safe}>
       <ScreenHeader title="Notifications" titleIcon={<BellGlyph />} onBack={onBack} />
+      {/* NOTIF-002 / -004 header sub: the preview stream is never live. */}
+      <Text style={s.headerSub}>Preview — not active</Text>
       <View style={s.previewBar}>
-        <PreviewBadge label="Preview · notifications are not active" />
+        <PreviewBadge label="Notifications are not active" />
       </View>
       {__DEV__ ? (
         <View accessibilityLabel="Notification preview state" style={s.demoBar}>
-          {(["populated", "empty"] as ReleasePreviewMode[]).map((mode) => (
+          {(["populated", "loading", "error", "empty"] as ReleasePreviewMode[]).map((mode) => (
             <Pressable
               accessibilityRole="button"
               key={mode}
@@ -188,7 +196,46 @@ export function NotificationCenterScreen({
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
-        {previewMode === "empty" ? (
+        {previewMode === "loading" ? (
+          // NOTIF-002 — real "loading" state for the preview stream. The gold
+          // reflecting orb is a live-state indicator (reduced-motion aware),
+          // not a fake timed loader.
+          <>
+            <View
+              accessibilityLabel="Loading notification preview"
+              accessibilityLiveRegion="polite"
+              style={s.reflectingRow}
+            >
+              <ChatThinkingIndicator />
+              <Text style={s.reflectingLabel}>Loading notification preview…</Text>
+            </View>
+            <View style={s.skeletonStack}>
+              {[0, 1, 2].map((i) => <SkeletonRow key={i} />)}
+            </View>
+          </>
+        ) : previewMode === "error" ? (
+          // NOTIF-004 — preview fetch failed. Retry is a local re-attempt of the
+          // preview stream; nothing on the account is touched.
+          <>
+            <View style={s.errorCard}>
+              <View style={s.errorIcon}>
+                <Svg width={22} height={22} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no">
+                  <Circle cx={12} cy={12} r={9} stroke="#E38E7C" strokeWidth={1.6} fill="none" />
+                  <Path d="M12 7.5v5M12 16h.01" stroke="#E38E7C" strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+              <Text style={s.errorHeading}>We couldn't load your preview.</Text>
+              <Text style={s.errorHelper}>This is the preview stream — nothing on your account is affected.</Text>
+              <BrandPrimaryButton
+                label="Retry"
+                onPress={() => setPreviewMode("loading")}
+                style={s.errorRetry}
+                accessibilityLabel="Retry loading the notification preview"
+              />
+            </View>
+            <Text style={s.errorCaption}>The gold reflecting indicator appears only while Retry is loading.</Text>
+          </>
+        ) : previewMode === "empty" ? (
           <QuietEmptyState
             motif="bell"
             title="Notifications are a preview."
@@ -333,5 +380,16 @@ const s = StyleSheet.create({
   actionRow: { flexDirection: "row", gap: 18, marginTop: 10 },
   accept: { color: colors.gold, fontSize: 13, fontWeight: "700" },
   decline: { color: colors.muted, fontSize: 13, fontWeight: "600" },
-  resolved: { color: colors.muted, fontSize: 12, fontStyle: "italic", marginTop: 8 }
+  resolved: { color: colors.muted, fontSize: 12, fontStyle: "italic", marginTop: 8 },
+  // NOTIF-002 / -004 preview-state styles.
+  headerSub: { color: colors.muted, fontSize: 12.5, marginBottom: 8, marginTop: -4, paddingHorizontal: spacing.lg },
+  reflectingRow: { alignItems: "center", flexDirection: "row", gap: 10, marginBottom: 16 },
+  reflectingLabel: { color: colors.gold, fontSize: 12.5, fontStyle: "italic" },
+  skeletonStack: { gap: 10 },
+  errorCard: { alignItems: "center", backgroundColor: "rgba(58,80,118,0.28)", borderColor: colors.line, borderRadius: radii.lg, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 24 },
+  errorIcon: { alignItems: "center", backgroundColor: "rgba(227,142,124,0.18)", borderRadius: 24, height: 48, justifyContent: "center", marginBottom: 12, width: 48 },
+  errorHeading: { ...textRole.cardHeading, fontSize: 17, marginBottom: 6, textAlign: "center" },
+  errorHelper: { ...textRole.bodySmall, marginBottom: 16, textAlign: "center" },
+  errorRetry: { alignSelf: "stretch" },
+  errorCaption: { ...textRole.caption, marginTop: 12, textAlign: "center" }
 });
