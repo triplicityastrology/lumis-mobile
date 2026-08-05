@@ -1,5 +1,6 @@
 import Bell from "lucide-react-native/icons/bell";
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import HelpCircle from "lucide-react-native/icons/help-circle";
 import List from "lucide-react-native/icons/list";
 import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
@@ -30,6 +31,7 @@ import { DiceHistorySheet, type SessionRoll } from "./DiceHistorySheet";
 import { beginNewDiceQuestion, normalizeDiceQuestion } from "./question";
 import { useDiceResultActionLayout } from "./useDiceResultActionLayout";
 import { useMotionGestures } from "./useMotionGestures";
+import { DiceHelpSheet, DiceUnavailableView } from "./DiceHelpAndUnavailable";
 
 configureSecureRandom(getRandomValues);
 
@@ -136,6 +138,10 @@ export function DiceRitualScreen({
   const [reduceMotion, setReduceMotion] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  // DICE-009 help sheet + DICE-010 unavailable-outcome preview (dev only; the
+  // release trigger for DICE-010 is a backend "no throw available" result).
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const lastThrowRef = useRef<{ question: string | null; planetKey: string; signKey: string; houseKey: string } | null>(null);
   const sessionRollsRef = useRef<SessionRoll[]>([]);
 
@@ -458,8 +464,21 @@ export function DiceRitualScreen({
     ? `Help me reflect on my astrology dice throw. My question was: “${activeQuestion}” The dice showed ${symbols.planet.en}, ${symbols.sign.en}, ${symbols.house.en}.`
     : "";
 
+  // DICE-010 — full-screen "unavailable" outcome. Dev-only preview here; the
+  // release path renders this when a throw returns a backend unavailable result.
+  if (__DEV__ && previewUnavailable) {
+    return (
+      <DiceUnavailableView
+        question={question.trim() || "Is now the right time to reach out to my old mentor?"}
+        onReturnToQuestion={() => setPreviewUnavailable(false)}
+        onBackToChat={onBack}
+      />
+    );
+  }
+
   return (
     <View style={styles.safe}>
+      <DiceHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable
@@ -477,12 +496,21 @@ export function DiceRitualScreen({
           </Pressable>
           <Text style={styles.headerTitle}>Astrology Dice</Text>
           <View style={styles.headerActions}>
+            {/* DICE-009 — "How to ask Dice" help sheet. */}
+            <Pressable style={styles.iconButton} onPress={() => setHelpOpen(true)} accessibilityLabel="How to ask Dice">
+              <HelpCircle color={colors.ice} size={19} />
+            </Pressable>
             <Pressable style={styles.iconButton} onPress={() => setHistoryOpen(true)} accessibilityLabel="Past rolls">
               <List color={colors.ice} size={19} />
             </Pressable>
             <Pressable style={styles.iconButton} onPress={onNotifications} accessibilityLabel="Notifications">
               <Bell color={colors.ice} size={19} />
             </Pressable>
+            {__DEV__ ? (
+              <Pressable style={styles.iconButton} onPress={() => setPreviewUnavailable(true)} accessibilityLabel="Preview Dice unavailable state">
+                <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700" }}>DEV</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
@@ -599,16 +627,30 @@ export function DiceRitualScreen({
             </View>
             <Text style={styles.sheetNote}>Dice are a mirror for reflection, not a verdict.</Text>
             {saveError ? (
-              <View style={styles.saveErrorRow}>
-                <Text style={styles.saveErrorText}>Couldn’t save this roll to your history. Your result is safe on screen.</Text>
-                <Pressable
+              // DICE-004 — save-to-history failed after the throw completed. The
+              // result and reflection stay on screen; Retry save re-persists the
+              // same throw (no re-throw); Continue without saving keeps the
+              // on-screen result but does not store it.
+              <View style={styles.saveErrorBanner}>
+                <View style={styles.saveErrorBannerRow}>
+                  <Svg width={17} height={17} viewBox="0 0 24 24" accessibilityElementsHidden importantForAccessibility="no">
+                    <Circle cx={12} cy={12} r={9} stroke="#E38E7C" strokeWidth={1.6} fill="none" />
+                    <Path d="M12 7.5v5M12 16h.01" stroke="#E38E7C" strokeWidth={1.6} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                  <Text style={styles.saveErrorBannerText}>
+                    <Text style={styles.saveErrorBannerBold}>We couldn’t save this throw to your history.</Text> Your result and reflection are still here — retry saving without re-throwing.
+                  </Text>
+                </View>
+                <BrandButton
+                  label="Retry save"
                   onPress={() => lastThrowRef.current && void persistThrow(lastThrowRef.current)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Retry saving this roll"
-                  style={styles.saveRetryButton}
-                >
-                  <Text style={styles.saveRetryText}>Retry</Text>
-                </Pressable>
+                  style={styles.saveErrorRetry}
+                />
+                <SoftButton
+                  label="Continue without saving"
+                  onPress={() => setSaveError(false)}
+                  style={styles.saveErrorContinue}
+                />
               </View>
             ) : null}
             {phase === "INTERPRET" ? (
@@ -1063,6 +1105,12 @@ const styles = StyleSheet.create({
   saveErrorText: { color: "#E9B083", fontSize: 12, lineHeight: 17, textAlign: "center" },
   saveRetryButton: { borderColor: "rgba(224,153,127,0.5)", borderRadius: 999, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 6 },
   saveRetryText: { color: "#E9B083", fontSize: 12.5, fontWeight: "700" },
+  saveErrorBanner: { backgroundColor: "rgba(224,153,127,0.1)", borderColor: "rgba(224,153,127,0.34)", borderRadius: 14, borderWidth: 1, marginTop: 14, paddingHorizontal: 15, paddingVertical: 14 },
+  saveErrorBannerRow: { alignItems: "flex-start", flexDirection: "row", gap: 11 },
+  saveErrorBannerText: { color: "#F0F4F8", flex: 1, fontSize: 13, lineHeight: 19 },
+  saveErrorBannerBold: { color: "#E38E7C", fontWeight: "700" },
+  saveErrorRetry: { marginTop: 14 },
+  saveErrorContinue: { marginTop: 10 },
   interpretPreviewRow: { alignItems: "center", marginTop: 10 },
   interpretPreviewText: { color: colors.muted, fontSize: 10.5, fontWeight: "600", letterSpacing: 0.3 },
   sheetActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 14 },
