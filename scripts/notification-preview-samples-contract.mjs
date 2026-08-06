@@ -17,7 +17,10 @@ assert.match(source, /Layout preview only\. Reminders and delivery are not activ
 assert.match(source, /This local sample is not from your account\./);
 assert.match(releaseScreen, /useState<ReleasePreviewMode>\("populated"\)/);
 assert.match(releaseScreen, /\{__DEV__ \? \(/);
-assert.match(releaseScreen, /\["populated", "empty"\]/);
+// NOTIF-002 (loading) and NOTIF-004 (error) join the DEV-only preview switcher.
+// Release default stays "populated"; loading/error are dev-preview only
+// (__DEV__-gated) and add no real fetch/delivery (asserted below).
+assert.match(releaseScreen, /\["populated", "loading", "error", "empty"\]/);
 assert.match(releaseScreen, /Sample layout · local preview data only/);
 assert.match(releaseScreen, /PREVIEW_SAMPLES\.map/);
 assert.match(releaseScreen, /Preview · notifications are not active/);

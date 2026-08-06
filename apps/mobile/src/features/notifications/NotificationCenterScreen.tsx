@@ -175,7 +175,7 @@ export function NotificationCenterScreen({
       {/* NOTIF-002 / -004 header sub: the preview stream is never live. */}
       <Text style={s.headerSub}>Preview — not active</Text>
       <View style={s.previewBar}>
-        <PreviewBadge label="Notifications are not active" />
+        <PreviewBadge label="Preview · notifications are not active" />
       </View>
       {__DEV__ ? (
         <View accessibilityLabel="Notification preview state" style={s.demoBar}>
