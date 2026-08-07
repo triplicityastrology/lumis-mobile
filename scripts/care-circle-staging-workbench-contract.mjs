@@ -252,8 +252,9 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   `${screen}\n${sessionGate}\n${port}\n${entry}`,
-  /console\.|AsyncStorage|SecureStore|analytics|capture|track\(|Camera|BarCode|Notifications|scheduleNotification|billing|payment/i
+  /console\.|AsyncStorage|SecureStore|analytics|capture|track\(|BarCode|Notifications|scheduleNotification|billing|payment/i
 );
+assert.doesNotMatch(screen, /from ["']expo-camera["']/);
 assert.doesNotMatch(
   `${screen}\n${fixture}`,
   /["'][23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-?[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}-?[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}["']/i

@@ -33,7 +33,9 @@ const boundary = readFileSync("apps/mobile/src/features/careCircle/careCircleQrP
 const workbench = readFileSync("apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "utf8");
 assert.match(component, /import QRCode from "react-native-qrcode-svg"/);
 assert.match(component, /value=\{payload\}/);
-assert.match(component, /quietZone=\{12\}/);
+assert.match(component, /quietZone=\{16\}/);
+assert.match(component, /backgroundColor="#E8F3E8"/);
+assert.match(component, /color="#123B38"/);
 assert.match(component, /if \(!payload\)[\s\S]*Code unavailable/);
 assert.match(boundary, /\^\\d\{4\}\$/);
 assert.match(workbench, /normalizeCareCircleQrPayload\(pairingCodeInput\)/);

@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "module": "CommonJS", "moduleResolution": "Node", "rewriteRelativeImportExtensions": true, "noEmit": false, "outDir": "../../.tmp/care-circle-delivery-tests", "rootDir": "../.." },
+  "include": ["../inactive/care-circle-lifecycle-delivery.ts", "../inactive/care-circle-lifecycle-delivery.fixtures.ts"]
+}

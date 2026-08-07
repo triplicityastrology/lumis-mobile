@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const scanner = readFileSync("apps/mobile/src/features/careCircle/careCircleNativeScanner.ts", "utf8");
+const delivery = readFileSync("supabase/inactive/care-circle-lifecycle-delivery.ts", "utf8");
+const screen = readFileSync("apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "utf8");
+assert.match(scanner, /normalizeCareCircleQrPayload/);
+assert.match(scanner, /permission_denied/);
+assert.match(scanner, /module_unavailable/);
+assert.match(delivery, /pushEnabled: false \| true/);
+assert.match(delivery, /writeInbox/);
+assert.match(delivery, /permission_denied|token_missing|provider_failed/);
+assert.match(screen, /Camera scanning is unavailable in this build/);
+assert.doesNotMatch(delivery, /console\.|Deno\.env|fetch\(/);
+console.log("S2-T180 QR and push readiness contract passed.");

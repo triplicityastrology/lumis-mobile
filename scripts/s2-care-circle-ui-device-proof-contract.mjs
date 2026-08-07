@@ -66,7 +66,7 @@ for (const productCopy of [
 ]) {
   assert.ok(screen.includes(productCopy), `missing product copy: ${productCopy}`);
 }
-assert.match(screen, /Pairing code copied/);
+assert.match(screen, /Code is copied/);
 assert.match(screen, /keyboardType="number-pad"/);
 assert.match(screen, /maxLength=\{4\}/);
 assert.match(screen, /label: "Accept"/);
@@ -76,7 +76,7 @@ assert.match(screen, /active: "Active · accepted by Caree"/);
 assert.match(screen, /paused \? "Resume" : "Pause"/);
 assert.match(screen, /label: "Leave"/);
 assert.match(recovery, /invalid, expired, or revoked/);
-assert.match(screen, /backgroundColor: "rgba\(58,80,118,0\.30\)"/);
+assert.match(screen, /backgroundColor: "rgba\(21,61,68,0\.52\)"/);
 assert.match(screen, /safe: \{ flex: 1, backgroundColor: "transparent" \}/);
 assert.doesNotMatch(screen, /Reusable pairing code ready for this ten-minute staging window|Backend response received|Participant-safe staging|Refresh status/);
 assert.match(screen, /borderRadius: 18/);

@@ -527,6 +527,7 @@ export function CareCircleStagingWorkbench({
         ) : productView === "enter" ? (
           <>
             <CareCircleScannerFrame hint="Point at the Caree's check-in code" />
+            <Text accessibilityLiveRegion="polite" style={styles.cameraStatus}>Camera scanning is unavailable in this build. Enter the four-digit code manually.</Text>
             <Text style={styles.scanFallback}>Or enter their four-digit code</Text>
             <TextInput
               accessibilityLabel="Caree pairing code"
@@ -717,6 +718,7 @@ const styles = StyleSheet.create({
   expiryText: { color: colors.goldLight, fontSize: 11.5, fontWeight: "600" },
   codeExplain: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginVertical: 16, textAlign: "center" },
   scanFallback: { color: colors.textSoft, fontSize: 13, marginBottom: 12, marginTop: 16, textAlign: "center" },
+  cameraStatus: { color: colors.goldLight, fontSize: 12, lineHeight: 18, marginTop: 12, textAlign: "center" },
   productInput: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: 12, borderWidth: 1, color: colors.ice, fontSize: 22, letterSpacing: 8, minHeight: 52, paddingHorizontal: 14, textAlign: "center" },
   eyebrow: {
     color: colors.gold,
