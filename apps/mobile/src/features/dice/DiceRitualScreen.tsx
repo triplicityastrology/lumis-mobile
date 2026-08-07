@@ -1,6 +1,6 @@
 import Bell from "lucide-react-native/icons/bell";
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
-import HelpCircle from "lucide-react-native/icons/help-circle";
+import CircleQuestionMark from "lucide-react-native/icons/circle-question-mark";
 import List from "lucide-react-native/icons/list";
 import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
@@ -498,7 +498,7 @@ export function DiceRitualScreen({
           <View style={styles.headerActions}>
             {/* DICE-009 — "How to ask Dice" help sheet. */}
             <Pressable style={styles.iconButton} onPress={() => setHelpOpen(true)} accessibilityLabel="How to ask Dice">
-              <HelpCircle color={colors.ice} size={19} />
+              <CircleQuestionMark color={colors.ice} size={19} />
             </Pressable>
             <Pressable style={styles.iconButton} onPress={() => setHistoryOpen(true)} accessibilityLabel="Past rolls">
               <List color={colors.ice} size={19} />
