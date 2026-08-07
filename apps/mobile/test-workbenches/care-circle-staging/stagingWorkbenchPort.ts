@@ -5,6 +5,7 @@ import type {
   WorkbenchRelationship,
   WorkbenchRelationshipPort,
   WorkbenchProjection,
+  WorkbenchInboxEvent,
 } from "./CareCircleStagingWorkbench";
 
 export type WorkbenchCapabilities = {
@@ -67,17 +68,20 @@ export function createStagingWorkbenchPorts(
     },
     relationshipPort: {
       async readProjection(): Promise<WorkbenchProjection> {
-        const [relationshipsResult, settingsResult] = await Promise.all([
+        const [relationshipsResult, settingsResult, inboxResult] = await Promise.all([
           supabase.rpc("list_care_relationships"),
           supabase
             .from("care_check_settings")
             .select("paused_until")
             .maybeSingle(),
+          supabase.rpc("list_care_circle_inbox"),
         ]);
         if (
           relationshipsResult.error ||
           settingsResult.error ||
-          !Array.isArray(relationshipsResult.data)
+          !Array.isArray(relationshipsResult.data) ||
+          inboxResult.error ||
+          !Array.isArray(inboxResult.data)
         ) {
           throw new Error("CARE_CIRCLE_RELATIONSHIP_LIST_UNAVAILABLE");
         }
@@ -86,6 +90,7 @@ export function createStagingWorkbenchPorts(
           throw new Error("CARE_CIRCLE_RELATIONSHIP_LIST_UNAVAILABLE");
         }
         return {
+          inbox: inboxResult.data.map(projectInboxEvent).filter((item): item is NonNullable<typeof item> => item !== null),
           relationships: projected as WorkbenchRelationship[],
           paused: projectPaused(settingsResult.data),
         };
@@ -148,6 +153,15 @@ export function createStagingWorkbenchPorts(
         }
       },
     },
+  };
+}
+
+function projectInboxEvent(value: unknown): WorkbenchInboxEvent | null {
+  if (!isRecord(value) || (value.event_type !== "carer_request_pending" && value.event_type !== "caree_request_accepted") || typeof value.unread !== "boolean") return null;
+  return {
+    eventType: value.event_type,
+    title: value.event_type === "carer_request_pending" ? "A Carer added your code" as const : "Caree accepted your request" as const,
+    unread: value.unread,
   };
 }
 

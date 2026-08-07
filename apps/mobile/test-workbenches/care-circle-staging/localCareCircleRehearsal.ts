@@ -14,6 +14,7 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
   let paused = false;
   let codeReady = false;
   let founderState: CareCircleFounderProductState = "landing";
+  const inbox = new Set<"carer_request_pending" | "caree_request_accepted">();
 
   function operationPort(role: LocalRehearsalRole): CareCircleClientPort {
     return {
@@ -26,10 +27,12 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
           case "pairing_code_submit":
             if (role !== "carer" || !codeReady || request.pairing_code !== PAIRING_CODE) return { error: { code: "48004" } };
             relationship = "pending_caree_acceptance";
+            inbox.add("carer_request_pending");
             return { ok: true, relationship_id: RELATIONSHIP_ID, status: "pending_caree_acceptance" };
           case "relationship_accept":
             if (role !== "caree" || relationship !== "pending_caree_acceptance") return denied();
             relationship = "active";
+            inbox.add("caree_request_accepted");
             return { ok: true, relationship_id: RELATIONSHIP_ID };
           case "relationship_decline":
             if (role !== "caree" || relationship !== "pending_caree_acceptance") return denied();
@@ -57,6 +60,9 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
     return {
       async readProjection(): Promise<WorkbenchProjection> {
         return {
+          inbox: [...inbox]
+            .filter((eventType) => role === "caree" ? eventType === "carer_request_pending" : eventType === "caree_request_accepted")
+            .map((eventType) => ({ eventType, title: eventType === "carer_request_pending" ? "A Carer added your code" as const : "Caree accepted your request" as const, unread: true })),
           paused,
           relationships: relationship === "none" ? [] : [{
             relationshipId: RELATIONSHIP_ID,
@@ -74,6 +80,7 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
     relationship = "none";
     paused = false;
     codeReady = false;
+    inbox.clear();
     return true;
   }
 
@@ -86,6 +93,9 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
       : ["active", "paused", "resumed", "self_remove"].includes(state)
         ? "active"
         : state === "cleanup" ? "removed_by_carer" : "none";
+    inbox.clear();
+    if (["pending_no_authority", "caree_decision"].includes(state)) inbox.add("carer_request_pending");
+    if (["active", "paused", "resumed", "self_remove"].includes(state)) inbox.add("caree_request_accepted");
   }
 
   return {

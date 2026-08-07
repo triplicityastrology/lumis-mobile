@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const sql = readFileSync("supabase/migrations/0038_care_circle_lifecycle_inbox.sql", "utf8");
+const rehearsal = readFileSync("apps/mobile/test-workbenches/care-circle-staging/localCareCircleRehearsal.ts", "utf8");
+const screen = readFileSync("apps/mobile/test-workbenches/care-circle-staging/CareCircleStagingWorkbench.tsx", "utf8");
+assert.match(sql, /unique \(recipient_user_id, relationship_id, event_type\)/);
+assert.match(sql, /on conflict do nothing/);
+assert.match(sql, /where event\.recipient_user_id = auth\.uid\(\)/);
+assert.match(sql, /revoke all on table public\.care_circle_inbox_events from anon, authenticated/);
+assert.doesNotMatch(sql, /pairing_code|code_fingerprint|email/);
+assert.match(rehearsal, /carer_request_pending/);
+assert.match(rehearsal, /caree_request_accepted/);
+assert.match(screen, /A Carer added your code/);
+assert.match(screen, /Caree accepted your request/);
+assert.match(screen, /setInterval\(\(\) => void refreshRelationships\(false\), 8000\)/);
+assert.doesNotMatch(screen, /pairingCode.*inbox|inbox.*pairingCode/);
+console.log("S2-T179 Care Circle lifecycle inbox contract passed.");

@@ -31,6 +31,7 @@ async function runFixtures(): Promise<void> {
           relationship_status: "pending_caree_acceptance",
         },
       ],
+      inbox: [{ event_type: "carer_request_pending", unread: true }],
     })
   );
   const session = await signedIn.sessionPort.readSession();
@@ -64,6 +65,7 @@ async function runFixtures(): Promise<void> {
     "pending status is preserved"
   );
   equal(projection.paused, true, "relationship refresh includes pause projection");
+  equal(projection.inbox?.[0]?.title, "A Carer added your code", "inbox uses closed safe copy");
 
   const authCalls: string[] = [];
   const accountSwitch = createStagingWorkbenchPorts(
@@ -107,6 +109,7 @@ function fakeSupabase(input: {
   accountMode?: "standard" | "carer_only";
   pausedUntil?: string | null;
   relationships?: unknown[];
+  inbox?: unknown[];
   signInFails?: boolean;
 }): SupabaseClient {
   return {
@@ -149,6 +152,7 @@ function fakeSupabase(input: {
           error: null,
         };
       }
+      if (name === "list_care_circle_inbox") return { data: input.inbox ?? [], error: null };
       return { data: input.relationships ?? [], error: null };
     },
     from() {

@@ -65,6 +65,13 @@ export type WorkbenchRelationshipPort = {
 export type WorkbenchProjection = {
   relationships: WorkbenchRelationship[];
   paused: boolean;
+  inbox?: WorkbenchInboxEvent[];
+};
+
+export type WorkbenchInboxEvent = {
+  eventType: "carer_request_pending" | "caree_request_accepted";
+  title: "A Carer added your code" | "Caree accepted your request";
+  unread: boolean;
 };
 
 type Notice = {
@@ -116,6 +123,7 @@ export function CareCircleStagingWorkbench({
   const [relationships, setRelationships] = useState<WorkbenchRelationship[]>(
     []
   );
+  const [inbox, setInbox] = useState<WorkbenchInboxEvent[]>([]);
   const [paused, setPaused] = useState(capabilities.careCirclePaused);
   const [projectionConfirmed, setProjectionConfirmed] = useState(false);
   const [hadRelationship, setHadRelationship] = useState(false);
@@ -237,6 +245,14 @@ export function CareCircleStagingWorkbench({
     return () => subscription.remove();
   }, [actionFlight, pairingCodeInput]);
 
+  useEffect(() => {
+    void refreshRelationships(false);
+    const interval = setInterval(() => void refreshRelationships(false), 8000);
+    return () => clearInterval(interval);
+    // The port changes when the signed-in Founder-test identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relationshipPort]);
+
   async function runAction(
     input: CareCircleClientInput
   ): Promise<CareCircleClientResult> {
@@ -318,6 +334,7 @@ export function CareCircleStagingWorkbench({
     try {
       const projection = await relationshipPort.readProjection();
       setRelationships(projection.relationships);
+      setInbox(projection.inbox ?? []);
       setPaused(projection.paused);
       setProjectionConfirmed(true);
       if (projection.relationships.length > 0) setHadRelationship(true);
@@ -531,6 +548,15 @@ export function CareCircleStagingWorkbench({
         ) : (
           <>
             <View style={styles.emblem}><LineMotif name="hands" size={30} /></View>
+            <Text style={styles.sectionLabel}>IN-APP INBOX</Text>
+            <View style={styles.inboxCard}>
+              {inbox.length === 0 ? <Text style={styles.empty}>No new Care Circle updates.</Text> : inbox.map((event) => (
+                <View accessibilityLabel={`${event.title}. ${event.unread ? "Unread" : "Read"}`} key={event.eventType} style={styles.inboxRow}>
+                  <View style={[styles.inboxDot, !event.unread && styles.inboxDotRead]} />
+                  <View style={styles.relationshipCopy}><Text style={styles.relationshipName}>{event.title}</Text><Text style={styles.meta}>{event.eventType === "carer_request_pending" ? "Review the pending request below." : "The Care Circle link is now active."}</Text></View>
+                </View>
+              ))}
+            </View>
             <Text style={styles.sectionLabel}>YOUR CHECK-INS</Text>
             <View style={styles.productCard}>
               <View style={styles.scheduleRow}>
@@ -674,6 +700,10 @@ const styles = StyleSheet.create({
   emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", marginBottom: 18, width: 48 },
   sectionLabel: { color: colors.muted, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.8, marginBottom: 10, marginTop: 14 },
   productCard: { backgroundColor: "rgba(21,61,68,0.52)", borderColor: "rgba(150,215,196,0.26)", borderRadius: 18, borderWidth: 1, gap: 12, marginBottom: 24, padding: 16 },
+  inboxCard: { backgroundColor: "rgba(21,61,68,0.42)", borderColor: "rgba(150,215,196,0.22)", borderRadius: 16, borderWidth: 1, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  inboxRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 52 },
+  inboxDot: { backgroundColor: colors.gold, borderRadius: 4, height: 8, width: 8 },
+  inboxDotRead: { opacity: 0.35 },
   scheduleRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
   scheduleChip: { backgroundColor: "rgba(201,169,110,0.14)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   scheduleChipText: { color: colors.goldLight, fontSize: 12, fontWeight: "700" },
