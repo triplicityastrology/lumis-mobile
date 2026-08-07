@@ -206,8 +206,8 @@ assert.doesNotMatch(
   /error\.message|JSON\.stringify\(error|4800[4-9]|4801[0-3]/
 );
 assert.doesNotMatch(screen, /disabled: disabled \|\| atCapacity/);
-assert.match(screen, /lifetime > 11 \* 60 \* 1000/);
-assert.match(screen, /pairing code is ready for ten minutes/);
+assert.match(screen, /lifetime > 61 \* 60 \* 1000/);
+assert.match(screen, /pairing code is ready until the shown expiry/);
 assert.match(screen, /setPairingCodeInput\(""\)/);
 assert.match(screen, /setPairingCode\(null\)/);
 assert.match(screen, /PEOPLE YOU CARE FOR/);

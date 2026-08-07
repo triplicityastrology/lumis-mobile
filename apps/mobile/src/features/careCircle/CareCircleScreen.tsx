@@ -392,10 +392,10 @@ export function CareCirclePairingCodeMark({ value }: { value?: string | null }) 
   return (
     <View accessibilityLabel="Four-digit Care Circle pairing QR code" accessibilityRole="image">
       <QRCode
-        backgroundColor="#F4E8CC"
-        color="#10243A"
+        backgroundColor="#E8F3E8"
+        color="#123B38"
         ecl="M"
-        quietZone={12}
+        quietZone={16}
         size={148}
         value={payload}
       />

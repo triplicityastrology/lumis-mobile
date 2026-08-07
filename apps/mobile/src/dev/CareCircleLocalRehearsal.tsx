@@ -7,6 +7,7 @@ import { createLocalCareCircleRehearsal, type LocalRehearsalRole } from "../../t
 import { advanceSinglePhoneJourney, createSinglePhoneJourney } from "../../test-workbenches/care-circle-staging/singlePhoneJourney";
 import { createInactiveCareCircleClient } from "../services/inactiveCareCircleClient";
 import { colors, spacing } from "../theme/tokens";
+import { CARE_CIRCLE_FOUNDER_PRODUCT_STATES, CARE_CIRCLE_FOUNDER_STATE_LABELS, founderProductStateRole, type CareCircleFounderProductState } from "../../test-workbenches/care-circle-staging/founderProductStates";
 
 export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
   const [harness, setHarness] = useState(createLocalCareCircleRehearsal);
@@ -43,6 +44,13 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
     setSessionEpoch((value) => value + 1);
   }
 
+  function openFounderState(state: CareCircleFounderProductState) {
+    harness.loadFounderState(state);
+    setRole(founderProductStateRole(state));
+    setSessionEpoch((value) => value + 1);
+    setTestPanelVisible(false);
+  }
+
   return (
     <View style={styles.shell}>
       <CareCircleStagingWorkbench
@@ -60,6 +68,7 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
         }
         relationshipPort={harness.relationshipPort(role)}
         requestIdFactory={randomUUID}
+        founderState={harness.snapshot().founderState}
       />
       <Modal animationType="fade" onRequestClose={() => setTestPanelVisible(false)} transparent visible={testPanelVisible}>
         <View style={styles.scrim}>
@@ -68,6 +77,14 @@ export function CareCircleLocalRehearsal({ onBack }: { onBack: () => void }) {
             <Text style={styles.body}>Local rehearsal only. No live backend or staging evidence.</Text>
             <Text style={styles.step}>Current: {journey.label}</Text>
             <Text style={styles.body}>Next: {journey.nextLabel}</Text>
+            <Text style={styles.stateHeading}>Open a product state</Text>
+            <View style={styles.stateGrid}>
+              {CARE_CIRCLE_FOUNDER_PRODUCT_STATES.map((state) => (
+                <Pressable accessibilityLabel={`Open ${CARE_CIRCLE_FOUNDER_STATE_LABELS[state]}`} accessibilityRole="button" key={state} onPress={() => openFounderState(state)} style={styles.stateButton}>
+                  <Text style={styles.stateButtonText}>{CARE_CIRCLE_FOUNDER_STATE_LABELS[state]}</Text>
+                </Pressable>
+              ))}
+            </View>
             <View accessibilityRole="tablist" style={styles.switcher}>
               {(["caree", "carer"] as const).map((item) => (
                 <Pressable accessibilityRole="tab" accessibilityState={{ selected: role === item }} key={item} onPress={() => { switchAccount(item); setTestPanelVisible(false); }} style={[styles.switchButton, role === item && styles.selected]}>
@@ -106,6 +123,10 @@ const styles = StyleSheet.create({
   body: { color: colors.textSoft, fontSize: 13, lineHeight: 19 },
   step: { color: colors.ice, fontSize: 16, fontWeight: "800", marginTop: spacing.sm },
   switcher: { flexDirection: "row", gap: spacing.sm },
+  stateHeading: { color: colors.goldLight, fontSize: 12, fontWeight: "800", marginTop: spacing.sm },
+  stateGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  stateButton: { borderColor: colors.line, borderRadius: 8, borderWidth: 1, justifyContent: "center", minHeight: 40, paddingHorizontal: 8 },
+  stateButtonText: { color: colors.textSoft, fontSize: 11 },
   switchButton: {
     borderColor: colors.line,
     borderWidth: 1,

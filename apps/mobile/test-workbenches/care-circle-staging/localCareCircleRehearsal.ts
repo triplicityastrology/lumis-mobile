@@ -1,5 +1,6 @@
 import type { CareCircleClientPort, CareCircleEdgeRequest } from "../../src/services/inactiveCareCircleClient";
 import type { WorkbenchProjection, WorkbenchRelationshipPort } from "./CareCircleStagingWorkbench";
+import type { CareCircleFounderProductState } from "./founderProductStates";
 
 export type LocalRehearsalRole = "caree" | "carer";
 
@@ -12,6 +13,7 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
   let relationship: RelationshipState = "none";
   let paused = false;
   let codeReady = false;
+  let founderState: CareCircleFounderProductState = "landing";
 
   function operationPort(role: LocalRehearsalRole): CareCircleClientPort {
     return {
@@ -20,7 +22,7 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
           case "pairing_code_create":
             if (role !== "caree") return denied();
             codeReady = true;
-            return { ok: true, pairing_code: PAIRING_CODE, code_id: CODE_ID, expires_at: new Date(now() + 10 * 60 * 1000).toISOString() };
+            return { ok: true, pairing_code: PAIRING_CODE, code_id: CODE_ID, expires_at: new Date(now() + 60 * 60 * 1000).toISOString() };
           case "pairing_code_submit":
             if (role !== "carer" || !codeReady || request.pairing_code !== PAIRING_CODE) return { error: { code: "48004" } };
             relationship = "pending_caree_acceptance";
@@ -75,11 +77,23 @@ export function createLocalCareCircleRehearsal(now = () => Date.now()) {
     return true;
   }
 
+  function loadFounderState(state: CareCircleFounderProductState) {
+    founderState = state;
+    codeReady = ["code_ready", "code_copied", "expired"].includes(state);
+    paused = state === "paused";
+    relationship = ["pending_no_authority", "caree_decision"].includes(state)
+      ? "pending_caree_acceptance"
+      : ["active", "paused", "resumed", "self_remove"].includes(state)
+        ? "active"
+        : state === "cleanup" ? "removed_by_carer" : "none";
+  }
+
   return {
     cleanup,
+    loadFounderState,
     operationPort,
     relationshipPort,
-    snapshot: () => ({ codeReady, paused, relationship }),
+    snapshot: () => ({ codeReady, founderState, paused, relationship }),
   };
 }
 

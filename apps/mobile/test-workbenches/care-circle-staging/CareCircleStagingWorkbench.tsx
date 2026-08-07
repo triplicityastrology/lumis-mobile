@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
   useWindowDimensions,
+  AccessibilityInfo,
 } from "react-native";
 import {
   CareCirclePairingCodeMark,
@@ -42,6 +43,7 @@ import {
 import { confirmWorkbenchOutcome } from "./workbenchOutcomeIntegrity";
 import type { WorkbenchProgressName } from "./workbenchProgress";
 import type { JourneyConfirmationSource } from "./singlePhoneJourney";
+import type { CareCircleFounderProductState } from "./founderProductStates";
 
 export type WorkbenchRelationship = {
   relationshipId: string;
@@ -84,6 +86,7 @@ export function CareCircleStagingWorkbench({
   now = () => Date.now(),
   onEvidenceState,
   onCodeCopied,
+  founderState,
   onBack,
 }: {
   capabilities: WorkbenchCapabilities;
@@ -97,6 +100,7 @@ export function CareCircleStagingWorkbench({
     confirmationSource: JourneyConfirmationSource;
   }) => void;
   onCodeCopied?: () => void;
+  founderState?: CareCircleFounderProductState;
   onBack: () => void;
 }) {
   const { width, height, fontScale } = useWindowDimensions();
@@ -119,6 +123,28 @@ export function CareCircleStagingWorkbench({
   const [retryRefresh, setRetryRefresh] = useState(false);
   const [productView, setProductView] = useState<"home" | "code" | "enter">("home");
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
+
+  useEffect(() => {
+    if (!founderState) return;
+    if (["code_ready", "code_copied", "expired"].includes(founderState)) {
+      setProductView("code");
+      setPairingCode(founderState === "expired" ? null : "2468");
+      setPairingCodeExpiresAt(founderState === "expired" ? new Date(now() - 1).toISOString() : new Date(now() + 60 * 60 * 1000).toISOString());
+      setCopyConfirmed(founderState === "code_copied");
+    } else if (founderState === "carer_entry" || founderState === "invalid") {
+      setProductView("enter");
+      setNotice(founderState === "invalid" ? { tone: "error", text: "That code is invalid or has expired." } : null);
+    } else {
+      setProductView("home");
+      setPairingCode(null);
+      setPairingCodeExpiresAt(null);
+      setCopyConfirmed(false);
+    }
+    void refreshRelationships(false);
+    // This input exists only in the external development-state navigator.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [founderState]);
 
   useEffect(() => {
     const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
@@ -257,7 +283,7 @@ export function CareCircleStagingWorkbench({
 
     if (result.code === "CARE_CIRCLE_PAIRING_CODE_READY") {
       const lifetime = Date.parse(result.expiresAt) - now();
-      if (lifetime <= 0 || lifetime > 11 * 60 * 1000) {
+      if (lifetime <= 0 || lifetime > 61 * 60 * 1000) {
         setPairingCode(null);
         setPairingCodeExpiresAt(null);
         setNotice({
@@ -270,7 +296,7 @@ export function CareCircleStagingWorkbench({
       setPairingCodeExpiresAt(result.expiresAt);
       setNotice({
         tone: "success",
-        text: "Your pairing code is ready for ten minutes.",
+        text: "Your pairing code is ready until the shown expiry.",
       });
       return result;
     }
@@ -337,11 +363,14 @@ export function CareCircleStagingWorkbench({
     if (!pairingCode || codeIsExpired) return;
     try {
       await Clipboard.setStringAsync(pairingCode);
+      setCopyConfirmed(true);
       setNotice({
         tone: "success",
-        text: "Pairing code copied. It remains valid only until the shown expiry.",
+        text: "Code is copied",
       });
+      AccessibilityInfo.announceForAccessibility("Code is copied");
       onCodeCopied?.();
+      setTimeout(() => setCopyConfirmed(false), 4000);
     } catch {
       setNotice({
         tone: "error",
@@ -466,7 +495,7 @@ export function CareCircleStagingWorkbench({
                   <View style={styles.expiryChip}>
                     <Text style={styles.expiryText}>Expires {formatStagingTime(pairingCodeExpiresAt)}</Text>
                   </View>
-                  <Action disabled={disabled} label="Copy code" onPress={() => void copyPairingCode()} secondary />
+                  <Action disabled={disabled} label={copyConfirmed ? "Code is copied" : "Copy code"} onPress={() => void copyPairingCode()} secondary />
                 </>
               ) : (
                 <Text style={styles.errorText}>This code has expired. Refresh it before sharing.</Text>
@@ -524,6 +553,7 @@ export function CareCircleStagingWorkbench({
                 <Action disabled={disabled || !capabilities.canActAsCaree} label="Show my check-in code" onPress={() => pairingCode && !codeIsExpired ? setProductView("code") : void createOrRotateCode(false)} secondary />
                 <Action disabled={disabled || !capabilities.canActAsCaree} label={paused ? "Resume" : "Pause"} onPress={() => void runAndConfirm(paused ? { action: "resume_care", clientRequestId: requestIdFactory() } : { action: "pause_care", clientRequestId: requestIdFactory(), pausedUntil: new Date(now() + 24 * 60 * 60 * 1000).toISOString() })} secondary />
               </View>
+              {!capabilities.canActAsCaree ? <Text accessibilityLiveRegion="polite" style={styles.lockedCopy}>Unlock Care Circle to share your check-in code and receive Carer requests.</Text> : null}
               <Text style={styles.helper}>Show this to a new Carer to enter. Up to 5 accepted Carers.</Text>
             </View>
             <Text style={styles.sectionLabel}>PEOPLE YOU CARE FOR</Text>
@@ -643,13 +673,14 @@ const styles = StyleSheet.create({
   contentCompact: { paddingHorizontal: 16, paddingTop: 14 },
   emblem: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(201,169,110,0.18)", borderColor: "rgba(215,185,120,0.5)", borderRadius: 24, borderWidth: 1, height: 48, justifyContent: "center", marginBottom: 18, width: 48 },
   sectionLabel: { color: colors.muted, fontSize: 11.5, fontWeight: "700", letterSpacing: 0.8, marginBottom: 10, marginTop: 14 },
-  productCard: { backgroundColor: "rgba(58,80,118,0.30)", borderColor: "rgba(173,196,224,0.24)", borderRadius: 18, borderWidth: 1, gap: 12, marginBottom: 24, padding: 16 },
+  productCard: { backgroundColor: "rgba(21,61,68,0.52)", borderColor: "rgba(150,215,196,0.26)", borderRadius: 18, borderWidth: 1, gap: 12, marginBottom: 24, padding: 16 },
   scheduleRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
   scheduleChip: { backgroundColor: "rgba(201,169,110,0.14)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   scheduleChipText: { color: colors.goldLight, fontSize: 12, fontWeight: "700" },
   scheduleNext: { color: colors.textSoft, flex: 1, fontSize: 12, minWidth: 150 },
   helper: { color: colors.muted, fontSize: 11.5, lineHeight: 18, textAlign: "center" },
-  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(58,80,118,0.30)", borderColor: "rgba(215,185,120,0.55)", borderRadius: 22, borderWidth: 1.5, gap: 12, maxWidth: 360, padding: 24, width: "100%" },
+  lockedCopy: { color: colors.goldLight, fontSize: 12, lineHeight: 18, textAlign: "center" },
+  codeCard: { alignItems: "center", alignSelf: "center", backgroundColor: "rgba(21,61,68,0.58)", borderColor: "rgba(215,185,120,0.55)", borderRadius: 22, borderWidth: 1.5, gap: 12, maxWidth: 360, padding: 24, width: "100%" },
   codeOwner: { color: colors.ice, fontFamily: "Georgia", fontSize: 17 },
   codeBox: { alignItems: "center", backgroundColor: "rgba(201,169,110,0.1)", borderColor: "rgba(215,185,120,0.4)", borderRadius: 12, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 8 },
   expiryChip: { backgroundColor: "rgba(201,169,110,0.16)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
