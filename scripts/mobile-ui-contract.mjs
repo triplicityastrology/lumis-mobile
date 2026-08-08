@@ -254,7 +254,9 @@ const chatShellSource = extractRange(
   "function ChatShellScreen",
   "function PastReflectionsScreen"
 );
-assert.match(chatShellSource, /return \(\s*<View style=\{styles\.lumisDarkSafe\}>/);
+// Chat root is the keyboard-avoiding container (founder return: composer must
+// stay above the iOS keyboard) styled with lumisDarkSafe.
+assert.match(chatShellSource, /return \(\s*<KeyboardAvoidingView\s+style=\{styles\.lumisDarkSafe\}/);
 assert.doesNotMatch(
   chatShellSource,
   /SafeAreaViewCtx/,
