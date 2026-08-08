@@ -100,7 +100,7 @@ import { LanguageSelectScreen } from "./src/screens/LanguageSelectScreen";
 import { loadLocalAppLanguage, saveLocalAppLanguage } from "./src/services/appLanguageLocalStore";
 import { LumisProfileScreen } from "./src/screens/LumisProfileScreen";
 import { ChatThinkingIndicator } from "./src/components/ChatThinkingIndicator";
-import { ChatConfirmCard, ChatFailedReply } from "./src/features/chat/ChatConfirmationCards";
+import { ChatFailedReply } from "./src/features/chat/ChatConfirmationCards";
 import {
   isNearChatLatest,
   shouldMaintainChatLatest,
@@ -2534,69 +2534,6 @@ function ChatShellScreen({
               ) : null}
             </View>
           ))}
-
-          {/* TALK-005 / TALK-006 / TALK-007 — signed-off confirmation-card bubble
-              states. Rendered in a DEV-only preview harness (compiled out of
-              release) because their release trigger is backend intent-detection,
-              which stays inactive per the Batch 2 boundary. The cards themselves
-              are the production components. */}
-          {__DEV__ ? (
-            <View accessibilityLabel="Chat confirmation card previews" style={styles.chatConfirmPreview}>
-              <Text style={styles.chatConfirmPreviewLabel}>Preview · confirmation bubbles (dev only)</Text>
-              <View style={styles.messageRowLumis}>
-                <LumisChatAvatar avatarKey={lumisAvatarKey} />
-                <View style={styles.messageColLumis}>
-                  <ChatConfirmCard
-                    eyebrow="Timing-window reflection"
-                    heading="Look for a supportive launch window"
-                    rows={[
-                      { key: "Goal", value: "Start a side project" },
-                      { key: "Horizon", value: "Next 90 days" }
-                    ]}
-                    caveat="Your birth time is unknown, so timing precision is broader than usual."
-                    softLabel="Change horizon"
-                    primaryLabel="Confirm & reflect"
-                    onSoft={() => {}}
-                    onPrimary={() => {}}
-                  />
-                </View>
-              </View>
-              <View style={styles.messageRowLumis}>
-                <LumisChatAvatar avatarKey={lumisAvatarKey} />
-                <View style={styles.messageColLumis}>
-                  <ChatConfirmCard
-                    eyebrow="Specific-date comparison"
-                    heading="Compare 3 dates for a move"
-                    rows={[
-                      { key: "Objective", value: "Best move date" },
-                      { key: "Date 1", value: "Mon 3 Nov 2026" },
-                      { key: "Date 2", value: "Wed 12 Nov 2026" },
-                      { key: "Date 3", value: "Fri 21 Nov 2026" }
-                    ]}
-                    caveat="Location and time-of-day precision affects some placements."
-                    softLabel="Edit dates"
-                    primaryLabel="Confirm comparison"
-                    onSoft={() => {}}
-                    onPrimary={() => {}}
-                  />
-                </View>
-              </View>
-              <View style={styles.messageRowLumis}>
-                <LumisChatAvatar avatarKey={lumisAvatarKey} />
-                <View style={styles.messageColLumis}>
-                  <ChatConfirmCard
-                    eyebrow="Try a Dice throw?"
-                    heading="Reframe the question in Dice"
-                    body="Dice will ask you to phrase one clear question. It stays reflective — not a verdict."
-                    softLabel="Not now"
-                    primaryLabel="Go to Dice"
-                    onSoft={() => {}}
-                    onPrimary={() => onSelectTab("dice")}
-                  />
-                </View>
-              </View>
-            </View>
-          ) : null}
 
         </ScrollView>
 

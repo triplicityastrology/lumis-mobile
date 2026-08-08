@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
-import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { type ReactNode, useState } from "react";
+import { type LayoutChangeEvent, PixelRatio, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import {
@@ -60,13 +60,15 @@ export function SmallPrimaryButton({
   onPress,
   icon,
   busy = false,
-  disabled = false
+  disabled = false,
+  fullWidth = false
 }: {
   label: string;
   onPress: () => void;
   icon?: ReactNode;
   busy?: boolean;
   disabled?: boolean;
+  fullWidth?: boolean;
 }) {
   return (
     <Pressable
@@ -75,7 +77,7 @@ export function SmallPrimaryButton({
       accessibilityState={{ busy, disabled: disabled || busy }}
       disabled={disabled || busy}
       onPress={onPress}
-      style={[s.smallBtnWrap, (disabled || busy) && s.dim]}
+      style={[s.smallBtnWrap, fullWidth && s.btnFull, (disabled || busy) && s.dim]}
     >
       <LinearGradient
         colors={BRAND_GOLD_GRADIENT}
@@ -94,11 +96,13 @@ export function SmallPrimaryButton({
 export function SmallSoftButton({
   label,
   onPress,
-  disabled = false
+  disabled = false,
+  fullWidth = false
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  fullWidth?: boolean;
 }) {
   return (
     <Pressable
@@ -107,7 +111,7 @@ export function SmallSoftButton({
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[s.smallSoftBtn, disabled && s.dim]}
+      style={[s.smallSoftBtn, fullWidth && s.btnFull, disabled && s.dim]}
     >
       <Text style={s.smallSoftLabel}>{label}</Text>
     </Pressable>
@@ -180,6 +184,14 @@ export function ChatConfirmCard({
   onPrimary: () => void;
   busy?: boolean;
 }) {
+  // Stack the split-button pair vertically (full-width) when the card is narrow
+  // or Dynamic Type is enlarged, so labels like "Confirm comparison" never break
+  // mid-word. Measured from the actions row; side-by-side only when it's wide.
+  const [stackActions, setStackActions] = useState(true);
+  function onActionsLayout(event: LayoutChangeEvent) {
+    const width = event.nativeEvent.layout.width;
+    setStackActions(width < 300 || PixelRatio.getFontScale() > 1.15);
+  }
   return (
     <View style={s.confirmCard}>
       <View style={s.confirmEyebrowRow}>
@@ -204,12 +216,17 @@ export function ChatConfirmCard({
           <Text style={s.confirmCaveatText}>{caveat}</Text>
         </View>
       ) : null}
-      <View style={s.confirmActions}>
-        <View style={s.confirmActionFlex}>
-          <SmallSoftButton label={softLabel} onPress={onSoft} disabled={busy} />
+      {/* DOM order soft→primary: row keeps soft-left/primary-right; when stacked,
+          column-reverse lifts the primary action to the top. */}
+      <View
+        onLayout={onActionsLayout}
+        style={[s.confirmActions, stackActions && s.confirmActionsStacked]}
+      >
+        <View style={stackActions ? s.confirmActionFull : s.confirmActionFlex}>
+          <SmallSoftButton label={softLabel} onPress={onSoft} disabled={busy} fullWidth />
         </View>
-        <View style={s.confirmActionFlex}>
-          <SmallPrimaryButton label={primaryLabel} onPress={onPrimary} busy={busy} icon={primaryIcon} />
+        <View style={stackActions ? s.confirmActionFull : s.confirmActionFlex}>
+          <SmallPrimaryButton label={primaryLabel} onPress={onPrimary} busy={busy} icon={primaryIcon} fullWidth />
         </View>
       </View>
     </View>
@@ -256,6 +273,7 @@ const s = StyleSheet.create({
   retryActions: { flexDirection: "row", gap: 8, marginTop: 12 },
   // TALK-005/006/007 confirmation card.
   confirmCard: {
+    alignSelf: "stretch",
     backgroundColor: CARD_BG,
     borderColor: CARD_LINE,
     borderRadius: 18,
@@ -306,5 +324,8 @@ const s = StyleSheet.create({
   },
   confirmCaveatText: { ...type.bodySmall, color: ink.soft, flex: 1, lineHeight: 18 },
   confirmActions: { flexDirection: "row", gap: 10, marginTop: 14 },
-  confirmActionFlex: { flex: 1 }
+  confirmActionsStacked: { flexDirection: "column-reverse" },
+  confirmActionFlex: { flex: 1 },
+  confirmActionFull: { width: "100%" },
+  btnFull: { width: "100%" }
 });
