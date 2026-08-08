@@ -87,7 +87,7 @@ export function LanguageSelectScreen({
 
         <View style={styles.note}>
           <AppText variant="safetyText" style={styles.noteText}>
-            Message-language fallback only applies if no preference is saved. Once saved, Lumis follows this choice everywhere.
+            This saves your language preference. Full interface translation is still being added, so most of Lumis currently stays in English — your reflections keep the language they were written in.
           </AppText>
         </View>
       </ScrollView>
