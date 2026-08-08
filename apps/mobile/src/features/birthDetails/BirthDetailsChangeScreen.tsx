@@ -79,15 +79,23 @@ function birthDateError(iso: string): string | null {
 }
 function birthTimeError(iso: string, timeUnknown: boolean): string | null {
   if (timeUnknown) return null;
-  if (!iso.trim()) return null; // wheel always carries a value; empty = not started
-  const m = /^(\d{2}):(\d{2})$/.exec(iso.trim());
-  if (!m) return "That isn't a valid time — hours 1–12, minutes 00–59.";
-  const hour = Number(m[1]);
-  const minute = Number(m[2]);
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-    return "That isn't a valid time — hours 1–12, minutes 00–59.";
+  const value = iso.trim();
+  if (!value) return null; // wheel always carries a value; empty = not started
+  const invalid = "That isn't a valid time — hours 1–12, minutes 00–59.";
+  // The wheel emits 12-hour "h:MM AM/PM"; also accept 24-hour "HH:MM".
+  const twelve = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(value);
+  if (twelve) {
+    const hour = Number(twelve[1]);
+    const minute = Number(twelve[2]);
+    return hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59 ? null : invalid;
   }
-  return null;
+  const twentyFour = /^(\d{1,2}):(\d{2})$/.exec(value);
+  if (twentyFour) {
+    const hour = Number(twentyFour[1]);
+    const minute = Number(twentyFour[2]);
+    return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? null : invalid;
+  }
+  return invalid;
 }
 /**
  * Birth Details change flow (AC-UX-13). Display → edit → confirm (with diff) →
