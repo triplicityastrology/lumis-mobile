@@ -570,7 +570,9 @@ assert.match(birthProfileSource, /type BirthStep = "date" \| "time" \| "place"/)
 assert.match(birthProfileSource, /badge="1 OF 3"/);
 assert.match(birthProfileSource, /badge="2 OF 3"/);
 assert.match(birthProfileSource, /badge="3 OF 3"/);
-assert.match(birthProfileSource, /Ascendant, MC, houses, or planet house placements/);
+// ONB-003 signed-off unknown-time caveat (verbatim, non-paraphrasable per the
+// implementation spec) — supersedes the earlier phrasing.
+assert.match(birthProfileSource, /Rising sign \(Ascendant\), Midheaven \(MC\), or houses/);
 assert.match(birthProfileSource, /PLACE_SUGGESTIONS/);
 assert.match(birthProfileSource, /Create my chart/);
 assert.match(birthProfileSource, /isValidBirthDate\(birthDate\.trim\(\), new Date\(\), runtimeTimeZone\(\)\)/);

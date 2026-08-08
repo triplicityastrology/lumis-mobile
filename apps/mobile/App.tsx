@@ -2133,15 +2133,12 @@ function PersonaStyleScreen({
               </Pressable>
             </>
           ) : (
-            <Pressable
-              accessibilityRole="button"
-              disabled={isSaving}
+            <BrandPrimaryButton
+              label={isSaving ? "Saving your Persona..." : "Enter your sanctuary"}
               onPress={handleEnterChat}
-              style={[styles.personaContinue, isSaving && styles.disabledButton]}
-            >
-              <Text style={styles.personaContinueText}>{isSaving ? "Saving your Persona..." : "Enter your sanctuary"}</Text>
-              <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
-            </Pressable>
+              busy={isSaving}
+              icon={<ChevronRight color="#3A2218" size={19} strokeWidth={2.5} />}
+            />
           )}
         </ScrollView>
       </SafeAreaViewCtx>
@@ -2208,14 +2205,11 @@ function PersonaStyleScreen({
           </View>
         ) : null}
 
-        <Pressable
-          accessibilityRole="button"
-          style={styles.personaContinue}
+        <BrandPrimaryButton
+          label="Continue"
           onPress={() => setStep("identity")}
-        >
-          <Text style={styles.personaContinueText}>Continue</Text>
-          <ChevronRight color="#152238" size={19} strokeWidth={2.5} />
-        </Pressable>
+          icon={<ChevronRight color="#3A2218" size={19} strokeWidth={2.5} />}
+        />
       </ScrollView>
     </SafeAreaViewCtx>
   );
@@ -3460,7 +3454,7 @@ const styles = StyleSheet.create({
   },
   personaChoiceCard: {
     alignItems: "flex-start",
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(247,235,221,0.16)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3469,7 +3463,7 @@ const styles = StyleSheet.create({
     padding: 15
   },
   personaChoiceCardActive: {
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "#DDB45E",
     borderWidth: 1.5
   },
@@ -3580,7 +3574,9 @@ const styles = StyleSheet.create({
   personaCancelText: { color: "#8A9BB0", fontFamily: "HankenGrotesk-SemiBold", fontSize: 14 },
   personaContinue: {
     alignItems: "center",
-    backgroundColor: "#F1C86F",
+    // Deprecated: persona CTAs now render via BrandPrimaryButton (sunrise
+    // gradient). Kept neutral so no solid-gold fill lingers in the styles.
+    backgroundColor: "transparent",
     borderRadius: 8,
     flexDirection: "row",
     justifyContent: "center",
@@ -3595,7 +3591,7 @@ const styles = StyleSheet.create({
   },
   personaIdentityPreview: {
     alignItems: "center",
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(247,235,221,0.18)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3624,7 +3620,7 @@ const styles = StyleSheet.create({
   },
   personaAvatarOption: {
     alignItems: "center",
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(247,235,221,0.14)",
     borderRadius: 8,
     borderWidth: 1,
@@ -3635,7 +3631,7 @@ const styles = StyleSheet.create({
     width: "22.8%"
   },
   personaAvatarOptionActive: {
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "#DDB45E",
     borderWidth: 1.5
   },
@@ -3655,7 +3651,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9
   },
   personaNameInput: {
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(247,235,221,0.18)",
     borderRadius: 8,
     borderWidth: 1,
@@ -5085,7 +5081,7 @@ const styles = StyleSheet.create({
     padding: 24
   },
   reflectionDeleteDialog: {
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(201,169,110,0.32)",
     borderRadius: 16,
     borderWidth: 1,
@@ -5110,7 +5106,7 @@ const styles = StyleSheet.create({
   },
   reflectionsEmpty: {
     alignItems: "center",
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 16,
     borderWidth: 1,
@@ -5128,7 +5124,7 @@ const styles = StyleSheet.create({
   },
   reflectionsNoResults: {
     alignItems: "center",
-    backgroundColor: "#16273D",
+    backgroundColor: "rgba(58,80,118,0.42)",
     borderColor: "rgba(255,255,255,0.08)",
     borderRadius: 10,
     borderWidth: 1,
