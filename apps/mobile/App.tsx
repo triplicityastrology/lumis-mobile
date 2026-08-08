@@ -20,7 +20,7 @@ import Sparkles from "lucide-react-native/icons/sparkles";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import UsersRound from "lucide-react-native/icons/users-round";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
-import { ActivityIndicator, BackHandler, type LayoutChangeEvent, Modal, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, BackHandler, Keyboard, KeyboardAvoidingView, type LayoutChangeEvent, Modal, type NativeScrollEvent, type NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView as SafeAreaViewCtx, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -110,6 +110,7 @@ import {
   resolvePersonaChatTreatment
 } from "./src/features/chat/personaChatTreatment";
 import { FounderTestHub, FounderTestHubEntry } from "./src/dev/FounderTestHub";
+import { FounderChatStatesGallery } from "./src/dev/FounderChatStatesGallery";
 import { FounderBuildStatusPanel } from "./src/dev/FounderBuildStatusPanel";
 import { FounderReflectionDeletionJourney } from "./src/dev/FounderReflectionDeletionPanel";
 import { FounderCareCircleWorkbench } from "./src/dev/FounderCareCircleWorkbench";
@@ -235,8 +236,11 @@ export default function App() {
   const [pendingChatDraft, setPendingChatDraft] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [founderTestRoute, setFounderTestRoute] = useState<
-    null | "hub" | "buildStatus" | "persona" | "quota" | "careCircle" | "profileTest" | "reflectionDeletion"
+    null | "hub" | "buildStatus" | "persona" | "quota" | "careCircle" | "profileTest" | "reflectionDeletion" | "chatStates"
   >(null);
+  // App-level keyboard visibility so the floating Founder Tests control can be
+  // hidden while the keyboard is open (it otherwise overlaps the chat composer).
+  const [appKeyboardVisible, setAppKeyboardVisible] = useState(false);
   const screenViewportLayoutRef = useRef({ width: 0, height: 0 });
   const unreadNotificationCount = LOCAL_NOTIFICATIONS.filter((item) => item.isUnread).length;
   const isMainTabScreen =
@@ -288,6 +292,17 @@ export default function App() {
       setFounderTestRoute(null);
     }
   }, [founderTestRoute, founderTestsAvailable]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setAppKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setAppKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   function recordScreenViewportLayout(event: LayoutChangeEvent) {
     const { height, width } = event.nativeEvent.layout;
@@ -1283,6 +1298,7 @@ export default function App() {
             onOpenProfileTest={() => setFounderTestRoute("profileTest")}
             onOpenQuotaVerification={() => setFounderTestRoute("quota")}
             onOpenReflectionDeletion={() => setFounderTestRoute("reflectionDeletion")}
+            onOpenChatStates={() => setFounderTestRoute("chatStates")}
           />
         </View>
       ) : null}
@@ -1322,7 +1338,12 @@ export default function App() {
           />
         </View>
       ) : null}
-      {founderTestsAvailable && founderTestRoute === null ? (
+      {founderTestsAvailable && founderTestRoute === "chatStates" ? (
+        <View style={styles.devOverlay}>
+          <FounderChatStatesGallery onBack={() => setFounderTestRoute("hub")} onGoDice={() => { setFounderTestRoute(null); setScreen("dice"); }} />
+        </View>
+      ) : null}
+      {founderTestsAvailable && founderTestRoute === null && !appKeyboardVisible ? (
         <FounderTestHubEntry onPress={() => setFounderTestRoute("hub")} />
       ) : null}
     </View>
@@ -2302,6 +2323,7 @@ function ChatShellScreen({
   const [draftMessage, setDraftMessage] = useState(initialDraft ?? "");
   const [isSending, setIsSending] = useState(false);
   const [retryClientMessageId, setRetryClientMessageId] = useState<string | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const chatScrollRef = useRef<ScrollView>(null);
   const isFollowingChatLatestRef = useRef(true);
   const [showReturnToLatest, setShowReturnToLatest] = useState(false);
@@ -2320,6 +2342,19 @@ function ChatShellScreen({
   useEffect(() => {
     if (initialDraft) onInitialDraftConsumed();
   }, [initialDraft, onInitialDraftConsumed]);
+
+  // Track the keyboard so the composer stays visible (KeyboardAvoidingView), the
+  // tab bar hides, and the Founder Tests control is lifted out of the way.
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   function scrollToChatLatest(animated = true) {
     isFollowingChatLatestRef.current = true;
@@ -2420,7 +2455,10 @@ function ChatShellScreen({
   }
 
   return (
-    <View style={styles.lumisDarkSafe}>
+    <KeyboardAvoidingView
+      style={styles.lumisDarkSafe}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <StatusBar style="light" />
       <View style={styles.chatShell}>
         <View style={styles.chatTopBar}>
@@ -2612,8 +2650,8 @@ function ChatShellScreen({
           </View>
         )}
       </View>
-      <MainTabBar active="chat" onSelect={onSelectTab} />
-    </View>
+      {keyboardVisible ? null : <MainTabBar active="chat" onSelect={onSelectTab} />}
+    </KeyboardAvoidingView>
   );
 }
 

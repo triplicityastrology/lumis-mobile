@@ -14,6 +14,7 @@ export function FounderTestHub({
   onOpenProfileTest,
   onOpenQuotaVerification,
   onOpenReflectionDeletion,
+  onOpenChatStates,
 }: {
   onClose: () => void;
   onOpenCareCircle: () => void;
@@ -22,6 +23,7 @@ export function FounderTestHub({
   onOpenProfileTest: () => void;
   onOpenQuotaVerification: () => void;
   onOpenReflectionDeletion: () => void;
+  onOpenChatStates: () => void;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -118,6 +120,20 @@ export function FounderTestHub({
             <Text style={styles.rowTitle}>Past Reflections deletion test</Text>
             <Text style={styles.rowDetail}>Cancel · failure preservation · retry · delete</Text>
             <Text style={styles.fixtureLabel}>Local demo · gated signed-in staging mode</Text>
+          </View>
+          <ChevronRight color={colors.muted} size={20} />
+        </Pressable>
+        <Pressable
+          accessibilityHint="Opens deterministic review states for chat confirmation, failure, and conditional screens"
+          accessibilityLabel="Chat and conditional states gallery"
+          accessibilityRole="button"
+          onPress={onOpenChatStates}
+          style={styles.row}
+        >
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Chat & conditional states</Text>
+            <Text style={styles.rowDetail}>Confirmation bubbles · failed reply · AUTH-005 · CHART-004 · PERS-003</Text>
+            <Text style={styles.fixtureLabel}>Deterministic review states · no backend, no account changes</Text>
           </View>
           <ChevronRight color={colors.muted} size={20} />
         </Pressable>
