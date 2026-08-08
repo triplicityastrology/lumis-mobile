@@ -22,6 +22,7 @@ import {
 } from "./birthTimePicker";
 import { WheelPicker } from "./WheelPicker";
 import { BIRTH_CHANGE_LIMIT, resolveBirthChangeQuota } from "../../services/birthChangeQuota";
+import { resolveBirthPlace } from "../../services/birthPlaceAdapter";
 
 /** Big-three summary for the Birth Details display. Rising is included ONLY when
  *  an authoritative timed chart exists (precision "full" + Ascendant) — never
@@ -54,6 +55,39 @@ function formatDate(d: Date): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/* ---------- ONB-005 truthful validation (founder return) ----------
+ * Never silently rewrite a future/invalid value: the entered value is kept, the
+ * specific message is shown, and Continue is blocked until it is corrected. */
+function birthDateError(iso: string): string | null {
+  if (!iso.trim()) return null; // empty is "not started", handled by the disabled CTA
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return "That date doesn't look right — please check the day.";
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth) {
+    return "That date doesn't look right — please check the day.";
+  }
+  const picked = new Date(year, month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (picked.getTime() > today.getTime()) return "Birth date can't be in the future.";
+  return null;
+}
+function birthTimeError(iso: string, timeUnknown: boolean): string | null {
+  if (timeUnknown) return null;
+  if (!iso.trim()) return null; // wheel always carries a value; empty = not started
+  const m = /^(\d{2}):(\d{2})$/.exec(iso.trim());
+  if (!m) return "That isn't a valid time — hours 1–12, minutes 00–59.";
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return "That isn't a valid time — hours 1–12, minutes 00–59.";
+  }
+  return null;
 }
 /**
  * Birth Details change flow (AC-UX-13). Display → edit → confirm (with diff) →
@@ -146,7 +180,14 @@ export function BirthDetailsChangeScreen({
       draft.birthPlace !== details.birthPlace ||
       draft.timeUnknown !== details.timeUnknown
     : false;
-  const valid = draft.birthDate.trim() !== "" && draft.birthPlace.trim() !== "" && (draft.timeUnknown || draft.birthTime.trim() !== "");
+  const dateError = birthDateError(draft.birthDate);
+  const timeError = birthTimeError(draft.birthTime, draft.timeUnknown);
+  const valid =
+    draft.birthDate.trim() !== "" &&
+    draft.birthPlace.trim() !== "" &&
+    (draft.timeUnknown || draft.birthTime.trim() !== "") &&
+    !dateError &&
+    !timeError;
 
   const REGEN_STEPS = [
     "Reading your updated birth details",
@@ -280,18 +321,27 @@ export function BirthDetailsChangeScreen({
                 {/* PROF-003 (RULE 1): inline Month/Day/Year wheel on frosted glass.
                     The staged value is read from the snapped wheel, so any field can
                     change (no 8am/first-item lock). */}
+                {/* ONB-005: no maximumDate clamp — a future selection is preserved
+                    and surfaced as a truthful error, never silently reset to today. */}
                 <FrostedCard style={s.wheelPanel} radius={20}>
                   <WheelPicker
                     mode="date"
                     value={parseDate(draft.birthDate)}
-                    maximumDate={new Date()}
                     onChange={(selected) => updateDraft((current) => ({ ...current, birthDate: formatDate(new Date(selected.getTime())) }))}
                   />
                   <WheelCaps caps={["MONTH", "DAY", "YEAR"]} />
                 </FrostedCard>
+                {dateError ? (
+                  <View style={s.validationBanner}>
+                    <Text style={s.validationText}>
+                      <Text style={s.validationBold}>Please check this. </Text>{dateError}
+                    </Text>
+                  </View>
+                ) : null}
                 <BrandPrimaryButton
                   label="Continue"
                   onPress={() => setEditStep(2)}
+                  disabled={!draft.birthDate.trim() || Boolean(dateError)}
                   icon={<ArrowRight color="#1A1206" size={19} />}
                   style={s.wizardCta}
                 />
@@ -327,6 +377,13 @@ export function BirthDetailsChangeScreen({
                 {draft.timeUnknown ? (
                   <Text style={s.toggleNote}>Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements.</Text>
                 ) : null}
+                {timeError ? (
+                  <View style={s.validationBanner}>
+                    <Text style={s.validationText}>
+                      <Text style={s.validationBold}>Please check this. </Text>{timeError}
+                    </Text>
+                  </View>
+                ) : null}
                 <BrandPrimaryButton
                   label="Continue"
                   onPress={() => {
@@ -337,6 +394,7 @@ export function BirthDetailsChangeScreen({
                     }
                     setEditStep(3);
                   }}
+                  disabled={Boolean(timeError)}
                   icon={<ArrowRight color="#1A1206" size={19} />}
                   style={s.wizardCta}
                 />
@@ -348,6 +406,16 @@ export function BirthDetailsChangeScreen({
                   A confirmed change regenerates your chart while keeping your Past Reflections saved.
                 </Text>
                 <Field label="Birthplace" value={draft.birthPlace} onChange={(v) => updateDraft((current) => ({ ...current, birthPlace: v }))} placeholder="Search city, e.g. Hong Kong" />
+                {/* ONB-005 place: closed adapter boundary. No live geolocation
+                    provider is invented here; the seam in services/birthPlaceAdapter
+                    stays "unconfigured" until the website API contract is supplied. */}
+                {resolveBirthPlace(draft.birthPlace).status === "unconfigured" && draft.birthPlace.trim() !== "" ? (
+                  <View style={s.placeAdapterNote}>
+                    <Text style={s.placeAdapterText}>
+                      Birthplace look-up will connect to the Lumis website's location service, which isn't wired into this build yet. For now the name you enter is used as-is — geocoded confirmation is added once that API is connected.
+                    </Text>
+                  </View>
+                ) : null}
                 <BrandPrimaryButton
                   label="Save & regenerate chart"
                   onPress={() => setStep("confirm")}
@@ -525,11 +593,14 @@ const s = StyleSheet.create({
   fieldLabel: { color: colors.muted, fontSize: 12, fontWeight: "600", marginBottom: 6 },
   input: { backgroundColor: "rgba(255,255,255,0.045)", borderColor: colors.line, borderRadius: radii.md, borderWidth: 1, color: colors.ice, fontSize: 15, minHeight: 50, paddingHorizontal: 14 },
   // Fill/blur/border provided by FrostedCard (RULE 1).
-  toggleRow: { alignItems: "center", backgroundColor: "transparent", flexDirection: "row", justifyContent: "space-between", marginTop: 16, minHeight: 54, paddingHorizontal: 14 },
+  // Item 2 (founder return): vertically centre the switch against the label.
+  toggleRow: { alignItems: "center", backgroundColor: "transparent", flexDirection: "row", justifyContent: "space-between", marginTop: 16, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10 },
   wizard: { gap: 0 },
   wizardTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 28, fontWeight: "500", lineHeight: 34, marginTop: 4 },
   wizardCta: { marginTop: 24 },
-  wheelPanel: { alignItems: "stretch", marginTop: 18, paddingHorizontal: 10, paddingVertical: 10 },
+  // Item 2 (founder return): extra vertical padding so the wheel's top/bottom
+  // faded rows don't clip against the frosted card's rounded border.
+  wheelPanel: { alignItems: "stretch", marginTop: 18, paddingHorizontal: 10, paddingVertical: 18 },
   dotsRow: { flexDirection: "row", gap: 7, marginBottom: 16, marginTop: 4 },
   dot: { borderRadius: 3, height: 6 },
   dotOn: { backgroundColor: colors.accent, width: 22 },
@@ -541,6 +612,12 @@ const s = StyleSheet.create({
   accuracyNoteBody: { color: colors.textSoft, fontSize: 12, lineHeight: 18, marginTop: 5 },
   formError: { color: "#FFB4A8", fontSize: 12.5, lineHeight: 18, marginTop: 12 },
   hintNote: { color: colors.muted, fontSize: 12, marginTop: 10, textAlign: "center" },
+  // ONB-005 validation banner (bold "Please check this." prefix).
+  validationBanner: { backgroundColor: "rgba(227,142,124,0.1)", borderColor: "rgba(227,142,124,0.34)", borderRadius: 12, borderWidth: 1, marginTop: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  validationText: { color: colors.ice, fontSize: 13, lineHeight: 19 },
+  validationBold: { color: "#E38E7C", fontWeight: "700" },
+  placeAdapterNote: { backgroundColor: "rgba(201,169,110,0.08)", borderColor: "rgba(215,185,120,0.22)", borderRadius: radii.md, borderWidth: 1, marginTop: 12, padding: 14 },
+  placeAdapterText: { color: colors.textSoft, fontSize: 12.5, lineHeight: 18 },
   centered: { alignItems: "center", paddingTop: 24 },
   successTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 21, marginTop: 14, textAlign: "center" },
   successBody: { color: colors.textSoft, fontSize: 14, lineHeight: 21, marginTop: 8, maxWidth: 320, textAlign: "center" },
