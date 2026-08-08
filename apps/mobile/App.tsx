@@ -186,12 +186,11 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 
 export default function App() {
   const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart" | "support" | "appLanguage">("splash");
-  // Codex typography: load the bundled Newsreader / Hanken Grotesk / Noto Serif TC
-  // weights. The branded splash stays visible until they resolve; on a genuine
-  // font-load error we proceed with the system serif/sans fallback rather than
-  // trapping the user on the splash.
-  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
-  const fontsReady = fontsLoaded || Boolean(fontError);
+  // Load the bundled Newsreader / Hanken Grotesk / Noto Serif TC weights without
+  // making navigation depend on asset completion. The splash is a bounded brand
+  // moment, not a loading lock: slow or failed font loading must never trap the
+  // user before account restoration can present its own truthful state.
+  useFonts(FONT_ASSETS);
   const stableSafeAreaInsets = useSafeAreaInsets();
   const [restoreResult, setRestoreResult] = useState<"loading" | "foundChart" | "noChart" | "failed">("loading");
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -782,11 +781,6 @@ export default function App() {
   // the app root (below), so navigating never remounts the heavy CelestialBackground
   // SVG — this is what removes the transition "kick". Screen logic is unchanged.
   const renderScreen = () => {
-  // Hold the branded splash until the bundled fonts finish loading (or fail).
-  // No `onDone` advance while gating — the real splash below runs once ready.
-  if (!fontsReady) {
-    return <LumisSplashScreen onDone={() => {}} />;
-  }
   // AUTH-013 launch state — first-launch language choice before Welcome.
   if (
     languageBootstrapped &&

@@ -296,6 +296,16 @@ assert.match(
   /async function restoreSpace\(origin: "reload" \| "retry" = "reload"\)[\s\S]{0,180}setRestoreResult\("loading"\)[\s\S]{0,260}try \{[\s\S]{0,160}await refreshAuthStatus\(\)/
 );
 assert.match(appSource, /function routeAfterSplash[\s\S]{0,220}setScreen\(target\)/);
+assert.match(
+  appSource,
+  /useFonts\(FONT_ASSETS\)/,
+  "bundled fonts must still load through the approved Expo font boundary"
+);
+assert.doesNotMatch(
+  appSource,
+  /if \(!fontsReady\)[\s\S]{0,180}<LumisSplashScreen onDone=\{\(\) => \{\}\}/,
+  "font loading must never replace the splash completion callback with a no-op"
+);
 assert.match(appSource, /accessibilityLabel="Past Reflections"/);
 assert.match(appSource, /placeholder="Search reflections"/);
 assert.match(appSource, /Start a new topic/);
