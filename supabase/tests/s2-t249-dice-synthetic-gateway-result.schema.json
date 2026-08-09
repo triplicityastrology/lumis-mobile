@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dice_synthetic_gateway_result_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result_class", "attempt_count", "input_tokens", "output_tokens", "duration_ms", "concurrency_peak", "redacted_failure_code"],
+  "properties": {
+    "result_class": { "enum": ["completed", "safety", "excluded", "fallback", "technical_error"] },
+    "attempt_count": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "input_tokens": { "type": "integer", "minimum": 0, "maximum": 800, "description": "Maximum input tokens observed on any attempt for this logical case." },
+    "output_tokens": { "type": "integer", "minimum": 0, "maximum": 300, "description": "Maximum output tokens observed on any attempt for this logical case." },
+    "duration_ms": { "type": "integer", "minimum": 0, "maximum": 12000 },
+    "concurrency_peak": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "redacted_failure_code": { "enum": ["none", "safety_block", "scope_excluded", "provider_timeout", "provider_rate_limited", "provider_unavailable", "provider_malformed", "defaultv2_block", "defaultv2_partial"] }
+  }
+}

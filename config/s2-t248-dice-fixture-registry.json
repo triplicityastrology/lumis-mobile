@@ -1,0 +1,13 @@
+{
+  "task": "S2-T248",
+  "status": "SOURCE_ONLY_NO_PROVIDER_TRAFFIC",
+  "registry_version": "dice-synthetic-registry-v0.3.0",
+  "prompt_version": "dice-v0.3-synthetic-prompt-1",
+  "registry_checksum": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030",
+  "technical": { "total": 80, "en": 40, "zh-Hant": 40 },
+  "founder_reserved": { "total": 40, "en": 20, "zh-Hant": 20 },
+  "stable_consumer_interface": "dice_synthetic_fixture_registry_export_v1",
+  "provider_route": "ABSENT",
+  "persistence": "ABSENT",
+  "release_activation": false
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-fixture-preparation-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/dev/diceFixturePreparation.ts",
+    "src/dev/diceFixturePreparation.fixtures.ts",
+    "../../packages/shared/src/config/dice-question-boundary.ts",
+    "../../packages/shared/src/index.ts"
+  ]
+}

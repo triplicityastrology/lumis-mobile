@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dice_interpretation_response_v0_3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "result", "language", "code", "effects"],
+  "properties": {
+    "version": { "const": "dice_interpretation_response_v0_3" },
+    "result": { "enum": ["completed", "safety_redirect", "fixed_fallback", "rejected", "technical_error"] },
+    "language": { "enum": ["en", "zh-Hant"] },
+    "code": { "type": "string", "pattern": "^DICE_[A-Z0-9_]+$", "maxLength": 80 },
+    "reading": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "watch_out": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "practical_direction": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "message": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["persistence_writes", "units_charged"],
+      "properties": {
+        "persistence_writes": { "const": 0 },
+        "units_charged": { "const": 0 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "completed" } } },
+      "then": { "required": ["reading", "watch_out", "practical_direction"], "not": { "required": ["message"] } },
+      "else": {
+        "not": { "anyOf": [{ "required": ["reading"] }, { "required": ["watch_out"] }, { "required": ["practical_direction"] }] }
+      }
+    }
+  ]
+}

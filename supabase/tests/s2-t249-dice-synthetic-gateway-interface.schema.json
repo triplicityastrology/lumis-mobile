@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dice_synthetic_gateway_port_v1",
+  "title": "T247 stable gateway port consumed by the T249 operator",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["interface_version", "route", "source_sha256", "fixture_registry_sha256", "response_schema", "prompt_version"],
+  "properties": {
+    "interface_version": { "const": "dice_synthetic_gateway_port_v1" },
+    "route": { "const": "dice-synthetic-v0-3" },
+    "source_sha256": { "$ref": "#/$defs/sha256" },
+    "fixture_registry_sha256": { "$ref": "#/$defs/sha256" },
+    "response_schema": { "const": "dice_interpretation_response_v0_3" },
+    "prompt_version": { "type": "string", "pattern": "^dice_v0_3_[a-z0-9_]+$", "maxLength": 80 }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t249_dice_window_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "dice_window_authorized", "microsoft_review", "technical_review", "live_price_confirmed", "gateway_source_sha256", "fixture_registry_sha256", "single_use_run_id"],
+  "properties": {
+    "schema": { "const": "s2_t249_dice_window_authorization_v1" },
+    "dice_window_authorized": { "const": true },
+    "microsoft_review": { "const": "approved" },
+    "technical_review": { "const": "approved" },
+    "live_price_confirmed": { "const": true },
+    "gateway_source_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "fixture_registry_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "single_use_run_id": { "type": "string", "pattern": "^dice-window-[a-z0-9]{8,32}$" }
+  }
+}

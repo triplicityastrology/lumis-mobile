@@ -1,0 +1,46 @@
+{
+  "schema": "s2_t246_dice_exact_evidence_v1",
+  "authority_founder_base": "30f928777caf47bd2037c9700c97851926c2e9e2",
+  "authority_interactive_commit": "4e0dd947a6cd97e3d7143f6e32dba1716c26bee0",
+  "device_udid": "59A01E18-328F-4AF1-9F40-993183F808AD",
+  "device_name": "iPhone 17",
+  "runtime": "iOS 26.5 Simulator",
+  "route_prefix": "founder-dice-t246",
+  "browser_port": 8128,
+  "simulator_port": 8129,
+  "evidence_root": "/Users/rubyku/Documents/Mobile App/S2-T246-Dice-Exact-Evidence",
+  "expected_dimensions": { "width": 1206, "height": 2622 },
+  "states": [
+    { "id": "question_validation", "fixture": "invalid_hi", "visible_evidence": "Make this one clear question" },
+    { "id": "question_classification", "fixture": "interactive_en", "visible_evidence": "Should I take one measured next step" },
+    { "id": "judgment_en", "fixture": "judgment_en", "visible_evidence": "landed symbols favor a measured" },
+    { "id": "descriptive_zh", "fixture": "descriptive_zh", "visible_evidence": "這組合邀請你先看清眼前的動力" },
+    { "id": "loading_en", "fixture": "loading", "visible_evidence": "Preparing your interpretation" },
+    { "id": "safety_redirect", "fixture": "safety", "visible_evidence": "immediate human support" },
+    { "id": "content_filter", "fixture": "content_filter", "visible_evidence": "Reading paused for safety" },
+    { "id": "fallback_zh", "fixture": "fallback", "visible_evidence": "暫時無法完成這次解讀" },
+    { "id": "malformed", "fixture": "malformed", "visible_evidence": "could not be shown safely" },
+    { "id": "authority_unavailable_en", "fixture": "timeout_unavailable", "visible_evidence": "Interpretation service unavailable" },
+    { "id": "retry", "fixture": "retry", "visible_evidence": "Timed out after one retry" },
+    { "id": "idempotent_replay", "fixture": "idempotent_replay", "visible_evidence": "repeated local request returns the same accepted result" },
+    { "id": "concurrent_duplicate", "fixture": "concurrent_duplicate", "visible_evidence": "simultaneous local requests converge on one deterministic result" }
+  ],
+  "forbidden_frames": [
+    "Build unavailable",
+    "INVALID_BUILD_MARKER",
+    "Couldn't load your space",
+    "Send magic link",
+    "Downloading",
+    "Opening project",
+    "Unable to resolve module",
+    "Something went wrong"
+  ],
+  "effects": {
+    "provider_calls": 0,
+    "units_consumed": 0,
+    "persistence_writes": 0,
+    "remote_history_reads": 0,
+    "remote_history_deletes": 0
+  },
+  "inactive_unresolved": ["final_result_length", "persona_treatment", "repeat_symbol_wording"]
+}

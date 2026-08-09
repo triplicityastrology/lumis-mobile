@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t249_dice_window_evidence_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "fixture_id", "phase", "language", "result_class", "counters", "attempt_count", "duration_bucket", "redacted_failure_code"],
+  "properties": {
+    "schema": { "const": "s2_t249_dice_window_evidence_v1" },
+    "run_id": { "type": "string", "pattern": "^dice-window-[a-z0-9]{8,32}$" },
+    "fixture_id": { "type": "string", "pattern": "^(technical|founder)_(en|zh_hant)_[0-9]{3}$" },
+    "phase": { "enum": ["technical", "founder"] },
+    "language": { "enum": ["en", "zh-Hant"] },
+    "result_class": { "enum": ["completed", "safety", "excluded", "fallback", "technical_error"] },
+    "counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logical_total", "language_total", "attempt_total", "input_tokens", "output_tokens", "concurrency_peak"],
+      "properties": {
+        "logical_total": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "language_total": { "type": "integer", "minimum": 1, "maximum": 60 },
+        "attempt_total": { "type": "integer", "minimum": 0, "maximum": 240 },
+        "input_tokens": { "type": "integer", "minimum": 0, "maximum": 800 },
+        "output_tokens": { "type": "integer", "minimum": 0, "maximum": 300 },
+        "concurrency_peak": { "type": "integer", "minimum": 0, "maximum": 2 }
+      }
+    },
+    "attempt_count": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "duration_bucket": { "enum": ["lt_1s", "1_to_4s", "4_to_8s", "8_to_12s", "not_called"] },
+    "redacted_failure_code": { "enum": ["none", "safety_block", "scope_excluded", "provider_timeout", "provider_rate_limited", "provider_unavailable", "provider_malformed", "defaultv2_block", "defaultv2_partial"] }
+  }
+}

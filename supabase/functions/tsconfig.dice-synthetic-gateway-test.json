@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-synthetic-gateway-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "_shared/dice-synthetic-registry-v0-3.ts",
+    "_shared/dice-synthetic-registry-adapter-v0-3.ts",
+    "_shared/dice-synthetic-fixture-registry-v0-3.ts",
+    "_shared/dice-synthetic-gateway-v0-3.ts",
+    "_shared/azure-dice-adapter-v0-3.ts",
+    "_shared/dice-synthetic-gateway-v0-3.fixtures.ts"
+  ]
+}

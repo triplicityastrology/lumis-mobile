@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t249_live_price_confirmation_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "currency", "input_usd_per_million", "output_usd_per_million", "approved_window_cap_usd", "confirmed_by", "confirmed_at", "valid_until"],
+  "properties": {
+    "schema": { "const": "s2_t249_live_price_confirmation_v1" },
+    "currency": { "const": "USD" },
+    "input_usd_per_million": { "type": "number", "minimum": 0 },
+    "output_usd_per_million": { "type": "number", "minimum": 0 },
+    "approved_window_cap_usd": { "type": "number", "exclusiveMinimum": 0 },
+    "confirmed_by": { "const": "microsoft_azure_review" },
+    "confirmed_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": "dice-founder-quality-rubric-v1",
+  "scale": { "minimum": 1, "maximum": 5 },
+  "criteria": [
+    "astrological_sense",
+    "question_intent",
+    "usefulness",
+    "tone",
+    "en_quality",
+    "zh_hant_quality",
+    "vagueness",
+    "repetition",
+    "overconfidence",
+    "safety"
+  ],
+  "approval": "Founder review required before a reserved fixture may enter any separately authorised synthetic window"
+}

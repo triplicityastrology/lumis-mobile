@@ -1,0 +1,55 @@
+{
+  "schema": "s2_t252_dice_ai_release_candidate_v1",
+  "base_commit": "30f928777caf47bd2037c9700c97851926c2e9e2",
+  "integrated_authorities": {
+    "T246": "fef5db88fe70ed5c02e6178462cb80c5a2072c25",
+    "T247": "1d4447099674d5dfbb2fe951bd9019c7667d511d",
+    "T248": "a6c127d2b3216508d075828b72d07c15215706c9",
+    "T249": "d1f3cb1385d58739173087e84e16f16fd4304788"
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "mode": "source_only_default_off_zero_traffic",
+  "registry": {
+    "technical": 80,
+    "founder_reserved": 40,
+    "en_total": 60,
+    "zh_hant_total": 60,
+    "checksum": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030"
+  },
+  "caps": {
+    "logical_requests": 120,
+    "provider_attempts": 240,
+    "input_tokens": 800,
+    "output_tokens": 300,
+    "concurrency": 2,
+    "deadline_ms": 12000,
+    "eligible_retries": 1
+  },
+  "founder_effects": {
+    "provider_calls": 0,
+    "units_charged": 0,
+    "persistence_writes": 0,
+    "session_history_collections": 0,
+    "remote_history_reads": 0,
+    "remote_history_deletes": 0
+  },
+  "browser_port": 8136,
+  "simulator_port": 8137,
+  "source_hashes": {
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "a480481e6a03308c934efd22d15667adc5c4829c4471eb4faa73f27f68a9af31",
+    "apps/mobile/src/features/dice/DiceHistorySheet.tsx": "97c1d1711dafafe3590f286b5c613fc73fd562f5bf33c96fdbcd43add7cb8de6",
+    "apps/mobile/src/dev/FounderDiceInterpretationWorkbench.tsx": "cf108fb1ad63d7b91b5a20ee5f7ebc749d72dac0e011ba5da83767bda1fec8b7",
+    "packages/shared/src/config/dice-question-boundary.ts": "7154390533da13ba4f79c4bf7aebbd74051e4b917636b75e9e5fceb9f3b82e58",
+    "supabase/functions/_shared/dice-synthetic-gateway-v0-3.ts": "9d9aa4f9efda61e51cd39cf85010166676cb3a4e0b9059a43c58066b23299864",
+    "supabase/functions/_shared/dice-synthetic-registry-adapter-v0-3.ts": "e79bed18dfc957275c42ae81c50e5fab559a8902fb3ba91d67713810a9fa61a8",
+    "supabase/functions/_shared/dice-synthetic-fixture-registry-v0-3.ts": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
+    "supabase/functions/_shared/azure-dice-adapter-v0-3.ts": "5f02cfee725f5ebf2c5ed1cd0f661760a477d851f10ffce12089f4482403dd68",
+    "supabase/functions/dice-synthetic/index.ts": "1b466e42d339188a5faecc0352e226dc244339c865e5f0f5fa9982a499ce7373",
+    "scripts/lib/s2-t249-dice-live-window.mjs": "22f23b07301a07ff6d17679dc4476478d9db4bf1cf2b7558704ad8721bcedd9d",
+    "config/s2-t249-dice-live-window-control.json": "cb086ba43406f0cfeebbf6bcc9b89977c1a4ee321d69b9fb234375c992d1476a",
+    "supabase/tests/s2-t247-dice-interpretation-response-v0-3.schema.json": "7c57654ad8b6b0aa650eafe08fde2b69623298de66950ea96f723fb6f20cc746"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-question-boundary-tests",
+    "rootDir": "../../packages",
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"]
+  },
+  "include": ["src/config/dice-question-boundary.ts", "src/config/dice-question-boundary.fixtures.ts"]
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "s2_t249_dice_live_window_control_v1",
+  "status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "mode": "inert_zero_network",
+  "gateway_interface": "dice_synthetic_gateway_port_v1",
+  "gateway_route": "dice-synthetic-v0-3",
+  "limits": {
+    "logical_total": 120,
+    "technical_first": 80,
+    "founder_after_technical": 40,
+    "language": {
+      "en": 60,
+      "zh-Hant": 60
+    },
+    "attempt_total": 240,
+    "input_tokens_per_logical": 800,
+    "output_tokens_per_logical": 300,
+    "concurrency": 2,
+    "deadline_ms": 12000,
+    "eligible_retries_per_logical": 1
+  },
+  "required_preflight_state": {
+    "LUMIS_AI_ENABLED": false,
+    "provider_access": false,
+    "route_default_off": true
+  },
+  "required_postflight_state": {
+    "LUMIS_AI_ENABLED": false,
+    "provider_access": false,
+    "route_default_off": true
+  },
+  "telemetry_retention_days": 30,
+  "execution_authority": false,
+  "network_calls_in_default_mode": 0
+}

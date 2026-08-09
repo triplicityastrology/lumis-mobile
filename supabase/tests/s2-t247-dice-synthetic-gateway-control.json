@@ -1,0 +1,30 @@
+{
+  "task": "S2-T247",
+  "gateway_version": "dice_synthetic_gateway_v0_3",
+  "registry_interface": "dice_synthetic_registry_v0_3",
+  "prompt_version": "dice_v0_3_synthetic_prompt_2026_08_09",
+  "response_schema": "dice_interpretation_response_v0_3",
+  "provider_alias": "lumis-ai-chat-stg",
+  "deployment_family": "gpt-5-mini",
+  "content_filter": "DefaultV2",
+  "enabled_default": false,
+  "normal_mobile_route": false,
+  "normal_chat_route": false,
+  "persistence_writes": 0,
+  "units_charged": 0,
+  "caps": {
+    "logical_requests": 120,
+    "provider_attempts": 240,
+    "en": 60,
+    "zh-Hant": 60,
+    "input_tokens": 800,
+    "output_tokens": 300,
+    "concurrency": 2,
+    "deadline_ms": 12000,
+    "eligible_retries": 1
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

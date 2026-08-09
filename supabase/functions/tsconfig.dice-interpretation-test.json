@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "module": "CommonJS", "moduleResolution": "Node", "rewriteRelativeImportExtensions": true, "noEmit": false, "outDir": "../../.tmp/dice-interpretation-tests", "rootDir": "../..", "types": ["node"] },
+  "include": ["_shared/dice-interpretation-v1.ts", "_shared/dice-interpretation-v1.fixtures.ts", "_shared/dice-interpretation-offline-engine.ts", "_shared/dice-interpretation-offline-engine.fixtures.ts"]
+}

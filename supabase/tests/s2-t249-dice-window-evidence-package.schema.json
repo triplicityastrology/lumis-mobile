@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t249_dice_window_evidence_package_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "gateway_source_sha256", "fixture_registry_sha256", "price_confirmation_sha256", "logical_total", "attempt_total", "language", "technical_evidence_valid", "founder_phase_ran", "provider_disabled_verified", "records"],
+  "properties": {
+    "schema": { "const": "s2_t249_dice_window_evidence_package_v1" },
+    "run_id": { "type": "string", "pattern": "^dice-window-[a-z0-9]{8,32}$" },
+    "gateway_source_sha256": { "$ref": "#/$defs/sha256" },
+    "fixture_registry_sha256": { "$ref": "#/$defs/sha256" },
+    "price_confirmation_sha256": { "$ref": "#/$defs/sha256" },
+    "logical_total": { "const": 120 },
+    "attempt_total": { "type": "integer", "minimum": 0, "maximum": 240 },
+    "language": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "zh-Hant"],
+      "properties": { "en": { "const": 60 }, "zh-Hant": { "const": 60 } }
+    },
+    "technical_evidence_valid": { "const": true },
+    "founder_phase_ran": { "const": true },
+    "provider_disabled_verified": { "const": true },
+    "records": { "type": "array", "minItems": 120, "maxItems": 120, "items": { "$ref": "s2-t249-dice-window-evidence.schema.json" } }
+  },
+  "$defs": { "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

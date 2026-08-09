@@ -1,0 +1,24 @@
+{
+  "schema": "s2_t243_dice_capture_evidence_v1",
+  "authority_founder_base": "30f928777caf47bd2037c9700c97851926c2e9e2",
+  "device_udid": "59A01E18-328F-4AF1-9F40-993183F808AD",
+  "device_name": "iPhone 17",
+  "runtime": "iOS 26.5 Simulator",
+  "route_prefix": "founder-dice-t243",
+  "human_verdict": "pending",
+  "live_ai_proof": false,
+  "evidence_root": "/Users/rubyku/Documents/Mobile App/S2-T243-Dice-Interactive-Evidence",
+  "states": [
+    "invalid_hi", "bundled", "safety", "disallowed",
+    "interactive_en", "interactive_zh", "loading", "judgment_en",
+    "descriptive_zh", "content_filter", "fallback", "malformed",
+    "timeout_unavailable", "retry", "idempotent_replay", "concurrent_duplicate"
+  ],
+  "expected_dimensions": { "width": 1206, "height": 2622 },
+  "forbidden_frames": [
+    "Build unavailable", "INVALID_BUILD_MARKER", "Couldn't load your space",
+    "Send magic link", "Downloading", "Opening project"
+  ],
+  "inactive_unresolved": ["final_result_length", "persona_treatment", "repeat_symbol_wording"],
+  "effects": { "provider_calls": 0, "persistence_writes": 0, "units_consumed": 0 }
+}
