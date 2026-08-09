@@ -1728,22 +1728,11 @@ function ChartPreviewScreen({
   const [chartResult, setChartResult] = useState<ChartProfileResult | null>(null);
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
   const previewValidation = validateBirthProfileForm(profileData);
   const canGenerate = previewValidation.isValid && !isSubmitting;
-
-  useEffect(() => {
-    if (!isSubmitting) {
-      setGenerationStep(0);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setGenerationStep((current) => Math.min(current + 1, 3));
-    }, 900);
-
-    return () => clearInterval(interval);
-  }, [isSubmitting]);
+  // CHART-002: generating is an indeterminate loader — no fake client-timer step
+  // progression. The screen advances only when the backend chart operation returns
+  // (success → reveal, failure → CHART-004).
 
   async function handleGenerateChartProfile() {
     if (!previewValidation.isValid) {
@@ -1765,7 +1754,7 @@ function ChartPreviewScreen({
   }
 
   if (isSubmitting) {
-    return <ChartGeneratingScreen activeStep={generationStep} name={profileData.name} />;
+    return <ChartGeneratingScreen name={profileData.name} />;
   }
 
   if (chartResult) {
@@ -1876,11 +1865,20 @@ function ChartPreviewScreen({
   );
 }
 
-function ChartGeneratingScreen({ activeStep, name }: { activeStep: number; name: string }) {
+function ChartGeneratingScreen({ name }: { name: string }) {
   return (
     <SafeAreaViewCtx edges={["top", "left", "right", "bottom"]} style={styles.generatingSafe}>
       <StatusBar style="light" />
-      <GeneratingView activeStep={activeStep} name={name} />
+      {/* CHART-002 (Screen 6): indeterminate chart-wheel loader — wheel + headline
+          + sub only, no step counter, counter-clockwise, backend-authoritative. */}
+      <GeneratingView
+        activeStep={0}
+        indeterminate
+        steps={[]}
+        eyebrow="READING YOUR SKY…"
+        title="Building your Lumis chart"
+        subtitle={`This takes a moment${name ? `, ${name}` : ""} — we're mapping the sky at your birth.`}
+      />
       <Text style={styles.generatingPrivacy}>Your birth details stay linked to your private Lumis account.</Text>
     </SafeAreaViewCtx>
   );

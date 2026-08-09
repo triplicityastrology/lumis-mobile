@@ -607,7 +607,10 @@ assert.match(profileSource, /p_buddy_name: identity\.buddyName/);
 assert.match(profileSource, /p_focus: identity\.mainFocus/);
 assert.doesNotMatch(profileSource, /\.from\("users"\)[\s\S]{0,120}\.update\(/);
 assert.match(accountStateSource, /buddyName: user\?\.buddy_name\?\.trim\(\) \|\| "Lumis"/);
-assert.match(appSource, /<GeneratingView activeStep=\{activeStep\} name=\{name\}/);
+// CHART-002 (8/8/2026 Founder brand fix): onboarding generation is an
+// indeterminate loader — no client-timer step progression, no step checklist.
+assert.match(appSource, /<GeneratingView\s+activeStep=\{0\}\s+indeterminate/);
+assert.match(appSource, /title="Building your Lumis chart"/);
 assert.match(generatingSource, /Aligning your ephemeris data/);
 assert.match(generatingSource, /Positioning your Ascendant and angles/);
 assert.match(generatingSource, /Turning your chart into personal algorithms/);

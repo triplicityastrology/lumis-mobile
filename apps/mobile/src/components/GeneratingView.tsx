@@ -49,35 +49,50 @@ export function GeneratingView({
   const outer = useRef(new Animated.Value(0)).current;
   const inner = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
+  // Reduced-motion: replace rotation with a slow opacity pulse (CHART-002 spec).
+  const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let mounted = true;
     AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
       if (mounted) setReduceMotion(enabled);
     });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
     return () => {
       mounted = false;
+      sub.remove();
     };
   }, []);
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion) {
+      const pulseLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+        ])
+      );
+      pulseLoop.start();
+      return () => pulseLoop.stop();
+    }
     const loops = [
-      Animated.loop(Animated.timing(outer, { toValue: 1, duration: 14000, easing: Easing.linear, useNativeDriver: true })),
+      Animated.loop(Animated.timing(outer, { toValue: 1, duration: 16000, easing: Easing.linear, useNativeDriver: true })),
       Animated.loop(Animated.timing(inner, { toValue: 1, duration: 22000, easing: Easing.linear, useNativeDriver: true })),
       Animated.loop(Animated.timing(spin, { toValue: 1, duration: 1000, easing: Easing.linear, useNativeDriver: true }))
     ];
     loops.forEach((loop) => loop.start());
     return () => loops.forEach((loop) => loop.stop());
-  }, [reduceMotion, outer, inner, spin]);
+  }, [reduceMotion, outer, inner, spin, pulse]);
 
-  const outerSpin = outer.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  // Counter-clockwise loop (CHART-002 / PROF-005 approved direction).
+  const outerSpin = outer.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "-360deg"] });
   const innerSpin = inner.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "-360deg"] });
   const activeSpin = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+  const stagePulse = reduceMotion ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.95] }) : 1;
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.stage}>
+      <Animated.View style={[styles.stage, { opacity: stagePulse }]}>
         <View style={styles.glow} />
 
         {/* outer counter-rotating ring */}
@@ -133,7 +148,7 @@ export function GeneratingView({
           })}
           <Circle cx="66" cy="66" r="3" fill="#D7A950" />
         </Svg>
-      </View>
+      </Animated.View>
 
       <View style={styles.eyebrowRow}>
         <Text style={styles.eyebrow}>✦ {eyebrow}</Text>
@@ -141,6 +156,7 @@ export function GeneratingView({
       <Text style={styles.title}>{headline}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
+      {stepLabels.length === 0 ? null : (
       <View accessibilityLabel={indeterminate ? "Chart regeneration is in progress" : undefined} style={styles.steps}>
         {stepLabels.map((label, index) => {
           // Indeterminate: every row is an equal in-progress item — no step is
@@ -163,6 +179,7 @@ export function GeneratingView({
           );
         })}
       </View>
+      )}
     </View>
   );
 }

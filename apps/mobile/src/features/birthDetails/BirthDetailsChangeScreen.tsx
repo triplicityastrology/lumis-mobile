@@ -12,7 +12,7 @@ import { colors, radii, spacing } from "../../theme/tokens";
 import { BrandPrimaryButton } from "../../components/BrandPrimaryButton";
 import { FrostedCard } from "../../components/FrostedCard";
 import { NatalWheel } from "../../components/NatalWheel";
-import { RegeneratingView } from "./RegeneratingView";
+import { GeneratingView } from "../../components/GeneratingView";
 import {
   BrandButton, GhostButton, LineMotif, RetryCard, ScreenHeader, SoftButton
 } from "../../components/states/StateKit";
@@ -197,12 +197,6 @@ export function BirthDetailsChangeScreen({
     !dateError &&
     !timeError;
 
-  const REGEN_STEPS = [
-    "Reading your updated birth details",
-    "Recalculating your sky",
-    "Regenerating your Lumis profile",
-    "Preparing your new chart context"
-  ];
   async function runRegeneration() {
     const clientRequestId = requestIdRef.current ?? randomUUID();
     requestIdRef.current = clientRequestId;
@@ -498,12 +492,17 @@ export function BirthDetailsChangeScreen({
           ring, no real natal wheel, no emoji glyphs). Presentation is truthful:
           no timer-driven step completion; the backend outcome decides the exit. */}
       {step === "regenerating" ? (
+        // PROF-005 reuses the CHART-002 GeneratingView (Founder-approved) — the
+        // same counter-clockwise chart-wheel loop as first-time generation, no
+        // forked animation, no step counter, backend-authoritative exit.
         <View style={s.regenOverlay}>
-          <RegeneratingView
+          <GeneratingView
+            activeStep={0}
+            indeterminate
+            steps={[]}
             eyebrow="UPDATING YOUR SKY…"
-            title="Regenerating your chart."
+            title="Regenerating your chart…"
             subtitle="This can take a moment. We'll show your updated chart as soon as it's ready."
-            steps={REGEN_STEPS}
           />
         </View>
       ) : null}

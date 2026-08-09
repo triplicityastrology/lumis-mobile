@@ -104,7 +104,7 @@ export function LumisHomeScreen(props: LumisHomeScreenProps) {
           </Pressable>
 
           <Pressable style={styles.primaryAction} onPress={props.onOpenChat}>
-            {/* HOME-002 (RULE 2): "Talk with Lumis" gold gradient (#C9A96E→#D7B978→#E5C58A). */}
+            {/* HOME-002 (RULE 2): "Talk with Lumis" sunrise gradient (#E5C06B→#E9B083 55%→#E89B92). */}
             <LinearGradient
               colors={["#E5C06B", "#E9B083", "#E89B92"]}
               end={{ x: 1, y: 0.35 }}

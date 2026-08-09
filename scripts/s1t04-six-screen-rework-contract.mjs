@@ -16,7 +16,7 @@ const auth = read("apps/mobile/src/components/AuthSystemKit.tsx");
 const app = read("apps/mobile/App.tsx");
 const birth = read("apps/mobile/src/features/birthDetails/BirthDetailsChangeScreen.tsx");
 const wheel = read("apps/mobile/src/features/birthDetails/WheelPicker.tsx");
-const regen = read("apps/mobile/src/features/birthDetails/RegeneratingView.tsx");
+const gen = read("apps/mobile/src/components/GeneratingView.tsx");
 const natal = read("apps/mobile/src/components/NatalWheel.tsx");
 const tokens = read("apps/mobile/src/theme/tokens.ts");
 const frosted = read("apps/mobile/src/components/FrostedCard.tsx");
@@ -99,15 +99,18 @@ assert.match(birth, /label="Save & regenerate chart"/, "PROF-003 gradient Save &
 assert.doesNotMatch(birth, /@react-native-community\/datetimepicker/, "PROF-003 no off-design native picker");
 assert.match(birth, /Without a birth time, Lumis will not use ASC, MC, houses, or planet-house placements\./, "PROF-003 unknown-time gate preserved");
 
-/* ---------------- PROF-005 Regenerating chart ---------------- */
-assert.match(regen, /strokeDasharray="4 7"/, "PROF-005 dashed gold ring");
-assert.match(regen, /const RING_SPOKES = Array\.from\(\{ length: 8 \}/, "PROF-005 eight radial spokes");
-assert.match(regen, /<Circle cx="75" cy="75" r="5" fill=\{colors\.accent\} \/>/, "PROF-005 centre spark dot");
-assert.match(regen, /duration: 12000/, "PROF-005 slow 12s rotation");
-assert.doesNotMatch(regen, ASTRO_GLYPHS, "PROF-005 uses no astrology glyphs");
-assert.doesNotMatch(regen, /setTimeout/, "PROF-005 never advances steps on a timer");
-assert.match(birth, /<RegeneratingView/, "PROF-005 uses the dedicated decorative loader");
-assert.doesNotMatch(birth, /GeneratingView/, "PROF-005 does not spin the shared onboarding wheel");
+/* ---------------- PROF-005 Regenerating chart (8/8/2026 Founder brand fix) ----------------
+ * Founder-approved change: PROF-005 no longer forks a bespoke dashed-ring loader.
+ * It reuses the shared CHART-002 GeneratingView (same counter-clockwise chart-wheel
+ * loop as first-time generation) so both go through one animation. This intentionally
+ * supersedes the earlier RegeneratingView assertions. */
+assert.match(birth, /<GeneratingView/, "PROF-005 reuses the shared CHART-002 GeneratingView");
+assert.match(birth, /step === "regenerating"/, "PROF-005 regenerating step preserved");
+assert.match(birth, /indeterminate/, "PROF-005 loader is truthful indeterminate (no fake progress)");
+assert.doesNotMatch(birth, /setTimeout\([^)]*setStep/, "PROF-005 never advances the chart on a client timer");
+// Shared CHART-002 / PROF-005 loop is counter-clockwise and reduced-motion aware.
+assert.match(gen, /outputRange: \["0deg", "-360deg"\]/, "GeneratingView loop is counter-clockwise");
+assert.match(gen, /reduceMotion/, "GeneratingView honours reduced motion");
 
 /* ---------------- PROF-006 Updated chart reveal ---------------- */
 assert.match(app, /chartRevealTitle: \{[\s\S]*fontFamily: "Newsreader-Medium"[\s\S]*fontWeight: "500"/, "PROF-006 H1 is display serif 500, not bold sans");
