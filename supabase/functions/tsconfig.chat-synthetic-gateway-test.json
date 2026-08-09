@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-synthetic-gateway-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "_shared/chat-synthetic-gateway-v1.ts",
+    "_shared/chat-synthetic-registry-v1.ts",
+    "_shared/companion-synthetic-prompt-v1.ts",
+    "_shared/chat-synthetic-gateway-v1.fixtures.ts"
+  ]
+}

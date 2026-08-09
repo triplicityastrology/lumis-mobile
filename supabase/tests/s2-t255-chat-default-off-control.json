@@ -1,0 +1,57 @@
+{
+  "version": "s2_t255_chat_default_off_candidate_v1",
+  "statuses": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "route": "chat-synthetic",
+  "normal_chat_connected": false,
+  "default_enabled": false,
+  "fixture_registry": {
+    "version": "chat_synthetic_registry_v1",
+    "total": 60,
+    "en": 30,
+    "zh_hant": 30,
+    "request_fields": ["fixture_id", "idempotency_key", "run_id"]
+  },
+  "prompt": {
+    "version": "companion_synthetic_prompt_v1",
+    "server_only": true,
+    "customer_context": "none",
+    "persona_or_provenance": "prohibited"
+  },
+  "provider": {
+    "alias": "lumis-ai-chat-stg",
+    "safety": ["Lumis deterministic pre-safety", "DefaultV2", "Lumis deterministic post-safety"],
+    "deadline_ms": 12000,
+    "maximum_retries": 1
+  },
+  "caps": {
+    "logical_requests": 60,
+    "en_requests": 30,
+    "zh_hant_requests": 30,
+    "provider_attempts": 120,
+    "input_tokens": 1200,
+    "output_tokens": 300,
+    "concurrency": 1
+  },
+  "effects": {
+    "persistence": "none",
+    "units_charged": 0,
+    "telemetry": "metadata_only",
+    "telemetry_retention_days": 30
+  },
+  "deployment": {
+    "executed": false,
+    "provider_calls": 0,
+    "requires_exact_disabled_configuration": true,
+    "requires_separate_reviewed_authorization": true
+  },
+  "source_sha256": {
+    "supabase/functions/chat-synthetic/index.ts": "2bf032fa505fbc67c0b9b5e35c8d197c5690b481b8754023d3699bbc4ce1ddcf",
+    "supabase/functions/_shared/chat-synthetic-gateway-v1.ts": "6b101eabd58aab06bd78381d7b587d0b5af34b875d2254faa600c5d7ffd9ee2a",
+    "supabase/functions/_shared/chat-synthetic-registry-v1.ts": "6930941fc52e6d4efb91646bbb4a829909f06b973e508b047e7a81115b44575c",
+    "supabase/functions/_shared/companion-synthetic-prompt-v1.ts": "148828b43ea2149ba07a9acb6be3dd479e64126c26990528ce7be298334a9318",
+    "supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts": "deda4cfc953b8ece31cf262685031fae92be58ff42f24a171b9c9a6057b70e57"
+  }
+}

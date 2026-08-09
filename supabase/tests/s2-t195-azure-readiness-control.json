@@ -1,0 +1,63 @@
+{
+  "control_version": "s2_t207_azure_normal_chat_readiness_v2",
+  "source_authority_sha": "6ee57eaeec213df945b568449a1aedf7f7481aca",
+  "status": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"],
+  "confirmed_staging_facts": {
+    "resource_boundary": "Southeast Asia",
+    "deployment_offering": "Global Standard",
+    "model_family": "gpt-5-mini",
+    "server_alias": "lumis-ai-chat-stg",
+    "configuration_scope": "server_secret_only",
+    "kill_switch": "LUMIS_AI_ENABLED=false",
+    "budget_alert_usd": 20,
+    "budget_alert_is_hard_cap": false,
+    "normal_chat_adapter_connection": false,
+    "synthetic_only_required": true
+  },
+  "data_geography": {
+    "inference": "prompts_and_responses_may_be_processed_in_any_azure_geography_where_model_is_deployed",
+    "at_rest": "designated_azure_geography_including_global_or_data_zone_abuse_monitoring_store",
+    "singapore_or_apac_only_claim": false,
+    "regional_inference_claim": false
+  },
+  "abuse_monitoring": {
+    "default_monitoring_acknowledged": true,
+    "flagged_prompt_or_completion_human_review_possible": true,
+    "synthetic_only_until_separate_approval": true
+  },
+  "safety": {
+    "azure_filter_profile": "DefaultV2",
+    "lumis_deterministic_policy_required": true,
+    "azure_filter_replaces_lumis_policy": false,
+    "block_or_partial_projection": "NORMAL_CHAT_SAFETY_REDIRECT",
+    "assistant_persistence": "none",
+    "units_charged": 0,
+    "approved_copy": "Lumis can’t help with that request, but it can offer a safer, general reflection instead."
+  },
+  "fallback": {
+    "approved_copy": "Lumis couldn’t complete that reflection just now. Please try again.",
+    "assistant_persistence": "none",
+    "units_charged": 0
+  },
+  "telemetry": {
+    "retention_days": 30,
+    "owner": "Technical Architect",
+    "metadata_only": true,
+    "allowed": ["opaque_request_id", "route_code", "result_code", "provider_call_count", "retry_count", "duration_bucket", "schema_result", "redaction_result"],
+    "prohibited": ["prompt", "response", "user_text", "birth_data", "name", "account_id", "device_id", "token", "endpoint", "model_id", "provider_body"]
+  },
+  "approval_gates": [
+    { "gate": "document_review", "state": "prepared_not_accepted" },
+    { "gate": "source_integration", "state": "not_authorized" },
+    { "gate": "synthetic_azure_traffic", "state": "not_authorized" },
+    { "gate": "real_member_traffic", "state": "not_authorized" },
+    { "gate": "production", "state": "not_authorized" }
+  ],
+  "unresolved_decisions": [
+    "final_limits",
+    "final_structured_response_shape",
+    "pricing_and_entitlement_policy",
+    "quality_approval",
+    "traffic_window"
+  ]
+}

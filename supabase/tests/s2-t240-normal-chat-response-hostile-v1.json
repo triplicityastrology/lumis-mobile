@@ -1,0 +1,15 @@
+{
+  "fixture_version": "s2_t240_normal_chat_response_hostile_v1",
+  "cases": [
+    { "id": "public_completed_redacted", "patch": { "result": "completed_redacted" } },
+    { "id": "legacy_assistant_text", "patch": { "assistant_text": "legacy" } },
+    { "id": "legacy_units", "patch": { "units": 1 } },
+    { "id": "legacy_idempotency", "patch": { "idempotency": "committed" } },
+    { "id": "unknown_field", "patch": { "redaction": "passed" } },
+    { "id": "fallback_wrong_copy", "base": "fallback", "patch": { "assistant_message": "Try later." } },
+    { "id": "safety_wrong_copy", "base": "safety", "patch": { "assistant_message": "Blocked." } },
+    { "id": "technical_assistant_message", "base": "technical", "patch": { "assistant_message": "Internal error." } },
+    { "id": "completed_missing_atomic", "remove": ["atomic_outcome"] },
+    { "id": "duplicate_charged", "base": "duplicate", "patch": { "units_charged": 1 } }
+  ]
+}

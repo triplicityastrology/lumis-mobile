@@ -1,0 +1,43 @@
+{
+  "control_version": "s2_t250_chat_synthetic_gateway_v1",
+  "statuses": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"],
+  "route": "chat-synthetic",
+  "normal_chat_connected": false,
+  "default_enabled": false,
+  "required_disabled_configuration": { "LUMIS_AI_ENABLED": "false" },
+  "provider": {
+    "server_alias": "lumis-ai-chat-stg",
+    "safety_profile": "DefaultV2",
+    "prompt_version": "chat_synthetic_prompt_v1",
+    "deadline_ms": 12000,
+    "maximum_attempts": 2,
+    "maximum_retries": 1
+  },
+  "caps": {
+    "logical_requests": 60,
+    "en_requests": 30,
+    "zh_hant_requests": 30,
+    "provider_attempts": 120,
+    "input_tokens": 1200,
+    "output_tokens": 300,
+    "concurrency": 1
+  },
+  "request_fields": ["fixture_id", "idempotency_key", "run_id"],
+  "canonical_response_fields": ["result", "assistant_message", "idempotency_outcome", "units_charged"],
+  "effects": { "persistence": "never", "units_charged": 0 },
+  "telemetry": {
+    "retention_days": 30,
+    "allowed_fields": ["fixtureId", "language", "result", "attemptCount", "durationBucket", "runId", "failureCode", "retentionDays"]
+  },
+  "prohibited": [
+    "free_form_body", "member_context", "profile", "thread", "chart", "birth_data", "account_id", "device_id",
+    "raw_prompt_log", "raw_response_log", "provider_diagnostic_log", "mobile_endpoint", "mobile_model", "mobile_key"
+  ],
+  "deployment": {
+    "source_ready": true,
+    "executed": false,
+    "allowed_only_after_technical_review": true,
+    "must_verify_disabled_before_and_after": true,
+    "model_calls_allowed": 0
+  }
+}

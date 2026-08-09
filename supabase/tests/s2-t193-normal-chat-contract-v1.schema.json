@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lumis:normal-chat-contract:v1:proposed-corrected",
+  "title": "Lumis proposed inactive normal-chat contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "mobile_request", "mobile_response"],
+  "properties": {
+    "contract_version": { "const": "normal_chat_contract_v1_proposed" },
+    "mobile_request": { "$ref": "#/$defs/mobileRequest" },
+    "mobile_response": { "$ref": "#/$defs/mobileResponse" }
+  },
+  "$defs": {
+    "uuidV4": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "mobileRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "client_turn_id", "message", "thread_intent"],
+      "properties": {
+        "schema_version": { "const": "normal_chat_mobile_request_v1" },
+        "client_turn_id": { "$ref": "#/$defs/uuidV4" },
+        "message": { "type": "string", "minLength": 1 },
+        "thread_intent": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode"],
+              "properties": { "mode": { "const": "new" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode", "thread_id"],
+              "properties": {
+                "mode": { "const": "continue" },
+                "thread_id": { "$ref": "#/$defs/uuidV4" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "atomicOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_message", "assistant_message", "unit_ledger", "idempotency_outcome"],
+      "properties": {
+        "user_message": { "enum": ["committed", "replayed"] },
+        "assistant_message": { "enum": ["committed", "replayed"] },
+        "unit_ledger": { "enum": ["committed", "replayed"] },
+        "idempotency_outcome": { "enum": ["committed", "replayed"] }
+      }
+    },
+    "mobileResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "request_id", "client_turn_id", "result", "persistence", "idempotency_outcome", "units_charged"],
+      "properties": {
+        "schema_version": { "const": "normal_chat_mobile_response_v1" },
+        "request_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,80}$" },
+        "client_turn_id": { "$ref": "#/$defs/uuidV4" },
+        "result": { "enum": ["completed", "duplicate", "fixed_fallback", "safety_rejected", "technical_error"] },
+        "thread_id": { "$ref": "#/$defs/uuidV4" },
+        "assistant_message": { "type": "string", "minLength": 1 },
+        "error_code": { "type": "string", "pattern": "^NORMAL_CHAT_[A-Z0-9_]+$" },
+        "persistence": { "enum": ["committed", "not_committed"] },
+        "idempotency_outcome": { "enum": ["committed", "replayed", "not_committed"] },
+        "units_charged": { "type": "integer", "minimum": 0 },
+        "atomic_outcome": { "$ref": "#/$defs/atomicOutcome" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "result": { "const": "completed" },
+            "persistence": { "const": "committed" },
+            "idempotency_outcome": { "const": "committed" },
+            "atomic_outcome": {
+              "properties": {
+                "user_message": { "const": "committed" },
+                "assistant_message": { "const": "committed" },
+                "unit_ledger": { "const": "committed" },
+                "idempotency_outcome": { "const": "committed" }
+              }
+            }
+          },
+          "required": ["thread_id", "assistant_message", "atomic_outcome"],
+          "not": { "required": ["error_code"] }
+        },
+        {
+          "properties": {
+            "result": { "const": "duplicate" },
+            "persistence": { "const": "committed" },
+            "idempotency_outcome": { "const": "replayed" },
+            "units_charged": { "const": 0 },
+            "atomic_outcome": {
+              "properties": {
+                "user_message": { "const": "replayed" },
+                "assistant_message": { "const": "replayed" },
+                "unit_ledger": { "const": "replayed" },
+                "idempotency_outcome": { "const": "replayed" }
+              }
+            }
+          },
+          "required": ["thread_id", "assistant_message", "atomic_outcome"],
+          "not": { "required": ["error_code"] }
+        },
+        {
+          "properties": {
+            "result": { "const": "fixed_fallback" },
+            "assistant_message": { "const": "Lumis couldn’t complete that reflection just now. Please try again." },
+            "persistence": { "const": "not_committed" },
+            "idempotency_outcome": { "const": "not_committed" },
+            "units_charged": { "const": 0 }
+          },
+          "required": ["assistant_message", "error_code"],
+          "not": { "anyOf": [{ "required": ["thread_id"] }, { "required": ["atomic_outcome"] }] }
+        },
+        {
+          "properties": {
+            "result": { "const": "safety_rejected" },
+            "assistant_message": { "const": "Lumis can’t help with that request, but it can offer a safer, general reflection instead." },
+            "error_code": { "const": "NORMAL_CHAT_SAFETY_REDIRECT" },
+            "persistence": { "const": "not_committed" },
+            "idempotency_outcome": { "const": "not_committed" },
+            "units_charged": { "const": 0 }
+          },
+          "required": ["assistant_message", "error_code"],
+          "not": { "anyOf": [{ "required": ["thread_id"] }, { "required": ["atomic_outcome"] }] }
+        },
+        {
+          "properties": {
+            "result": { "const": "technical_error" },
+            "persistence": { "const": "not_committed" },
+            "idempotency_outcome": { "const": "not_committed" },
+            "units_charged": { "const": 0 }
+          },
+          "required": ["error_code"],
+          "not": {
+            "anyOf": [
+              { "required": ["assistant_message"] },
+              { "required": ["thread_id"] },
+              { "required": ["atomic_outcome"] }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

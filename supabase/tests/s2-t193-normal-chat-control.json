@@ -1,0 +1,54 @@
+{
+  "control_version": "s2_t205_normal_chat_control_v2",
+  "status": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"],
+  "integration_enabled": false,
+  "azure_traffic_authorized": false,
+  "approved_copy": {
+    "fixed_fallback": "Lumis couldn’t complete that reflection just now. Please try again.",
+    "safety_redirect": "Lumis can’t help with that request, but it can offer a safer, general reflection instead."
+  },
+  "canonicalization": {
+    "unicode": "NFC",
+    "line_endings": "LF",
+    "idempotency_digest_fields": ["authenticated_actor", "client_turn_id", "thread_intent", "canonical_message"],
+    "thread_id_authority": "server_owned_uuid_v4"
+  },
+  "aggregate_context": {
+    "policy": "implementation_enforced_closed_budget",
+    "final_limits_status": "UNRESOLVED_FOUNDER_DECISION",
+    "overflow_result": "NORMAL_CHAT_CONTEXT_LIMIT_EXCEEDED"
+  },
+  "provider": {
+    "alias": "lumis-ai-chat-stg",
+    "alias_authority": "trusted_server_configuration_only",
+    "total_timeout_ms": 12000,
+    "maximum_attempts": 2,
+    "maximum_retries": 1
+  },
+  "canonical_mobile_response_fields": ["result", "assistant_message", "idempotency_outcome", "units_charged"],
+  "atomic_success": ["user_message", "assistant_message", "unit_ledger", "idempotency_outcome"],
+  "zero_effect_results": ["fixed_fallback", "safety_rejected", "technical_error"],
+  "pure_technical_error": {
+    "assistant_message_allowed": false,
+    "thread_id_allowed": false,
+    "persistence": "not_committed",
+    "units_charged": 0
+  },
+  "mobile_prohibited_fields": [
+    "name", "account_id", "bearer_token", "device_id", "birth_date", "birth_time",
+    "birth_place", "coordinates", "chart_context", "persona_context", "conversation_history",
+    "provider", "provider_alias", "azure_endpoint", "deployment_name", "model_id", "api_key",
+    "route", "units"
+  ],
+  "logging_prohibited": [
+    "raw_mobile_message", "raw_prompt", "raw_provider_response", "bearer_token",
+    "provider_credential", "raw_birth_data", "full_conversation_history"
+  ],
+  "unresolved_decisions": [
+    "final_aggregate_context_limits",
+    "final_structured_assistant_response_shape",
+    "route_pricing_and_entitlement_policy",
+    "quality_approval",
+    "synthetic_or_real_traffic_window"
+  ]
+}

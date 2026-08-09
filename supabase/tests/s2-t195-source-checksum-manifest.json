@@ -1,0 +1,27 @@
+{
+  "manifest_version": "s2_t195_source_checksum_manifest_v1",
+  "source_authority_sha": "6ee57eaeec213df945b568449a1aedf7f7481aca",
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": "apps/mobile/src/services/chat.ts",
+      "sha256": "4a0b70e514c160dc55541e2909d45748347a76fe0561fb72de6a3d371a242392"
+    },
+    {
+      "path": "packages/astrology/src/chat-chart-context.ts",
+      "sha256": "6a9a534fb093989491d07c50a8dc723e639f8554aa14262d9e1ed318f387e631"
+    },
+    {
+      "path": "packages/shared/src/config/chat-router.ts",
+      "sha256": "6e1fd4728c71adeb99434cf1a4987d98aaf0ac7d41a2604f49d62db711bf9a82"
+    },
+    {
+      "path": "supabase/functions/chat-message/index.ts",
+      "sha256": "73a7df7042c4b8400996092ebbc7fb9a67eb24c3185fd812918b4887a56cd7ad"
+    },
+    {
+      "path": "supabase/migrations/0022_chat_idempotency_context.sql",
+      "sha256": "f7f1a7dbdb23f46cbef586b0c9e82d9e18fe9f0b932f4ff23dea0de4e8ae8ffe"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:lumis:chat-synthetic-gateway:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fixture_id", "language", "result", "idempotency_outcome", "units_charged", "persistence", "provider_attempts"],
+  "properties": {
+    "schema_version": { "const": "chat_synthetic_response_v1" },
+    "fixture_id": { "type": "string", "pattern": "^chat_(en|zh_hant)_[a-z0-9_]+$" },
+    "language": { "enum": ["en", "zh-Hant"] },
+    "result": { "enum": ["completed", "duplicate", "fixed_fallback", "safety_rejected", "technical_error"] },
+    "assistant_message": { "type": "string", "minLength": 1, "maxLength": 1800 },
+    "idempotency_outcome": { "enum": ["completed", "replayed", "not_committed"] },
+    "units_charged": { "const": 0 },
+    "persistence": { "const": "not_committed" },
+    "provider_attempts": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "error_code": { "type": "string", "pattern": "^CHAT_SYNTHETIC_[A-Z0-9_]+$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "fixed_fallback" } } },
+      "then": {
+        "required": ["assistant_message", "error_code"],
+        "properties": {
+          "assistant_message": { "const": "Lumis couldn’t complete that reflection just now. Please try again." },
+          "idempotency_outcome": { "const": "not_committed" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "result": { "const": "safety_rejected" } } },
+      "then": {
+        "required": ["assistant_message", "error_code"],
+        "properties": {
+          "assistant_message": { "const": "Lumis can’t help with that request, but it can offer a safer, general reflection instead." },
+          "idempotency_outcome": { "const": "not_committed" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "result": { "const": "technical_error" } } },
+      "then": {
+        "required": ["error_code"],
+        "properties": { "idempotency_outcome": { "const": "not_committed" } },
+        "not": { "required": ["assistant_message"] }
+      }
+    },
+    {
+      "if": { "properties": { "result": { "enum": ["completed", "duplicate"] } } },
+      "then": { "required": ["assistant_message"], "not": { "required": ["error_code"] } }
+    }
+  ]
+}

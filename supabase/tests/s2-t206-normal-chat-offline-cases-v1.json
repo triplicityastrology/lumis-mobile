@@ -1,0 +1,20 @@
+{
+  "harness_version": "s2_t206_normal_chat_offline_harness_v1",
+  "network_allowed": false,
+  "cases": [
+    { "case_id": "CHAT-SYN-v1-001", "scenario": "atomic_success", "event": "valid", "expected_mobile_results": ["completed"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-002", "scenario": "unknown_request_field", "event": "unknown_field", "expected_mobile_results": ["technical_error"], "provider_calls": 0 },
+    { "case_id": "CHAT-SYN-v1-003", "scenario": "aggregate_context_overflow", "event": "context_overflow", "expected_mobile_results": ["technical_error"], "provider_calls": 0 },
+    { "case_id": "CHAT-SYN-v1-004", "scenario": "content_filter_block", "event": "filter_block", "expected_mobile_results": ["safety_rejected"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-005", "scenario": "content_filter_partial", "event": "filter_partial", "expected_mobile_results": ["safety_rejected"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-006", "scenario": "cross_actor_same_idempotency_key", "event": "cross_actor", "expected_mobile_results": ["completed", "completed"], "provider_calls": 2 },
+    { "case_id": "CHAT-SYN-v1-007", "scenario": "ambiguous_network_after_provider_receipt", "event": "ambiguous_receipt", "expected_mobile_results": ["fixed_fallback"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-008", "scenario": "concurrent_duplicate", "event": "concurrent_duplicate", "expected_mobile_results": ["completed", "duplicate"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-009", "scenario": "one_bounded_retry", "event": "retryable_then_success", "expected_mobile_results": ["completed"], "provider_calls": 2 },
+    { "case_id": "CHAT-SYN-v1-010", "scenario": "provider_401_no_retry", "event": "provider_401", "expected_mobile_results": ["technical_error"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-011", "scenario": "provider_403_no_retry", "event": "provider_403", "expected_mobile_results": ["technical_error"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-012", "scenario": "transaction_failure_zero_effect", "event": "transaction_failure", "expected_mobile_results": ["technical_error"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-013", "scenario": "pii_and_log_redaction", "event": "redaction_probe", "expected_mobile_results": ["completed"], "provider_calls": 1 },
+    { "case_id": "CHAT-SYN-v1-014", "scenario": "unsafe_bypass_rejected", "event": "unsafe_bypass", "expected_mobile_results": ["safety_rejected"], "provider_calls": 0 }
+  ]
+}
