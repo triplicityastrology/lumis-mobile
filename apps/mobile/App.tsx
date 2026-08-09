@@ -846,6 +846,11 @@ export default function App() {
     return (
       <LumisAuthScreen
         authStatus={authStatus}
+        appLanguage={appLanguagePreference}
+        onSetLanguage={(next) => {
+          setAppLanguagePreference(next);
+          void saveLocalAppLanguage(next);
+        }}
         onBack={() => setScreen(accountReturn)}
         onContinueLocal={() => setScreen("profile")}
         onAccountStatusRefreshed={applyRefreshedAuthStatus}
@@ -1237,6 +1242,11 @@ export default function App() {
         email={authStatus?.user?.email}
         isAuthenticated={Boolean(authStatus?.user)}
         name={profileData?.name}
+        appLanguage={appLanguagePreference}
+        onSetLanguage={(next) => {
+          setAppLanguagePreference(next);
+          void saveLocalAppLanguage(next);
+        }}
         onAccount={openAccountEntry}
         onCreateChart={() => setScreen("profile")}
         onDice={() => openMainTab("dice")}

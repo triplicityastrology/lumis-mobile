@@ -166,13 +166,21 @@ assert.doesNotMatch(
   /welcomeContent:\s*\{[^}]*justifyContent:\s*"center"/,
   "variable-height welcome content cannot be vertically recentered after child measurement"
 );
+// HOME-001 (8/8/2026 Founder rebuild): approved Welcome — bilingual eyebrow,
+// "Map my sky" gradient CTA, EN/中 toggle, small compass mark; the top-right
+// "Sign in" button and "Get started" copy are removed (superseded intentionally).
 for (const welcomeAction of [
-  'accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}',
-  '"Get started"',
-  '"I already have an account"'
+  '"Map my sky"',
+  '"I already have an account"',
+  "Meet Lumis, your inner universe.",
+  "NOT JUST A HOROSCOPE.",
+  "<CompassMark",
+  "<LanguageToggle"
 ]) {
   assert.match(homeScreenSource, new RegExp(escapeRegExp(welcomeAction)));
 }
+assert.doesNotMatch(homeScreenSource, /"Sign in"/, "HOME-001 has no top-right Sign in button");
+assert.doesNotMatch(homeScreenSource, /A private space shaped by your birth chart/, "HOME-001 uses the approved title");
 assert.ok(
   (homeScreenSource.match(/props\.onAccount/g) ?? []).length >= 3,
   "all three signed-out welcome actions must reach the shared account entry"
@@ -229,7 +237,7 @@ assert.match(
 );
 assert.match(
   homeScreenSource,
-  /export function LumisHomeScreen[\s\S]*?<SafeAreaView edges=\{\[\]\}[\s\S]*?function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["bottom"\]\}/,
+  /export function LumisHomeScreen[\s\S]*?<SafeAreaView edges=\{\[\]\}[\s\S]*?function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["top", "bottom"\]\}/,
   "Home cannot remount a native top inset when contextual Back restores it"
 );
 assert.match(
@@ -430,8 +438,8 @@ for (const [name, source] of [
 }
 assert.match(
   homeScreenSource,
-  /function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["bottom"\]\}/,
-  "signed-out Home must retain stable bottom ownership while the root owns top and side insets"
+  /function WelcomeState[\s\S]*?<SafeAreaView edges=\{\["top", "bottom"\]\}/,
+  "HOME-001 Welcome owns top + bottom insets for the header row and CTA"
 );
 assert.match(
   homeScreenSource,

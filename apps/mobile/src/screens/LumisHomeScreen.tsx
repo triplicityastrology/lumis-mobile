@@ -2,21 +2,22 @@ import Bell from "lucide-react-native/icons/bell";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Compass from "lucide-react-native/icons/compass";
 import History from "lucide-react-native/icons/history";
-import LogIn from "lucide-react-native/icons/log-in";
 import MessageCircle from "lucide-react-native/icons/message-circle";
+import Moon from "lucide-react-native/icons/moon";
 import RefreshCw from "lucide-react-native/icons/refresh-cw";
-import UserRound from "lucide-react-native/icons/user-round";
+import ShieldCheck from "lucide-react-native/icons/shield-check";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import type { ChartV2 } from "@lumis/shared";
+import type { AppLanguagePreference, ChartV2 } from "@lumis/shared";
 
 import { LinearGradient } from "expo-linear-gradient";
 
+import { CompassMark, LanguageToggle } from "../components/AuthWelcomeKit";
+import { BrandPrimaryButton } from "../components/BrandPrimaryButton";
 import { FrostedCard } from "../components/FrostedCard";
 import { MainTabBar } from "../components/MainTabBar";
-import { MiniChartWheel } from "../components/MiniChartWheel";
 import { NatalWheel } from "../components/NatalWheel";
 import { colors, radii, spacing } from "../theme/tokens";
 
@@ -28,6 +29,10 @@ type LumisHomeScreenProps = {
   email?: string;
   isAuthenticated: boolean;
   name?: string;
+  // HOME-001 EN / 中 toggle (persists via the caller; copy stays English until a
+  // full translation deck is wired — no build-time auto-translation).
+  appLanguage?: AppLanguagePreference | null;
+  onSetLanguage?: (next: AppLanguagePreference) => void;
   onAccount: () => void;
   onCreateChart: () => void;
   onDice: () => void;
@@ -178,30 +183,26 @@ function WelcomeState(props: LumisHomeScreenProps) {
       ? "Retry account restore"
       : canCreateChart
         ? "Create my chart"
-        : "Get started";
+        : "Map my sky";
   const primaryAction = restoreFailed
     ? props.onReload
     : canCreateChart
       ? props.onCreateChart
       : props.onAccount;
 
+  // HOME-001 restores the first-run label unless a functional edge state applies.
+  const showFunctionalBanner = restoreFailed || (isLoading && Boolean(props.accountLoadMessage));
+
   return (
-    <SafeAreaView edges={["bottom"]} style={styles.safe}>
+    <SafeAreaView edges={["top", "bottom"]} style={styles.safe}>
       <View style={styles.appFrame}>
+        {/* Header: compass mark + Lumis wordmark left; EN / 中 toggle right. No Sign in button. */}
         <View style={styles.welcomeHeader}>
           <View style={styles.markRow}>
-            <MiniChartWheel size={34} />
+            <CompassMark size={22} />
             <Text style={styles.brand}>Lumis</Text>
           </View>
-          <Pressable
-            style={styles.signInButton}
-            onPress={props.onAccount}
-            accessibilityRole="button"
-            accessibilityLabel={props.isAuthenticated ? "Open account" : "Sign in"}
-          >
-            <LogIn color={colors.ice} size={17} />
-            <Text style={styles.signInText}>{props.isAuthenticated ? "Account" : "Sign in"}</Text>
-          </Pressable>
+          <LanguageToggle value={props.appLanguage ?? "en"} onChange={(next) => props.onSetLanguage?.(next)} />
         </View>
 
         <ScrollView
@@ -209,63 +210,55 @@ function WelcomeState(props: LumisHomeScreenProps) {
           contentInsetAdjustmentBehavior="never"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.halo}>
-            <MiniChartWheel size={148} />
+          {/* Small central compass mark (replaces the giant radar). */}
+          <View style={styles.compassMarkWrap}>
+            <CompassMark size={72} />
           </View>
-          <Text style={styles.eyebrow}>✦ MEET YOUR INNER UNIVERSE</Text>
-          <Text style={styles.welcomeTitle}>A private space shaped by your birth chart.</Text>
+
+          {/* Bilingual eyebrow — verbatim, not auto-translated. */}
+          <Text style={styles.eyebrowBilingual}>
+            <Text style={styles.eyebrowSpark}>✦ </Text>
+            <Text style={styles.eyebrowZh}>不只是運程</Text>
+            <Text style={styles.eyebrowGap}>{"   "}</Text>
+            <Text style={styles.eyebrowEn}>NOT JUST A HOROSCOPE.</Text>
+          </Text>
+          <Text style={styles.welcomeTitle}>Meet Lumis, your inner universe.</Text>
           <Text style={styles.welcomeBody}>
-            Lumis helps you reflect, notice patterns, and meet life with a little more clarity.
+            When the world gets loud, Lumis remembers your patterns and holds your truth.
           </Text>
 
           <View style={styles.promiseList}>
-            <Promise icon={<MessageCircle color={colors.gold} size={20} />} title="Personal conversation" body="Guidance grounded in your chart and your questions." />
-            <Promise icon={<Compass color={colors.periwinkle} size={20} />} title="A clearer inner compass" body="Gentle prompts for timing, patterns, and growth." />
-            <Promise icon={<UserRound color={colors.good} size={20} />} title="Private by design" body="Your account and chart stay behind secure sign-in." />
+            <Promise icon={<Moon color="#E5C06B" size={20} strokeWidth={1.6} />} title="Understands your chart" body="Placements become memory, not jargon." />
+            <Promise icon={<Compass color="#E5C06B" size={20} strokeWidth={1.6} />} title="Grounded, not fatalistic" body="Reflection and timing, never guarantees." />
+            <Promise icon={<ShieldCheck color="#E5C06B" size={20} strokeWidth={1.6} />} title="Private by design" body="Your data and chats stay yours." />
           </View>
 
-          {props.accountLoadMessage ? (
+          {/* First-run Welcome carries no "no saved profile" banner; only genuine
+              functional states (restore failure / loading) surface a line. */}
+          {showFunctionalBanner ? (
             <View style={styles.welcomeStatus}>
               <View style={[styles.statusDot, props.accountLoadStatus === "error" && styles.statusDotError]} />
               <Text style={styles.welcomeStatusText}>{props.accountLoadMessage}</Text>
             </View>
           ) : null}
 
-          <Pressable
-            style={[styles.welcomePrimaryWrap, isLoading && styles.disabled]}
-            disabled={isLoading}
+          <BrandPrimaryButton
+            label={primaryLabel}
             onPress={primaryAction}
-            accessibilityRole="button"
-            accessibilityLabel={primaryLabel}
-          >
-            <LinearGradient
-              colors={["#E5C06B", "#E9B083", "#E89B92"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0.4 }}
-              style={styles.welcomePrimary}
-            >
-              <Text style={styles.welcomePrimaryText}>{primaryLabel}</Text>
-              <ChevronRight color="#3A2218" size={20} />
-            </LinearGradient>
-          </Pressable>
+            busy={isLoading}
+            icon={<ChevronRight color="#3A2218" size={20} />}
+            style={styles.welcomePrimaryWrap}
+          />
           <Pressable
             style={styles.welcomeSecondary}
             onPress={restoreFailed ? props.onAccount : canCreateChart ? props.onCreateChart : props.onAccount}
             accessibilityRole="button"
             accessibilityLabel={
-              restoreFailed
-                ? "Back to account"
-                : canCreateChart
-                ? "Continue chart onboarding"
-                : "I already have an account"
+              restoreFailed ? "Back to account" : canCreateChart ? "Continue chart onboarding" : "I already have an account"
             }
           >
             <Text style={styles.welcomeSecondaryText}>
-              {restoreFailed
-                ? "Back to account"
-                : canCreateChart
-                  ? "No chart yet? Continue onboarding"
-                  : "I already have an account"}
+              {restoreFailed ? "Back to account" : canCreateChart ? "No chart yet? Continue onboarding" : "I already have an account"}
             </Text>
           </Pressable>
         </ScrollView>
@@ -344,15 +337,21 @@ const styles = StyleSheet.create({
   signInButton: { height: 40, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface },
   signInText: { color: colors.ice, fontSize: 12.5, fontWeight: "600" },
   welcomeContent: { flexGrow: 1, paddingHorizontal: 26, paddingTop: 18, paddingBottom: 34 },
+  compassMarkWrap: { alignSelf: "center", marginBottom: 20, marginTop: 8 },
+  eyebrowBilingual: { marginBottom: 14 },
+  eyebrowSpark: { color: "#E5C06B", fontSize: 12 },
+  eyebrowZh: { color: "#E9B083", fontFamily: "NotoSerifTC-Medium", fontSize: 12.5 },
+  eyebrowGap: { color: "#E9B083", fontSize: 11 },
+  eyebrowEn: { color: "#E9B083", fontSize: 11, fontWeight: "700", letterSpacing: 1.5 },
   halo: { alignSelf: "center", width: 176, height: 176, borderRadius: 88, alignItems: "center", justifyContent: "center", marginBottom: 20, backgroundColor: colors.periwinkleFill },
   welcomeTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 32, lineHeight: 38, maxWidth: 390 },
   welcomeBody: { color: colors.textSoft, fontSize: 14.5, lineHeight: 22, marginTop: 12 },
   promiseList: { marginTop: 25, gap: 15 },
   promiseRow: { flexDirection: "row", gap: 13, alignItems: "center" },
-  promiseIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  promiseIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(58,80,118,0.42)", borderWidth: 1, borderColor: colors.line },
   promiseCopy: { flex: 1 },
-  promiseTitle: { color: colors.ice, fontSize: 14, fontWeight: "700" },
-  promiseBody: { color: colors.muted, fontSize: 11.5, lineHeight: 17, marginTop: 2 },
+  promiseTitle: { color: colors.ice, fontFamily: "Newsreader-Medium", fontSize: 16, fontWeight: "500" },
+  promiseBody: { color: colors.muted, fontSize: 13, lineHeight: 18, marginTop: 2 },
   welcomeStatus: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 20, padding: 12, borderRadius: radii.md, backgroundColor: colors.surface },
   welcomeStatusText: { flex: 1, color: colors.textSoft, fontSize: 11.5, lineHeight: 17 },
   welcomePrimaryWrap: { marginTop: 22, borderRadius: radii.md, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.4, shadowRadius: 16 },
