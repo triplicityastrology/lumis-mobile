@@ -1,6 +1,6 @@
 {
-  "task": "S2-T256",
-  "contract_version": "s2_t256_founder_ai_review_v1",
+  "task": "S2-T261",
+  "contract_version": "s2_t261_founder_ai_review_v2",
   "access": {
     "release_navigation": false,
     "development_flag": "EXPO_PUBLIC_FOUNDER_AI_REVIEW_CONSOLE",
@@ -8,14 +8,15 @@
     "authenticated_evidence_adapter": "future_closed_interface_only"
   },
   "sections": ["dice", "companion_chat"],
-  "allowed_display_fields": ["fixture_id", "language", "expected_class", "rendered_output", "latency_bucket", "input_token_bucket", "output_token_bucket", "attempt_count", "result_class", "retry_class"],
+  "allowed_display_fields": ["fixture_id", "language", "expected_class", "state", "rendered_output"],
   "dice_founder_reserve": { "total": 40, "en": 20, "zh_Hant": 20 },
   "gateway_interfaces": {
     "dice": "dice_interpretation_response_v0_3",
     "companion_chat": "chat_synthetic_response_v1",
-    "evidence": "founder_ai_gateway_evidence_v1"
+    "evidence": "founder_ai_gateway_evidence_v2"
   },
-  "companion_chat": { "enabled": false, "activation": "requires_dice_evidence_review_and_separate_authority" },
+  "dice_live_synthetic": { "enabled": false, "activation": "requires_checksum_verified_accepted_dice_technical_evidence" },
+  "companion_chat": { "enabled": false, "activation": "requires_accepted_dice_technical_evidence_then_separate_companion_authority" },
   "effects": { "azure_calls": 0, "provider_calls": 0, "units": 0, "member_persistence": 0 },
   "prohibited": ["secret", "provider_diagnostic", "raw_prompt", "raw_response", "member_text", "account_id", "device_id", "endpoint", "credential", "normal_chat_route"],
   "traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY",

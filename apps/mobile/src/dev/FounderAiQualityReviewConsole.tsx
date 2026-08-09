@@ -6,14 +6,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CelestialBackground } from "../components/CelestialBackground";
 import { colors, radii, spacing } from "../theme/tokens";
 import {
+  ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256,
   LATER_CHAT_FIXTURE_IDS,
   RATING_DIMENSIONS,
   RESERVED_DICE_FOUNDER_IDS,
   REVIEW_FIXTURES,
   canonicalJson,
+  createFounderFixtureExportPayload,
   createNotRunRecord,
   createVerdictPayload,
   freezeFounderDiceDraft,
+  resolveCompanionGate,
   validateFounderDiceDraft,
   type DraftDecision,
   type FrozenFounderQuestion,
@@ -76,6 +79,10 @@ export default function FounderAiQualityReviewConsole() {
   const [draftStatus, setDraftStatus] = useState("Draft has not been validated");
   const [fixtureExport, setFixtureExport] = useState<string | null>(null);
   const selectedRatings = ratings[selected.fixture_id] ?? DEFAULT_RATINGS;
+  const diceEvidenceAccepted = ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 !== null;
+  const companionGate = resolveCompanionGate(diceEvidenceAccepted, false);
+  const ratingEligible = section === "dice" && selected.rendered_output !== null &&
+    (selected.state === "offline_preview" || (selected.state === "live_synthetic" && diceEvidenceAccepted));
 
   const updateRating = (dimension: RatingDimension, value: 1 | 2 | 3 | 4 | 5) => {
     setRatings((current) => ({ ...current, [selected.fixture_id]: { ...(current[selected.fixture_id] ?? DEFAULT_RATINGS), [dimension]: value } }));
@@ -114,7 +121,11 @@ export default function FounderAiQualityReviewConsole() {
 
   const prepareFixtureExport = async () => {
     const fixtures = Object.values(frozenFixtures).sort((a, b) => a.fixture_id.localeCompare(b.fixture_id));
-    const payload = { schema_version: "dice_founder_fixture_export_v1", registry_interface: "dice-synthetic-registry-v0.3.0", build_sha: BUILD_SHA, fixtures };
+    if (fixtures.length !== 40) {
+      setDraftStatus(`Complete all 40 slots first · ${fixtures.length}/40 frozen`);
+      return;
+    }
+    const payload = createFounderFixtureExportPayload(BUILD_SHA, fixtures);
     const canonical = canonicalJson(payload);
     const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, canonical);
     setFixtureExport(canonicalJson({ payload, sha256 }));
@@ -146,6 +157,15 @@ export default function FounderAiQualityReviewConsole() {
         <Text accessibilityRole="header" style={styles.title}>AI quality review</Text>
         <Text style={styles.intro}>Synthetic evidence only. This console cannot call Azure, charge units, write member data, or enter customer navigation.</Text>
 
+        <View accessibilityLabel="Founder review journey" style={styles.journey}>
+          <Text style={styles.journeyStep}>1 · Question</Text>
+          <Text style={styles.journeyStep}>2 · External validation + classification</Text>
+          <Text style={styles.journeyStep}>3 · Eligibility</Text>
+          <Text style={styles.journeyStep}>4 · Evidence-bound synthetic result</Text>
+          <Text style={styles.journeyStep}>5 · Rating</Text>
+          <Text style={styles.journeyStep}>6 · Checksum verdict</Text>
+        </View>
+
         <View accessibilityRole="tablist" style={styles.tabs}>
           <SectionTab label="Dice" selected={section === "dice"} onPress={() => setSection("dice")} />
           <SectionTab label="Companion / Chat" selected={section === "companion_chat"} onPress={() => setSection("companion_chat")} />
@@ -159,7 +179,7 @@ export default function FounderAiQualityReviewConsole() {
         {section === "dice" ? (
           <View style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>Prepare Founder questions</Text>
-            <Text style={styles.helper}>Draft locally, validate deterministically, then freeze into one of the closed 20 EN / 20 zh-Hant slots. Draft text is never sent to a gateway.</Text>
+            <Text style={styles.helper}>Draft and preflight locally, then freeze exactly 20 EN and 20 zh-Hant questions. The checksum package goes to external Technical validation and classification; only accepted eligible IDs can run later.</Text>
             <View style={styles.languageRow}>
               <SectionTab label="English" selected={draftLanguage === "en"} onPress={() => { setDraftLanguage("en"); setDraftDecision(null); }} />
               <SectionTab label="繁體中文" selected={draftLanguage === "zh-Hant"} onPress={() => { setDraftLanguage("zh-Hant"); setDraftDecision(null); }} />
@@ -178,13 +198,14 @@ export default function FounderAiQualityReviewConsole() {
               <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftDecision?.ok }} disabled={!draftDecision?.ok} onPress={freezeDraft} style={[styles.exportButton, styles.flexButton, !draftDecision?.ok && styles.disabledButton]}><Text style={styles.exportButtonText}>Freeze next slot</Text></Pressable>
             </View>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{draftStatus}</Text>
-            <Pressable accessibilityRole="button" onPress={() => void prepareFixtureExport()} style={styles.fixtureExportButton}><Text style={styles.secondaryButtonText}>Prepare fixture checksum · {Object.keys(frozenFixtures).length}/40</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: Object.keys(frozenFixtures).length !== 40 }} disabled={Object.keys(frozenFixtures).length !== 40} onPress={() => void prepareFixtureExport()} style={[styles.fixtureExportButton, Object.keys(frozenFixtures).length !== 40 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Prepare fixture checksum · {Object.keys(frozenFixtures).length}/40</Text></Pressable>
             {fixtureExport ? <Text selectable style={styles.exportPreview}>{fixtureExport}</Text> : null}
           </View>
         ) : (
           <View style={styles.gateCard}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>Companion / Chat remains gated</Text>
-            <Text style={styles.helper}>Closed synthetic evidence may be reviewed here later. This console cannot enable Chat, call chat-message, or advance traffic authority.</Text>
+            <Text style={styles.helper}>Companion requires accepted Dice Technical evidence first, then its own separately accepted Companion authority. Neither exists in this build. This console cannot enable Chat or call chat-message.</Text>
+            <Text accessibilityRole="text" style={styles.gateCode}>GATE · {companionGate.reason.replaceAll("_", " ")}</Text>
             <Text accessibilityRole="text" style={styles.gateCode}>NO_NORMAL_CHAT_INTEGRATION_AUTHORITY</Text>
           </View>
         )}
@@ -213,22 +234,14 @@ export default function FounderAiQualityReviewConsole() {
             </View>
             <StateBadge state={selected.state} />
           </View>
-          <Text style={styles.outputLabel}>SAFE RENDERED OUTPUT</Text>
-          <Text style={styles.output}>{selected.rendered_output ?? "Not yet run. No synthetic result has been accepted for this fixture."}</Text>
-          {frozenFixtures[selected.fixture_id] ? <Text style={styles.frozenNote}>Locally frozen · {frozenFixtures[selected.fixture_id].expected_route.replaceAll("_", " ")} · pending gateway review</Text> : null}
-          <View style={styles.metadataGrid}>
-            <Metadata label="Latency" value={selected.latency_bucket} />
-            <Metadata label="Input tokens" value={selected.input_token_bucket} />
-            <Metadata label="Output tokens" value={selected.output_token_bucket} />
-            <Metadata label="Attempts" value={String(selected.attempt_count)} />
-            <Metadata label="Result" value={selected.result_class} />
-            <Metadata label="Retry" value={selected.retry_class} />
-          </View>
+          <Text style={styles.outputLabel}>{selected.state === "offline_preview" ? "OFFLINE DEMO OUTPUT" : "ACCEPTED EVIDENCE OUTPUT"}</Text>
+          <Text style={styles.output}>{selected.rendered_output ?? "Not yet run. No checksum-bound accepted Dice Technical evidence exists for this fixture."}</Text>
+          {frozenFixtures[selected.fixture_id] ? <Text style={styles.frozenNote}>Locally frozen · {frozenFixtures[selected.fixture_id].expected_route.replaceAll("_", " ")} · pending external validation, classification and eligibility</Text> : null}
         </View>
 
         <View style={styles.card}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Founder ratings</Text>
-          <Text style={styles.helper}>1 means return; 5 means strong. Ratings remain in memory until exported.</Text>
+          <Text style={styles.helper}>{ratingEligible ? "1 means return; 5 means strong. Ratings remain in memory until exported." : "Rating unlocks only for an offline demo or a checksum-verified live result."}</Text>
           {RATING_DIMENSIONS.map((dimension) => (
             <View key={dimension} style={styles.ratingRow}>
               <Text style={styles.ratingLabel}>{LABELS[dimension]}</Text>
@@ -237,10 +250,11 @@ export default function FounderAiQualityReviewConsole() {
                   <Pressable
                     accessibilityLabel={`${LABELS[dimension]} ${value}`}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: selectedRatings[dimension] === value }}
+                    accessibilityState={{ disabled: !ratingEligible, selected: selectedRatings[dimension] === value }}
+                    disabled={!ratingEligible}
                     key={value}
                     onPress={() => updateRating(dimension, value)}
-                    style={[styles.ratingButton, selectedRatings[dimension] === value && styles.ratingButtonSelected]}
+                    style={[styles.ratingButton, selectedRatings[dimension] === value && styles.ratingButtonSelected, !ratingEligible && styles.disabledButton]}
                   >
                     <Text style={[styles.ratingButtonText, selectedRatings[dimension] === value && styles.ratingButtonTextSelected]}>{value}</Text>
                   </Pressable>
@@ -252,10 +266,11 @@ export default function FounderAiQualityReviewConsole() {
             {(["pending", "accepted", "returned"] as const).map((verdict) => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityState={{ selected: (verdicts[selected.fixture_id] ?? "pending") === verdict }}
+                accessibilityState={{ disabled: !ratingEligible, selected: (verdicts[selected.fixture_id] ?? "pending") === verdict }}
+                disabled={!ratingEligible}
                 key={verdict}
                 onPress={() => { setVerdicts((current) => ({ ...current, [selected.fixture_id]: verdict })); setExportText(null); setExportStatus("Changed since last export"); }}
-                style={[styles.verdictButton, (verdicts[selected.fixture_id] ?? "pending") === verdict && styles.verdictButtonSelected]}
+                style={[styles.verdictButton, (verdicts[selected.fixture_id] ?? "pending") === verdict && styles.verdictButtonSelected, !ratingEligible && styles.disabledButton]}
               >
                 <Text style={styles.verdictText}>{verdict}</Text>
               </Pressable>
@@ -283,11 +298,8 @@ function SectionTab({ label, selected, onPress }: { label: string; selected: boo
 function Summary({ label, value }: { label: string; value: string }) {
   return <View style={styles.summary}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text></View>;
 }
-function Metadata({ label, value }: { label: string; value: string }) {
-  return <View style={styles.metadata}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.metaValue}>{value.replaceAll("_", " ")}</Text></View>;
-}
 function StateBadge({ state }: { state: SyntheticReviewRecord["state"] }) {
-  return <View style={[styles.badge, state === "live_synthetic" && styles.badgeLive, state === "blocked" && styles.badgeBlocked, state === "fallback" && styles.badgeFallback]}><Text style={styles.badgeText}>{state.replaceAll("_", " ")}</Text></View>;
+  return <View style={[styles.badge, state === "live_synthetic" && styles.badgeLive]}><Text style={styles.badgeText}>{state.replaceAll("_", " ")}</Text></View>;
 }
 
 const styles = StyleSheet.create({
@@ -299,6 +311,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.goldLight, fontSize: 12, fontWeight: "800", marginTop: spacing.sm },
   title: { color: colors.ice, fontSize: 30, fontWeight: "800", marginTop: 4 },
   intro: { color: colors.textSoft, fontSize: 15, lineHeight: 22, marginTop: spacing.sm },
+  journey: { borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, gap: 6, marginTop: spacing.lg, padding: spacing.md },
+  journeyStep: { color: colors.textSoft, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   tabs: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flexDirection: "row", marginTop: spacing.lg, padding: 4 },
   tab: { alignItems: "center", borderRadius: 6, flex: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 6 },
   tabSelected: { backgroundColor: colors.gold },
@@ -321,15 +335,10 @@ const styles = StyleSheet.create({
   expected: { color: colors.textSoft, fontSize: 13, marginTop: 3 },
   badge: { backgroundColor: colors.surfaceRaised, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 },
   badgeLive: { backgroundColor: "rgba(134,200,166,0.22)" },
-  badgeBlocked: { backgroundColor: "rgba(224,153,127,0.22)" },
-  badgeFallback: { backgroundColor: colors.goldFill },
   badgeText: { color: colors.ice, fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
   outputLabel: { color: colors.muted, fontSize: 11, fontWeight: "800", marginTop: spacing.lg },
   output: { color: colors.ice, fontSize: 16, lineHeight: 24, marginTop: spacing.sm },
-  metadataGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.lg },
-  metadata: { backgroundColor: "rgba(6,16,28,0.48)", borderRadius: 6, minWidth: "30%", padding: spacing.sm },
   metaLabel: { color: colors.muted, fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
-  metaValue: { color: colors.textSoft, fontSize: 12, fontWeight: "600", marginTop: 3 },
   helper: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: spacing.sm },
   languageRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   draftInput: { backgroundColor: colors.navy950, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ice, fontSize: 16, lineHeight: 23, marginTop: spacing.md, minHeight: 96, padding: spacing.md, textAlignVertical: "top" },

@@ -22,6 +22,8 @@ assert.match(consoleSource, /Companion \/ Chat/);
 assert.match(consoleSource, /Prepare checksum package/);
 assert.match(consoleSource, /Prepare Founder questions/);
 assert.match(consoleSource, /Freeze next slot/);
+assert.match(consoleSource, /External validation \+ classification/);
+assert.match(consoleSource, /Evidence-bound synthetic result/);
 assert.match(consoleSource, /NO_NORMAL_CHAT_INTEGRATION_AUTHORITY/);
 assert.match(consoleSource, /CryptoDigestAlgorithm\.SHA256/);
 assert.match(consoleSource, /accessibilityLiveRegion="polite"/);
@@ -30,6 +32,9 @@ assert.match(boundary, /DICE-FOUNDER-EN-/);
 assert.match(boundary, /DICE-FOUNDER-ZH-/);
 assert.match(boundary, /validateFounderDiceDraft/);
 assert.match(boundary, /parseClosedGatewayEvidence/);
+assert.match(boundary, /ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256: string \| null = null/);
+assert.match(boundary, /parseFounderRuntimeRequest/);
+assert.match(boundary, /createEligibleFounderRuntimeRequest/);
 assert.equal(control.dice_founder_reserve.total, 40);
 assert.equal(control.dice_founder_reserve.en, 20);
 assert.equal(control.dice_founder_reserve.zh_Hant, 20);
@@ -41,11 +46,18 @@ assert.equal(verdictSchema.additionalProperties, false);
 assert.equal(fixtureExportSchema.additionalProperties, false);
 assert.equal(evidenceSchema.additionalProperties, false);
 assert.equal(fixtureExportSchema.properties.payload.properties.fixtures.maxItems, 40);
+assert.equal(fixtureExportSchema.properties.payload.properties.fixtures.minItems, 40);
 assert.equal(evidenceSchema.properties.effects.properties.persistence_writes.const, 0);
 assert.equal(evidenceSchema.properties.effects.properties.units_charged.const, 0);
 assert.equal(control.gateway_interfaces.dice, "dice_interpretation_response_v0_3");
 assert.equal(control.gateway_interfaces.companion_chat, "chat_synthetic_response_v1");
 assert.equal(control.companion_chat.enabled, false);
+assert.equal(control.dice_live_synthetic.enabled, false);
+assert.deepEqual(recordSchema.properties.state.enum, ["not_yet_run", "offline_preview", "live_synthetic"]);
+assert.equal(evidenceSchema.properties.gateway.const, "dice");
+assert.equal(evidenceSchema.properties.state.const, "live_synthetic");
+assert.equal(evidenceSchema.properties.technical_acceptance.properties.status.const, "accepted");
+assert.doesNotMatch(consoleSource, /<Metadata label="(?:Latency|Input tokens|Output tokens|Attempts|Retry)"/);
 for (const source of [consoleSource, boundary, entry]) {
   assert.doesNotMatch(source, /fetch\s*\(|createClient\s*\(|supabase\.from|AsyncStorage|SecureStore|LUMIS_AI_ENABLED|AZURE_/i);
 }
@@ -59,4 +71,4 @@ assert.doesNotMatch(`${launcher}\n${simulator}`, /kill\s|pkill|killall|pnpm inst
 for (const forbidden of ["account_id", "device_id", "raw_prompt", "raw_response", "endpoint", "credential"]) {
   assert.ok(control.prohibited.includes(forbidden));
 }
-console.log("S2-T256 Founder AI end-to-end console source contract passed");
+console.log("S2-T261 Founder AI console correction source contract passed");

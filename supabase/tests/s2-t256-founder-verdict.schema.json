@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "s2_t256_founder_verdict_v1",
+  "$id": "s2_t261_founder_verdict_v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["payload", "sha256"],
@@ -11,8 +11,8 @@
       "additionalProperties": false,
       "required": ["schema_version", "review_contract_version", "build_sha", "generated_from", "entries"],
       "properties": {
-        "schema_version": { "const": "s2_t256_founder_verdict_v1" },
-        "review_contract_version": { "const": "s2_t256_founder_ai_review_v1" },
+        "schema_version": { "const": "s2_t261_founder_verdict_v2" },
+        "review_contract_version": { "const": "s2_t261_founder_ai_review_v2" },
         "build_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
         "generated_from": { "const": "local_founder_console" },
         "entries": {

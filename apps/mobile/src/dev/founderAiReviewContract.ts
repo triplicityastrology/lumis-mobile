@@ -1,8 +1,13 @@
-export const FOUNDER_AI_REVIEW_SCHEMA_VERSION = "s2_t256_founder_ai_review_v1" as const;
+export const FOUNDER_AI_REVIEW_SCHEMA_VERSION = "s2_t261_founder_ai_review_v2" as const;
+export const DICE_REGISTRY_CHECKSUM = "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030" as const;
+
+// Remains null until Dice Technical supplies and independently accepts a real
+// checksum-bound evidence receipt. Source changes are required to admit it.
+export const ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256: string | null = null;
 
 export type ReviewSection = "dice" | "companion_chat";
 export type ReviewLanguage = "en" | "zh-Hant";
-export type ReviewState = "not_yet_run" | "offline_preview" | "live_synthetic" | "blocked" | "fallback";
+export type ReviewState = "not_yet_run" | "offline_preview" | "live_synthetic";
 export type ExpectedClass = "judgment" | "descriptive" | "safety" | "fallback" | "technical_error";
 
 export const RATING_DIMENSIONS = [
@@ -46,7 +51,7 @@ const values = {
   section: ["dice", "companion_chat"],
   language: ["en", "zh-Hant"],
   expected_class: ["judgment", "descriptive", "safety", "fallback", "technical_error"],
-  state: ["not_yet_run", "offline_preview", "live_synthetic", "blocked", "fallback"],
+  state: ["not_yet_run", "offline_preview", "live_synthetic"],
   latency_bucket: ["not_run", "under_3s", "3_to_8s", "8_to_12s", "timeout"],
   input_token_bucket: ["not_run", "0_to_400", "401_to_800", "801_to_1200"],
   output_token_bucket: ["not_run", "0_to_150", "151_to_300"],
@@ -63,7 +68,7 @@ function isAllowed<K extends keyof typeof values>(key: K, value: unknown): boole
   return (values[key] as readonly unknown[]).includes(value);
 }
 
-export function parseSyntheticReviewRecord(input: unknown): SyntheticReviewRecord {
+function parseSyntheticReviewRecordInternal(input: unknown, allowAcceptedLive: boolean): SyntheticReviewRecord {
   if (!isObject(input)) throw new Error("STOP_S2_T251_REVIEW_RECORD_NOT_OBJECT");
   const keys = Object.keys(input).sort();
   const expectedKeys = [...ALLOWED_KEYS].sort();
@@ -90,9 +95,19 @@ export function parseSyntheticReviewRecord(input: unknown): SyntheticReviewRecor
   if (input.state === "not_yet_run" && (input.rendered_output !== null || input.result_class !== "not_run" || input.attempt_count !== 0)) {
     throw new Error("STOP_S2_T251_NOT_RUN_EFFECTS");
   }
-  if (input.state === "blocked" && input.result_class !== "safety_redirect") throw new Error("STOP_S2_T251_BLOCKED_RESULT");
-  if (input.state === "fallback" && input.result_class !== "fixed_fallback") throw new Error("STOP_S2_T251_FALLBACK_RESULT");
+  if (input.state === "offline_preview" && (input.attempt_count !== 0 || input.latency_bucket !== "not_run" || input.input_token_bucket !== "not_run" || input.output_token_bucket !== "not_run")) {
+    throw new Error("STOP_S2_T261_OFFLINE_PREVIEW_EFFECTS");
+  }
+  if (input.state === "offline_preview" && input.retry_class !== "none") throw new Error("STOP_S2_T261_OFFLINE_PREVIEW_RETRY");
+  if (input.state === "live_synthetic" && !allowAcceptedLive) throw new Error("STOP_S2_T261_LIVE_REQUIRES_ACCEPTED_EVIDENCE");
+  if (input.state === "live_synthetic" && (input.rendered_output === null || input.attempt_count === 0 || input.latency_bucket === "not_run" || input.result_class === "not_run")) {
+    throw new Error("STOP_S2_T261_LIVE_EVIDENCE_INCOMPLETE");
+  }
   return input as SyntheticReviewRecord;
+}
+
+export function parseSyntheticReviewRecord(input: unknown): SyntheticReviewRecord {
+  return parseSyntheticReviewRecordInternal(input, false);
 }
 
 export const RESERVED_DICE_FOUNDER_IDS = [
@@ -130,21 +145,21 @@ export const REVIEW_FIXTURES: readonly SyntheticReviewRecord[] = [
   }),
   parseSyntheticReviewRecord({
     schema_version: FOUNDER_AI_REVIEW_SCHEMA_VERSION, fixture_id: "DICE-FOUNDER-ZH-01", section: "dice", language: "zh-Hant",
-    expected_class: "descriptive", state: "live_synthetic", rendered_output: "這組象徵提醒你先觀察互動中的節奏，再決定哪一步最值得投入。這是合成測試結果，不是會員資料。",
-    latency_bucket: "3_to_8s", input_token_bucket: "0_to_400", output_token_bucket: "0_to_150", attempt_count: 1,
+    expected_class: "descriptive", state: "offline_preview", rendered_output: "這組離線示例提醒你先觀察互動中的節奏，再決定哪一步最值得投入。",
+    latency_bucket: "not_run", input_token_bucket: "not_run", output_token_bucket: "not_run", attempt_count: 0,
     result_class: "completed", retry_class: "none",
   }),
   parseSyntheticReviewRecord({
     schema_version: FOUNDER_AI_REVIEW_SCHEMA_VERSION, fixture_id: "DICE-FOUNDER-EN-02", section: "dice", language: "en",
-    expected_class: "safety", state: "blocked", rendered_output: "Lumis can’t help with that request, but it can offer a safer, general reflection instead.",
+    expected_class: "safety", state: "offline_preview", rendered_output: "Lumis can’t help with that request, but it can offer a safer, general reflection instead.",
     latency_bucket: "not_run", input_token_bucket: "not_run", output_token_bucket: "not_run", attempt_count: 0,
-    result_class: "safety_redirect", retry_class: "not_eligible",
+    result_class: "safety_redirect", retry_class: "none",
   }),
   parseSyntheticReviewRecord({
     schema_version: FOUNDER_AI_REVIEW_SCHEMA_VERSION, fixture_id: "DICE-FOUNDER-ZH-02", section: "dice", language: "zh-Hant",
-    expected_class: "fallback", state: "fallback", rendered_output: "Lumis couldn’t complete that reflection just now. Please try again.",
-    latency_bucket: "timeout", input_token_bucket: "401_to_800", output_token_bucket: "not_run", attempt_count: 2,
-    result_class: "fixed_fallback", retry_class: "retried_once",
+    expected_class: "fallback", state: "offline_preview", rendered_output: "Lumis couldn’t complete that reflection just now. Please try again.",
+    latency_bucket: "not_run", input_token_bucket: "not_run", output_token_bucket: "not_run", attempt_count: 0,
+    result_class: "fixed_fallback", retry_class: "none",
   }),
   createNotRunRecord("chat_en_reflection_01", "companion_chat", "descriptive"),
   parseSyntheticReviewRecord({
@@ -162,7 +177,7 @@ export type VerdictEntry = {
 };
 
 export type FounderVerdictPayload = {
-  schema_version: "s2_t256_founder_verdict_v1";
+  schema_version: "s2_t261_founder_verdict_v2";
   review_contract_version: typeof FOUNDER_AI_REVIEW_SCHEMA_VERSION;
   build_sha: string;
   generated_from: "local_founder_console";
@@ -192,7 +207,7 @@ export function createVerdictPayload(buildSha: string, entries: VerdictEntry[]):
     }
     return entry;
   });
-  return { schema_version: "s2_t256_founder_verdict_v1", review_contract_version: FOUNDER_AI_REVIEW_SCHEMA_VERSION, build_sha: buildSha, generated_from: "local_founder_console", entries: closed };
+  return { schema_version: "s2_t261_founder_verdict_v2", review_contract_version: FOUNDER_AI_REVIEW_SCHEMA_VERSION, build_sha: buildSha, generated_from: "local_founder_console", entries: closed };
 }
 
 export type DraftDecision =
@@ -242,8 +257,53 @@ export function freezeFounderDiceDraft(fixtureId: string, decision: DraftDecisio
   });
 }
 
+export type FounderFixtureExportPayload = Readonly<{
+  schema_version: "dice_founder_fixture_export_v2";
+  registry_interface: "dice-synthetic-registry-v0.3.0";
+  registry_checksum: typeof DICE_REGISTRY_CHECKSUM;
+  build_sha: string;
+  fixtures: readonly FrozenFounderQuestion[];
+}>;
+
+export function createFounderFixtureExportPayload(buildSha: string, fixtures: readonly FrozenFounderQuestion[]): FounderFixtureExportPayload {
+  if (!/^[0-9a-f]{40}$/.test(buildSha)) throw new Error("STOP_S2_T261_BUILD_SHA");
+  if (fixtures.length !== 40) throw new Error("STOP_S2_T261_EXACTLY_40_FIXTURES_REQUIRED");
+  const ids = new Set(fixtures.map((fixture) => fixture.fixture_id));
+  if (ids.size !== 40 || RESERVED_DICE_FOUNDER_IDS.some((id) => !ids.has(id))) throw new Error("STOP_S2_T261_FIXTURE_SET_INCOMPLETE");
+  for (const fixture of fixtures) {
+    const decision = validateFounderDiceDraft(fixture.question, fixture.language);
+    if (!decision.ok || freezeFounderDiceDraft(fixture.fixture_id, decision)?.expected_route !== fixture.expected_route) {
+      throw new Error("STOP_S2_T261_FROZEN_FIXTURE_INVALID");
+    }
+  }
+  return Object.freeze({
+    schema_version: "dice_founder_fixture_export_v2",
+    registry_interface: "dice-synthetic-registry-v0.3.0",
+    registry_checksum: DICE_REGISTRY_CHECKSUM,
+    build_sha: buildSha,
+    fixtures: Object.freeze([...fixtures].sort((a, b) => a.fixture_id.localeCompare(b.fixture_id))),
+  });
+}
+
+export type FounderRuntimeRequest = Readonly<{ fixture_id: string }>;
+
+export function parseFounderRuntimeRequest(input: unknown): FounderRuntimeRequest {
+  if (!isObject(input) || Object.keys(input).join(",") !== "fixture_id" || typeof input.fixture_id !== "string" || !RESERVED_DICE_FOUNDER_IDS.includes(input.fixture_id)) {
+    throw new Error("STOP_S2_T261_RUNTIME_ID_ONLY");
+  }
+  return Object.freeze({ fixture_id: input.fixture_id });
+}
+
+export function createEligibleFounderRuntimeRequest(input: unknown, acceptedTechnicalEvidenceSha256: string | null): FounderRuntimeRequest {
+  const request = parseFounderRuntimeRequest(input);
+  if (ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 === null || acceptedTechnicalEvidenceSha256 !== ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256) {
+    throw new Error("STOP_S2_T261_RUNTIME_NOT_ELIGIBLE");
+  }
+  return request;
+}
+
 export type ClosedGatewayEvidence = Readonly<{
-  schema_version: "founder_ai_gateway_evidence_v1";
+  schema_version: "founder_ai_gateway_evidence_v2";
   fixture_id: string;
   gateway: ReviewSection;
   language: ReviewLanguage;
@@ -257,16 +317,33 @@ export type ClosedGatewayEvidence = Readonly<{
   attempt_count: SyntheticReviewRecord["attempt_count"];
   retry_class: SyntheticReviewRecord["retry_class"];
   effects: Readonly<{ provider_calls: 0 | 1 | 2; persistence_writes: 0; units_charged: 0 }>;
+  technical_acceptance: Readonly<{
+    schema_version: "dice_technical_evidence_acceptance_v1";
+    status: "accepted";
+    registry_checksum: typeof DICE_REGISTRY_CHECKSUM;
+    evidence_sha256: string;
+  }>;
 }>;
 
-export function parseClosedGatewayEvidence(input: unknown): SyntheticReviewRecord {
+export function parseClosedGatewayEvidence(input: unknown, independentlyComputedEvidenceSha256: string): SyntheticReviewRecord {
   if (!isObject(input)) throw new Error("STOP_S2_T256_EVIDENCE_NOT_OBJECT");
-  const allowed = ["schema_version", "fixture_id", "gateway", "language", "state", "expected_class", "result_class", "safe_rendered_output", "latency_bucket", "input_token_bucket", "output_token_bucket", "attempt_count", "retry_class", "effects"];
+  const allowed = ["schema_version", "fixture_id", "gateway", "language", "state", "expected_class", "result_class", "safe_rendered_output", "latency_bucket", "input_token_bucket", "output_token_bucket", "attempt_count", "retry_class", "effects", "technical_acceptance"];
   const keys = Object.keys(input).sort();
   if (keys.join(",") !== allowed.sort().join(",")) throw new Error("STOP_S2_T256_EVIDENCE_FIELDS");
-  if (input.schema_version !== "founder_ai_gateway_evidence_v1" || !isObject(input.effects)) throw new Error("STOP_S2_T256_EVIDENCE_SCHEMA");
+  if (input.schema_version !== "founder_ai_gateway_evidence_v2" || !isObject(input.effects) || !isObject(input.technical_acceptance)) throw new Error("STOP_S2_T256_EVIDENCE_SCHEMA");
   if (Object.keys(input.effects).sort().join(",") !== "persistence_writes,provider_calls,units_charged" || input.effects.persistence_writes !== 0 || input.effects.units_charged !== 0 || ![0, 1, 2].includes(input.effects.provider_calls as number)) throw new Error("STOP_S2_T256_EVIDENCE_EFFECTS");
-  return parseSyntheticReviewRecord({
+  const acceptance = input.technical_acceptance;
+  if (Object.keys(acceptance).sort().join(",") !== "evidence_sha256,registry_checksum,schema_version,status" ||
+    acceptance.schema_version !== "dice_technical_evidence_acceptance_v1" || acceptance.status !== "accepted" ||
+    acceptance.registry_checksum !== DICE_REGISTRY_CHECKSUM || typeof acceptance.evidence_sha256 !== "string" ||
+    acceptance.evidence_sha256 !== independentlyComputedEvidenceSha256 ||
+    ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 === null || acceptance.evidence_sha256 !== ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256) {
+    throw new Error("STOP_S2_T261_DICE_TECHNICAL_EVIDENCE_NOT_ACCEPTED");
+  }
+  if (input.gateway !== "dice" || input.state !== "live_synthetic" || !RESERVED_DICE_FOUNDER_IDS.includes(String(input.fixture_id))) {
+    throw new Error("STOP_S2_T261_LIVE_EVIDENCE_NOT_ELIGIBLE");
+  }
+  return parseSyntheticReviewRecordInternal({
     schema_version: FOUNDER_AI_REVIEW_SCHEMA_VERSION,
     fixture_id: input.fixture_id,
     section: input.gateway,
@@ -280,5 +357,13 @@ export function parseClosedGatewayEvidence(input: unknown): SyntheticReviewRecor
     attempt_count: input.attempt_count,
     result_class: input.result_class,
     retry_class: input.retry_class,
-  });
+  }, true);
+}
+
+export type CompanionGate = Readonly<{ enabled: boolean; reason: "dice_evidence_required" | "companion_authority_required" | "enabled" }>;
+
+export function resolveCompanionGate(diceTechnicalEvidenceAccepted: boolean, companionAuthorityAccepted: boolean): CompanionGate {
+  if (!diceTechnicalEvidenceAccepted) return Object.freeze({ enabled: false, reason: "dice_evidence_required" });
+  if (!companionAuthorityAccepted) return Object.freeze({ enabled: false, reason: "companion_authority_required" });
+  return Object.freeze({ enabled: true, reason: "enabled" });
 }

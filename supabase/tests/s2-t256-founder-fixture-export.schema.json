@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "s2_t256_founder_fixture_export_v1",
+  "$id": "s2_t261_founder_fixture_export_v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["payload", "sha256"],
@@ -9,13 +9,15 @@
     "payload": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "registry_interface", "build_sha", "fixtures"],
+      "required": ["schema_version", "registry_interface", "registry_checksum", "build_sha", "fixtures"],
       "properties": {
-        "schema_version": { "const": "dice_founder_fixture_export_v1" },
+        "schema_version": { "const": "dice_founder_fixture_export_v2" },
         "registry_interface": { "const": "dice-synthetic-registry-v0.3.0" },
+        "registry_checksum": { "const": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030" },
         "build_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
         "fixtures": {
           "type": "array",
+          "minItems": 40,
           "maxItems": 40,
           "uniqueItems": true,
           "items": {
