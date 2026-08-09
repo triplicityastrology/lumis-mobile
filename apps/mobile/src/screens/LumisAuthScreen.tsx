@@ -109,7 +109,7 @@ export function LumisAuthScreen({
   function providerUnavailable(provider: "Apple" | "Google") {
     Alert.alert(
       `${provider} sign-in`,
-      `${provider} sign-in isn't available in this build yet. Use “Continue with email” to save your space — it's fully working.`
+      `${provider} sign-in isn't available in this build yet. Use “Continue with email” to save your space.`
     );
   }
 
@@ -131,7 +131,7 @@ export function LumisAuthScreen({
   // Signed-in account view (account management — not the AUTH-001 sign-up screen).
   if (authStatus?.user) {
     return (
-      <FlowScreen badge="SECURE ACCOUNT" body="Your active chart and Past Reflections are restored on this account." eyebrow="PRIVATE BY DESIGN" onBack={onBack} title="Your Lumis account">
+      <FlowScreen edges={["bottom"]} badge="SECURE ACCOUNT" body="Your active chart and Past Reflections are restored on this account." eyebrow="PRIVATE BY DESIGN" onBack={onBack} title="Your Lumis account">
         <View style={styles.accountCard}>
           <View style={styles.check}><Check color={colors.navy950} size={18} strokeWidth={3} /></View>
           <View style={styles.flex}>
@@ -158,7 +158,7 @@ export function LumisAuthScreen({
   // Email step (magic link) — reached from "Continue with email".
   if (mode === "email") {
     return (
-      <FlowScreen badge="PRIVATE BY DESIGN" body="We'll email you a secure sign-in link. No password is needed." eyebrow="CONTINUE WITH EMAIL" onBack={() => { setMode("providers"); setError(""); }} title="Sign in with email">
+      <FlowScreen edges={["bottom"]} badge="PRIVATE BY DESIGN" body="We'll email you a secure sign-in link. No password is needed." eyebrow="CONTINUE WITH EMAIL" onBack={() => { setMode("providers"); setError(""); }} title="Sign in with email">
         <View style={flowStyles.field}>
           <Text style={flowStyles.fieldLabel}>EMAIL ADDRESS</Text>
           <View style={styles.emailField}>
@@ -196,9 +196,11 @@ export function LumisAuthScreen({
     );
   }
 
-  // AUTH-001 — provider selection.
+  // AUTH-001 — provider selection. App.tsx owns the persistent top/left/right
+  // inset for screen === "auth"; this screen owns only the bottom inset (single
+  // top-safe-area owner — no double header offset on notched iPhones).
   return (
-    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
+    <SafeAreaView edges={["bottom"]} style={styles.safe}>
       <View style={styles.header}>
         <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="Back" style={styles.backButton} hitSlop={8}>
           <ChevronLeft color={colors.ice} size={20} />

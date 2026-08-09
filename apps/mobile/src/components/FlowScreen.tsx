@@ -1,7 +1,7 @@
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
 import { colors, radii, spacing } from "../theme/tokens";
 
@@ -11,7 +11,11 @@ export function FlowScreen({
   children,
   eyebrow,
   onBack,
-  title
+  title,
+  // Callers rendered inside a viewport that already owns the top/side insets
+  // (e.g. AUTH-001, whose App viewport applies them for screen === "auth") pass
+  // ["bottom"] so the top safe area has a single owner. Default is unchanged.
+  edges = ["top", "left", "right", "bottom"]
 }: {
   badge: string;
   body: string;
@@ -19,9 +23,10 @@ export function FlowScreen({
   eyebrow: string;
   onBack: () => void;
   title: string;
+  edges?: readonly Edge[];
 }) {
   return (
-    <SafeAreaView edges={["top", "left", "right", "bottom"]} style={styles.safe}>
+    <SafeAreaView edges={edges} style={styles.safe}>
       <View style={styles.frame}>
         <View style={styles.header}>
           <Pressable

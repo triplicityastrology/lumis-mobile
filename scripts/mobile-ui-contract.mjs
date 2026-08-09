@@ -133,7 +133,7 @@ assert.doesNotMatch(
 assert.match(appSource, /onAccount=\{openAccountEntry\}/);
 assert.match(
   flowScreenSource,
-  /import \{ SafeAreaView \} from "react-native-safe-area-context"/,
+  /import \{ SafeAreaView(, type Edge)? \} from "react-native-safe-area-context"/,
   "Auth and onboarding must use the same provider-backed safe-area geometry as Home"
 );
 assert.doesNotMatch(
@@ -143,8 +143,13 @@ assert.doesNotMatch(
 );
 assert.match(
   flowScreenSource,
-  /<SafeAreaView edges=\{\["top", "left", "right", "bottom"\]\}/,
-  "no-tab Auth and onboarding flows must own a stable bottom safe area"
+  /<SafeAreaView edges=\{edges\}/,
+  "FlowScreen applies its (overridable) edges prop"
+);
+assert.match(
+  flowScreenSource,
+  /edges = \["top", "left", "right", "bottom"\]/,
+  "FlowScreen default owns a stable full safe area for onboarding callers"
 );
 assert.match(
   flowScreenSource,
@@ -185,6 +190,43 @@ assert.ok(
   (homeScreenSource.match(/props\.onAccount/g) ?? []).length >= 3,
   "all three signed-out welcome actions must reach the shared account entry"
 );
+// HOME-001 accepted design must remain (unchanged in this correction pass).
+assert.match(homeScreenSource, /Meet Lumis, your inner universe\./, "HOME-001 approved title preserved");
+assert.match(homeScreenSource, /Map my sky/, "HOME-001 approved primary CTA preserved");
+
+/* ---------------- AUTH-001 provider selection (8/8/2026 rebuild + correction) ---------------- */
+// Approved header / eyebrow / title / providers / privacy card / legal footer.
+assert.match(authScreen, /✦ CREATE YOUR ACCOUNT/, "AUTH-001 eyebrow");
+assert.match(authScreen, /Create your safe space\./, "AUTH-001 title");
+assert.match(authScreen, /One account to sync your charts and private reflections\./, "AUTH-001 sub");
+assert.match(authScreen, /Continue with Apple/, "AUTH-001 Apple provider button");
+assert.match(authScreen, /Continue with Google/, "AUTH-001 Google provider button");
+assert.match(authScreen, /Continue with email/, "AUTH-001 email provider button");
+assert.match(authScreen, /<LanguageToggle/, "AUTH-001 EN / 中 selector");
+assert.match(authScreen, /Your birth data and conversations stay strictly private\. You can delete your space anytime\./, "AUTH-001 privacy caveat card");
+assert.match(authScreen, /By continuing you agree to our/, "AUTH-001 legal footer");
+// Apple / Google cannot fabricate authentication — both route to the truthful
+// unavailable handler, and no provider sign-in call exists on this screen.
+assert.match(authScreen, /providerUnavailable\("Apple"\)/, "AUTH-001 Apple stays unavailable (no fabricated auth)");
+assert.match(authScreen, /providerUnavailable\("Google"\)/, "AUTH-001 Google stays unavailable (no fabricated auth)");
+assert.match(authScreen, /isn't available in this build yet/, "AUTH-001 provider unavailable message is truthful");
+assert.doesNotMatch(authScreen, /signInWithApple|signInWithGoogle|AppleAuthentication|GoogleSignin|ASAuthorization/, "AUTH-001 wires no real provider auth");
+// "Continue with email" switches to the real magic-link email mode, which stays
+// connected to the existing sendMagicLink boundary (validation / error / sent / resend).
+assert.match(authScreen, /setMode\("email"\)/, "AUTH-001 email button opens the magic-link mode");
+assert.match(authScreen, /mode === "email"/, "AUTH-001 renders a dedicated email mode");
+assert.match(authScreen, /sendMagicLink/, "AUTH-001 email mode uses the existing sendMagicLink boundary");
+assert.match(authScreen, /Please enter a valid email address\./, "AUTH-001 email validation preserved");
+assert.match(authScreen, /<MagicLinkSentScreen/, "AUTH-001 sent state preserved");
+assert.match(authScreen, /resendLink/, "AUTH-001 resend preserved");
+// Exactly one top-safe-area owner: App.tsx owns top for screen === "auth"; the
+// auth screen and its FlowScreen modes must NOT re-apply the top edge.
+assert.match(appSource, /screen === "auth"[\s\S]{0,120}usesPersistentNavigationInsets|usesPersistentNavigationInsets[\s\S]{0,120}screen === "auth"/, "App viewport owns top inset for screen === auth");
+assert.doesNotMatch(authScreen, /edges=\{\["top"/, "AUTH-001 never re-applies the top safe-area edge (single owner)");
+assert.match(authScreen, /edges=\{\["bottom"\]\}/, "AUTH-001 owns only the bottom safe area");
+assert.equal((authScreen.match(/edges=\{\[/g) ?? []).length, 3, "AUTH-001 has exactly one edges owner per mode (provider + email + signed-in), none with top");
+// FlowScreen supports the bottom-only override without changing its default.
+assert.match(flowScreenSource, /edges = \["top", "left", "right", "bottom"\]/, "FlowScreen default edges unchanged for other callers");
 assert.match(
   celestialBackgroundSource,
   /<View pointerEvents="none" style=\{styles\.fill\} accessibilityElementsHidden>/,
