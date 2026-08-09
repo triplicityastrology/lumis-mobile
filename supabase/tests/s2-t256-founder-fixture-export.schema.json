@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t256_founder_fixture_export_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["payload", "sha256"],
+  "properties": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "registry_interface", "build_sha", "fixtures"],
+      "properties": {
+        "schema_version": { "const": "dice_founder_fixture_export_v1" },
+        "registry_interface": { "const": "dice-synthetic-registry-v0.3.0" },
+        "build_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "fixtures": {
+          "type": "array",
+          "maxItems": 40,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["schema_version", "fixture_id", "language", "question", "expected_route", "review_status", "effects"],
+            "properties": {
+              "schema_version": { "const": "dice_founder_fixture_candidate_v1" },
+              "fixture_id": { "type": "string", "pattern": "^DICE-FOUNDER-(EN|ZH)-(0[1-9]|1[0-9]|20)$" },
+              "language": { "enum": ["en", "zh-Hant"] },
+              "question": { "type": "string", "minLength": 8, "maxLength": 280 },
+              "expected_route": { "enum": ["judgment", "descriptive_reflection"] },
+              "review_status": { "const": "locally_frozen_pending_review" },
+              "effects": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["provider_calls", "persistence_writes", "units_consumed"],
+                "properties": {
+                  "provider_calls": { "const": 0 },
+                  "persistence_writes": { "const": 0 },
+                  "units_consumed": { "const": 0 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
