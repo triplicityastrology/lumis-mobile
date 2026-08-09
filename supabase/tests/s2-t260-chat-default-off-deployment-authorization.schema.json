@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t260_chat_default_off_deployment_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authority", "review_package_sha256", "gateway_source_sha256", "fixture_registry_sha256", "dice_evidence_sha256", "function_name", "default_enabled", "provider_calls_allowed", "normal_chat_integration", "issued_at", "valid_until"],
+  "properties": {
+    "schema": { "const": "s2_t260_chat_default_off_deployment_authorization_v1" },
+    "authority": { "const": "CHAT_SYNTHETIC_DEFAULT_OFF_DEPLOYMENT_ONLY" },
+    "review_package_sha256": { "$ref": "#/$defs/sha" },
+    "gateway_source_sha256": { "$ref": "#/$defs/sha" },
+    "fixture_registry_sha256": { "$ref": "#/$defs/sha" },
+    "dice_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "function_name": { "const": "chat-synthetic" },
+    "default_enabled": { "const": false },
+    "provider_calls_allowed": { "const": 0 },
+    "normal_chat_integration": { "const": false },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

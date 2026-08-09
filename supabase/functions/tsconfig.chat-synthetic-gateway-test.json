@@ -10,7 +10,13 @@
   },
   "include": [
     "_shared/chat-synthetic-gateway-v1.ts",
+    "_shared/chat-synthetic-gateway-port-v1.ts",
+    "_shared/chat-synthetic-gateway-port-v1.fixtures.ts",
     "_shared/chat-synthetic-registry-v1.ts",
+    "_shared/chat-tokenizer-v1.ts",
+    "_shared/azure-chat-synthetic-adapter-v1.ts",
+    "_shared/chat-synthetic-postgres-authority-store-v1.ts",
+    "_shared/chat-synthetic-postgres-authority-store-v1.fixtures.ts",
     "_shared/companion-synthetic-prompt-v1.ts",
     "_shared/chat-synthetic-gateway-v1.fixtures.ts"
   ]

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t260_chat_review_package_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task", "base_commit", "statuses", "gateway_interface", "authority_store", "canonical_t240_schema_sha256", "tokenizer", "source_sha256", "accepted_dice_evidence_sha256", "execution_authority", "migration_deployed", "deployment_authorization_issued", "deployment_executed", "chat_traffic", "normal_chat_connected", "package_binding_sha256"],
+  "properties": {
+    "schema": { "const": "s2_t260_chat_review_package_v1" },
+    "task": { "const": "S2-T260" },
+    "base_commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "statuses": {
+      "const": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"]
+    },
+    "gateway_interface": { "const": "chat_synthetic_gateway_port_v1" },
+    "authority_store": { "const": "chat_synthetic_postgres_authority_store_v1" },
+    "canonical_t240_schema_sha256": { "const": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07" },
+    "tokenizer": { "const": "o200k_base" },
+    "source_sha256": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/sha" } },
+    "accepted_dice_evidence_sha256": { "type": "null" },
+    "execution_authority": { "const": false },
+    "migration_deployed": { "const": false },
+    "deployment_authorization_issued": { "const": false },
+    "deployment_executed": { "const": false },
+    "chat_traffic": { "const": 0 },
+    "normal_chat_connected": { "const": false },
+    "package_binding_sha256": { "$ref": "#/$defs/sha" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

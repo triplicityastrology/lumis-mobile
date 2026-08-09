@@ -9,6 +9,7 @@
     "test:founder-doctor": "node scripts/founder-mobile-readiness-doctor-contract.mjs",
     "test:s2-t250-chat-synthetic": "tsc -p supabase/functions/tsconfig.chat-synthetic-gateway-test.json && node .tmp/chat-synthetic-gateway-tests/supabase/functions/_shared/chat-synthetic-gateway-v1.fixtures.js && node scripts/s2-t250-chat-synthetic-gateway-contract.mjs && node scripts/s2-normal-chat-contract.mjs && node scripts/s2-normal-chat-cross-artifact-contract.mjs && node scripts/s2-normal-chat-offline-harness.mjs",
     "test:s2-t255-chat-candidate": "pnpm test:s2-t250-chat-synthetic && node scripts/s2-t255-chat-default-off-contract.mjs",
+    "test:s2-t260-chat-canonical-port": "tsc -p supabase/functions/tsconfig.chat-synthetic-gateway-test.json && node .tmp/chat-synthetic-gateway-tests/supabase/functions/_shared/chat-synthetic-gateway-v1.fixtures.js && node .tmp/chat-synthetic-gateway-tests/supabase/functions/_shared/chat-synthetic-gateway-port-v1.fixtures.js && node .tmp/chat-synthetic-gateway-tests/supabase/functions/_shared/chat-synthetic-postgres-authority-store-v1.fixtures.js && node scripts/s2-t260-chat-authority-ledger-contract.mjs && node scripts/s2-normal-chat-contract.mjs && node scripts/s2-normal-chat-cross-artifact-contract.mjs && node scripts/s2-normal-chat-offline-harness.mjs && node scripts/s2-t260-chat-canonical-port-contract.mjs",
     "preflight:s2-t255-chat-candidate": "node scripts/s2-t255-chat-default-off-preflight.mjs",
     "preflight:s2-t250-chat-synthetic": "node scripts/s2-t250-chat-synthetic-deployment-preflight.mjs",
     "start:normal-expo": "bash scripts/start-normal-expo.sh",
@@ -213,6 +214,7 @@
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.52.0",
+    "js-tiktoken": "1.0.21",
     "jsqr": "1.4.0",
     "qrcode": "1.5.4",
     "typescript": "^5.8.3"

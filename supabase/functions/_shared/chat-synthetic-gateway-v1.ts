@@ -10,6 +10,7 @@ import {
   assembleCompanionSyntheticPrompt,
   serializeCompanionSyntheticPrompt
 } from "./companion-synthetic-prompt-v1.ts";
+import { chatServerTokenizer, type ChatServerTokenizer } from "./chat-tokenizer-v1.ts";
 
 export const CHAT_SYNTHETIC_GATEWAY_VERSION = "chat_synthetic_gateway_v1" as const;
 export const CHAT_SYNTHETIC_PROVIDER_ALIAS = "lumis-ai-chat-stg" as const;
@@ -64,7 +65,7 @@ export type ChatSyntheticResponse = {
 };
 
 export type ProviderResult =
-  | { kind: "completed"; assistantMessage: string; outputTokens: number }
+  | { kind: "completed"; assistantMessage: string }
   | { kind: "content_filter_block" | "content_filter_partial" }
   | { kind: "timeout" | "network" | "rate_limited" | "server_error" }
   | { kind: "unauthorized" | "forbidden" | "malformed" };
@@ -97,6 +98,7 @@ export type ChatSyntheticPorts = {
   adapter: ChatSyntheticAdapter;
   nowMs: () => number;
   recordMetadata: (event: ChatSyntheticTelemetry) => void | Promise<void>;
+  tokenizer?: ChatServerTokenizer;
 };
 
 type Counters = {
@@ -109,12 +111,14 @@ type Counters = {
 
 export class ChatSyntheticRun {
   readonly #ports: ChatSyntheticPorts;
+  readonly #tokenizer: ChatServerTokenizer;
   readonly #counters: Counters = { logical: 0, en: 0, zhHant: 0, attempts: 0, active: 0 };
   readonly #inFlight = new Map<string, Promise<ChatSyntheticResponse>>();
   readonly #settled = new Map<string, ChatSyntheticResponse>();
 
   constructor(ports: ChatSyntheticPorts) {
     this.#ports = ports;
+    this.#tokenizer = ports.tokenizer ?? chatServerTokenizer;
   }
 
   getSafeCounters(): Readonly<Counters> {
@@ -158,11 +162,6 @@ export class ChatSyntheticRun {
       await this.#record(request, result, startedAt);
       return result;
     }
-    if (estimateTokens(fixture.serverPromptInput) > CHAT_SYNTHETIC_CAPS.inputTokens) {
-      result = technical(fixture.id, fixture.language, "CHAT_SYNTHETIC_INPUT_LIMIT", 0);
-      await this.#record(request, result, startedAt);
-      return result;
-    }
     const languageCount = fixture.language === "en" ? this.#counters.en : this.#counters.zhHant;
     if (
       this.#counters.logical >= CHAT_SYNTHETIC_CAPS.logicalRequests ||
@@ -177,6 +176,12 @@ export class ChatSyntheticRun {
     else this.#counters.zhHant += 1;
     if (fixture.expectedClass === "safety") {
       result = zeroEffect(fixture, "safety_rejected", CHAT_SYNTHETIC_SAFETY_REDIRECT, "CHAT_SYNTHETIC_SAFETY_REDIRECT", 0);
+      await this.#record(request, result, startedAt);
+      return result;
+    }
+    const promptInput = serializeCompanionSyntheticPrompt(assembleCompanionSyntheticPrompt(fixture));
+    if (this.#tokenizer.count(promptInput) > CHAT_SYNTHETIC_CAPS.inputTokens) {
+      result = technical(fixture.id, fixture.language, "CHAT_SYNTHETIC_INPUT_LIMIT", 0);
       await this.#record(request, result, startedAt);
       return result;
     }
@@ -202,7 +207,7 @@ export class ChatSyntheticRun {
           safetyProfile: CHAT_SYNTHETIC_SAFETY_PROFILE,
           promptVersion: COMPANION_SYNTHETIC_PROMPT_VERSION,
           language: fixture.language,
-          promptInput: serializeCompanionSyntheticPrompt(assembleCompanionSyntheticPrompt(fixture)),
+          promptInput,
           maxOutputTokens: CHAT_SYNTHETIC_CAPS.outputTokens,
           deadlineAtMs
         });
@@ -212,7 +217,7 @@ export class ChatSyntheticRun {
           if (message && !passesDeterministicPostSafety(message)) {
             result = zeroEffect(fixture, "safety_rejected", CHAT_SYNTHETIC_SAFETY_REDIRECT, "CHAT_SYNTHETIC_POST_SAFETY", attempts);
           } else {
-            result = message && providerResult.outputTokens <= CHAT_SYNTHETIC_CAPS.outputTokens
+            result = message && this.#tokenizer.count(message) <= CHAT_SYNTHETIC_CAPS.outputTokens
               ? completed(fixture, message, attempts)
               : fallback(fixture, attempts, "CHAT_SYNTHETIC_OUTPUT_INVALID");
           }
@@ -301,10 +306,6 @@ function base(fixture: ChatSyntheticFixture, value: Pick<ChatSyntheticResponse, 
 function normalizeAssistantMessage(value: string): string | null {
   const normalized = value.normalize("NFC").replace(/\r\n?/g, "\n").trim();
   return normalized.length > 0 && normalized.length <= 1800 ? normalized : null;
-}
-
-function estimateTokens(value: string): number {
-  return Math.ceil(Array.from(value).length / 3);
 }
 
 function passesDeterministicPostSafety(value: string): boolean {

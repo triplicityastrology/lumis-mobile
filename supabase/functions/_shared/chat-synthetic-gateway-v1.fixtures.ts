@@ -6,7 +6,8 @@ import {
   ChatSyntheticRun,
   type ProviderResult
 } from "./chat-synthetic-gateway-v1.ts";
-import { assembleCompanionSyntheticPrompt } from "./companion-synthetic-prompt-v1.ts";
+import { assembleCompanionSyntheticPrompt, serializeCompanionSyntheticPrompt } from "./companion-synthetic-prompt-v1.ts";
+import { chatServerTokenizer } from "./chat-tokenizer-v1.ts";
 import { listChatSyntheticFixtures } from "./chat-synthetic-registry-v1.ts";
 
 const request = (fixture_id = "chat_en_small_decision_v1", idempotency_key = "synthetic-key-0001") => ({
@@ -46,17 +47,22 @@ async function main() {
   for (const fixture of registry) {
     assert.match(fixture.id, /^chat_(?:en|zh_hant)_[a-z0-9_]+_v1$/);
     assert.doesNotMatch(JSON.stringify(fixture), /account_id|device_id|thread_id|birth|chart|persona|provenance|bearer|api[_ -]?key/iu);
+    if (fixture.expectedClass === "reflection") {
+      const serialized = serializeCompanionSyntheticPrompt(assembleCompanionSyntheticPrompt(fixture));
+      assert.ok(chatServerTokenizer.count(serialized) <= CHAT_SYNTHETIC_CAPS.inputTokens);
+      assert.doesNotMatch(serialized, /persona|provenance|member|account|birth/iu);
+    }
   }
   const prompt = assembleCompanionSyntheticPrompt(registry[0]);
   assert.equal(prompt.version, "companion_synthetic_prompt_v1");
   assert.equal(prompt.language, "en");
-  assert.doesNotMatch(JSON.stringify(prompt), /account_id|device_id|thread_id|birth_data|chart_context|persona_provenance/iu);
+  assert.doesNotMatch(JSON.stringify(prompt), /account_id|device_id|thread_id|birth_data|chart_context|persona|provenance/iu);
   assert.throws(
     () => assembleCompanionSyntheticPrompt(registry.find(({ expectedClass }) => expectedClass === "safety")!),
     /CHAT_SYNTHETIC_SAFETY_BEFORE_PROMPT/
   );
 
-  const success = harness([{ kind: "completed", assistantMessage: "A synthetic reflection.", outputTokens: 12 }]);
+  const success = harness([{ kind: "completed", assistantMessage: "A synthetic reflection." }]);
   const completed = await success.run.handle(request());
   assert.equal(completed.result, "completed");
   assert.equal(completed.persistence, "not_committed");
@@ -69,7 +75,7 @@ async function main() {
   assert.equal(replay.idempotency_outcome, "replayed");
   assert.equal(success.calls(), 1);
 
-  const disabled = harness([{ kind: "completed", assistantMessage: "must not run", outputTokens: 3 }], false);
+  const disabled = harness([{ kind: "completed", assistantMessage: "must not run" }], false);
   assert.equal((await disabled.run.handle(request())).error_code, "CHAT_SYNTHETIC_PROVIDER_DISABLED");
   assert.equal(disabled.calls(), 0);
 
@@ -86,7 +92,7 @@ async function main() {
     assert.equal(result.assistant_message, undefined);
   }
 
-  const safety = harness([{ kind: "completed", assistantMessage: "must not run", outputTokens: 2 }]);
+  const safety = harness([{ kind: "completed", assistantMessage: "must not run" }]);
   const safetyResult = await safety.run.handle(request("chat_en_unsafe_harm_v1", "synthetic-key-safe"));
   assert.equal(safetyResult.result, "safety_rejected");
   assert.equal(safetyResult.assistant_message, CHAT_SYNTHETIC_SAFETY_REDIRECT);
@@ -99,14 +105,14 @@ async function main() {
     assert.equal(result.provider_attempts, 1);
   }
 
-  const postSafety = harness([{ kind: "completed", assistantMessage: "[[unsafe]]", outputTokens: 2 }]);
+  const postSafety = harness([{ kind: "completed", assistantMessage: "[[unsafe]]" }]);
   const postSafetyResult = await postSafety.run.handle(request("chat_en_small_decision_v1", "synthetic-post-safe"));
   assert.equal(postSafetyResult.result, "safety_rejected");
   assert.equal(postSafetyResult.assistant_message, CHAT_SYNTHETIC_SAFETY_REDIRECT);
 
   const retry = harness([
     { kind: "timeout" },
-    { kind: "completed", assistantMessage: "Recovered once.", outputTokens: 10 }
+    { kind: "completed", assistantMessage: "Recovered once." }
   ]);
   const retryResult = await retry.run.handle(request("chat_en_small_decision_v1", "synthetic-retry-01"));
   assert.equal(retryResult.result, "completed");
@@ -138,7 +144,7 @@ async function main() {
   const first = concurrent.handle(request("chat_en_small_decision_v1", "synthetic-concurrent"));
   const duplicate = concurrent.handle(request("chat_en_small_decision_v1", "synthetic-concurrent"));
   await Promise.resolve();
-  release({ kind: "completed", assistantMessage: "One call.", outputTokens: 4 });
+  release({ kind: "completed", assistantMessage: "One call." });
   assert.equal((await first).result, "completed");
   assert.equal((await duplicate).result, "duplicate");
   assert.equal(concurrentCalls, 1);
@@ -154,10 +160,10 @@ async function main() {
   await Promise.resolve();
   const capped = await concurrencyCap.handle(request("chat_en_small_decision_v1", "synthetic-active-two"));
   assert.equal(capped.error_code, "CHAT_SYNTHETIC_CONCURRENCY_CAP");
-  releaseDistinct({ kind: "completed", assistantMessage: "Finished.", outputTokens: 3 });
+  releaseDistinct({ kind: "completed", assistantMessage: "Finished." });
   assert.equal((await active).result, "completed");
 
-  const languageCap = harness([{ kind: "completed", assistantMessage: "Bounded.", outputTokens: 3 }]);
+  const languageCap = harness([{ kind: "completed", assistantMessage: "Bounded." }]);
   for (let index = 0; index < 30; index += 1) {
     const result = await languageCap.run.handle(request("chat_en_small_decision_v1", `synthetic-en-cap-${String(index).padStart(3, "0")}`));
     assert.equal(result.result, "completed");
