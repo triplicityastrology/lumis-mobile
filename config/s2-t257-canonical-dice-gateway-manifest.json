@@ -1,0 +1,61 @@
+{
+  "schema": "s2_t257_canonical_dice_gateway_manifest_v1",
+  "task": "S2-T257",
+  "base_commit": "a5dcdb6cbe007667f7a1e04ace844449540e827c",
+  "interface_version": "dice_synthetic_gateway_port_v1",
+  "authorization_schema": "lumis_dice_default_off_deployment_authorization_v2",
+  "registry_version": "lumis_dice_synthetic_registry_v1",
+  "prompt_version": "lumis_dice_synthetic_prompt_v1",
+  "result_schema": "lumis_dice_synthetic_result_v1",
+  "tokenizer": {
+    "encoding": "o200k_base",
+    "package": "js-tiktoken",
+    "package_version": "1.0.21"
+  },
+  "authority_store": {
+    "boundary": "postgres_atomic_rpc_v1",
+    "consume_rpc": "consume_lumis_dice_synthetic_authority_v1",
+    "ledger": "lumis_dice_synthetic_authority_ledger",
+    "single_use_key": "run_id",
+    "access": "service_role_only_forced_rls",
+    "retention_days": 30,
+    "retention_purge_schedule": "*/15 * * * *"
+  },
+  "mode": "server_only_default_off_zero_traffic",
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "execution": {
+    "technical_cases": 80,
+    "founder_cases": 0,
+    "founder_reserved_prohibited": 40,
+    "max_provider_attempts": 160,
+    "max_input_tokens": 800,
+    "max_output_tokens": 300,
+    "concurrency": 2,
+    "eligible_retries": 1,
+    "shared_case_deadline_ms": 12000
+  },
+  "effects": {
+    "normal_routes": 0,
+    "units_charged": 0,
+    "persistence_writes": 0,
+    "evidence_retention_days": 30,
+    "evidence_class": "metadata_only"
+  },
+  "fixture_registry_sha256": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
+  "package_sha256": "93f2c440a6f2188eb5273da3a48c1f893bf8384385695f179c463f84aa0c16a8",
+  "package_files": {
+    "package.json": "4318ad575a28d9537f8f3556880f64925eaf0aa0b8ced224a92b0e2a00681543",
+    "pnpm-lock.yaml": "5cbaf2d98672e036084aad0c64d87fd020f0c2da392ed789f9101dafbf3f5231",
+    "supabase/migrations/0039_dice_synthetic_authority_ledger.sql": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
+    "supabase/functions/_shared/dice-authority-store-v1.ts": "c1a9c2887a2a4d491af9cfbd6989f2c04e6ca3182393dfd68b437da8d09ccf1b",
+    "supabase/functions/_shared/dice-tokenizer-v1.ts": "bce5c2c376aa8147d7d6c3cf52bb057c853178a4f32a7d9b9eb31081ad06db43",
+    "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "c22c4f24d49059100af82e6217f702c1128c014552e019a2aafbd52ec1d623af",
+    "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
+    "supabase/functions/_shared/azure-dice-adapter-v1.ts": "d8e94d71be99dd94cfda484db4970dada47b6dc76205cd800b1ff0bde86f1812",
+    "supabase/tests/lumis-dice-default-off-deployment-authorization-v2.schema.json": "b4864ca7981d29b084fa69927778af46c42d8a590c88720c06b2c60d0cafad3d",
+    "supabase/tests/lumis-dice-synthetic-result-v1.schema.json": "effd36918f1fc48cdcadef81f27f15a130c9f626e318b0a54eb3371d1c81c9a2"
+  }
+}

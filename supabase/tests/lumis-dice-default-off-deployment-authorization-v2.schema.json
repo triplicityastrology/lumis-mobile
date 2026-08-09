@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_default_off_deployment_authorization_v2",
+  "title": "Lumis Dice default-off synthetic deployment authorization intake v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "interface_version",
+    "authorization_scope",
+    "single_use_run_id",
+    "issued_at",
+    "valid_until",
+    "gateway_package_sha256",
+    "fixture_registry_sha256",
+    "technical_case_count",
+    "founder_execution",
+    "authorization_hmac_sha256"
+  ],
+  "properties": {
+    "schema": { "const": "lumis_dice_default_off_deployment_authorization_v2" },
+    "interface_version": { "const": "dice_synthetic_gateway_port_v1" },
+    "authorization_scope": { "const": "technical_80_only" },
+    "single_use_run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,40}$" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "gateway_package_sha256": { "$ref": "#/$defs/sha256" },
+    "fixture_registry_sha256": { "$ref": "#/$defs/sha256" },
+    "technical_case_count": { "const": 80 },
+    "founder_execution": { "const": false },
+    "authorization_hmac_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

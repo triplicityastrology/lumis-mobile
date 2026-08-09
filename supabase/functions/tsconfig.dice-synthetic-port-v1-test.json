@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-synthetic-port-v1-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "_shared/dice-synthetic-fixture-registry-v0-3.ts",
+    "_shared/dice-tokenizer-v1.ts",
+    "_shared/dice-authority-store-v1.ts",
+    "_shared/dice-synthetic-canonical-v1.ts",
+    "_shared/dice-synthetic-gateway-port-v1.ts",
+    "_shared/azure-dice-adapter-v1.ts",
+    "_shared/dice-synthetic-gateway-port-v1.fixtures.ts"
+  ]
+}

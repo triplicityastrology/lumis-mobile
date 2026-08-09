@@ -38,6 +38,7 @@
     "test:s2-t249-dice-live-window": "node scripts/s2-t249-dice-live-window-contract.mjs",
     "dice:synthetic-window": "node scripts/s2-t249-dice-live-window.mjs",
     "test:s2-t252-dice-ai-rc": "pnpm test:s2-t246-dice && pnpm test:s2-t247-dice-gateway && pnpm test:s2-t248-dice-registry && pnpm test:s2-t249-dice-live-window && node scripts/s2-t252-dice-ai-rc-contract.mjs",
+    "test:s2-t257-canonical-dice-port": "tsc -p supabase/functions/tsconfig.dice-synthetic-port-v1-test.json && node .tmp/dice-synthetic-port-v1-tests/supabase/functions/_shared/dice-synthetic-gateway-port-v1.fixtures.js && node scripts/s2-t257-canonical-dice-port-contract.mjs",
     "start:s2-t252-dice-web": "bash scripts/start-s2-t252-dice-web.sh",
     "start:s2-t252-dice-simulator": "bash scripts/start-s2-t252-dice-simulator.sh",
     "test:chart-wheel": "tsc -p apps/mobile/tsconfig.chart-wheel-test.json && node .tmp/chart-wheel-tests/components/chart-wheel.fixtures.js",
@@ -229,6 +230,7 @@
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.52.0",
+    "js-tiktoken": "1.0.21",
     "jsqr": "1.4.0",
     "qrcode": "1.5.4",
     "typescript": "^5.8.3"

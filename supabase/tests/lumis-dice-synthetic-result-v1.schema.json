@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_synthetic_result_v1",
+  "title": "Canonical bounded Dice provider result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reading", "watch_out", "practical_direction"],
+  "properties": {
+    "reading": { "type": "string", "minLength": 1 },
+    "watch_out": { "type": "string", "minLength": 1 },
+    "practical_direction": { "type": "string", "minLength": 1 }
+  }
+}
