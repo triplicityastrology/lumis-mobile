@@ -152,13 +152,21 @@ export default function FounderCompanionChatJourney() {
     <SafeAreaView style={styles.safe}>
       <CelestialBackground />
       <View accessibilityLabel="Exact source build" style={styles.buildStrip}>
-        <Text style={styles.buildLabel}>S2-T291 · FOUNDER WINDOW · PRELOGIN · {BUILD_VALID ? "EXACT BUILD" : "BUILD UNAVAILABLE"}</Text>
+        <Text style={styles.buildLabel}>S2-T296 · CHAT OPERATIONAL REVIEW · PRELOGIN · {BUILD_VALID ? "EXACT BUILD" : "BUILD UNAVAILABLE"}</Text>
         <Text numberOfLines={1} selectable style={styles.buildSha}>{BUILD_SHA}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>COMPANION / CHAT SYNTHETIC REVIEW</Text>
-        <Text accessibilityRole="header" style={styles.title}>Founder test window</Text>
-        <Text style={styles.intro}>A Founder path for closed fixtures and evidence review. Prepare synthetic fixtures now, then import independently accepted evidence later. This route cannot enter normal Chat, retain history, charge units, persist text, or call a provider.</Text>
+        <Text accessibilityRole="header" style={styles.title}>Founder Chat review</Text>
+        <Text style={styles.intro}>Author customer-style synthetic questions locally, freeze them into the closed fixture registry, and review the future evidence flow. This route cannot enter normal Chat, retain history, charge units, persist text, or call a provider.</Text>
+
+        <View accessibilityLabel="Current next action" style={styles.gateBand}>
+          <LockKeyhole color={colors.goldLight} size={20} />
+          <View style={styles.flex}>
+            <Text style={styles.gateTitle}>Current next action</Text>
+            <Text style={styles.helper}>Import independently accepted T287 v4 deployment and T289 Technical 80-case evidence. Until its reviewed checksum is compiled, Chat deployment and traffic remain unavailable.</Text>
+          </View>
+        </View>
 
         <View accessibilityLabel="Window journey status" style={styles.statusBand}>
           <Status icon={<CheckCircle2 color={colors.goldLight} size={18} />} title="Draft + freeze" detail="Local synthetic questions only" />
@@ -179,7 +187,7 @@ export default function FounderCompanionChatJourney() {
           <Segment label="English" selected={language === "en"} onPress={() => { setLanguage("en"); setDecision(null); }} />
           <Segment label="繁體中文" selected={language === "zh-Hant"} onPress={() => { setLanguage("zh-Hant"); setDecision(null); }} />
         </View>
-        <Text style={styles.helper}>{surfaceFrozen}/15 frozen for this set · {Object.keys(frozen).length}/60 total</Text>
+        <Text style={styles.helper}>{surfaceFrozen}/15 frozen for this set · {Object.keys(frozen).length}/60 total · 30 EN / 30 zh-Hant</Text>
         <TextInput
           accessibilityLabel={language === "en" ? `Synthetic ${surface} question` : `合成 ${surface} 問題`}
           multiline
@@ -212,7 +220,7 @@ export default function FounderCompanionChatJourney() {
             <Text style={styles.code}>chat_runtime={DOCUMENTED_CHAT_RUNTIME_COMMIT}</Text>
             <Text style={styles.code}>dice_authorization={FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA}</Text>
             <Text style={styles.code}>dice_deployment={FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA}</Text>
-            <Text style={styles.code}>dice_technical={FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA}</Text>
+            <Text style={styles.code}>dice_technical_envelope={FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA}</Text>
             <Text style={styles.code}>dice_authority={FINAL_DICE_TECHNICAL_AUTHORITY}</Text>
             <Text style={styles.code}>dice_evidence={ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 ?? "null"}</Text>
             <Text style={styles.code}>window_authorization={ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256 ?? "null"}</Text>

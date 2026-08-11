@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t296_accepted_dice_v4_technical_evidence_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "review_decision", "deployment_receipt", "technical_evidence", "accepted_at"],
+  "properties": {
+    "schema": { "const": "s2_t296_accepted_dice_v4_technical_evidence_v1" },
+    "review_decision": { "const": "accepted" },
+    "deployment_receipt": { "$ref": "#/$defs/deploymentReceipt" },
+    "technical_evidence": { "$ref": "#/$defs/technicalEvidence" },
+    "accepted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "deploymentReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "authorization_schema", "project_ref", "function_name", "deployment_id", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "kill_switch_disabled", "traffic_switch_disabled", "migration_applied", "deployed_at", "valid_until"],
+      "properties": {
+        "schema": { "const": "s2_t289_accepted_v4_post_deploy_disabled_receipt_v1" },
+        "authorization_schema": { "const": "lumis_dice_default_off_function_deployment_authorization_v4" },
+        "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "function_name": { "const": "dice-synthetic" },
+        "deployment_id": { "type": "string" }, "source_commit": { "const": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432" },
+        "runtime_package_sha256": { "const": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" },
+        "disabled_probes": { "type": "object", "additionalProperties": false, "required": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"], "properties": { "unknown_fixture": { "const": "DICE_AI_DISABLED" }, "free_form_body": { "const": "DICE_AI_DISABLED" }, "normal_mobile_body": { "const": "DICE_AI_DISABLED" }, "allow_listed_fixture": { "const": "DICE_AI_DISABLED" } } },
+        "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 }, "kill_switch_disabled": { "const": true }, "traffic_switch_disabled": { "const": true }, "migration_applied": { "const": false },
+        "deployed_at": { "type": "string", "format": "date-time" }, "valid_until": { "type": "string", "format": "date-time" }
+      }
+    },
+    "technicalEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "run_id", "deployment_id", "runtime_package_sha256", "migration_proof_receipt_sha256", "registry_sha256", "technical_case_count", "founder_case_count", "language", "attempt_total", "concurrency_peak", "tokenizer", "cost_ceiling_usd", "provider_disabled_verified", "effects", "records"],
+      "properties": {
+        "schema": { "const": "s2_t289_dice_technical_evidence_package_v1" }, "run_id": { "type": "string" }, "deployment_id": { "type": "string" },
+        "runtime_package_sha256": { "const": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" },
+        "migration_proof_receipt_sha256": { "$ref": "#/$defs/sha" }, "registry_sha256": { "$ref": "#/$defs/sha" },
+        "technical_case_count": { "const": 80 }, "founder_case_count": { "const": 0 },
+        "language": { "type": "object", "additionalProperties": false, "required": ["en", "zh-Hant"], "properties": { "en": { "const": 40 }, "zh-Hant": { "const": 40 } } },
+        "attempt_total": { "type": "integer", "minimum": 0, "maximum": 160 }, "concurrency_peak": { "type": "integer", "minimum": 1, "maximum": 2 },
+        "tokenizer": { "const": "js-tiktoken@1.0.21/o200k_base" }, "cost_ceiling_usd": { "const": 0.128 }, "provider_disabled_verified": { "const": true },
+        "effects": { "type": "object", "additionalProperties": false, "required": ["provider_calls", "model_invocations", "persistence_writes", "units_charged", "finally_disabled", "post_window_disabled_proof_sha256"], "properties": { "provider_calls": { "type": "integer", "minimum": 0, "maximum": 160 }, "model_invocations": { "type": "integer", "minimum": 0, "maximum": 160 }, "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 }, "finally_disabled": { "const": true }, "post_window_disabled_proof_sha256": { "$ref": "#/$defs/sha" } } },
+        "records": { "type": "array", "minItems": 80, "maxItems": 80 }
+      }
+    }
+  }
+}

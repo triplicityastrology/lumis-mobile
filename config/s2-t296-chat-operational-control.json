@@ -1,0 +1,83 @@
+{
+  "schema": "s2_t296_chat_operational_control_v1",
+  "task": "S2-T296",
+  "base_commit": "42d9d74801cc64eaa926a1e6f97877b64afba5c8",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "chat-synthetic",
+  "gateway_interface": "chat_synthetic_gateway_port_v1",
+  "canonical_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "approved_copy": {
+    "fixed_fallback": "Lumis couldn’t complete that reflection just now. Please try again.",
+    "safety_redirect": "Lumis can’t help with that request, but it can offer a safer, general reflection instead."
+  },
+  "dice_prerequisite": {
+    "deployment_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+    "authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "post_deploy_receipt_schema": "s2_t289_accepted_v4_post_deploy_disabled_receipt_v1",
+    "technical_commit": "4b2c8c7578773b59b04d4e44ef4ca2dc57b7555f",
+    "technical_evidence_schema": "s2_t289_dice_technical_evidence_package_v1",
+    "technical_authority": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+    "accepted_evidence_sha256": null
+  },
+  "scopes": {
+    "deployment": "CHAT_SYNTHETIC_DEFAULT_OFF_DEPLOYMENT_ONLY",
+    "migration": "CHAT_SYNTHETIC_AUTHORITY_LEDGER_0040_MIGRATION_ONLY",
+    "traffic": "CHAT_SYNTHETIC_CLOSED_FIXTURE_WINDOW_ONLY"
+  },
+  "limits": {
+    "fixture_total": 60,
+    "en": 30,
+    "zh_hant": 30,
+    "attempt_cap": 120,
+    "input_token_cap": 1200,
+    "output_token_cap": 300,
+    "concurrency": 1,
+    "eligible_retries": 1,
+    "shared_deadline_ms": 12000
+  },
+  "runtime_request_fields": ["fixture_id"],
+  "disabled_probe_code": "CHAT_AI_DISABLED",
+  "disabled_probe_count": 4,
+  "migration_0040_sha256": "5b8e14c3e10081b9175ffbceadbc0890d58863241ba772d0fc874d75f4c1a0a0",
+  "configuration_names": [
+    "LUMIS_CHAT_AI_ENABLED",
+    "LUMIS_CHAT_TRAFFIC_AUTHORIZED",
+    "LUMIS_CHAT_AZURE_API_KEY",
+    "LUMIS_CHAT_AUTHORITY_HMAC_SECRET",
+    "LUMIS_CHAT_DEPLOYMENT_ALIAS",
+    "LUMIS_CHAT_MODEL",
+    "LUMIS_CHAT_MODEL_VERSION",
+    "LUMIS_CHAT_DEPLOYMENT_TYPE",
+    "LUMIS_CHAT_UPGRADE_POLICY",
+    "LUMIS_CHAT_GUARDRAIL",
+    "LUMIS_CHAT_TPM_LIMIT",
+    "LUMIS_CHAT_RPM_LIMIT",
+    "LUMIS_CHAT_FOUNDRY_HOSTNAME",
+    "LUMIS_CHAT_FOUNDRY_PROTOCOL",
+    "LUMIS_CHAT_API_ROUTE_FAMILY"
+  ],
+  "compiled_authorities": {
+    "dice_technical_evidence_sha256": null,
+    "deployment_authorization_sha256": null,
+    "migration_0040_authorization_sha256": null,
+    "traffic_authorization_sha256": null
+  },
+  "effects": {
+    "deployment_executed": false,
+    "migration_applied": false,
+    "traffic_executed": false,
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "normal_chat_connected": false,
+    "member_context": false,
+    "threads": false,
+    "messages": false,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

@@ -11,6 +11,7 @@ import {
   FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
   FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
   FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
+  FINAL_DICE_TECHNICAL_PACKAGE_SCHEMA,
   FINAL_DICE_TECHNICAL_AUTHORITY,
   FOUNDER_CHAT_FIXTURE_SETS,
   WINDOW_PREVIEW_RECORDS,
@@ -41,16 +42,20 @@ const structurallyValidDiceEvidence = {
   deployment_receipt: {
     schema: FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
     authorization_schema: FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
-    source_commit: "b".repeat(40), runtime_package_sha256: "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    project_ref: "bmqhwofmdgebpcihjlnb", function_name: "dice-synthetic", deployment_id: "dice-deploy-example00000001",
+    source_commit: "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432", runtime_package_sha256: "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
     disabled_probes: { unknown_fixture: "DICE_AI_DISABLED", free_form_body: "DICE_AI_DISABLED", normal_mobile_body: "DICE_AI_DISABLED", allow_listed_fixture: "DICE_AI_DISABLED" },
-    provider_calls: 0, model_invocations: 0, migration_applied: false, post_deploy_disabled: true,
+    provider_calls: 0, model_invocations: 0, kill_switch_disabled: true, traffic_switch_disabled: true, migration_applied: false,
+    deployed_at: "2026-08-11T09:00:00.000Z", valid_until: "2026-08-11T13:00:00.000Z",
   },
-  technical_window: {
-    schema: "lumis_dice_technical_window_80_evidence_v4", authority: FINAL_DICE_TECHNICAL_AUTHORITY, evidence_package_sha256: "d".repeat(64),
-    logical_total: 80, en: 40, zh_hant: 40, attempt_total: 96, max_attempts: 160,
-    input_token_limit: 800, output_token_limit: 300, concurrency_limit: 2, shared_deadline_ms: 12000, cost_ceiling_usd: 0.128,
-    provider_disabled_verified: true, finally_disabled: true, post_window_disabled_proof_sha256: "e".repeat(64),
-    founder_cases_run: 0, persistence_writes: 0, units_charged: 0,
+  technical_evidence: {
+    schema: FINAL_DICE_TECHNICAL_PACKAGE_SCHEMA, run_id: "dice-tech80-example000001", deployment_id: "dice-deploy-example00000001",
+    runtime_package_sha256: "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    migration_proof_receipt_sha256: "c".repeat(64), registry_sha256: "d".repeat(64), technical_case_count: 80, founder_case_count: 0,
+    language: { en: 40, "zh-Hant": 40 }, attempt_total: 96, concurrency_peak: 2, tokenizer: "js-tiktoken@1.0.21/o200k_base", cost_ceiling_usd: 0.128,
+    provider_disabled_verified: true,
+    effects: { provider_calls: 96, model_invocations: 96, persistence_writes: 0, units_charged: 0, finally_disabled: true, post_window_disabled_proof_sha256: "e".repeat(64) },
+    records: Array.from({ length: 80 }, (_, index) => ({ fixture_id: `technical-${index + 1}` })),
   },
   accepted_at: "2026-08-11T12:00:00.000Z",
 };
@@ -58,10 +63,10 @@ const inspection = inspectDiceTechnicalEvidence(structurallyValidDiceEvidence, "
 check(inspection.structurally_valid && !inspection.accepted && inspection.code === "DICE_EVIDENCE_VALID_NOT_ACCEPTED", "valid self-authored evidence cannot become accepted");
 for (const hostile of [
   { ...structurallyValidDiceEvidence, account_id: "forbidden" },
-  { ...structurallyValidDiceEvidence, technical_window: { ...structurallyValidDiceEvidence.technical_window, logical_total: 79, zh_hant: 39 } },
-  { ...structurallyValidDiceEvidence, technical_window: { ...structurallyValidDiceEvidence.technical_window, provider_disabled_verified: false } },
+  { ...structurallyValidDiceEvidence, technical_evidence: { ...structurallyValidDiceEvidence.technical_evidence, technical_case_count: 79 } },
+  { ...structurallyValidDiceEvidence, technical_evidence: { ...structurallyValidDiceEvidence.technical_evidence, provider_disabled_verified: false } },
   { ...structurallyValidDiceEvidence, deployment_receipt: { ...structurallyValidDiceEvidence.deployment_receipt, source_commit: "0".repeat(40) } },
-  { ...structurallyValidDiceEvidence, technical_window: { ...structurallyValidDiceEvidence.technical_window, units_charged: 1 } },
+  { ...structurallyValidDiceEvidence, technical_evidence: { ...structurallyValidDiceEvidence.technical_evidence, effects: { ...structurallyValidDiceEvidence.technical_evidence.effects, units_charged: 1 } } },
 ]) check(!inspectDiceTechnicalEvidence(hostile, "a".repeat(64)).structurally_valid, "hostile Dice evidence rejected");
 
 check(ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 === null, "no accepted Dice evidence compiled");

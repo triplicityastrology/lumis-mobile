@@ -11,11 +11,12 @@ import {
   type CompanionVerdictEntry,
 } from "./founderCompanionChatContract";
 
-export const FOUNDER_CHAT_WINDOW_VERSION = "s2_t291_founder_chat_window_v1" as const;
-export const DOCUMENTED_CHAT_RUNTIME_COMMIT = "28175d8faed11491311eb28c7b8e33aedba3d2d3" as const;
+export const FOUNDER_CHAT_WINDOW_VERSION = "s2_t296_founder_chat_window_v1" as const;
+export const DOCUMENTED_CHAT_RUNTIME_COMMIT = "42d9d74801cc64eaa926a1e6f97877b64afba5c8" as const;
 export const FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA = "lumis_dice_default_off_function_deployment_authorization_v4" as const;
-export const FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA = "lumis_dice_default_off_function_deployment_receipt_v4" as const;
-export const FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA = "lumis_dice_technical_window_80_accepted_evidence_v4" as const;
+export const FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA = "s2_t289_accepted_v4_post_deploy_disabled_receipt_v1" as const;
+export const FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA = "s2_t296_accepted_dice_v4_technical_evidence_v1" as const;
+export const FINAL_DICE_TECHNICAL_PACKAGE_SCHEMA = "s2_t289_dice_technical_evidence_package_v1" as const;
 export const FINAL_DICE_TECHNICAL_AUTHORITY = "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" as const;
 export const ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256: string | null = null;
 export const ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256: string | null = null;
@@ -120,26 +121,33 @@ export const FOUNDER_CHAT_FIXTURE_SETS = Object.freeze({
 export function inspectDiceTechnicalEvidence(input: unknown, independentlyComputedSha256: string): DiceEvidenceInspection {
   try {
     if (!isObject(input)) throw new Error("invalid");
-    exactKeys(input, ["schema", "review_decision", "deployment_receipt", "technical_window", "accepted_at"], "invalid");
-    if (!isObject(input.deployment_receipt) || !isObject(input.technical_window)) throw new Error("invalid");
-    exactKeys(input.deployment_receipt, ["schema", "authorization_schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied", "post_deploy_disabled"], "invalid");
-    exactKeys(input.technical_window, ["schema", "authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "input_token_limit", "output_token_limit", "concurrency_limit", "shared_deadline_ms", "cost_ceiling_usd", "provider_disabled_verified", "finally_disabled", "post_window_disabled_proof_sha256", "founder_cases_run", "persistence_writes", "units_charged"], "invalid");
+    exactKeys(input, ["schema", "review_decision", "deployment_receipt", "technical_evidence", "accepted_at"], "invalid");
+    if (!isObject(input.deployment_receipt) || !isObject(input.technical_evidence)) throw new Error("invalid");
+    exactKeys(input.deployment_receipt, ["schema", "authorization_schema", "project_ref", "function_name", "deployment_id", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "kill_switch_disabled", "traffic_switch_disabled", "migration_applied", "deployed_at", "valid_until"], "invalid");
+    exactKeys(input.technical_evidence, ["schema", "run_id", "deployment_id", "runtime_package_sha256", "migration_proof_receipt_sha256", "registry_sha256", "technical_case_count", "founder_case_count", "language", "attempt_total", "concurrency_peak", "tokenizer", "cost_ceiling_usd", "provider_disabled_verified", "effects", "records"], "invalid");
+    if (!isObject(input.technical_evidence.language) || !isObject(input.technical_evidence.effects)) throw new Error("invalid");
+    exactKeys(input.technical_evidence.language, ["en", "zh-Hant"], "invalid");
+    exactKeys(input.technical_evidence.effects, ["provider_calls", "model_invocations", "persistence_writes", "units_charged", "finally_disabled", "post_window_disabled_proof_sha256"], "invalid");
     const deployment = input.deployment_receipt;
-    const technical = input.technical_window;
+    const technical = input.technical_evidence;
+    const language = technical.language;
+    const effects = technical.effects;
+    if (!isObject(language) || !isObject(effects)) throw new Error("invalid");
     if (input.schema !== FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA || input.review_decision !== "accepted" ||
       deployment.schema !== FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA || deployment.authorization_schema !== FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA ||
-      typeof deployment.source_commit !== "string" || !BUILD_SHA.test(deployment.source_commit) || /^0+$/.test(deployment.source_commit) ||
+      deployment.project_ref !== "bmqhwofmdgebpcihjlnb" || deployment.function_name !== "dice-synthetic" ||
+      deployment.source_commit !== "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432" ||
       deployment.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" ||
       !isObject(deployment.disabled_probes) || Object.keys(deployment.disabled_probes).sort().join(",") !== ["allow_listed_fixture", "free_form_body", "normal_mobile_body", "unknown_fixture"].join(",") ||
       Object.values(deployment.disabled_probes).some((value) => value !== "DICE_AI_DISABLED") ||
-      deployment.provider_calls !== 0 || deployment.model_invocations !== 0 || deployment.migration_applied !== false || deployment.post_deploy_disabled !== true ||
-      technical.schema !== "lumis_dice_technical_window_80_evidence_v4" || technical.authority !== FINAL_DICE_TECHNICAL_AUTHORITY || typeof technical.evidence_package_sha256 !== "string" || !SHA256.test(technical.evidence_package_sha256) ||
-      technical.logical_total !== 80 || technical.en !== 40 || technical.zh_hant !== 40 || !Number.isInteger(technical.attempt_total) ||
-      (technical.attempt_total as number) < 0 || (technical.attempt_total as number) > 160 || technical.max_attempts !== 160 ||
-      technical.input_token_limit !== 800 || technical.output_token_limit !== 300 || technical.concurrency_limit !== 2 ||
-      technical.shared_deadline_ms !== 12000 || technical.cost_ceiling_usd !== 0.128 || technical.provider_disabled_verified !== true ||
-      technical.finally_disabled !== true || typeof technical.post_window_disabled_proof_sha256 !== "string" || !SHA256.test(technical.post_window_disabled_proof_sha256) ||
-      technical.founder_cases_run !== 0 || technical.persistence_writes !== 0 || technical.units_charged !== 0 ||
+      deployment.provider_calls !== 0 || deployment.model_invocations !== 0 || deployment.kill_switch_disabled !== true || deployment.traffic_switch_disabled !== true || deployment.migration_applied !== false ||
+      technical.schema !== FINAL_DICE_TECHNICAL_PACKAGE_SCHEMA || technical.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || technical.deployment_id !== deployment.deployment_id ||
+      technical.technical_case_count !== 80 || technical.founder_case_count !== 0 || language.en !== 40 || language["zh-Hant"] !== 40 || !Number.isInteger(technical.attempt_total) ||
+      (technical.attempt_total as number) < 0 || (technical.attempt_total as number) > 160 ||
+      !Number.isInteger(technical.concurrency_peak) || (technical.concurrency_peak as number) < 1 || (technical.concurrency_peak as number) > 2 ||
+      technical.tokenizer !== "js-tiktoken@1.0.21/o200k_base" || technical.cost_ceiling_usd !== 0.128 || technical.provider_disabled_verified !== true ||
+      effects.provider_calls !== technical.attempt_total || effects.model_invocations !== technical.attempt_total || effects.persistence_writes !== 0 || effects.units_charged !== 0 || effects.finally_disabled !== true ||
+      typeof effects.post_window_disabled_proof_sha256 !== "string" || !SHA256.test(effects.post_window_disabled_proof_sha256) || !Array.isArray(technical.records) || technical.records.length !== 80 ||
       !Number.isFinite(Date.parse(input.accepted_at as string)) || !SHA256.test(independentlyComputedSha256)) throw new Error("invalid");
     const accepted = ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 !== null && independentlyComputedSha256 === ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256;
     return Object.freeze({ structurally_valid: true, accepted, code: accepted ? "DICE_EVIDENCE_ACCEPTED" : "DICE_EVIDENCE_VALID_NOT_ACCEPTED", evidence_sha256: independentlyComputedSha256 });

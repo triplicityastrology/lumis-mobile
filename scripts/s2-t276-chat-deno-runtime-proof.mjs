@@ -12,6 +12,9 @@ const entry = "supabase/functions/chat-synthetic/index.ts";
 const config = "supabase/functions/chat-synthetic/deno.json";
 const common = ["--no-remote", "--node-modules-dir=manual", "--config", config];
 const sha = (value) => createHash("sha256").update(value).digest("hex");
+const receiptPath = process.env.LUMIS_DENO_PROOF_OUTPUT || "config/evidence/s2-t276-chat-deno-runtime-proof.json";
+const receiptSchema = process.env.LUMIS_DENO_PROOF_SCHEMA || "s2_t276_chat_deno_runtime_proof_v1";
+const receiptLabel = process.env.LUMIS_DENO_PROOF_LABEL || "S2_T276_DENO_RUNTIME_PROOF_OK";
 
 function run(args, options = {}) {
   const result = spawnSync(deno, args, { cwd: root, encoding: "utf8", env: { ...process.env, DENO_DIR: denoDir }, ...options });
@@ -74,7 +77,7 @@ try {
     assert.deepEqual(probe.body, { error: { code: "CHAT_AI_DISABLED" } });
   }
   const receipt = {
-    schema: "s2_t276_chat_deno_runtime_proof_v1",
+    schema: receiptSchema,
     runtime: { deno: control.deno.version, target: control.deno.target, binary_sha256: control.deno.binary_sha256 },
     entry,
     config,
@@ -91,8 +94,8 @@ try {
     remote_imports: 0,
     network_scope: "loopback_only",
   };
-  writeFileSync(path.join(root, "config/evidence/s2-t276-chat-deno-runtime-proof.json"), `${JSON.stringify(receipt, null, 2)}\n`);
-  console.log(`S2_T276_DENO_RUNTIME_PROOF_OK deno=${control.deno.version} probes=${probes.length} provider_calls=0`);
+  writeFileSync(path.join(root, receiptPath), `${JSON.stringify(receipt, null, 2)}\n`);
+  console.log(`${receiptLabel} deno=${control.deno.version} probes=${probes.length} provider_calls=0`);
 } finally {
   if (child.exitCode === null && child.signalCode === null) {
     child.kill("SIGTERM");
