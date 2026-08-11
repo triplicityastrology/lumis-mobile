@@ -1,32 +1,23 @@
-import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
-import { createAzureDiceAdapter, readDiceAzureServerConfig } from "../_shared/azure-dice-adapter-v0-3.ts";
-import { DiceSyntheticGateway, DiceSyntheticRunBudget } from "../_shared/dice-synthetic-gateway-v0-3.ts";
-import { reviewedDiceSyntheticRegistry } from "../_shared/dice-synthetic-registry-adapter-v0-3.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.52.0";
 
-const budget = new DiceSyntheticRunBudget();
+import { createDiceSyntheticEdgeHandler } from "./edge-handler-v1.ts";
 
-Deno.serve(async (request) => {
-  const preflight = handleCorsPreflight(request);
-  if (preflight) return preflight;
-  if (request.method !== "POST") return jsonResponse({ error: { code: "DICE_METHOD_NOT_ALLOWED" } }, { status: 405 });
+const environment = {
+  LUMIS_AI_ENABLED: Deno.env.get("LUMIS_AI_ENABLED"),
+  LUMIS_DICE_AZURE_API_KEY: Deno.env.get("LUMIS_DICE_AZURE_API_KEY"),
+  LUMIS_DICE_AUTHORITY_HMAC_SECRET: Deno.env.get("LUMIS_DICE_AUTHORITY_HMAC_SECRET"),
+  SUPABASE_URL: Deno.env.get("SUPABASE_URL"),
+  SUPABASE_SERVICE_ROLE_KEY: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+};
 
-  // Configuration is checked before adapter/client construction. Disabled is the deployed default.
-  const config = readDiceAzureServerConfig({
-    LUMIS_AI_ENABLED: Deno.env.get("LUMIS_AI_ENABLED"),
-    LUMIS_AI_PROVIDER_ALIAS: Deno.env.get("LUMIS_AI_PROVIDER_ALIAS"),
-    LUMIS_AI_DEPLOYMENT_FAMILY: Deno.env.get("LUMIS_AI_DEPLOYMENT_FAMILY"),
-    AZURE_OPENAI_ENDPOINT: Deno.env.get("AZURE_OPENAI_ENDPOINT"),
-    AZURE_OPENAI_API_KEY: Deno.env.get("AZURE_OPENAI_API_KEY"),
-    AZURE_OPENAI_API_VERSION: Deno.env.get("AZURE_OPENAI_API_VERSION")
-  });
-  if (!config.ok) return jsonResponse({ error: { code: config.code } }, { status: 503 });
-
-  const body = await request.json().catch(() => null);
-  const gateway = new DiceSyntheticGateway(
-    reviewedDiceSyntheticRegistry,
-    createAzureDiceAdapter(config.config),
-    budget
-  );
-  const result = await gateway.run(body);
-  return jsonResponse(result.response, { status: result.response.result === "completed" ? 200 : 422 });
+const handler = createDiceSyntheticEdgeHandler({
+  environment,
+  createAuthorityClient(url, serviceRoleKey) {
+    return createClient(url, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { "x-lumis-server-boundary": "dice-synthetic-v1" } },
+    });
+  },
 });
+
+Deno.serve(handler);

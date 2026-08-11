@@ -22,6 +22,26 @@
     "retention_purge_schedule": "*/15 * * * *"
   },
   "mode": "server_only_default_off_zero_traffic",
+  "azure_deployment": {
+    "deployment_alias": "lumis-ai-chat-stg",
+    "model": "gpt-5-mini",
+    "model_version": "2025-08-07",
+    "deployment_type": "GlobalStandard",
+    "model_version_upgrade_policy": "NoAutoUpgrade",
+    "guardrail": "Microsoft.DefaultV2",
+    "tokens_per_minute": 10000,
+    "requests_per_minute": 10,
+    "approved_hostname": "lumis-foundry-stg-sea-20260731.services.ai.azure.com",
+    "api_route_family": "v1",
+    "azure_api_version": null,
+    "route_family_evidence_file": "config/evidence/s2-t263-azure-route-family-sanitized-v1.json",
+    "route_family_evidence_sha256": "7c9b3e2878513071d59e2357c3ad3dbcaeab44f08f48537a2cbc6cb6753d16d5",
+    "official_reference_file": "config/evidence/s2-t263-microsoft-foundry-responses-v1-reference.json",
+    "official_reference_sha256": "350a5d8e9bdb7a74093189dd97319c5c951a4a7eb4b1f40ad0953da3a3823944",
+    "pricing_verified": true,
+    "pricing_evidence_file": "config/evidence/s2-t263-azure-foundry-pricing-sanitized-v1.json",
+    "pricing_evidence_sha256": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772"
+  },
   "authority_status": [
     "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
     "NO_AZURE_TRAFFIC_AUTHORITY"
@@ -45,7 +65,7 @@
     "evidence_class": "metadata_only"
   },
   "fixture_registry_sha256": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
-  "package_sha256": "93f2c440a6f2188eb5273da3a48c1f893bf8384385695f179c463f84aa0c16a8",
+  "package_sha256": "39352d83abfbb61dba616be4a3a7f00b365365346f584cfab9e612c1c975b03b",
   "package_files": {
     "package.json": "4318ad575a28d9537f8f3556880f64925eaf0aa0b8ced224a92b0e2a00681543",
     "pnpm-lock.yaml": "5cbaf2d98672e036084aad0c64d87fd020f0c2da392ed789f9101dafbf3f5231",
@@ -54,7 +74,7 @@
     "supabase/functions/_shared/dice-tokenizer-v1.ts": "bce5c2c376aa8147d7d6c3cf52bb057c853178a4f32a7d9b9eb31081ad06db43",
     "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "c22c4f24d49059100af82e6217f702c1128c014552e019a2aafbd52ec1d623af",
     "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
-    "supabase/functions/_shared/azure-dice-adapter-v1.ts": "d8e94d71be99dd94cfda484db4970dada47b6dc76205cd800b1ff0bde86f1812",
+    "supabase/functions/_shared/azure-dice-adapter-v1.ts": "4019b0e1dc427e3223ae9b7153ba8948598ab566f74736874daf3bbe2f4da7bb",
     "supabase/tests/lumis-dice-default-off-deployment-authorization-v2.schema.json": "b4864ca7981d29b084fa69927778af46c42d8a590c88720c06b2c60d0cafad3d",
     "supabase/tests/lumis-dice-synthetic-result-v1.schema.json": "effd36918f1fc48cdcadef81f27f15a130c9f626e318b0a54eb3371d1c81c9a2"
   }

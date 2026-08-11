@@ -5,17 +5,18 @@
     "moduleResolution": "Node",
     "rewriteRelativeImportExtensions": true,
     "noEmit": false,
-    "outDir": "../../.tmp/dice-synthetic-port-v1-tests",
+    "outDir": "../../.tmp/dice-synthetic-edge-v1-tests",
     "rootDir": "../.."
   },
   "include": [
     "dice-synthetic/js-tiktoken-test.d.ts",
+    "_shared/cors.ts",
     "_shared/dice-synthetic-fixture-registry-v0-3.ts",
     "_shared/dice-tokenizer-v1.ts",
     "_shared/dice-authority-store-v1.ts",
     "_shared/dice-synthetic-canonical-v1.ts",
     "_shared/dice-synthetic-gateway-port-v1.ts",
     "_shared/azure-dice-adapter-v1.ts",
-    "_shared/dice-synthetic-gateway-port-v1.fixtures.ts"
+    "dice-synthetic/edge-handler-v1.ts"
   ]
 }

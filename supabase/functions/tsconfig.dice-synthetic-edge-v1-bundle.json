@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "System",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outFile": "../../.tmp/dice-synthetic-edge-v1-bundle/dice-synthetic.bundle.js",
+    "rootDir": "../..",
+    "resolveJsonModule": false,
+    "skipLibCheck": true
+  },
+  "files": [
+    "dice-synthetic/edge-runtime.d.ts",
+    "dice-synthetic/js-tiktoken-test.d.ts",
+    "dice-synthetic/index.ts"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "source_domain": "learn.microsoft.com",
+  "source_url": "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/responses",
+  "source_url_sha256": "fad1b61431bc2906d38b662ab1e6746fb54a8e93f2cb68035ecd06129a4fc265",
+  "source_claim": "Microsoft Foundry Responses API uses the Azure OpenAI-compatible v1 route family and documents v1 and preview as the route-family values.",
+  "source_claim_sha256": "fbb0254d4d232b7f4542dbc631a8509aec5fd9643ca4e8331157fedd17291922",
+  "route_family": "v1",
+  "observed_on": "2026-08-11"
+}

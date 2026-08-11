@@ -1,0 +1,32 @@
+{
+  "schema": "s2_t263_dice_edge_additive_authority_v1",
+  "task": "S2-T263",
+  "base_commit": "083af57ed7685419fc093fb0f1e467385a5039ff",
+  "deployment_alias": "lumis-ai-chat-stg",
+  "model": "gpt-5-mini",
+  "model_version": "2025-08-07",
+  "deployment_type": "GlobalStandard",
+  "model_version_upgrade_policy": "NoAutoUpgrade",
+  "guardrail": "Microsoft.DefaultV2",
+  "tokens_per_minute": 10000,
+  "requests_per_minute": 10,
+  "approved_hostname": "lumis-foundry-stg-sea-20260731.services.ai.azure.com",
+  "api_route_family": "v1",
+  "azure_api_version": null,
+  "route_family_evidence_file": "config/evidence/s2-t263-azure-route-family-sanitized-v1.json",
+  "route_family_evidence_sha256": "7c9b3e2878513071d59e2357c3ad3dbcaeab44f08f48537a2cbc6cb6753d16d5",
+  "official_reference_file": "config/evidence/s2-t263-microsoft-foundry-responses-v1-reference.json",
+  "official_reference_sha256": "350a5d8e9bdb7a74093189dd97319c5c951a4a7eb4b1f40ad0953da3a3823944",
+  "pricing_verified": true,
+  "pricing_evidence_file": "config/evidence/s2-t263-azure-foundry-pricing-sanitized-v1.json",
+  "pricing_evidence_sha256": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772",
+  "authority_scope": "names_only_default_off",
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "provider_calls": 0,
+  "evidence_file": "config/evidence/s2-t263-azure-foundry-deployment-readonly-v1.json",
+  "evidence_sha256": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f",
+  "canonical_package_sha256": "39352d83abfbb61dba616be4a3a7f00b365365346f584cfab9e612c1c975b03b"
+}

@@ -18,7 +18,7 @@ import {
   type DiceProviderAdapter,
   type DiceProviderResult,
 } from "./dice-synthetic-gateway-port-v1.ts";
-import { DICE_AZURE_API_VERSION, createAzureDiceAdapter, readDiceAzureServerConfig } from "./azure-dice-adapter-v1.ts";
+import { DICE_AZURE_DEPLOYMENT, DICE_AZURE_HOSTNAME, createAzureDiceAdapter, readDiceAzureServerConfig } from "./azure-dice-adapter-v1.ts";
 
 const SECRET = "test-only-authority-secret-32-bytes-minimum";
 const PACKAGE_SHA = "a".repeat(64);
@@ -205,22 +205,21 @@ async function runFixtures(): Promise<void> {
   await rejects(() => fatalPort.executeAuthorizedWindow(fatalAuthorization), "fatal execution rejects");
   truthy(verifyDiceGatewayDisabled(fatalPort.status()), "finally disables after fatal execution");
 
-  for (const endpoint of ["https://example.com", "https://lumis.openai.azure.com.attacker.test", "http://lumis.openai.azure.com", "https://lumis.openai.azure.com/path"]) {
-    const result = readDiceAzureServerConfig(serverEnvironment(endpoint));
-    equal(result.ok, false, `arbitrary endpoint rejected: ${endpoint}`);
-  }
-  const config = readDiceAzureServerConfig(serverEnvironment("https://lumis-staging.openai.azure.com"));
-  truthy(config.ok, "exact allow-listed Azure OpenAI hostname accepted");
-  if (config.ok) {
-    equal(config.config.apiVersion, DICE_AZURE_API_VERSION, "Azure API version is fixed in source");
-    let fetchUrl = "";
-    const adapter = createAzureDiceAdapter(config.config, async (input) => {
-      fetchUrl = String(input);
-      return new Response(JSON.stringify({ choices: [{ message: { content: EN_OUTPUT } }] }), { status: 200 });
-    });
-    await adapter.invoke({ prompt: "fixture", prompt_version: "lumis_dice_synthetic_prompt_v1", language: "en", deadline_at_ms: Date.now() + 1000, max_output_tokens: 300, signal: new AbortController().signal });
-    truthy(fetchUrl.endsWith(`api-version=${DICE_AZURE_API_VERSION}`), "adapter cannot accept an arbitrary API version");
-  }
+  const config = readDiceAzureServerConfig(serverEnvironment());
+  equal(config.ok, false, "unverified Azure API version fails closed");
+  if (!config.ok) equal(config.code, "DICE_AZURE_TRAFFIC_NOT_AUTHORIZED", "stable no-traffic authority code");
+  let fetchUrl = "";
+  const adapter = createAzureDiceAdapter({
+    endpoint: `https://${DICE_AZURE_HOSTNAME}`,
+    apiKey: "test-only-not-a-secret",
+    deployment: DICE_AZURE_DEPLOYMENT,
+    routeFamily: "v1",
+  }, async (input) => {
+    fetchUrl = String(input);
+    return new Response(JSON.stringify({ status: "completed", output_text: EN_OUTPUT }), { status: 200 });
+  });
+  await adapter.invoke({ prompt: "fixture", prompt_version: "lumis_dice_synthetic_prompt_v1", language: "en", deadline_at_ms: Date.now() + 1000, max_output_tokens: 300, signal: new AbortController().signal });
+  truthy(fetchUrl.endsWith("/openai/v1/responses"), "adapter uses only documented v1 route family");
 }
 
 function port(adapter: DiceProviderAdapter, authorityStore: DiceAuthorityStore = new AtomicAuthorityStore()): DiceSyntheticGatewayPortV1 {
@@ -275,12 +274,10 @@ class AtomicAuthorityStore implements DiceAuthorityStore {
   }
 }
 
-function serverEnvironment(endpoint: string): Record<string, string> {
+function serverEnvironment(): Record<string, string> {
   return {
     LUMIS_DICE_AI_ENABLED: "true",
-    LUMIS_DICE_AZURE_ENDPOINT: endpoint,
     LUMIS_DICE_AZURE_API_KEY: "test-only-not-a-secret",
-    LUMIS_DICE_AZURE_ALLOWED_HOSTNAMES: "lumis-staging.openai.azure.com",
   };
 }
 

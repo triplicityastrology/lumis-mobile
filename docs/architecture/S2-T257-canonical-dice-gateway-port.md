@@ -16,7 +16,7 @@ Status: `SOURCE_ONLY_DEFAULT_OFF_ZERO_TRAFFIC`
 
 - At most 160 provider attempts, two workers, one retry, and one port-enforced 12-second deadline shared by both attempts for each case.
 - Input and output are counted from server-side `o200k_base` token IDs using the pinned `js-tiktoken@1.0.21` implementation aligned with the gpt-5-mini family. Provider usage fields, UTF-8 byte counts, and character estimates are ignored.
-- Azure configuration accepts only an exact server allow-list member matching `*.openai.azure.com`; the API version is fixed to `2024-10-21` in source.
+- Azure configuration is source-pinned to HTTPS hostname `lumis-foundry-stg-sea-20260731.services.ai.azure.com` and the documented Azure OpenAI-compatible `v1` route family. Preview and legacy date-formatted API-version contracts are rejected. The separate Azure API version field remains null, and no traffic authority exists, so production admission fails closed before provider or authority-client construction. Route-family source: [Microsoft Foundry Responses API v1](https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/responses).
 - `finally` disables provider access. `verifyDiceGatewayDisabled(port.status())` independently checks the closed false state.
 
 ## Evidence boundary
