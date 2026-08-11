@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t292_dice_v4_microsoft_decision_packet_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision_requested", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "decision_packet_sha256", "authorization_request", "configuration_names", "disabled_probe_expectations", "rollback", "post_deploy", "migration_0039_authorized", "normal_chat_authority", "azure_traffic_authority", "packet_sha256"],
+  "properties": {
+    "schema": { "const": "s2_t292_dice_v4_microsoft_decision_packet_v1" },
+    "decision_requested": { "const": "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION" },
+    "source_commit": { "$ref": "#/$defs/commit" },
+    "source_tree": { "$ref": "#/$defs/commit" },
+    "runtime_package_sha256": { "const": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" },
+    "authorization_package_sha256": { "const": "53f5cbc0552a30016c8b6c8fb827740bbafcdedd1a36146092fd469b11ba7799" },
+    "decision_packet_sha256": { "$ref": "#/$defs/sha256" },
+    "authorization_request": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json" },
+    "configuration_names": { "type": "array", "minItems": 15, "maxItems": 15, "uniqueItems": true, "items": { "type": "string", "pattern": "^LUMIS_DICE_[A-Z0-9_]+$" } },
+    "disabled_probe_expectations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"],
+      "properties": {
+        "unknown_fixture": { "const": "DICE_AI_DISABLED" },
+        "free_form_body": { "const": "DICE_AI_DISABLED" },
+        "normal_mobile_body": { "const": "DICE_AI_DISABLED" },
+        "allow_listed_fixture": { "const": "DICE_AI_DISABLED" }
+      }
+    },
+    "rollback": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target", "previous_revision_required", "receipt_schema"],
+      "properties": {
+        "target": { "const": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED" },
+        "previous_revision_required": { "const": true },
+        "receipt_schema": { "const": "s2_t287_dice_rollback_receipt_v1" }
+      }
+    },
+    "post_deploy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["receipt_schema", "provider_calls", "model_invocations", "migration_applied", "kill_switch_disabled", "traffic_switch_disabled"],
+      "properties": {
+        "receipt_schema": { "const": "s2_t287_dice_default_off_deployment_receipt_v1" },
+        "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 },
+        "migration_applied": { "const": false }, "kill_switch_disabled": { "const": true }, "traffic_switch_disabled": { "const": true }
+      }
+    },
+    "migration_0039_authorized": { "const": false },
+    "normal_chat_authority": { "const": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY" },
+    "azure_traffic_authority": { "const": "NO_AZURE_TRAFFIC_AUTHORITY" },
+    "packet_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" }
+  }
+}

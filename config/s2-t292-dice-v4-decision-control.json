@@ -1,0 +1,60 @@
+{
+  "schema": "s2_t292_dice_v4_microsoft_decision_control_v1",
+  "status": "WAITING_FOR_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION",
+  "next_decision": "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION",
+  "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "source_authority_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+  "source_authority_tree": "2baaaa57268edb211223e44056429924067908f6",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "53f5cbc0552a30016c8b6c8fb827740bbafcdedd1a36146092fd469b11ba7799",
+  "authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+  "request_schema": "lumis_dice_default_off_function_deployment_authorization_request_v4",
+  "signature_algorithm": "Ed25519",
+  "authorization_window_seconds": 900,
+  "clock_policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
+  "single_use": true,
+  "replay_rejected": true,
+  "configuration_names": [
+    "LUMIS_DICE_AI_ENABLED",
+    "LUMIS_DICE_TRAFFIC_AUTHORIZED",
+    "LUMIS_DICE_AZURE_API_KEY",
+    "LUMIS_DICE_AUTHORITY_HMAC_SECRET",
+    "LUMIS_DICE_DEPLOYMENT_ALIAS",
+    "LUMIS_DICE_MODEL",
+    "LUMIS_DICE_MODEL_VERSION",
+    "LUMIS_DICE_DEPLOYMENT_TYPE",
+    "LUMIS_DICE_UPGRADE_POLICY",
+    "LUMIS_DICE_GUARDRAIL",
+    "LUMIS_DICE_TPM_LIMIT",
+    "LUMIS_DICE_RPM_LIMIT",
+    "LUMIS_DICE_FOUNDRY_HOSTNAME",
+    "LUMIS_DICE_FOUNDRY_PROTOCOL",
+    "LUMIS_DICE_API_ROUTE_FAMILY"
+  ],
+  "disabled_probes": [
+    "unknown_fixture",
+    "free_form_body",
+    "normal_mobile_body",
+    "allow_listed_fixture"
+  ],
+  "expected_disabled_result": "DICE_AI_DISABLED",
+  "rollback": {
+    "target": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED",
+    "previous_revision_required": true,
+    "receipt_schema": "s2_t287_dice_rollback_receipt_v1"
+  },
+  "post_deploy": {
+    "receipt_schema": "s2_t287_dice_default_off_deployment_receipt_v1",
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "migration_applied": false,
+    "kill_switch_disabled": true,
+    "traffic_switch_disabled": true
+  },
+  "migration_0039_authorized": false,
+  "remote_calls_in_preflight": 0,
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}
