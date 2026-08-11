@@ -1,0 +1,20 @@
+{
+  "schema": "s2_t298_dice_v4_zero_call_package_seal_v1",
+  "base_commit": "f1288d6159d23317f6f4db05bcf194bc93af65d6",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "53f5cbc0552a30016c8b6c8fb827740bbafcdedd1a36146092fd469b11ba7799",
+  "package_sha256": "17251a9155750cb6c788426a84d4ea3e434cd478a3cdd0032b8bd333b1931bca",
+  "files": {
+    "config/s2-t298-dice-v4-zero-call-control.json": "25f2b8e5a561485e533e975615a280165f34f8e98dde38b38dd39882e8378648",
+    "config/evidence/s2-t298-dice-v4-zero-call-runtime-proof.json": "8c2781e28b8bcf35d8a998a5ab1590cf9379a113964732936dc152df75347a91",
+    "docs/qa/S2-T298-dice-v4-zero-call-preflight.md": "19853f4050e1c7fa42d68c8b186f18b2016b3b5f1466958a5f4c85f6a3d16631",
+    "scripts/lib/s2-t298-dice-v4-zero-call.mjs": "e114dc38adde1069911b3a51e5c16d419149d360619e970ec8232dd4a9947de8",
+    "scripts/run-s2-t298-dice-v4-zero-call-deployment.zsh": "8f1718f02db0be4badd47f9e6bc10b961cdc5273c71dfe6bac3d5ba091b03704",
+    "scripts/s2-t298-dice-v4-review-request.mjs": "a053d5fb8b607f8ec3d236433312eb0eef624c3e2cbf9ff219388fa117345183",
+    "scripts/s2-t298-dice-v4-zero-call-preflight.mjs": "035b267f9c35ff32bb5cc457c9f1bcec823115d3c30e1dcb2edfd5e2149b55ae",
+    "scripts/s2-t298-dice-v4-zero-call-contract.mjs": "2bae0e4cea95313d74f9fbb96f906e5b1575428cb6f1da8c9523e026d28779b3",
+    "scripts/s2-t298-post-deploy-receipt.mjs": "2adf1a69750ffa910769284e44253eaf873d2701de0c403781c7bd85fcb5a61b",
+    "scripts/s2-t298-refresh-zero-call-seal.mjs": "20e9a8854906595f91bc2d206715fe820dc007f3ef731a27f33cbcce7ec6e755",
+    "supabase/tests/s2-t298-dice-v4-zero-call-post-deploy-receipt.schema.json": "48ebb855c841084c174073571eefbb2967684420fb94371cbe460b1ae17a3de5"
+  }
+}

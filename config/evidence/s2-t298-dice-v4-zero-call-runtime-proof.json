@@ -1,0 +1,26 @@
+{
+  "evidence_type": "s2_t298_dice_v4_zero_call_runtime_proof_v1",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "53f5cbc0552a30016c8b6c8fb827740bbafcdedd1a36146092fd469b11ba7799",
+  "runtime": {
+    "deno_cli": "2.2.7",
+    "supabase_cli": "2.113.0",
+    "edge_runtime_image": "public.ecr.aws/supabase/edge-runtime@sha256:a82676277615aee03c4f288cbbbf68dedb5ba8693073e567ab8dbfdd11ba5d45"
+  },
+  "proof": {
+    "deno_check": "passed",
+    "edge_eszip_bundle": "passed",
+    "edge_eszip_sha256": "8edc28b4437a8e23ff43cf10786f08831dac21ca69622123f3f5e03e8353810b",
+    "import_graph_module_count": 14,
+    "import_graph_sha256": "0414346f7b2e27141e868a91e1700555fd695f3f828942c2ef40894f3f6204a8",
+    "disabled_before_json_parse_and_client_construction": true,
+    "disabled_probe_count": 4,
+    "disabled_result": "DICE_AI_DISABLED",
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "remote_calls": 0
+  },
+  "migration_0039_applied": false,
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}
