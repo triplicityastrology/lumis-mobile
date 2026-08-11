@@ -1,0 +1,10 @@
+{
+  "source_class": "official_microsoft_documentation",
+  "source_title": "Microsoft Foundry REST Reference - Azure OpenAI - Responses",
+  "source_url": "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/responses",
+  "official_domain": "learn.microsoft.com",
+  "documented_api_version": "v1",
+  "candidate_route_policy": "v1_only_reject_preview_and_legacy_date_formatted_api_version",
+  "model_version_inference_allowed": false,
+  "evidence_grants_deployment_or_traffic_authority": false
+}

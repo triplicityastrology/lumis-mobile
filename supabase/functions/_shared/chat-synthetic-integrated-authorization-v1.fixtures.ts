@@ -1,0 +1,240 @@
+import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
+import {
+  ACCEPTED_DICE_TECHNICAL_WINDOW_EVIDENCE,
+  CHAT_SYNTHETIC_API_ROUTE_EVIDENCE_SHA256,
+  CHAT_SYNTHETIC_API_ROUTE_FAMILY,
+  CHAT_SYNTHETIC_MICROSOFT_READONLY_EVIDENCE_SHA256,
+  ChatSyntheticIntegratedAuthorizationError,
+  ChatSyntheticIntegratedCandidateV1,
+  canonicalSha256,
+  textSha256,
+  validateAzureApiVersionForV1
+} from "./chat-synthetic-integrated-authorization-v1.ts";
+import {
+  CHAT_CANONICAL_T240_SCHEMA_SHA256,
+  ChatSyntheticGatewayPortV1,
+  type ChatSyntheticAuthorityStore
+} from "./chat-synthetic-gateway-port-v1.ts";
+import { ChatSyntheticRun } from "./chat-synthetic-gateway-v1.ts";
+
+const NOW = Date.parse("2026-08-11T08:00:00.000Z");
+const CANDIDATE_SHA = "a".repeat(64);
+const GATEWAY_SHA = "c".repeat(64);
+const REGISTRY_SHA = "d".repeat(64);
+const RUN_ID = "chat-syn-0123456789ab";
+const MICROSOFT_EVIDENCE_TEXT = readFileSync("config/evidence/s2-t265-lumis-azure-foundry-deployment-readonly-v1.json", "utf8");
+const MICROSOFT_MANIFEST = JSON.parse(readFileSync("config/s2-t265-microsoft-chat-manifest.json", "utf8"));
+const API_ROUTE_EVIDENCE_TEXT = readFileSync("config/evidence/s2-t265-sanitized-api-route-family-v1.json", "utf8");
+const SEPARATE_API_EVIDENCE_FIXTURE = "separate-api-version-evidence-fixture\n";
+
+function evidence() {
+  return {
+    schema: "s2_t260_accepted_dice_technical_evidence_v1",
+    review_decision: "accepted",
+    technical_evidence_schema: "s2_t254_dice_technical_evidence_package_v1",
+    technical_evidence_package_sha256: "f".repeat(64),
+    logical_total: 80,
+    en: 40,
+    zh_hant: 40,
+    provider_disabled_verified: true,
+    founder_cases_run: 0,
+    persistence_writes: 0,
+    units_charged: 0,
+    accepted_at: "2026-08-11T07:00:00.000Z"
+  };
+}
+
+function integratedAuthorization(evidenceSha256: string, manifestSha256: string, apiEvidenceSha256: string, overrides: Record<string, unknown> = {}) {
+  return {
+    schema: "s2_t265_chat_authorization_v1",
+    authority: "CHAT_SYNTHETIC_SINGLE_USE_AUTHORIZED",
+    prerequisite_authority: ACCEPTED_DICE_TECHNICAL_WINDOW_EVIDENCE,
+    base_commit: "aff17b9698f37d6e251dce3b1aeda73005e91faa",
+    candidate_sha256: CANDIDATE_SHA,
+    microsoft_manifest_sha256: manifestSha256,
+    microsoft_readonly_evidence_sha256: CHAT_SYNTHETIC_MICROSOFT_READONLY_EVIDENCE_SHA256,
+    api_route_evidence_sha256: CHAT_SYNTHETIC_API_ROUTE_EVIDENCE_SHA256,
+    azure_api_version_evidence_sha256: apiEvidenceSha256,
+    accepted_dice_evidence_sha256: evidenceSha256,
+    gateway_source_sha256: GATEWAY_SHA,
+    fixture_registry_sha256: REGISTRY_SHA,
+    canonical_t240_schema_sha256: CHAT_CANONICAL_T240_SCHEMA_SHA256,
+    gateway_interface: "chat_synthetic_gateway_port_v1",
+    run_id: RUN_ID,
+    caps: { logical: 60, en: 30, zh_hant: 30, attempts: 120, input_tokens: 1200, output_tokens: 300, concurrency: 1, deadline_ms: 12000, retries: 1 },
+    issued_at: "2026-08-11T07:00:00.000Z",
+    valid_until: "2026-08-11T09:00:00.000Z",
+    ...overrides
+  };
+}
+
+function authority(evidenceSha256: string, overrides: Record<string, unknown> = {}) {
+  return {
+    schema: "s2_t260_chat_single_use_authority_v1",
+    authority: "CHAT_SYNTHETIC_SINGLE_USE_AUTHORIZED",
+    scope: "closed_fixture_registry_60",
+    gateway_interface: "chat_synthetic_gateway_port_v1",
+    review_package_sha256: CANDIDATE_SHA,
+    gateway_source_sha256: GATEWAY_SHA,
+    fixture_registry_sha256: REGISTRY_SHA,
+    canonical_t240_schema_sha256: CHAT_CANONICAL_T240_SCHEMA_SHA256,
+    dice_evidence_sha256: evidenceSha256,
+    run_id: RUN_ID,
+    caps: { logical: 60, en: 30, zh_hant: 30, attempts: 120, input_tokens: 1200, output_tokens: 300, concurrency: 1, deadline_ms: 12000, retries: 1 },
+    issued_at: "2026-08-11T07:00:00.000Z",
+    valid_until: "2026-08-11T09:00:00.000Z",
+    ...overrides
+  };
+}
+
+function store(): ChatSyntheticAuthorityStore {
+  return {
+    async consumeAuthority() { return "consumed"; },
+    async consumeFixture() { return "consumed"; },
+    async closeAuthority() { return "closed"; }
+  };
+}
+
+async function makeCandidate(
+  authorizationValue: ReturnType<typeof integratedAuthorization>,
+  evidenceSha: string,
+  manifestSha: string,
+  apiEvidenceSha: string | null,
+  portOverrides: Record<string, unknown> = {}
+) {
+  const portAuthority = authority(evidenceSha, portOverrides);
+  const portAuthoritySha = await canonicalSha256(portAuthority);
+  const authorizationSha = await canonicalSha256(authorizationValue);
+  let factoryCalls = 0;
+  let providerCalls = 0;
+  const portFactory = () => {
+    factoryCalls += 1;
+    return new ChatSyntheticGatewayPortV1({
+      gateway: new ChatSyntheticRun({
+        aiEnabled: true,
+        nowMs: () => NOW,
+        recordMetadata() {},
+        adapter: { async complete() { providerCalls += 1; return { kind: "completed", assistantMessage: "A local bounded reflection." }; } }
+      }),
+      authorityStore: store(),
+      nowMs: () => NOW,
+      control: {
+        executionAuthority: true,
+        acceptedDiceEvidenceSha256: evidenceSha,
+        acceptedAuthoritySha256: portAuthoritySha,
+        reviewPackageSha256: CANDIDATE_SHA,
+        gatewaySourceSha256: GATEWAY_SHA,
+        fixtureRegistrySha256: REGISTRY_SHA
+      }
+    });
+  };
+  return {
+    candidate: new ChatSyntheticIntegratedCandidateV1(portFactory, {
+      executionAuthority: true,
+      candidateSha256: CANDIDATE_SHA,
+      microsoftManifestSha256: manifestSha,
+      microsoftReadonlyEvidenceSha256: CHAT_SYNTHETIC_MICROSOFT_READONLY_EVIDENCE_SHA256,
+      apiRouteEvidenceSha256: CHAT_SYNTHETIC_API_ROUTE_EVIDENCE_SHA256,
+      azureApiVersionEvidenceSha256: apiEvidenceSha,
+      acceptedDiceEvidenceSha256: evidenceSha,
+      acceptedAuthorizationSha256: authorizationSha,
+      gatewaySourceSha256: GATEWAY_SHA,
+      fixtureRegistrySha256: REGISTRY_SHA
+    }, () => NOW),
+    portAuthority,
+    portAuthoritySha,
+    authorizationSha,
+    factoryCalls: () => factoryCalls,
+    providerCalls: () => providerCalls
+  };
+}
+
+async function expectCode(action: () => Promise<unknown>, code: string) {
+  await assert.rejects(async () => action(), (error: unknown) => error instanceof ChatSyntheticIntegratedAuthorizationError && error.code === code);
+}
+
+async function main() {
+  assert.equal(await textSha256(MICROSOFT_EVIDENCE_TEXT), CHAT_SYNTHETIC_MICROSOFT_READONLY_EVIDENCE_SHA256);
+  assert.equal(await textSha256(API_ROUTE_EVIDENCE_TEXT), CHAT_SYNTHETIC_API_ROUTE_EVIDENCE_SHA256);
+  assert.equal(CHAT_SYNTHETIC_API_ROUTE_FAMILY, "v1");
+  validateAzureApiVersionForV1(null);
+  for (const rejected of ["preview", "2024-10-21", "2025-08-07"]) {
+    assert.throws(() => validateAzureApiVersionForV1(rejected), (error: unknown) =>
+      error instanceof ChatSyntheticIntegratedAuthorizationError && error.code === "CHAT_SYNTHETIC_AZURE_API_VERSION_EVIDENCE_REQUIRED"
+    );
+  }
+  assert.equal(MICROSOFT_EVIDENCE_TEXT.endsWith("\n"), true);
+  assert.equal(MICROSOFT_EVIDENCE_TEXT.endsWith("\n\n"), false);
+  const acceptedEvidence = evidence();
+  const evidenceSha = await canonicalSha256(acceptedEvidence);
+  const manifestSha = await canonicalSha256(MICROSOFT_MANIFEST);
+  const apiFixtureSha = await textSha256(SEPARATE_API_EVIDENCE_FIXTURE);
+  const authorizationValue = integratedAuthorization(evidenceSha, manifestSha, "9".repeat(64));
+
+  const blocked = await makeCandidate(authorizationValue, evidenceSha, manifestSha, null);
+  await expectCode(() => blocked.candidate.authorize({
+    diceEvidence: acceptedEvidence,
+    diceEvidenceSha256: evidenceSha,
+    authorization: authorizationValue,
+    authorizationSha256: blocked.authorizationSha,
+    microsoftManifest: MICROSOFT_MANIFEST,
+    microsoftReadonlyEvidenceText: MICROSOFT_EVIDENCE_TEXT,
+    apiRouteEvidenceText: API_ROUTE_EVIDENCE_TEXT,
+    portAuthority: blocked.portAuthority,
+    portAuthoritySha256: blocked.portAuthoritySha
+  }), "CHAT_SYNTHETIC_AZURE_API_VERSION_EVIDENCE_REQUIRED");
+  assert.equal(blocked.factoryCalls(), 0);
+  assert.equal(blocked.providerCalls(), 0);
+  await expectCode(() => blocked.candidate.invokeFixture({}), "CHAT_SYNTHETIC_AUTHORITY_REQUIRED");
+
+  const badMarker = integratedAuthorization(evidenceSha, manifestSha, apiFixtureSha, { prerequisite_authority: "accepted" });
+  const badMarkerCandidate = await makeCandidate(badMarker, evidenceSha, manifestSha, apiFixtureSha);
+  await expectCode(() => badMarkerCandidate.candidate.authorize({
+    diceEvidence: acceptedEvidence,
+    diceEvidenceSha256: evidenceSha,
+    authorization: badMarker,
+    authorizationSha256: badMarkerCandidate.authorizationSha,
+    microsoftManifest: MICROSOFT_MANIFEST,
+    microsoftReadonlyEvidenceText: MICROSOFT_EVIDENCE_TEXT,
+    apiRouteEvidenceText: API_ROUTE_EVIDENCE_TEXT,
+    azureApiVersionEvidenceText: SEPARATE_API_EVIDENCE_FIXTURE,
+    portAuthority: badMarkerCandidate.portAuthority,
+    portAuthoritySha256: badMarkerCandidate.portAuthoritySha
+  }), "CHAT_SYNTHETIC_AUTHORIZATION_INVALID");
+  assert.equal(badMarkerCandidate.factoryCalls(), 0);
+
+  const checksumCandidate = await makeCandidate(authorizationValue, evidenceSha, manifestSha, null);
+  await expectCode(() => checksumCandidate.candidate.authorize({
+    diceEvidence: { ...acceptedEvidence, logical_total: 79 },
+    diceEvidenceSha256: evidenceSha,
+    authorization: authorizationValue,
+    authorizationSha256: checksumCandidate.authorizationSha,
+    microsoftManifest: MICROSOFT_MANIFEST,
+    microsoftReadonlyEvidenceText: MICROSOFT_EVIDENCE_TEXT,
+    apiRouteEvidenceText: API_ROUTE_EVIDENCE_TEXT,
+    portAuthority: checksumCandidate.portAuthority,
+    portAuthoritySha256: checksumCandidate.portAuthoritySha
+  }), "CHAT_SYNTHETIC_CHECKSUM_MISMATCH");
+  assert.equal(checksumCandidate.factoryCalls(), 0);
+
+  const bindingAuthority = integratedAuthorization(evidenceSha, manifestSha, apiFixtureSha);
+  const bindingCandidate = await makeCandidate(bindingAuthority, evidenceSha, manifestSha, apiFixtureSha, { review_package_sha256: "e".repeat(64) });
+  await expectCode(() => bindingCandidate.candidate.authorize({
+    diceEvidence: acceptedEvidence,
+    diceEvidenceSha256: evidenceSha,
+    authorization: bindingAuthority,
+    authorizationSha256: bindingCandidate.authorizationSha,
+    microsoftManifest: MICROSOFT_MANIFEST,
+    microsoftReadonlyEvidenceText: MICROSOFT_EVIDENCE_TEXT,
+    apiRouteEvidenceText: API_ROUTE_EVIDENCE_TEXT,
+    azureApiVersionEvidenceText: SEPARATE_API_EVIDENCE_FIXTURE,
+    portAuthority: bindingCandidate.portAuthority,
+    portAuthoritySha256: bindingCandidate.portAuthoritySha
+  }), "CHAT_SYNTHETIC_AUTHORITY_BINDING_INVALID");
+  assert.equal(bindingCandidate.factoryCalls(), 0);
+
+  console.log("S2-T265 names-only evidence and pre-construction fail-closed fixtures passed");
+}
+
+main();

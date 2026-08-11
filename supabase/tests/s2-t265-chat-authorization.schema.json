@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t265_chat_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authority", "prerequisite_authority", "base_commit", "candidate_sha256", "microsoft_manifest_sha256", "microsoft_readonly_evidence_sha256", "api_route_evidence_sha256", "azure_api_version_evidence_sha256", "accepted_dice_evidence_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "gateway_interface", "run_id", "caps", "issued_at", "valid_until"],
+  "properties": {
+    "schema": { "const": "s2_t265_chat_authorization_v1" },
+    "authority": { "const": "CHAT_SYNTHETIC_SINGLE_USE_AUTHORIZED" },
+    "prerequisite_authority": { "const": "ACCEPTED_DICE_TECHNICAL_WINDOW_EVIDENCE" },
+    "base_commit": { "const": "aff17b9698f37d6e251dce3b1aeda73005e91faa" },
+    "candidate_sha256": { "$ref": "#/$defs/sha" },
+    "microsoft_manifest_sha256": { "$ref": "#/$defs/sha" },
+    "microsoft_readonly_evidence_sha256": { "const": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f" },
+    "api_route_evidence_sha256": { "const": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e" },
+    "azure_api_version_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "accepted_dice_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "gateway_source_sha256": { "$ref": "#/$defs/sha" },
+    "fixture_registry_sha256": { "$ref": "#/$defs/sha" },
+    "canonical_t240_schema_sha256": { "const": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07" },
+    "gateway_interface": { "const": "chat_synthetic_gateway_port_v1" },
+    "run_id": { "type": "string", "pattern": "^chat-syn-[a-z0-9]{12,32}$" },
+    "caps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logical", "en", "zh_hant", "attempts", "input_tokens", "output_tokens", "concurrency", "deadline_ms", "retries"],
+      "properties": {
+        "logical": { "const": 60 },
+        "en": { "const": 30 },
+        "zh_hant": { "const": 30 },
+        "attempts": { "const": 120 },
+        "input_tokens": { "const": 1200 },
+        "output_tokens": { "const": 300 },
+        "concurrency": { "const": 1 },
+        "deadline_ms": { "const": 12000 },
+        "retries": { "const": 1 }
+      }
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

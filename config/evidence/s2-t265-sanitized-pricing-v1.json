@@ -1,0 +1,11 @@
+{
+  "price_sheet_billing_period": "2026-08-01 to 2026-09-01",
+  "relevant_service_dates": ["2026-08-01", "2026-08-02"],
+  "price_observed_at": "2026-08-11 10:49:08 HKT (+0800)",
+  "input_price_usd_per_1m_tokens": 0.25,
+  "output_price_usd_per_1m_tokens": 2.00,
+  "region_evidence": "AP Southeast / Southeast Asia",
+  "currency": "USD",
+  "full_maximum_dice_window_estimate_usd": 0.192,
+  "deployment_alias": "lumis-ai-chat-stg"
+}

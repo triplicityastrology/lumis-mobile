@@ -1,0 +1,67 @@
+{
+  "schema": "s2_t265_microsoft_chat_manifest_v3",
+  "authority": "MICROSOFT_CHAT_DEPLOYMENT_NAMES_APPROVED",
+  "candidate": "source_and_local_emulator_only",
+  "readonly_evidence_sha256": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f",
+  "verified_deployment_names": {
+    "deployment_alias": "lumis-ai-chat-stg",
+    "model": "gpt-5-mini",
+    "model_version": "2025-08-07",
+    "deployment_type": "GlobalStandard",
+    "model_version_upgrade_policy": "NoAutoUpgrade",
+    "guardrail": "Microsoft.DefaultV2",
+    "tokens_per_minute_limit": 10000,
+    "requests_per_minute_limit": 10,
+    "foundry_service_hostname": "lumis-foundry-stg-sea-20260731.services.ai.azure.com"
+  },
+  "transport_policy": "HTTPS_ONLY_EXACT_HOSTNAME",
+  "api_route_family": "v1",
+  "api_route_family_evidence_sha256": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e",
+  "official_microsoft_v1_reference_evidence_sha256": "5086b0c4bb0fc7cd02d82c94c594897b71d191e72bf23108dfa26cf32d48bab5",
+  "preview_route_allowed": false,
+  "legacy_date_formatted_api_version_allowed": false,
+  "model_version_inference_allowed": false,
+  "azure_api_version": null,
+  "azure_api_version_verification": "unverified",
+  "organization_specific_pricing": null,
+  "organization_specific_pricing_verification": "unverified",
+  "sanitized_pricing_evidence_sha256": "8d8a3d9b155d950ea76f23808f4eec6b507de8a02203d233522c3583f22e799b",
+  "dice_window_cost_basis": {
+    "maximum_provider_attempts": 240,
+    "maximum_input_tokens_per_attempt": 800,
+    "maximum_output_tokens_per_attempt": 300,
+    "full_maximum_estimate_usd": 0.192
+  },
+  "sanitized_pricing_gives_deployment_or_traffic_authority": false,
+  "route_family_evidence_gives_deployment_or_traffic_authority": false,
+  "lumis_safety": {
+    "deterministic_pre_safety": true,
+    "deterministic_post_safety": true,
+    "filter_block_projection": "safety_rejected",
+    "filter_partial_projection": "safety_rejected"
+  },
+  "data_boundary": {
+    "closed_synthetic_fixtures_only": true,
+    "member_data": false,
+    "conversation_history": false,
+    "chart_context": false,
+    "persona_or_provenance": false,
+    "persistence_writes": 0,
+    "units_charged": 0,
+    "raw_logs": 0
+  },
+  "authorization": {
+    "gateway_interface": "chat_synthetic_gateway_port_v1",
+    "prerequisite": "ACCEPTED_DICE_TECHNICAL_WINDOW_EVIDENCE",
+    "authorization_schema": "s2_t265_chat_authorization_v1",
+    "single_use": true,
+    "checksum_bound": true
+  },
+  "operations": {
+    "provider_or_client_construction_allowed": false,
+    "network_executed": false,
+    "deployment_executed": false,
+    "migration_0040_executed": false,
+    "normal_chat_connected": false
+  }
+}
