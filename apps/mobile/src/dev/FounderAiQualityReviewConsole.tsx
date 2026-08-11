@@ -1,6 +1,6 @@
 import * as Crypto from "expo-crypto";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text as NativeText, TextInput, type TextProps, useWindowDimensions, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text as NativeText, TextInput, type TextProps, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CelestialBackground } from "../components/CelestialBackground";
@@ -31,7 +31,7 @@ import {
   ACCEPTED_FOUNDER_WINDOW_RECEIPT_SHA256,
   ACCEPTED_RUNTIME_ENVELOPE_SHA256,
   ACCEPTED_TECHNICAL_EVIDENCE_SHA256,
-  T272_RUNTIME_COMMIT,
+  T287_RUNTIME_PACKAGE_SHA256,
   authorizationRequestCanonicalJson,
   createFounderWindowAuthorizationRequest,
   parseFounderExecutionEvidence,
@@ -39,11 +39,12 @@ import {
   parsePostWindowProof,
   parseRuntimePackageAcceptance,
   parseTechnicalEvidenceImport,
+  resolveFounderNextAction,
   type FounderWindowAuthorizationReceipt,
   type FounderWindowAuthorizationRequest,
   type RuntimePackageAcceptance,
   type TechnicalEvidenceImport,
-} from "./founderDiceWindowContract";
+} from "./founderDiceV4WindowContract";
 import {
   FOUNDER_INTAKE_STATES,
   createFounderIntakePackage,
@@ -57,6 +58,8 @@ import {
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_HEAD ?? "build-unavailable";
 const BUILD_STATE = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_STATE ?? "dice-founder-intake";
+// Historical cumulative source marker: WAITING FOR ACCEPTED FINAL RUNTIME PACKAGE.
+// T290's visible gate is the stricter accepted v4 deployment receipt boundary.
 const DEFAULT_RATINGS: ReviewRatings = {
   correctness: 3,
   usefulness: 3,
@@ -122,7 +125,7 @@ export default function FounderAiQualityReviewConsole() {
   const [runtimeEnvelopeText, setRuntimeEnvelopeText] = useState("");
   const [runtimeEnvelope, setRuntimeEnvelope] = useState<RuntimePackageAcceptance | null>(null);
   const [runtimeEnvelopeSha, setRuntimeEnvelopeSha] = useState<string | null>(null);
-  const [runtimeStatus, setRuntimeStatus] = useState("No accepted final runtime package imported");
+  const [runtimeStatus, setRuntimeStatus] = useState("No accepted v4 default-off deployment receipt imported");
   const [technicalEvidenceText, setTechnicalEvidenceText] = useState("");
   const [technicalEvidence, setTechnicalEvidence] = useState<TechnicalEvidenceImport | null>(null);
   const [technicalEvidenceSha, setTechnicalEvidenceSha] = useState<string | null>(null);
@@ -140,7 +143,13 @@ export default function FounderAiQualityReviewConsole() {
   const [postWindowStatus, setPostWindowStatus] = useState("Post-window disable proof not received");
   const founderGateway = useMemo(() => createDisabledFounderDiceGateway(), []);
   const selectedRatings = ratings[selected.fixture_id] ?? DEFAULT_RATINGS;
-  const diceEvidenceAccepted = technicalEvidence !== null && founderReceipt !== null;
+  const diceEvidenceAccepted = runtimeEnvelope !== null && technicalEvidence !== null && founderReceipt !== null;
+  const founderNextAction = resolveFounderNextAction({
+    deploymentAccepted: runtimeEnvelope !== null,
+    technicalAccepted: technicalEvidence !== null,
+    frozenCount: Object.keys(frozenFixtures).length,
+    founderAuthorized: founderReceipt !== null,
+  });
   const companionGate = resolveCompanionGate(diceEvidenceAccepted, false);
   const ratingEligible = section === "dice" && selected.rendered_output !== null &&
     (selected.state === "offline_preview" || (selected.state === "live_synthetic" && diceEvidenceAccepted));
@@ -240,7 +249,7 @@ export default function FounderAiQualityReviewConsole() {
     setTechnicalEvidenceSha(null);
     setFounderReceipt(null);
     if (ACCEPTED_RUNTIME_ENVELOPE_SHA256 === null) {
-      setRuntimeStatus("WAITING FOR ACCEPTED FINAL RUNTIME PACKAGE · pasted envelopes cannot self-authorize");
+      setRuntimeStatus("Waiting for an independently accepted v4 deployment receipt. Pasted local JSON cannot authorize a run.");
       return;
     }
     try {
@@ -248,9 +257,9 @@ export default function FounderAiQualityReviewConsole() {
       const parsed = parseRuntimePackageAcceptance(runtimeEnvelopeText, sha256);
       setRuntimeEnvelope(parsed);
       setRuntimeEnvelopeSha(sha256);
-      setRuntimeStatus(`Accepted final runtime · default off · ${parsed.final_release_commit.slice(0, 12)}…`);
+      setRuntimeStatus(`Accepted v4 deployment · default off · ${parsed.final_release_commit.slice(0, 12)}…`);
     } catch (error) {
-      setRuntimeStatus(error instanceof Error ? error.message : "STOP_S2_T280_RUNTIME_INVALID");
+      setRuntimeStatus(error instanceof Error ? error.message : "STOP_S2_T290_DEPLOYMENT_INVALID");
     }
   };
 
@@ -259,11 +268,11 @@ export default function FounderAiQualityReviewConsole() {
     setTechnicalEvidenceSha(null);
     setAuthorizationRequest(null);
     if (!runtimeEnvelope || !runtimeEnvelopeSha) {
-      setTechnicalStatus("STOP_S2_T280_RUNTIME_PREREQUISITE");
+      setTechnicalStatus("First import an accepted v4 deployment receipt.");
       return;
     }
     if (ACCEPTED_TECHNICAL_EVIDENCE_SHA256 === null) {
-      setTechnicalStatus("WAITING FOR ACCEPTED TECHNICAL EVIDENCE · this build cannot self-approve a pasted envelope");
+      setTechnicalStatus("Waiting for independently accepted T289 80-case evidence. This build cannot self-approve it.");
       return;
     }
     try {
@@ -273,14 +282,14 @@ export default function FounderAiQualityReviewConsole() {
       setTechnicalEvidenceSha(sha256);
       setTechnicalStatus(`Accepted 80/80 · 40 EN / 40 zh-Hant · disabled verified · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setTechnicalStatus(error instanceof Error ? error.message : "STOP_S2_T280_TECHNICAL_EVIDENCE_INVALID");
+      setTechnicalStatus(error instanceof Error ? error.message : "STOP_S2_T290_TECHNICAL_EVIDENCE_INVALID");
     }
   };
 
   const prepareAuthorizationRequest = async () => {
     const fixtures = Object.values(frozenFixtures);
     if (!runtimeEnvelope || !runtimeEnvelopeSha || !technicalEvidence || !technicalEvidenceSha || !fixturePackageSha) {
-      setAuthorizationStatus("STOP_S2_T280_AUTHORIZATION_PREREQUISITES");
+      setAuthorizationStatus(founderNextAction);
       return;
     }
     try {
@@ -293,13 +302,13 @@ export default function FounderAiQualityReviewConsole() {
       setFounderReceiptSha(null);
       setAuthorizationStatus(`Authorization request ready · not authorized · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setAuthorizationStatus(error instanceof Error ? error.message : "STOP_S2_T280_AUTHORIZATION_REQUEST");
+      setAuthorizationStatus(error instanceof Error ? error.message : "STOP_S2_T290_AUTHORIZATION_REQUEST");
     }
   };
 
   const importFounderReceipt = async () => {
     if (!authorizationRequest || !authorizationRequestSha) {
-      setFounderReceiptStatus("STOP_S2_T280_FOUNDER_RECEIPT_REQUEST_REQUIRED");
+      setFounderReceiptStatus("Prepare the checksum-bound Founder-window request first.");
       return;
     }
     if (ACCEPTED_FOUNDER_WINDOW_RECEIPT_SHA256 === null) {
@@ -313,7 +322,7 @@ export default function FounderAiQualityReviewConsole() {
       setFounderReceiptSha(sha256);
       setFounderReceiptStatus(`Founder window accepted · fixture IDs only · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setFounderReceiptStatus(error instanceof Error ? error.message : "STOP_S2_T280_FOUNDER_RECEIPT_INVALID");
+      setFounderReceiptStatus(error instanceof Error ? error.message : "STOP_S2_T290_FOUNDER_RECEIPT_INVALID");
     }
   };
 
@@ -343,7 +352,7 @@ export default function FounderAiQualityReviewConsole() {
       setLiveRecords((current) => ({ ...current, [evidence.fixture_id]: record }));
       setExecutionStatus(`Verified live synthetic evidence · ${evidence.fixture_id} · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setExecutionStatus(error instanceof Error ? error.message : "STOP_S2_T280_EXECUTION_INVALID");
+      setExecutionStatus(error instanceof Error ? error.message : "STOP_S2_T290_EXECUTION_INVALID");
     }
   };
 
@@ -356,7 +365,7 @@ export default function FounderAiQualityReviewConsole() {
       parsePostWindowProof(postWindowText, runtimeEnvelope.final_package_sha256, founderReceiptSha);
       setPostWindowStatus("Window closed · provider disabled · post-window proof verified");
     } catch (error) {
-      setPostWindowStatus(error instanceof Error ? error.message : "STOP_S2_T280_POST_WINDOW_INVALID");
+      setPostWindowStatus(error instanceof Error ? error.message : "STOP_S2_T290_POST_WINDOW_INVALID");
     }
   };
 
@@ -373,6 +382,21 @@ export default function FounderAiQualityReviewConsole() {
     setExportStatus(`Checksum ready · ${sha256.slice(0, 12)}…`);
   };
 
+  const downloadArtifact = (content: string | null, filename: string) => {
+    if (!content) return;
+    if (Platform.OS !== "web" || typeof document === "undefined") {
+      setExportStatus("Export ready below. Use the device share or select action to save it.");
+      return;
+    }
+    const href = URL.createObjectURL(new Blob([`${content.trimEnd()}\n`], { type: "application/json;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(href);
+    setExportStatus(`Downloaded ${filename}`);
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <CelestialBackground />
@@ -387,12 +411,17 @@ export default function FounderAiQualityReviewConsole() {
         <Text style={styles.intro}>External validation + classification stays outside product pixels. An Evidence-bound synthetic result is shown only after every accepted checksum gate passes.</Text>
 
         <View accessibilityLabel="Founder review journey" style={styles.journey}>
-          <Text style={styles.journeyStep}>1 · Verify final runtime package and accepted 80-case evidence</Text>
-          <Text style={styles.journeyStep}>2 · Freeze exactly 40 questions · 20 EN / 20 zh-Hant</Text>
-          <Text style={styles.journeyStep}>3 · Prepare request and import separate Founder authority</Text>
-          <Text style={styles.journeyStep}>4 · Later invoke by fixture ID only</Text>
-          <Text style={styles.journeyStep}>5 · Verify interpretation · rate · export verdict</Text>
+          <Text style={styles.journeyStep}>1 · Verify the accepted v4 default-off deployment receipt</Text>
+          <Text style={styles.journeyStep}>2 · Verify accepted T289 80-case Technical evidence</Text>
+          <Text style={styles.journeyStep}>3 · Freeze exactly 40 questions · 20 EN / 20 zh-Hant</Text>
+          <Text style={styles.journeyStep}>4 · Prepare request and import separate Founder authority</Text>
+          <Text style={styles.journeyStep}>5 · Later invoke by fixture ID only · rate · export</Text>
           <Text style={styles.journeyStep}>6 · Verify post-window disabled state</Text>
+        </View>
+
+        <View accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.nextActionCard}>
+          <Text style={styles.nextActionLabel}>CURRENT NEXT ACTION</Text>
+          <Text style={styles.nextActionText}>{founderNextAction}</Text>
         </View>
 
         <View accessibilityRole="tablist" style={styles.tabs}>
@@ -400,23 +429,23 @@ export default function FounderAiQualityReviewConsole() {
           <SectionTab label="Companion / Chat" largeText={compactLayout} selected={section === "companion_chat"} onPress={() => setSection("companion_chat")} />
         </View>
 
-        <View style={styles.summaryRow}>
+        <View style={[styles.summaryRow, compactLayout && styles.summaryRowCompact]}>
           <Summary label="Fixture set" value={section === "dice" ? "40 reserved · 20 EN / 20 zh-Hant" : "Later closed cases"} />
           <Summary label="Current state" value={selected.state.replaceAll("_", " ")} />
         </View>
 
         {section === "dice" ? (
           <>
-          <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>1 · Final runtime package gate</Text>
-            <Text style={styles.helper}>The closed package envelope must bind the completed T272 runtime proof ({T272_RUNTIME_COMMIT.slice(0, 12)}…), a separately reviewed final release, a default-off deployment receipt, and zero provider calls. Migration 0039 cannot be smuggled into this gate.</Text>
-            <TextInput accessibilityLabel="Accepted final Dice runtime package JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setRuntimeEnvelopeText} placeholder="Paste accepted runtime package envelope" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={runtimeEnvelopeText} />
-            <Pressable accessibilityRole="button" onPress={() => void importRuntimeEnvelope()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Verify runtime package</Text></Pressable>
+          <View accessibilityLabel="Final runtime package gate, accepted v4 deployment" style={styles.card}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>1 · Accepted v4 deployment gate</Text>
+            <Text style={styles.helper}>Import only the independently accepted T287 v4 default-off deployment receipt. It must bind runtime package {T287_RUNTIME_PACKAGE_SHA256.slice(0, 12)}…, four disabled probes, zero provider calls, and exclude migration 0039.</Text>
+            <TextInput accessibilityLabel="Accepted v4 Dice deployment receipt JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setRuntimeEnvelopeText} placeholder="Paste accepted v4 deployment receipt" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={runtimeEnvelopeText} />
+            <Pressable accessibilityRole="button" onPress={() => void importRuntimeEnvelope()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Verify v4 deployment receipt</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{runtimeStatus}</Text>
           </View>
           <View style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>2 · Technical evidence gate</Text>
-            <Text style={styles.helper}>Import only the separately accepted 80-case Technical envelope bound to the verified runtime package and PG17 ledger proof. Loading, partial, stale, wrong-package, Founder-bearing, or self-authored evidence is rejected.</Text>
+            <Text style={styles.helper}>Import only the separately accepted T289 80-case envelope bound to the verified v4 deployment and separate migration receipt. Partial, stale, wrong-package, Founder-bearing, or self-authored evidence is rejected.</Text>
             <TextInput accessibilityLabel="Accepted 80-case Technical evidence JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setTechnicalEvidenceText} placeholder="Paste closed Technical evidence envelope" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={technicalEvidenceText} />
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: !runtimeEnvelope }} disabled={!runtimeEnvelope} onPress={() => void importTechnicalEvidence()} style={[styles.secondaryButton, !runtimeEnvelope && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Verify 80-case evidence</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{technicalStatus}</Text>
@@ -429,7 +458,7 @@ export default function FounderAiQualityReviewConsole() {
               <SectionTab label="繁體中文" largeText={compactLayout} selected={draftLanguage === "zh-Hant"} onPress={() => { setDraftLanguage("zh-Hant"); setDraftDecision(null); }} />
             </View>
             <Text style={styles.slotLabel}>SELECT SLOT · {selectedIds.dice}</Text>
-            <ScrollView accessibilityLabel={`${draftLanguage} Founder fixture slots`} horizontal showsHorizontalScrollIndicator={false} style={styles.slotRail}>
+            <View accessibilityLabel={`${draftLanguage} Founder fixture slots`} style={styles.slotGrid}>
               {RESERVED_DICE_FOUNDER_IDS.filter((id) => id.includes(draftLanguage === "en" ? "-EN-" : "-ZH-")).map((id) => (
                 <Pressable
                   accessibilityLabel={`${id}${frozenFixtures[id] ? ", frozen" : ", available"}`}
@@ -442,7 +471,7 @@ export default function FounderAiQualityReviewConsole() {
                   <Text style={[styles.slotButtonText, selectedIds.dice === id && styles.slotButtonTextSelected]}>{id.slice(-2)}</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
             <TextInput
               accessibilityLabel="Synthetic Founder Dice question"
               maxFontSizeMultiplier={1.4}
@@ -461,7 +490,11 @@ export default function FounderAiQualityReviewConsole() {
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{draftStatus}</Text>
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: Object.keys(frozenFixtures).length !== 40 }} disabled={Object.keys(frozenFixtures).length !== 40} onPress={() => void prepareFixtureExport()} style={[styles.fixtureExportButton, Object.keys(frozenFixtures).length !== 40 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Prepare fixture checksum · {Object.keys(frozenFixtures).length}/40</Text></Pressable>
             {fixtureExport ? <Text selectable style={styles.exportPreview}>{fixtureExport}</Text> : null}
-            {ratingSheetExport ? <><Text style={styles.slotLabel}>EXPORTABLE FOUNDER RATING SHEET</Text><Text selectable style={styles.exportPreview}>{ratingSheetExport}</Text></> : null}
+            {ratingSheetExport ? <>
+              <Text style={styles.slotLabel}>EXPORTABLE FOUNDER RATING SHEET</Text>
+              <Pressable accessibilityRole="button" onPress={() => downloadArtifact(ratingSheetExport, `lumis-founder-dice-ratings-${BUILD_SHA.slice(0, 12)}.json`)} style={styles.fixtureExportButton}><Text style={styles.secondaryButtonText}>Download rating sheet</Text></Pressable>
+              <Text selectable style={styles.exportPreview}>{ratingSheetExport}</Text>
+            </> : null}
           </View>
           <View accessibilityLabel="Founder Dice local state navigator" style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>Local state review</Text>
@@ -502,7 +535,7 @@ export default function FounderAiQualityReviewConsole() {
         )}
 
         <Text accessibilityRole="header" style={styles.sectionTitle}>Review case</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fixtureRail}>
+        <View style={styles.fixtureGrid}>
           {records.map((record) => (
             <Pressable
               accessibilityLabel={`Review ${record.fixture_id}, ${record.state.replaceAll("_", " ")}`}
@@ -515,7 +548,7 @@ export default function FounderAiQualityReviewConsole() {
               <Text style={[styles.fixtureChipText, record.fixture_id === selected.fixture_id && styles.fixtureChipTextSelected]}>{record.fixture_id.replace(/^DICE-FOUNDER-/, "").replace(/^chat_/, "")}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeadingRow}>
@@ -543,7 +576,7 @@ export default function FounderAiQualityReviewConsole() {
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled style={[styles.exportButton, styles.disabledButton]}>
               <Text style={styles.exportButtonText}>Invoke eligible fixture ID</Text>
             </Pressable>
-            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>STOP_S2_T280_GATEWAY_DISABLED · accepted runtime, Technical evidence, and Founder receipt required</Text>
+            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{founderNextAction}</Text>
             <TextInput accessibilityLabel="Founder fixture execution evidence JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setExecutionText} placeholder="Paste accepted fixture execution evidence" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={executionText} />
             <Pressable accessibilityRole="button" onPress={() => void importExecutionEvidence()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Verify selected fixture result</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{executionStatus}</Text>
@@ -603,6 +636,7 @@ export default function FounderAiQualityReviewConsole() {
           <Pressable accessibilityRole="button" onPress={() => void exportVerdicts()} style={styles.exportButton}>
             <Text style={styles.exportButtonText}>Prepare checksum package</Text>
           </Pressable>
+          {exportText ? <Pressable accessibilityRole="button" onPress={() => downloadArtifact(exportText, `lumis-founder-dice-verdict-${BUILD_SHA.slice(0, 12)}.json`)} style={styles.fixtureExportButton}><Text style={styles.secondaryButtonText}>Download verdict package</Text></Pressable> : null}
           <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{exportStatus}</Text>
           {exportText ? <Text selectable style={styles.exportPreview}>{exportText}</Text> : null}
         </View>
@@ -651,6 +685,9 @@ const styles = StyleSheet.create({
   intro: { color: colors.textSoft, fontSize: 15, lineHeight: 22, marginTop: spacing.sm },
   journey: { borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, gap: 6, marginTop: spacing.lg, padding: spacing.md },
   journeyStep: { color: colors.textSoft, fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  nextActionCard: { backgroundColor: "rgba(134,200,166,0.12)", borderColor: colors.gold, borderRadius: radii.sm, borderWidth: 1, marginTop: spacing.md, padding: spacing.md },
+  nextActionLabel: { color: colors.goldLight, fontSize: 10, fontWeight: "800" },
+  nextActionText: { color: colors.ice, fontSize: 16, fontWeight: "800", lineHeight: 23, marginTop: 4 },
   tabs: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flexDirection: "row", marginTop: spacing.lg, padding: 4 },
   tab: { alignItems: "center", borderRadius: 6, flex: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 6 },
   tabLargeText: { minHeight: 64, paddingVertical: 8 },
@@ -658,17 +695,18 @@ const styles = StyleSheet.create({
   tabText: { color: colors.textSoft, fontSize: 14, fontWeight: "700", textAlign: "center" },
   tabTextSelected: { color: colors.navy950 },
   summaryRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  summaryRowCompact: { flexDirection: "column" },
   summary: { backgroundColor: "rgba(22,39,61,0.88)", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flex: 1, minHeight: 72, minWidth: 0, padding: spacing.sm },
   summaryValue: { color: colors.ice, fontSize: 13, fontWeight: "700", lineHeight: 18, marginTop: 4 },
   sectionTitle: { color: colors.ice, fontSize: 19, fontWeight: "800", marginTop: spacing.lg },
-  fixtureRail: { marginHorizontal: -spacing.lg, marginTop: spacing.sm, paddingHorizontal: spacing.lg },
-  fixtureChip: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 18, borderWidth: 1, justifyContent: "center", marginRight: 8, minHeight: 38, paddingHorizontal: 12 },
+  fixtureGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.sm },
+  fixtureChip: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 18, borderWidth: 1, justifyContent: "center", minHeight: 42, maxWidth: "100%", paddingHorizontal: 12 },
   fixtureChipSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
   fixtureChipText: { color: colors.textSoft, fontSize: 12, fontWeight: "700" },
   fixtureChipTextSelected: { color: colors.navy950 },
   card: { backgroundColor: "rgba(22,39,61,0.94)", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, marginTop: spacing.md, padding: spacing.md },
   gateCard: { backgroundColor: "rgba(22,39,61,0.94)", borderColor: colors.gold, borderRadius: radii.sm, borderWidth: 1, marginTop: spacing.md, padding: spacing.md },
-  cardHeadingRow: { alignItems: "flex-start", flexDirection: "row", gap: spacing.sm },
+  cardHeadingRow: { alignItems: "flex-start", flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   flex: { flex: 1 },
   fixtureId: { color: colors.ice, fontSize: 18, fontWeight: "800" },
   expected: { color: colors.textSoft, fontSize: 13, marginTop: 3 },
@@ -682,14 +720,14 @@ const styles = StyleSheet.create({
   languageRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   wrapRow: { flexWrap: "wrap" },
   slotLabel: { color: colors.goldLight, fontSize: 11, fontWeight: "800", marginTop: spacing.md },
-  slotRail: { marginTop: spacing.sm },
-  slotButton: { alignItems: "center", borderColor: colors.line, borderRadius: 6, borderWidth: 1, height: 42, justifyContent: "center", marginRight: 7, width: 42 },
+  slotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: spacing.sm },
+  slotButton: { alignItems: "center", borderColor: colors.line, borderRadius: 6, borderWidth: 1, justifyContent: "center", minHeight: 44, minWidth: 44, paddingHorizontal: 6, paddingVertical: 5 },
   slotButtonSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
   slotButtonText: { color: colors.textSoft, fontSize: 13, fontWeight: "800" },
   slotButtonTextSelected: { color: colors.navy950 },
   draftInput: { backgroundColor: colors.navy950, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ice, fontSize: 16, lineHeight: 23, marginTop: spacing.md, minHeight: 96, padding: spacing.md, textAlignVertical: "top" },
   evidenceInput: { backgroundColor: colors.navy950, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ice, fontFamily: "Courier", fontSize: 12, lineHeight: 18, marginBottom: spacing.md, marginTop: spacing.md, minHeight: 88, padding: spacing.md, textAlignVertical: "top" },
-  actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
   flexButton: { flex: 1, marginTop: 0 },
   secondaryButton: { alignItems: "center", borderColor: colors.gold, borderRadius: 7, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 48 },
   secondaryButtonText: { color: colors.goldLight, fontSize: 13, fontWeight: "800", textAlign: "center" },
@@ -703,19 +741,19 @@ const styles = StyleSheet.create({
   statePreview: { backgroundColor: "rgba(9,24,42,0.72)", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, marginTop: spacing.md, padding: spacing.md },
   frozenNote: { color: colors.goldLight, fontSize: 12, fontWeight: "700", marginTop: spacing.md },
   readinessList: { gap: spacing.sm, marginTop: spacing.md },
-  readinessRow: { alignItems: "flex-start", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "space-between", paddingBottom: spacing.sm },
+  readinessRow: { alignItems: "flex-start", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, justifyContent: "space-between", paddingBottom: spacing.sm },
   readinessLabel: { color: colors.textSoft, flex: 1, fontSize: 13, lineHeight: 19 },
-  readinessValue: { color: colors.goldLight, fontSize: 12, fontWeight: "800", textAlign: "right" },
+  readinessValue: { color: colors.goldLight, flexShrink: 1, fontSize: 12, fontWeight: "800", maxWidth: "100%", textAlign: "right" },
   gateCode: { color: colors.goldLight, fontFamily: "Courier", fontSize: 11, marginTop: spacing.md },
   ratingRow: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "space-between", marginTop: spacing.md },
   ratingRowCompact: { alignItems: "flex-start", flexDirection: "column" },
   ratingLabel: { color: colors.textSoft, flex: 1, fontSize: 13, fontWeight: "600" },
-  ratingButtons: { flexDirection: "row", gap: 4 },
+  ratingButtons: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   ratingButton: { alignItems: "center", borderColor: colors.line, borderRadius: 6, borderWidth: 1, height: 34, justifyContent: "center", width: 34 },
   ratingButtonSelected: { backgroundColor: colors.gold },
   ratingButtonText: { color: colors.textSoft, fontSize: 12, fontWeight: "800" },
   ratingButtonTextSelected: { color: colors.navy950 },
-  verdictRow: { flexDirection: "row", gap: 8, marginTop: spacing.lg },
+  verdictRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.lg },
   verdictButton: { alignItems: "center", borderColor: colors.line, borderRadius: 6, borderWidth: 1, flex: 1, justifyContent: "center", minHeight: 42 },
   verdictButtonSelected: { borderColor: colors.gold, backgroundColor: colors.goldFill },
   verdictText: { color: colors.ice, fontSize: 12, fontWeight: "800", textTransform: "capitalize" },

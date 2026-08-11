@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t290_founder_window_authorization_request_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "interface_version", "deployment_receipt_sha256", "runtime_package_sha256", "technical_evidence_sha256", "founder_fixture_package_sha256", "fixture_total", "language_totals", "invocation_shape", "requested_scope", "requested_status", "effects"],
+  "properties": {
+    "schema": { "const": "s2_t290_founder_window_authorization_request_v1" },
+    "interface_version": { "const": "dice_synthetic_gateway_port_v1" },
+    "deployment_receipt_sha256": { "$ref": "#/$defs/sha256" },
+    "runtime_package_sha256": { "const": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" },
+    "technical_evidence_sha256": { "$ref": "#/$defs/sha256" },
+    "founder_fixture_package_sha256": { "$ref": "#/$defs/sha256" },
+    "fixture_total": { "const": 40 },
+    "language_totals": { "type": "object", "additionalProperties": false, "required": ["en", "zh-Hant"], "properties": { "en": { "const": 20 }, "zh-Hant": { "const": 20 } } },
+    "invocation_shape": { "const": "fixture_id_only" },
+    "requested_scope": { "const": "DICE_FOUNDER_SYNTHETIC_WINDOW_40_ONLY" },
+    "requested_status": { "const": "founder_window_authorization_requested" },
+    "effects": { "type": "object", "additionalProperties": false, "required": ["member_data", "persistence_writes", "units_charged"], "properties": { "member_data": { "const": 0 }, "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 } } }
+  },
+  "$defs": { "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" } }
+}
