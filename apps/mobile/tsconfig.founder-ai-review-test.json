@@ -12,6 +12,8 @@
     "src/dev/founderAiReviewContract.ts",
     "src/dev/founderAiReviewContract.fixtures.ts",
     "src/dev/founderDiceE2eContract.ts",
-    "src/dev/founderDiceE2eContract.fixtures.ts"
+    "src/dev/founderDiceE2eContract.fixtures.ts",
+    "src/dev/founderDiceWindowContract.ts",
+    "src/dev/founderDiceWindowContract.fixtures.ts"
   ]
 }
