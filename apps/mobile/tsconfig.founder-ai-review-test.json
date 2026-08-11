@@ -18,6 +18,8 @@
     "src/dev/founderDiceV4WindowContract.ts",
     "src/dev/founderDiceV4WindowContract.fixtures.ts",
     "src/dev/founderDiceIntakeContract.ts",
-    "src/dev/founderDiceIntakeContract.fixtures.ts"
+    "src/dev/founderDiceIntakeContract.fixtures.ts",
+    "src/dev/founderDiceQuestionBank.ts",
+    "src/dev/founderDiceQuestionBank.fixtures.ts"
   ]
 }

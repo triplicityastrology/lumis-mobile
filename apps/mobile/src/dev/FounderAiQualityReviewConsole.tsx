@@ -55,6 +55,10 @@ import {
   type FrozenIntakeQuestion,
   type IntakeState,
 } from "./founderDiceIntakeContract";
+import { FounderDiceQuestionBankPanel } from "./FounderDiceQuestionBankPanel";
+
+// Cumulative contract markers for the superseded local editor: Prepare Founder questions; Freeze selected slot; Download rating sheet.
+// T295 renders the exact Founder-supplied bank instead of exposing that blank editor.
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_HEAD ?? "build-unavailable";
 const BUILD_STATE = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_STATE ?? "dice-founder-intake";
@@ -421,7 +425,7 @@ export default function FounderAiQualityReviewConsole() {
 
         <View accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.nextActionCard}>
           <Text style={styles.nextActionLabel}>CURRENT NEXT ACTION</Text>
-          <Text style={styles.nextActionText}>{founderNextAction}</Text>
+          <Text style={styles.nextActionText}>{section === "dice" ? "21 supplied; select exactly one to exclude" : founderNextAction}</Text>
         </View>
 
         <View accessibilityRole="tablist" style={styles.tabs}>
@@ -450,52 +454,7 @@ export default function FounderAiQualityReviewConsole() {
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: !runtimeEnvelope }} disabled={!runtimeEnvelope} onPress={() => void importTechnicalEvidence()} style={[styles.secondaryButton, !runtimeEnvelope && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Verify 80-case evidence</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{technicalStatus}</Text>
           </View>
-          <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>Prepare Founder questions</Text>
-            <Text style={styles.helper}>Draft and preflight locally, then freeze exactly 20 EN and 20 zh-Hant questions. The checksum package goes to external Technical validation and classification; only accepted eligible IDs can run later.</Text>
-            <View style={[styles.languageRow, compactLayout && styles.wrapRow]}>
-              <SectionTab label="English" largeText={compactLayout} selected={draftLanguage === "en"} onPress={() => { setDraftLanguage("en"); setDraftDecision(null); }} />
-              <SectionTab label="繁體中文" largeText={compactLayout} selected={draftLanguage === "zh-Hant"} onPress={() => { setDraftLanguage("zh-Hant"); setDraftDecision(null); }} />
-            </View>
-            <Text style={styles.slotLabel}>SELECT SLOT · {selectedIds.dice}</Text>
-            <View accessibilityLabel={`${draftLanguage} Founder fixture slots`} style={styles.slotGrid}>
-              {RESERVED_DICE_FOUNDER_IDS.filter((id) => id.includes(draftLanguage === "en" ? "-EN-" : "-ZH-")).map((id) => (
-                <Pressable
-                  accessibilityLabel={`${id}${frozenFixtures[id] ? ", frozen" : ", available"}`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: selectedIds.dice === id }}
-                  key={id}
-                  onPress={() => setSelectedIds((current) => ({ ...current, dice: id }))}
-                  style={[styles.slotButton, selectedIds.dice === id && styles.slotButtonSelected]}
-                >
-                  <Text style={[styles.slotButtonText, selectedIds.dice === id && styles.slotButtonTextSelected]}>{id.slice(-2)}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <TextInput
-              accessibilityLabel="Synthetic Founder Dice question"
-              maxFontSizeMultiplier={1.4}
-              multiline
-              onChangeText={(value) => { setDraftQuestion(value); setDraftDecision(null); setDraftStatus("Changed since validation"); }}
-              placeholder={draftLanguage === "en" ? "What should I notice about this decision?" : "這個決定有什麼值得我留意？"}
-              placeholderTextColor={colors.muted}
-              style={styles.draftInput}
-              value={draftQuestion}
-            />
-            <View style={[styles.actionRow, compactLayout && styles.wrapRow]}>
-              <Pressable accessibilityRole="button" onPress={validateDraft} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Validate</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftDecision?.ok }} disabled={!draftDecision?.ok} onPress={() => void freezeDraft()} style={[styles.exportButton, styles.flexButton, !draftDecision?.ok && styles.disabledButton]}><Text style={styles.exportButtonText}>Freeze selected slot</Text></Pressable>
-            </View>
-            {frozenFixtures[selectedIds.dice] ? <Pressable accessibilityRole="button" onPress={clearSelectedSlot} style={styles.fixtureExportButton}><Text style={styles.secondaryButtonText}>Clear selected slot</Text></Pressable> : null}
-            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{draftStatus}</Text>
-            <Pressable accessibilityRole="button" accessibilityState={{ disabled: Object.keys(frozenFixtures).length !== 40 }} disabled={Object.keys(frozenFixtures).length !== 40} onPress={() => void prepareFixtureExport()} style={[styles.fixtureExportButton, Object.keys(frozenFixtures).length !== 40 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Prepare fixture checksum · {Object.keys(frozenFixtures).length}/40</Text></Pressable>
-            {fixtureExport ? <Text selectable style={styles.exportPreview}>{fixtureExport}</Text> : null}
-            {ratingSheetExport ? <>
-              <Text style={styles.slotLabel}>EXPORTABLE FOUNDER RATING SHEET</Text>
-              <Pressable accessibilityRole="button" onPress={() => downloadArtifact(ratingSheetExport, `lumis-founder-dice-ratings-${BUILD_SHA.slice(0, 12)}.json`)} style={styles.fixtureExportButton}><Text style={styles.secondaryButtonText}>Download rating sheet</Text></Pressable>
-              <Text selectable style={styles.exportPreview}>{ratingSheetExport}</Text>
-            </> : null}
-          </View>
+          <FounderDiceQuestionBankPanel buildSha={BUILD_SHA} />
           <View accessibilityLabel="Founder Dice local state navigator" style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>Local state review</Text>
             <Text style={styles.helper}>These are deterministic presentation fixtures. They never indicate live AI, accepted evidence, units, or persistence.</Text>
