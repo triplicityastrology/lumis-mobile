@@ -1,0 +1,36 @@
+{
+  "schema": "s2_t289_dice_v4_technical_window_control_v1",
+  "task": "S2-T289",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "founder_authority": {
+    "receipt_design": "APPROVED",
+    "schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "operational_actions_authorized": false,
+    "excluded_authorities": ["DEPLOYMENT", "MIGRATION", "AZURE_TRAFFIC", "NORMAL_CHAT_INTEGRATION", "MEMBER_DATA", "PUBLIC_USE"]
+  },
+  "deployment": {
+    "schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "authority_commit": "fc0e516835b2a693344a4e86e558898ee1cf4237",
+    "runtime_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "post_deploy_receipt_schema": "s2_t289_accepted_v4_post_deploy_disabled_receipt_v1"
+  },
+  "migration": {
+    "authorization_scope": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY",
+    "proof_commit": "b469cb7e0824bd6b864edc983bcd352b37994894",
+    "proof_receipt_schema": "s2_t283_dice_migration_0039_proof_receipt_v1",
+    "proof_receipt_sha256": "0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e",
+    "migration_sha256": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
+    "required_for_live_ledger": true
+  },
+  "registry": {
+    "path": "config/s2-t289-dice-technical-registry-v1.json",
+    "file_sha256": "00ba2d0c9ff60825ba9fbc285d64bf7179e62da8e305480ad3e45612d6d4de0b",
+    "payload_sha256": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030"
+  },
+  "limits": { "technical_cases": 80, "en": 40, "zh_hant": 40, "founder_cases": 0, "attempts": 160, "concurrency": 2, "eligible_retries": 1, "shared_deadline_ms": 12000, "input_tokens": 800, "output_tokens": 300, "technical_cost_ceiling_usd": 0.128 },
+  "pricing": { "currency": "USD", "evidence_file": "config/evidence/s2-t262-azure-foundry-sanitized-price-v1.json" },
+  "required_receipts_in_order": ["accepted_v4_post_deploy_disabled_receipt", "accepted_t283_migration_0039_receipt", "accepted_DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY_receipt"],
+  "authority_status": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"]
+}

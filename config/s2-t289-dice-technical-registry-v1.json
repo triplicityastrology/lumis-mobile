@@ -1,0 +1,406 @@
+{
+  "schema": "lumis_dice_technical_registry_v1",
+  "registry_payload_sha256": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030",
+  "fixtures": [
+    {
+      "fixture_id": "DICE-TECH-EN-JUDGMENT-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-JUDGMENT-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-JUDGMENT-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-JUDGMENT-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-JUDGMENT-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-JUDGMENT-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-JUDGMENT-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-JUDGMENT-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DESCRIPTIVE-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DESCRIPTIVE-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DESCRIPTIVE-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DESCRIPTIVE-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DESCRIPTIVE-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DESCRIPTIVE-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DESCRIPTIVE-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DESCRIPTIVE-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SAFETY-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SAFETY-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SAFETY-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SAFETY-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SAFETY-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SAFETY-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SAFETY-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SAFETY-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-EXCLUDED-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-EXCLUDED-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-EXCLUDED-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-EXCLUDED-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-EXCLUDED-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-EXCLUDED-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-EXCLUDED-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-EXCLUDED-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DEFAULT-V2-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DEFAULT-V2-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DEFAULT-V2-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-DEFAULT-V2-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DEFAULT-V2-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DEFAULT-V2-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DEFAULT-V2-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-DEFAULT-V2-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-MALFORMED-PROVIDER-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-MALFORMED-PROVIDER-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-MALFORMED-PROVIDER-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-MALFORMED-PROVIDER-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-MALFORMED-PROVIDER-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-MALFORMED-PROVIDER-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-MALFORMED-PROVIDER-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-MALFORMED-PROVIDER-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-TRANSIENT-RETRY-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-TRANSIENT-RETRY-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-TRANSIENT-RETRY-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-TRANSIENT-RETRY-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-TRANSIENT-RETRY-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-TRANSIENT-RETRY-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-TRANSIENT-RETRY-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-TRANSIENT-RETRY-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-LANGUAGE-TONE-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-LANGUAGE-TONE-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-LANGUAGE-TONE-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-LANGUAGE-TONE-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-LANGUAGE-TONE-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-LANGUAGE-TONE-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-LANGUAGE-TONE-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-LANGUAGE-TONE-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SCHEMA-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SCHEMA-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SCHEMA-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-SCHEMA-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SCHEMA-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SCHEMA-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SCHEMA-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-SCHEMA-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-INTENT-COVERAGE-01",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-INTENT-COVERAGE-02",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-INTENT-COVERAGE-03",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-EN-INTENT-COVERAGE-04",
+      "language": "en",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-INTENT-COVERAGE-01",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-INTENT-COVERAGE-02",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-INTENT-COVERAGE-03",
+      "language": "zh-Hant",
+      "phase": "technical"
+    },
+    {
+      "fixture_id": "DICE-TECH-ZH-INTENT-COVERAGE-04",
+      "language": "zh-Hant",
+      "phase": "technical"
+    }
+  ]
+}

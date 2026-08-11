@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const index = readFileSync("apps/mobile/index.ts", "utf8");
+const dashboard = readFileSync("apps/mobile/src/dev/FounderDiceV4TechnicalEvidenceDashboard.tsx", "utf8");
+const fixtures = readFileSync("apps/mobile/src/dev/diceV4TechnicalEvidenceFixture.ts", "utf8");
+const launcher = readFileSync("scripts/start-s2-t289-dice-evidence-web.sh", "utf8");
+assert.match(index, /__DEV__ && process\.env\.EXPO_PUBLIC_DICE_V4_TECHNICAL_EVIDENCE === "1"/);
+assert.match(index, /FounderDiceV4TechnicalEvidenceDashboard/);
+assert.match(dashboard, /LOCAL REHEARSAL · NOT AZURE · NO AUTHORITY/);
+assert.match(dashboard, /BUILD \{marker\}/);
+assert.match(dashboard, /no prompts, responses, identities, units, or persistence/i);
+assert.match(fixtures, /technicalCases: 80/);
+assert.match(fixtures, /en: 40/);
+assert.match(fixtures, /zhHant: 40/);
+assert.match(fixtures, /costCeilingUsd: 0\.128/);
+assert.match(launcher, /PORT:-8155/);
+assert.match(launcher, /expo.*export --platform web --dev/);
+assert.match(launcher, /EXPO_PUBLIC_DICE_V4_TECHNICAL_EVIDENCE=1/);
+assert(!launcher.match(/kill |pkill|killall/));
+console.log("S2_T289_DICE_MOBILE_EVIDENCE_CONTRACT_OK surfaces=dashboard cases=80 remote_calls=0");
