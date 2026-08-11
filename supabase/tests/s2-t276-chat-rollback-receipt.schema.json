@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t276_chat_rollback_receipt_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "rollback_target_sha256", "provider_enabled", "provider_calls_after_rollback", "residual_route_access", "migration_changed", "status"],
+  "properties": {
+    "schema": { "const": "s2_t276_chat_rollback_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "chat-synthetic" },
+    "rollback_target_sha256": { "$ref": "#/$defs/sha" },
+    "provider_enabled": { "const": false },
+    "provider_calls_after_rollback": { "const": 0 },
+    "residual_route_access": { "const": false },
+    "migration_changed": { "const": false },
+    "status": { "const": "rolled_back_default_off" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

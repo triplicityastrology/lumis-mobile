@@ -1,0 +1,71 @@
+{
+  "schema": "s2_t276_chat_runtime_review_v1",
+  "task": "S2-T276",
+  "base_commit": "f9567f8280cc377f09e4584d5ac4b0d18cc205fe",
+  "statuses": [
+    "SOURCE_READY",
+    "LOCAL_DENO_RUNTIME_PROVED",
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "route": "chat-synthetic",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "gateway_interface": "chat_synthetic_gateway_port_v1",
+  "founder_bridge_interface": "s2_t276_founder_chat_fixture_bridge_v1",
+  "documented_founder_interface": "s2_t271_founder_chat_window_v1",
+  "runtime": {
+    "deno": "2.2.12",
+    "tokenizer": "npm:js-tiktoken@1.0.21",
+    "supabase_js": "npm:@supabase/supabase-js@2.110.2"
+  },
+  "kill_switch": {
+    "name": "LUMIS_CHAT_AI_ENABLED",
+    "default": false,
+    "disabled_code": "CHAT_AI_DISABLED",
+    "probes": 4
+  },
+  "accepted_dice_package_sha256": "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71",
+  "accepted_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "deployment": {
+    "executed": false,
+    "provider_calls": 0,
+    "migration_0040_applied": false,
+    "normal_chat_connected": false,
+    "member_data": false,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "future_gate": "MICROSOFT_CHAT_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION_REQUIRED",
+  "source_sha256": {
+    ".gitignore": "11e1a117e8ca72c1a6250b24e0a303681ed1e6121c894d3d8f314c8b9a55c424",
+    ".env.example": "abf8c33e72485c7ca77c19b4e25ba368c365c12e86faf696064da2c738f34e9c",
+    "config/evidence/s2-t276-chat-deno-runtime-proof.json": "4b8a2d3a1532a74972f52b4739990d002f22a3b85a5e3756c6b5d48a4cf5260c",
+    "config/s2-t265-microsoft-chat-manifest.json": "9a03249c094b45cbd139b9d95d50ca4c058a6adeffaba67a84460c9e7a26bd68",
+    "config/s2-t270-chat-edge-final.json": "0f95a7595b1f4bb6632109175d121d59dcad781d4ac7c5a4e9626545480498bd",
+    "config/s2-t276-chat-runtime.json": "8d73675da48561de5ad0c6a2f9a777877ee0206028c93a6e9c15c54e79242555",
+    "docs/architecture/S2-T276-chat-runtime-readiness.md": "922ddb7d8a0108c7d65a158af0bfd3faaf7223dcdb80e3d96280a5a38c7d8a63",
+    "package.json": "93c964c08e8fa9419f0ab308348f1dd7f58a93ccf10846e575e25e352e7ecc6c",
+    "scripts/run-s2-t276-chat-deployment.zsh": "a3c85e29592a9f27a0e773567bade4fdcbcaa44464f6d2fe7166eb2db65a8afa",
+    "scripts/s2-t276-chat-deno-runtime-proof.mjs": "366169180cf86533c600dbc7684bbc222cf6d399102afa77a30dbe21743188f0",
+    "scripts/s2-t276-chat-readiness.mjs": "e00b3ea9f5ef3eb99d4200b18f08c49c588d70ef530d13b2ebdedca949ea7160",
+    "scripts/s2-t276-chat-operator-contract.mjs": "bda0c6e4dc3ca095c7cd39b00b8050eb969edd53c54161b66350526378e4ae02",
+    "scripts/s2-t276-chat-runtime-contract.mjs": "3b7ef651f183f3b04ed20923467ab78509175a4b429a18ffda409e058e5a2cc0",
+    "scripts/s2-t276-chat-runtime-seal.mjs": "04eb79c801a741fc15e354a0703276932e19d199139008b89323ff36e867bf72",
+    "scripts/s2-t270-chat-edge-seal.mjs": "926d670cf0e1fbff8db8fe35d829d25ff9deeced640d8a1e4af19ca9f74e3568",
+    "supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts": "29433b8c38c93645f68a45ba66b2cd8ec9442a9640d6e87b3ee5513282e9fc96",
+    "supabase/functions/_shared/chat-synthetic-gateway-port-v1.ts": "59f7cf4e612c9125a0e5afdb03e1bb706788c2a6f1c1316f2da5b02eb62c9dc0",
+    "supabase/functions/_shared/chat-synthetic-postgres-authority-store-v1.ts": "ceff8eea3f9bc7ab952ac73e05faec2bf1da91e3d91ac722c7f4b7e5a0a4aeda",
+    "supabase/functions/chat-synthetic/deno.json": "1afebddc8272c101bacc7e0873b059f211cce9c02dc2f1508abbf91152e91295",
+    "supabase/functions/chat-synthetic/edge-handler-v1.ts": "e48c4fca604cbf08f62b34f392992fddc3c8bcea0668a1de384f95b2d6141128",
+    "supabase/functions/chat-synthetic/edge-handler-v1.fixtures.ts": "a79d0c3bb5e3280630d9a902f7ed260385b742347a04489dcbe05ca1db1124b5",
+    "supabase/functions/chat-synthetic/index.ts": "ac80fce61afd209173cc113c8316b4fe1ff116c418601be02b3c72cdfbf13c02",
+    "supabase/migrations/0040_chat_synthetic_authority_ledger.sql": "5b8e14c3e10081b9175ffbceadbc0890d58863241ba772d0fc874d75f4c1a0a0",
+    "supabase/tests/s2-t193-normal-chat-contract-v1.schema.json": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+    "supabase/tests/s2-t270-accepted-dice-technical-evidence.schema.json": "7b980088a990fd0562f773cd06b17dec176f50cf9b48a09aeba737b94146aad6",
+    "supabase/tests/s2-t276-chat-default-off-deployment-authorization.schema.json": "d5a39ea0ad7587ba1bc991c4f0e3fa4972d0dc3043767f4e2778c8350e985b18",
+    "supabase/tests/s2-t276-chat-default-off-deployment-receipt.schema.json": "44f16ca7f085e38401c733343cb8945d0a74ed82571687026d4cdd1f00279ede",
+    "supabase/tests/s2-t276-chat-rollback-receipt.schema.json": "14f1abc8583fb0eee4ef4e31c3241856406d614ab79305e8f7e9f89ca02bbde6",
+    "supabase/tests/s2-t276-founder-chat-fixture-bridge.schema.json": "d7978fd8d461d41b88fd57beedf7deaca9d67c399b6380370d16aaa148b8ca5f"
+  },
+  "package_binding_sha256": "49754764818ed7e0e85907ebe7b7571026442c6b5ff1f1fa30d0295e982996f6"
+}

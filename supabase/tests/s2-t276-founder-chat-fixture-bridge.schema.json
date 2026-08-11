@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t276_founder_chat_fixture_bridge_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fixture_id", "idempotency_key", "run_id"],
+  "properties": {
+    "schema_version": { "const": "s2_t276_founder_chat_fixture_bridge_v1" },
+    "fixture_id": { "type": "string", "pattern": "^chat_(en|zh_hant)_[a-z0-9_]+_v1$" },
+    "idempotency_key": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,80}$" },
+    "run_id": { "type": "string", "pattern": "^chat-syn-[a-z0-9]{12,32}$" }
+  }
+}

@@ -23,11 +23,9 @@ export type ChatEdgeDependencies = Readonly<{
 }>;
 
 type ClosedEdgeRequest = Readonly<{
-  dice_evidence: unknown;
-  dice_evidence_sha256: string;
-  authority: unknown;
-  authority_sha256: string;
-  fixture: unknown;
+  fixture_id: string;
+  idempotency_key: string;
+  run_id: string;
 }>;
 
 export function createChatSyntheticEdgeHandler(dependencies: ChatEdgeDependencies): (request: Request) => Promise<Response> {
@@ -52,7 +50,7 @@ export function createChatSyntheticEdgeHandler(dependencies: ChatEdgeDependencie
     const authorityClient = dependencies.createAuthorityClient(runtime.supabaseUrl, runtime.serviceRoleKey);
     const gateway = new ChatSyntheticRun({
       aiEnabled: true,
-      adapter: createAzureChatSyntheticAdapter(providerConfig.config, dependencies.fetchImpl),
+      adapter: createAzureChatSyntheticAdapter(providerConfig.config, dependencies.fetchImpl, dependencies.nowMs),
       nowMs: dependencies.nowMs ?? Date.now,
       recordMetadata() {},
     });
@@ -65,12 +63,12 @@ export function createChatSyntheticEdgeHandler(dependencies: ChatEdgeDependencie
 
     try {
       await port.authorize({
-        diceEvidence: body.dice_evidence,
-        diceEvidenceSha256: body.dice_evidence_sha256,
-        authority: body.authority,
-        authoritySha256: body.authority_sha256,
+        diceEvidence: runtime.diceEvidence,
+        diceEvidenceSha256: runtime.control.acceptedDiceEvidenceSha256!,
+        authority: runtime.authority,
+        authoritySha256: runtime.control.acceptedAuthoritySha256!,
       });
-      const result = await port.invokeFixture(body.fixture);
+      const result = await port.invokeFixture(body);
       return jsonResponse(result, { status: 200 });
     } catch (error) {
       const code = error instanceof ChatSyntheticPortError ? error.code : "CHAT_SYNTHETIC_TECHNICAL_ERROR";
@@ -80,7 +78,7 @@ export function createChatSyntheticEdgeHandler(dependencies: ChatEdgeDependencie
 }
 
 function readRuntimeConfig(environment: EdgeEnvironment):
-  | { ok: true; supabaseUrl: string; serviceRoleKey: string; control: ChatSyntheticReviewControl }
+  | { ok: true; supabaseUrl: string; serviceRoleKey: string; diceEvidence: unknown; authority: unknown; control: ChatSyntheticReviewControl }
   | { ok: false; code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" } {
   const supabaseUrl = environment.SUPABASE_URL?.trim();
   const serviceRoleKey = environment.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -89,14 +87,18 @@ function readRuntimeConfig(environment: EdgeEnvironment):
   const reviewPackageSha256 = environment.LUMIS_CHAT_REVIEW_PACKAGE_SHA256?.trim();
   const gatewaySourceSha256 = environment.LUMIS_CHAT_GATEWAY_SOURCE_SHA256?.trim();
   const fixtureRegistrySha256 = environment.LUMIS_CHAT_FIXTURE_REGISTRY_SHA256?.trim();
+  const diceEvidence = parseServerJson(environment.LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON);
+  const authority = parseServerJson(environment.LUMIS_CHAT_ACCEPTED_AUTHORITY_JSON);
   if (!supabaseUrl || !serviceRoleKey || !acceptedDiceEvidenceSha256 || !acceptedAuthoritySha256 ||
-      !reviewPackageSha256 || !gatewaySourceSha256 || !fixtureRegistrySha256) {
+      !reviewPackageSha256 || !gatewaySourceSha256 || !fixtureRegistrySha256 || diceEvidence === null || authority === null) {
     return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
   }
   return {
     ok: true,
     supabaseUrl,
     serviceRoleKey,
+    diceEvidence,
+    authority,
     control: Object.freeze({
       executionAuthority: true,
       acceptedDiceEvidenceSha256,
@@ -111,8 +113,15 @@ function readRuntimeConfig(environment: EdgeEnvironment):
 function isClosedEdgeRequest(value: unknown): value is ClosedEdgeRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const keys = Object.keys(value);
-  return keys.length === 5 && keys.every((key) =>
-    ["dice_evidence", "dice_evidence_sha256", "authority", "authority_sha256", "fixture"].includes(key));
+  return keys.length === 3 && keys.every((key) => ["fixture_id", "idempotency_key", "run_id"].includes(key)) &&
+    typeof (value as Record<string, unknown>).fixture_id === "string" &&
+    typeof (value as Record<string, unknown>).idempotency_key === "string" &&
+    typeof (value as Record<string, unknown>).run_id === "string";
+}
+
+function parseServerJson(value: string | undefined): unknown | null {
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
 }
 
 function statusFor(code: string): number {

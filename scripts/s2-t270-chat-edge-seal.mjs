@@ -49,7 +49,8 @@ const manifest = {
   },
   configuration_names: [
     "LUMIS_CHAT_AI_ENABLED", "LUMIS_CHAT_AZURE_API_KEY", "LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_SHA256",
-    "LUMIS_CHAT_ACCEPTED_AUTHORITY_SHA256", "LUMIS_CHAT_REVIEW_PACKAGE_SHA256",
+    "LUMIS_CHAT_ACCEPTED_AUTHORITY_SHA256", "LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON",
+    "LUMIS_CHAT_ACCEPTED_AUTHORITY_JSON", "LUMIS_CHAT_REVIEW_PACKAGE_SHA256",
     "LUMIS_CHAT_GATEWAY_SOURCE_SHA256", "LUMIS_CHAT_FIXTURE_REGISTRY_SHA256"
   ],
   execution: { deployment: false, provider_calls: 0, migration_applied: false, normal_chat_connected: false, member_persistence: false, units_charged: 0 },

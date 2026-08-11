@@ -1,0 +1,28 @@
+{
+  "schema": "s2_t276_chat_deno_runtime_proof_v1",
+  "runtime": {
+    "deno": "2.2.12",
+    "target": "aarch64-apple-darwin",
+    "binary_sha256": "5ad2c9e4ec729df30255caaa597d773d9db2acef4677f1738ce5ef6b2141183a"
+  },
+  "entry": "supabase/functions/chat-synthetic/index.ts",
+  "config": "supabase/functions/chat-synthetic/deno.json",
+  "import_graph_sha256": "d28b0b37783e3be5728ca71b964a0ace31e11b70f626663a10935de1730e567b",
+  "tokenizer": {
+    "version": "1.0.21",
+    "specifier": "npm:js-tiktoken@1.0.21"
+  },
+  "supabase_js": {
+    "version": "2.110.2",
+    "specifier": "npm:@supabase/supabase-js@2.110.2"
+  },
+  "check": "passed",
+  "local_serve": "passed",
+  "disabled_probe_count": 4,
+  "disabled_code": "CHAT_AI_DISABLED",
+  "json_parsing_reached": false,
+  "client_construction_reached": false,
+  "provider_calls": 0,
+  "remote_imports": 0,
+  "network_scope": "loopback_only"
+}

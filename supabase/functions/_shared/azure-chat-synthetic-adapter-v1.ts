@@ -34,7 +34,11 @@ export function readChatAzureServerConfig(environment: Readonly<Record<string, s
   };
 }
 
-export function createAzureChatSyntheticAdapter(config: ChatAzureServerConfig, fetchImpl: typeof fetch = fetch): ChatSyntheticAdapter {
+export function createAzureChatSyntheticAdapter(
+  config: ChatAzureServerConfig,
+  fetchImpl: typeof fetch = fetch,
+  nowMs: () => number = Date.now,
+): ChatSyntheticAdapter {
   if (config.origin !== `https://${CHAT_AZURE_APPROVED_HOSTNAME}` ||
       config.deployment !== CHAT_AZURE_DEPLOYMENT || config.routeFamily !== CHAT_AZURE_ROUTE_FAMILY) {
     throw new Error("CHAT_SYNTHETIC_AZURE_CONFIGURATION_INVALID");
@@ -42,7 +46,7 @@ export function createAzureChatSyntheticAdapter(config: ChatAzureServerConfig, f
   return Object.freeze({
     async complete(input): Promise<ProviderResult> {
       if (input.providerAlias !== config.deployment || input.safetyProfile !== "DefaultV2") return { kind: "forbidden" };
-      const remainingMs = input.deadlineAtMs - Date.now();
+      const remainingMs = input.deadlineAtMs - nowMs();
       if (remainingMs <= 0) return { kind: "timeout" };
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), remainingMs);

@@ -48,15 +48,9 @@ function authority(overrides: Record<string, unknown> = {}) {
 
 function body(overrides: Record<string, unknown> = {}) {
   return {
-    dice_evidence: evidence(),
-    dice_evidence_sha256: SHA_C,
-    authority: authority(),
-    authority_sha256: SHA_A,
-    fixture: {
-      fixture_id: "chat_en_small_decision_v1",
-      idempotency_key: "edge-fixture-key-0001",
-      run_id: "chat-syn-0123456789ab",
-    },
+    fixture_id: "chat_en_small_decision_v1",
+    idempotency_key: "edge-fixture-key-0001",
+    run_id: "chat-syn-0123456789ab",
     ...overrides,
   };
 }
@@ -66,6 +60,8 @@ const enabledEnvironment = {
   LUMIS_CHAT_AZURE_API_KEY: "fixture-only-key",
   LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_SHA256: SHA_C,
   LUMIS_CHAT_ACCEPTED_AUTHORITY_SHA256: SHA_A,
+  LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(evidence()),
+  LUMIS_CHAT_ACCEPTED_AUTHORITY_JSON: JSON.stringify(authority()),
   LUMIS_CHAT_REVIEW_PACKAGE_SHA256: SHA_D,
   LUMIS_CHAT_GATEWAY_SOURCE_SHA256: SHA_A,
   LUMIS_CHAT_FIXTURE_REGISTRY_SHA256: SHA_B,
@@ -127,10 +123,16 @@ async function main() {
   assert.deepEqual(rpcCalls.map(({ name }) => name), ["consume_chat_synthetic_authority_v1", "consume_chat_synthetic_fixture_v1"]);
   assert.equal(JSON.stringify(rpcCalls).includes("edge-fixture-key-0001"), false);
 
-  const wrongPackage = await handler(new Request("http://local.invalid", {
+  const wrongPackageHandler = createChatSyntheticEdgeHandler({
+    environment: { ...enabledEnvironment, LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(evidence({ dice_gateway_package_sha256: "0".repeat(64) })) },
+    nowMs: () => NOW,
+    createAuthorityClient() { return { async rpc() { return { data: "consumed", error: null }; } }; },
+    async fetchImpl() { providerCalls += 1; throw new Error("must not fetch"); },
+  });
+  const wrongPackage = await wrongPackageHandler(new Request("http://local.invalid", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body({ dice_evidence: evidence({ dice_gateway_package_sha256: "0".repeat(64) }) })),
+    body: JSON.stringify(body()),
   }));
   assert.equal(wrongPackage.status, 403);
   assert.deepEqual(await wrongPackage.json(), { error: { code: "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID" } });
