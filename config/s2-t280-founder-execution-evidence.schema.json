@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t280_founder_execution_evidence_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "runtime_package_sha256", "technical_evidence_sha256", "founder_authorization_receipt_sha256", "fixture_id", "language", "state", "result_class", "safe_rendered_output", "attempt_count", "latency_bucket", "input_token_bucket", "output_token_bucket", "effects"],
+  "properties": {
+    "schema_version": { "const": "s2_t280_founder_execution_evidence_v1" },
+    "runtime_package_sha256": { "$ref": "#/$defs/sha256" },
+    "technical_evidence_sha256": { "$ref": "#/$defs/sha256" },
+    "founder_authorization_receipt_sha256": { "$ref": "#/$defs/sha256" },
+    "fixture_id": { "type": "string", "pattern": "^DICE-FOUNDER-(EN|ZH)-(0[1-9]|1[0-9]|20)$" },
+    "language": { "enum": ["en", "zh-Hant"] },
+    "state": { "const": "live_synthetic" },
+    "result_class": { "enum": ["completed", "safety_redirect", "fixed_fallback", "technical_error"] },
+    "safe_rendered_output": { "type": "string", "minLength": 1, "maxLength": 1200 },
+    "attempt_count": { "type": "integer", "minimum": 1, "maximum": 2 },
+    "latency_bucket": { "enum": ["under_3s", "3_to_8s", "8_to_12s", "timeout"] },
+    "input_token_bucket": { "enum": ["0_to_400", "401_to_800"] },
+    "output_token_bucket": { "enum": ["0_to_150", "151_to_300"] },
+    "effects": { "type": "object", "additionalProperties": false, "required": ["persistence_writes", "units_charged"], "properties": { "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 } } }
+  },
+  "$defs": { "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

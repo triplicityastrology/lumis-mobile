@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CelestialBackground } from "../components/CelestialBackground";
 import { colors, radii, spacing } from "../theme/tokens";
 import {
-  ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256,
   LATER_CHAT_FIXTURE_IDS,
   RATING_DIMENSIONS,
   RESERVED_DICE_FOUNDER_IDS,
@@ -30,14 +29,20 @@ import {
   resolveFounderDiceJourneyState,
 } from "./founderDiceE2eContract";
 import {
-  ACCEPTED_FOUNDER_WINDOW_AUTHORIZATION_SHA256,
+  ACCEPTED_FOUNDER_WINDOW_RECEIPT_SHA256,
+  ACCEPTED_RUNTIME_ENVELOPE_SHA256,
   ACCEPTED_TECHNICAL_EVIDENCE_SHA256,
-  T262_PACKAGE_SHA256,
+  T272_RUNTIME_COMMIT,
   authorizationRequestCanonicalJson,
   createFounderWindowAuthorizationRequest,
   parseFounderExecutionEvidence,
+  parseFounderWindowAuthorizationReceipt,
   parsePostWindowProof,
+  parseRuntimePackageAcceptance,
   parseTechnicalEvidenceImport,
+  type FounderWindowAuthorizationReceipt,
+  type FounderWindowAuthorizationRequest,
+  type RuntimePackageAcceptance,
   type TechnicalEvidenceImport,
 } from "./founderDiceWindowContract";
 
@@ -68,7 +73,7 @@ const LABELS: Record<RatingDimension, string> = {
 };
 
 function Text({ maxFontSizeMultiplier = 1.4, ...props }: TextProps) {
-  return <NativeText {...props} maxFontSizeMultiplier={maxFontSizeMultiplier} />;
+  return <NativeText {...props} maxFontSizeMultiplier={maxFontSizeMultiplier} style={[{ flexShrink: 1 }, props.style]} />;
 }
 
 function allRecords(section: ReviewSection, frozen: Readonly<Record<string, FrozenFounderQuestion>>, live: Readonly<Record<string, SyntheticReviewRecord>>): SyntheticReviewRecord[] {
@@ -102,19 +107,28 @@ export default function FounderAiQualityReviewConsole() {
   const [draftStatus, setDraftStatus] = useState("Draft has not been validated");
   const [fixtureExport, setFixtureExport] = useState<string | null>(null);
   const [fixturePackageSha, setFixturePackageSha] = useState<string | null>(null);
+  const [runtimeEnvelopeText, setRuntimeEnvelopeText] = useState("");
+  const [runtimeEnvelope, setRuntimeEnvelope] = useState<RuntimePackageAcceptance | null>(null);
+  const [runtimeEnvelopeSha, setRuntimeEnvelopeSha] = useState<string | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState("No accepted final runtime package imported");
   const [technicalEvidenceText, setTechnicalEvidenceText] = useState("");
   const [technicalEvidence, setTechnicalEvidence] = useState<TechnicalEvidenceImport | null>(null);
   const [technicalEvidenceSha, setTechnicalEvidenceSha] = useState<string | null>(null);
   const [technicalStatus, setTechnicalStatus] = useState("No accepted 80-case Technical evidence imported");
-  const [authorizationRequest, setAuthorizationRequest] = useState<string | null>(null);
+  const [authorizationRequest, setAuthorizationRequest] = useState<FounderWindowAuthorizationRequest | null>(null);
+  const [authorizationRequestSha, setAuthorizationRequestSha] = useState<string | null>(null);
   const [authorizationStatus, setAuthorizationStatus] = useState("Complete the Technical evidence and 40-fixture gates first");
+  const [founderReceiptText, setFounderReceiptText] = useState("");
+  const [founderReceipt, setFounderReceipt] = useState<FounderWindowAuthorizationReceipt | null>(null);
+  const [founderReceiptSha, setFounderReceiptSha] = useState<string | null>(null);
+  const [founderReceiptStatus, setFounderReceiptStatus] = useState("No accepted Founder-window receipt imported");
   const [executionText, setExecutionText] = useState("");
   const [executionStatus, setExecutionStatus] = useState("No accepted Founder execution evidence imported");
   const [postWindowText, setPostWindowText] = useState("");
   const [postWindowStatus, setPostWindowStatus] = useState("Post-window disable proof not received");
   const founderGateway = useMemo(() => createDisabledFounderDiceGateway(), []);
   const selectedRatings = ratings[selected.fixture_id] ?? DEFAULT_RATINGS;
-  const diceEvidenceAccepted = technicalEvidence !== null;
+  const diceEvidenceAccepted = technicalEvidence !== null && founderReceipt !== null;
   const companionGate = resolveCompanionGate(diceEvidenceAccepted, false);
   const ratingEligible = section === "dice" && selected.rendered_output !== null &&
     (selected.state === "offline_preview" || (selected.state === "live_synthetic" && diceEvidenceAccepted));
@@ -176,51 +190,102 @@ export default function FounderAiQualityReviewConsole() {
     setFixtureExport(canonicalJson({ payload, sha256 }));
     setFixturePackageSha(sha256);
     setAuthorizationRequest(null);
+    setAuthorizationRequestSha(null);
     setDraftStatus(`Fixture package ready · ${fixtures.length}/40 frozen · ${sha256.slice(0, 12)}…`);
+  };
+
+  const importRuntimeEnvelope = async () => {
+    setRuntimeEnvelope(null);
+    setRuntimeEnvelopeSha(null);
+    setTechnicalEvidence(null);
+    setTechnicalEvidenceSha(null);
+    setFounderReceipt(null);
+    if (ACCEPTED_RUNTIME_ENVELOPE_SHA256 === null) {
+      setRuntimeStatus("WAITING FOR ACCEPTED FINAL RUNTIME PACKAGE · pasted envelopes cannot self-authorize");
+      return;
+    }
+    try {
+      const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, runtimeEnvelopeText);
+      const parsed = parseRuntimePackageAcceptance(runtimeEnvelopeText, sha256);
+      setRuntimeEnvelope(parsed);
+      setRuntimeEnvelopeSha(sha256);
+      setRuntimeStatus(`Accepted final runtime · default off · ${parsed.final_release_commit.slice(0, 12)}…`);
+    } catch (error) {
+      setRuntimeStatus(error instanceof Error ? error.message : "STOP_S2_T280_RUNTIME_INVALID");
+    }
   };
 
   const importTechnicalEvidence = async () => {
     setTechnicalEvidence(null);
     setTechnicalEvidenceSha(null);
     setAuthorizationRequest(null);
+    if (!runtimeEnvelope || !runtimeEnvelopeSha) {
+      setTechnicalStatus("STOP_S2_T280_RUNTIME_PREREQUISITE");
+      return;
+    }
     if (ACCEPTED_TECHNICAL_EVIDENCE_SHA256 === null) {
       setTechnicalStatus("WAITING FOR ACCEPTED TECHNICAL EVIDENCE · this build cannot self-approve a pasted envelope");
       return;
     }
     try {
       const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, technicalEvidenceText);
-      const parsed = parseTechnicalEvidenceImport(technicalEvidenceText, sha256);
+      const parsed = parseTechnicalEvidenceImport(technicalEvidenceText, sha256, runtimeEnvelope, runtimeEnvelopeSha);
       setTechnicalEvidence(parsed);
       setTechnicalEvidenceSha(sha256);
       setTechnicalStatus(`Accepted 80/80 · 40 EN / 40 zh-Hant · disabled verified · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setTechnicalStatus(error instanceof Error ? error.message : "STOP_S2_T269_TECHNICAL_EVIDENCE_INVALID");
+      setTechnicalStatus(error instanceof Error ? error.message : "STOP_S2_T280_TECHNICAL_EVIDENCE_INVALID");
     }
   };
 
-  const prepareAuthorizationRequest = () => {
+  const prepareAuthorizationRequest = async () => {
     const fixtures = Object.values(frozenFixtures);
-    if (!technicalEvidence || !technicalEvidenceSha || !fixturePackageSha) {
-      setAuthorizationStatus("STOP_S2_T269_AUTHORIZATION_PREREQUISITES");
+    if (!runtimeEnvelope || !runtimeEnvelopeSha || !technicalEvidence || !technicalEvidenceSha || !fixturePackageSha) {
+      setAuthorizationStatus("STOP_S2_T280_AUTHORIZATION_PREREQUISITES");
       return;
     }
     try {
-      const request = createFounderWindowAuthorizationRequest({ technicalEvidence, technicalEvidenceSha256: technicalEvidenceSha, founderFixturePackageSha256: fixturePackageSha, fixtures });
-      setAuthorizationRequest(authorizationRequestCanonicalJson(request));
-      setAuthorizationStatus("Authorization request ready · fixture IDs and checksums only · not authorized yet");
+      const request = createFounderWindowAuthorizationRequest({ runtime: runtimeEnvelope, runtimeAcceptanceSha256: runtimeEnvelopeSha, technicalEvidence, technicalEvidenceSha256: technicalEvidenceSha, founderFixturePackageSha256: fixturePackageSha, fixtures });
+      const canonical = authorizationRequestCanonicalJson(request);
+      const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, canonical);
+      setAuthorizationRequest(request);
+      setAuthorizationRequestSha(sha256);
+      setFounderReceipt(null);
+      setFounderReceiptSha(null);
+      setAuthorizationStatus(`Authorization request ready · not authorized · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setAuthorizationStatus(error instanceof Error ? error.message : "STOP_S2_T269_AUTHORIZATION_REQUEST");
+      setAuthorizationStatus(error instanceof Error ? error.message : "STOP_S2_T280_AUTHORIZATION_REQUEST");
+    }
+  };
+
+  const importFounderReceipt = async () => {
+    if (!authorizationRequest || !authorizationRequestSha) {
+      setFounderReceiptStatus("STOP_S2_T280_FOUNDER_RECEIPT_REQUEST_REQUIRED");
+      return;
+    }
+    if (ACCEPTED_FOUNDER_WINDOW_RECEIPT_SHA256 === null) {
+      setFounderReceiptStatus("WAITING FOR SEPARATELY ACCEPTED FOUNDER WINDOW RECEIPT");
+      return;
+    }
+    try {
+      const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, founderReceiptText);
+      const parsed = parseFounderWindowAuthorizationReceipt(founderReceiptText, sha256, authorizationRequestSha, authorizationRequest);
+      setFounderReceipt(parsed);
+      setFounderReceiptSha(sha256);
+      setFounderReceiptStatus(`Founder window accepted · fixture IDs only · ${sha256.slice(0, 12)}…`);
+    } catch (error) {
+      setFounderReceiptStatus(error instanceof Error ? error.message : "STOP_S2_T280_FOUNDER_RECEIPT_INVALID");
     }
   };
 
   const importExecutionEvidence = async () => {
-    if (ACCEPTED_FOUNDER_WINDOW_AUTHORIZATION_SHA256 === null) {
-      setExecutionStatus("WAITING FOR ACCEPTED FOUNDER WINDOW AUTHORIZATION · no invocation available");
+    if (!runtimeEnvelope || !technicalEvidenceSha || !founderReceipt || !founderReceiptSha) {
+      setExecutionStatus("WAITING FOR ACCEPTED RUNTIME, TECHNICAL EVIDENCE, AND FOUNDER WINDOW RECEIPT");
       return;
     }
     try {
       const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, executionText);
-      const evidence = parseFounderExecutionEvidence(executionText, sha256, selected.fixture_id);
+      const evidence = parseFounderExecutionEvidence(executionText, sha256, selected.fixture_id, runtimeEnvelope, technicalEvidenceSha, founderReceiptSha);
       const record: SyntheticReviewRecord = {
         schema_version: "s2_t261_founder_ai_review_v2",
         fixture_id: evidence.fixture_id,
@@ -239,20 +304,20 @@ export default function FounderAiQualityReviewConsole() {
       setLiveRecords((current) => ({ ...current, [evidence.fixture_id]: record }));
       setExecutionStatus(`Verified live synthetic evidence · ${evidence.fixture_id} · ${sha256.slice(0, 12)}…`);
     } catch (error) {
-      setExecutionStatus(error instanceof Error ? error.message : "STOP_S2_T269_EXECUTION_INVALID");
+      setExecutionStatus(error instanceof Error ? error.message : "STOP_S2_T280_EXECUTION_INVALID");
     }
   };
 
   const verifyPostWindow = () => {
-    if (ACCEPTED_FOUNDER_WINDOW_AUTHORIZATION_SHA256 === null) {
-      setPostWindowStatus("WAITING FOR ACCEPTED FOUNDER WINDOW AUTHORIZATION");
+    if (!runtimeEnvelope || !founderReceiptSha) {
+      setPostWindowStatus("WAITING FOR ACCEPTED FOUNDER WINDOW RECEIPT");
       return;
     }
     try {
-      parsePostWindowProof(postWindowText, ACCEPTED_FOUNDER_WINDOW_AUTHORIZATION_SHA256);
+      parsePostWindowProof(postWindowText, runtimeEnvelope.final_package_sha256, founderReceiptSha);
       setPostWindowStatus("Window closed · provider disabled · post-window proof verified");
     } catch (error) {
-      setPostWindowStatus(error instanceof Error ? error.message : "STOP_S2_T269_POST_WINDOW_INVALID");
+      setPostWindowStatus(error instanceof Error ? error.message : "STOP_S2_T280_POST_WINDOW_INVALID");
     }
   };
 
@@ -273,19 +338,19 @@ export default function FounderAiQualityReviewConsole() {
     <SafeAreaView style={styles.safe}>
       <CelestialBackground />
       <View accessibilityLabel={`Founder AI review build ${BUILD_SHA}, state ${BUILD_STATE}`} style={styles.evidenceStrip}>
-        <Text style={styles.evidenceText}>FOUNDER AI E2E · STATE {BUILD_STATE}</Text>
-        <Text selectable style={styles.evidenceSha}>BUILD {BUILD_SHA}</Text>
+        <Text maxFontSizeMultiplier={1} style={styles.evidenceText}>FOUNDER AI E2E · STATE {BUILD_STATE}</Text>
+        <Text maxFontSizeMultiplier={1} selectable style={styles.evidenceSha}>BUILD {BUILD_SHA}</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.scroll}>
         <Text style={styles.eyebrow}>DEVELOPMENT REVIEW ONLY</Text>
-        <Text accessibilityRole="header" style={styles.title}>AI quality review</Text>
+        <Text accessibilityRole="header" maxFontSizeMultiplier={1.15} style={styles.title}>AI quality review</Text>
         <Text style={styles.intro}>Synthetic evidence only. This console cannot call Azure, charge units, write member data, or enter customer navigation.</Text>
         <Text style={styles.intro}>External validation + classification stays outside product pixels. An Evidence-bound synthetic result is shown only after every accepted checksum gate passes.</Text>
 
         <View accessibilityLabel="Founder review journey" style={styles.journey}>
-          <Text style={styles.journeyStep}>1 · Import accepted 80-case Technical evidence</Text>
+          <Text style={styles.journeyStep}>1 · Verify final runtime package and accepted 80-case evidence</Text>
           <Text style={styles.journeyStep}>2 · Freeze exactly 40 questions · 20 EN / 20 zh-Hant</Text>
-          <Text style={styles.journeyStep}>3 · Prepare checksum authorization request</Text>
+          <Text style={styles.journeyStep}>3 · Prepare request and import separate Founder authority</Text>
           <Text style={styles.journeyStep}>4 · Later invoke by fixture ID only</Text>
           <Text style={styles.journeyStep}>5 · Verify interpretation · rate · export verdict</Text>
           <Text style={styles.journeyStep}>6 · Verify post-window disabled state</Text>
@@ -304,10 +369,17 @@ export default function FounderAiQualityReviewConsole() {
         {section === "dice" ? (
           <>
           <View style={styles.card}>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>1 · Technical evidence gate</Text>
-            <Text style={styles.helper}>Import only the reviewed 80-case package for T262 package {T262_PACKAGE_SHA256.slice(0, 12)}…. Loading, error, partial, stale, wrong-package, wrong-language-count, and self-authored evidence are rejected.</Text>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>1 · Final runtime package gate</Text>
+            <Text style={styles.helper}>The closed package envelope must bind the completed T272 runtime proof ({T272_RUNTIME_COMMIT.slice(0, 12)}…), a separately reviewed final release, a default-off deployment receipt, and zero provider calls. Migration 0039 cannot be smuggled into this gate.</Text>
+            <TextInput accessibilityLabel="Accepted final Dice runtime package JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setRuntimeEnvelopeText} placeholder="Paste accepted runtime package envelope" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={runtimeEnvelopeText} />
+            <Pressable accessibilityRole="button" onPress={() => void importRuntimeEnvelope()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Verify runtime package</Text></Pressable>
+            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{runtimeStatus}</Text>
+          </View>
+          <View style={styles.card}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>2 · Technical evidence gate</Text>
+            <Text style={styles.helper}>Import only the separately accepted 80-case Technical envelope bound to the verified runtime package and PG17 ledger proof. Loading, partial, stale, wrong-package, Founder-bearing, or self-authored evidence is rejected.</Text>
             <TextInput accessibilityLabel="Accepted 80-case Technical evidence JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setTechnicalEvidenceText} placeholder="Paste closed Technical evidence envelope" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={technicalEvidenceText} />
-            <Pressable accessibilityRole="button" onPress={() => void importTechnicalEvidence()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Verify 80-case evidence</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: !runtimeEnvelope }} disabled={!runtimeEnvelope} onPress={() => void importTechnicalEvidence()} style={[styles.secondaryButton, !runtimeEnvelope && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Verify 80-case evidence</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{technicalStatus}</Text>
           </View>
           <View style={styles.card}>
@@ -353,9 +425,12 @@ export default function FounderAiQualityReviewConsole() {
           <View style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>3 · Founder-window request</Text>
             <Text style={styles.helper}>This request contains package and evidence checksums plus the exact 20/20 fixture counts. It contains no question text and grants no authority.</Text>
-            <Pressable accessibilityRole="button" accessibilityState={{ disabled: !technicalEvidence || !fixturePackageSha }} disabled={!technicalEvidence || !fixturePackageSha} onPress={prepareAuthorizationRequest} style={[styles.exportButton, (!technicalEvidence || !fixturePackageSha) && styles.disabledButton]}><Text style={styles.exportButtonText}>Prepare authorization request</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: !technicalEvidence || !fixturePackageSha }} disabled={!technicalEvidence || !fixturePackageSha} onPress={() => void prepareAuthorizationRequest()} style={[styles.exportButton, (!technicalEvidence || !fixturePackageSha) && styles.disabledButton]}><Text style={styles.exportButtonText}>Prepare authorization request</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{authorizationStatus}</Text>
-            {authorizationRequest ? <Text selectable style={styles.exportPreview}>{authorizationRequest}</Text> : null}
+            {authorizationRequest ? <Text selectable style={styles.exportPreview}>{authorizationRequestCanonicalJson(authorizationRequest)}</Text> : null}
+            <TextInput accessibilityLabel="Accepted Founder window authorization receipt JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setFounderReceiptText} placeholder="Paste separately accepted Founder receipt" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={founderReceiptText} />
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: !authorizationRequest }} disabled={!authorizationRequest} onPress={() => void importFounderReceipt()} style={[styles.secondaryButton, !authorizationRequest && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Verify Founder window receipt</Text></Pressable>
+            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{founderReceiptStatus}</Text>
           </View>
           </>
         ) : (
@@ -405,11 +480,11 @@ export default function FounderAiQualityReviewConsole() {
               <Readiness label="Founder eligibility" value={journeyState.eligibility.replaceAll("_", " ")} />
               <Readiness label="Gateway" value={journeyState.gateway} />
             </View>
-            <Text style={styles.helper}>The invoke boundary accepts only the selected fixture ID. This exact build has no accepted Founder envelope, so provider access remains disabled and no request can leave the device.</Text>
+            <Text style={styles.helper}>The future invoke boundary accepts only the selected fixture ID. This source build contains no accepted Founder receipt or network client, so provider access remains disabled and no request can leave the device.</Text>
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled style={[styles.exportButton, styles.disabledButton]}>
               <Text style={styles.exportButtonText}>Invoke eligible fixture ID</Text>
             </Pressable>
-            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>STOP_S2_T264_GATEWAY_DISABLED · accepted envelope required</Text>
+            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>STOP_S2_T280_GATEWAY_DISABLED · accepted runtime, Technical evidence, and Founder receipt required</Text>
             <TextInput accessibilityLabel="Founder fixture execution evidence JSON" maxFontSizeMultiplier={1.4} multiline onChangeText={setExecutionText} placeholder="Paste accepted fixture execution evidence" placeholderTextColor={colors.muted} style={styles.evidenceInput} value={executionText} />
             <Pressable accessibilityRole="button" onPress={() => void importExecutionEvidence()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Verify selected fixture result</Text></Pressable>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{executionStatus}</Text>
@@ -492,10 +567,11 @@ function StateBadge({ state }: { state: SyntheticReviewRecord["state"] }) {
 
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.navy950, flex: 1 },
+  scroll: { width: "100%" },
   evidenceStrip: { backgroundColor: colors.navy950, borderBottomColor: colors.gold, borderBottomWidth: 1, minHeight: 46, justifyContent: "center", paddingHorizontal: 14, zIndex: 5 },
   evidenceText: { color: colors.goldLight, fontSize: 10, fontWeight: "800", letterSpacing: 0 },
   evidenceSha: { color: colors.textSoft, fontFamily: "Courier", fontSize: 8, letterSpacing: 0, marginTop: 2 },
-  content: { padding: spacing.lg, paddingBottom: 60 },
+  content: { alignItems: "stretch", padding: spacing.lg, paddingBottom: 60, width: "100%" },
   eyebrow: { color: colors.goldLight, fontSize: 12, fontWeight: "800", marginTop: spacing.sm },
   title: { color: colors.ice, fontSize: 30, fontWeight: "800", marginTop: 4 },
   intro: { color: colors.textSoft, fontSize: 15, lineHeight: 22, marginTop: spacing.sm },
@@ -508,7 +584,7 @@ const styles = StyleSheet.create({
   tabText: { color: colors.textSoft, fontSize: 14, fontWeight: "700", textAlign: "center" },
   tabTextSelected: { color: colors.navy950 },
   summaryRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-  summary: { backgroundColor: "rgba(22,39,61,0.88)", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flex: 1, minHeight: 72, padding: spacing.sm },
+  summary: { backgroundColor: "rgba(22,39,61,0.88)", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flex: 1, minHeight: 72, minWidth: 0, padding: spacing.sm },
   summaryValue: { color: colors.ice, fontSize: 13, fontWeight: "700", lineHeight: 18, marginTop: 4 },
   sectionTitle: { color: colors.ice, fontSize: 19, fontWeight: "800", marginTop: spacing.lg },
   fixtureRail: { marginHorizontal: -spacing.lg, marginTop: spacing.sm, paddingHorizontal: spacing.lg },
