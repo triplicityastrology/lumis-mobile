@@ -1,0 +1,50 @@
+{
+  "schema": "s2_t303_dice_default_off_final_control_v1",
+  "status": "WAITING_FOR_SEPARATE_MICROSOFT_V4_DEPLOYMENT_AUTHORIZATION",
+  "next_action": "AUTHORIZE_DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "source_authorities": {
+    "t287_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+    "t292_commit": "f1288d6159d23317f6f4db05bcf194bc93af65d6",
+    "t298_commit": "69c3de399acf3fa9ec746deaeb7a1880128955ca"
+  },
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "53f5cbc0552a30016c8b6c8fb827740bbafcdedd1a36146092fd469b11ba7799",
+  "authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+  "request_schema": "lumis_dice_default_off_function_deployment_authorization_request_v4",
+  "clock": {
+    "policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
+    "window_seconds": 900,
+    "absolute_expiry_embedded": false
+  },
+  "single_use": {
+    "required": true,
+    "durable_claim_before_remote": true,
+    "replay_rejected": true
+  },
+  "configuration_names_count": 15,
+  "disabled_probes": [
+    "unknown_fixture",
+    "free_form_body",
+    "normal_mobile_body",
+    "allow_listed_fixture"
+  ],
+  "expected_disabled_result": "DICE_AI_DISABLED",
+  "kill_switch_required": false,
+  "traffic_switch_required": false,
+  "provider_calls_authorized": 0,
+  "model_invocations_authorized": 0,
+  "migration_0039_authorized": false,
+  "rollback_revision_required": true,
+  "normal_chat_unchanged_required": true,
+  "pre_authorization": {
+    "remote_commands": 0,
+    "client_construction": 0,
+    "credential_reads": 0,
+    "receipt_mutations": 0
+  },
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}
