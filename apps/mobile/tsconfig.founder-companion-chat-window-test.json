@@ -12,5 +12,7 @@
     "src/dev/founderCompanionChatContract.ts",
     "src/dev/founderCompanionChatWindowContract.ts",
     "src/dev/founderCompanionChatWindowContract.fixtures.ts"
+    ,"src/dev/founderPolishedChatContract.ts"
+    ,"src/dev/founderPolishedChatContract.fixtures.ts"
   ]
 }

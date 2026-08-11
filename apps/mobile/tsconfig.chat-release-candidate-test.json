@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-release-candidate-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/normalChatAiCandidate.ts",
+    "src/services/chatReleaseCandidate.ts",
+    "src/services/chatReleaseCandidate.fixtures.ts"
+  ]
+}

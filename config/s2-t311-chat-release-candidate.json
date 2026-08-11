@@ -1,0 +1,28 @@
+{
+  "schema": "s2_t311_chat_release_candidate_control_v1",
+  "base_commit": "78c0ce93f211c9ded4d2e65cb789b5dfbfeb9df3",
+  "presentation_commit": "5797ddeee0402c88f39fecfa45d060ea7991061a",
+  "accepted_t240_commit": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+  "accepted_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "accepted_dice_evidence_schema": "s2_t296_accepted_dice_v4_technical_evidence_v1",
+  "deployment_receipt_schema": "s2_t311_chat_default_off_deployment_receipt_v1",
+  "traffic_receipt_schema": "s2_t311_chat_synthetic_traffic_authorization_v1",
+  "accepted_dice_evidence_sha256": null,
+  "accepted_deployment_receipt_sha256": null,
+  "accepted_traffic_receipt_sha256": null,
+  "integration_enabled": false,
+  "traffic_enabled": false,
+  "normal_chat_route_connected": false,
+  "provider_constructible": false,
+  "runtime_request_fields": ["schema_version", "fixture_id"],
+  "fixture_ids": ["chat-en-reflection-01", "chat-zh-hant-reflection-01"],
+  "non_success": {
+    "persistence": "not_committed",
+    "units_charged": 0
+  },
+  "atomic_success": ["user_message", "assistant_message", "unit_ledger", "idempotency_outcome"],
+  "authority_status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  }
+}
