@@ -1,6 +1,7 @@
 export const FOUNDER_QUESTION_BANK_SCHEMA = "s2_t295_founder_question_bank_v1" as const;
 export const FOUNDER_QUESTION_REGISTRY_SCHEMA = "s2_t295_founder_question_registry_v1" as const;
-export const FOUNDER_SELECTION_INSTRUCTION = "21 supplied; select exactly one to exclude" as const;
+export const FOUNDER_SELECTION_INSTRUCTION = "Founder excluded ZH04; exactly 20 zh-Hant entries are selected" as const;
+export const FOUNDER_EXCLUDED_ZH_AUTHORING_ID = "ZH04" as const;
 
 export type FounderDraftLanguage = "en" | "zh-Hant";
 
@@ -73,13 +74,14 @@ export function buildFounderQuestionRegistry(
   excludedZhId: string | null,
   checksums: readonly QuestionChecksum[],
 ) {
-  if (excludedZhId === null) throw new Error("STOP_S2_T295_SELECT_EXACTLY_ONE_ZH_EXCLUSION");
+  if (excludedZhId === null) throw new Error("STOP_S2_T297_ZH04_EXCLUSION_REQUIRED");
   if (!FOUNDER_ZH_HANT_DRAFTS.some((draft) => draft.authoring_id === excludedZhId)) {
     throw new Error("STOP_S2_T295_UNKNOWN_ZH_EXCLUSION");
   }
   if ((NON_EXCLUDABLE_ZH_AUTHORING_IDS as readonly string[]).includes(excludedZhId)) {
     throw new Error("STOP_S2_T295_CONTROL_QUESTION_NON_EXCLUDABLE");
   }
+  if (excludedZhId !== FOUNDER_EXCLUDED_ZH_AUTHORING_ID) throw new Error("STOP_S2_T297_ONLY_ZH04_EXCLUSION_AUTHORIZED");
   const checksumMap = new Map(checksums.map((item) => [item.authoring_id, item.sha256]));
   if (checksumMap.size !== 41) throw new Error("STOP_S2_T295_CHECKSUM_SET");
   const selectedZh = FOUNDER_ZH_HANT_DRAFTS.filter((draft) => draft.authoring_id !== excludedZhId);

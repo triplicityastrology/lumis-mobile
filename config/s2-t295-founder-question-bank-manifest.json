@@ -8,12 +8,13 @@
     "en": 20,
     "zh-Hant": 21,
     "english_freeze_status": "locally_frozen_pending_external_review",
-    "zh-Hant_freeze_status_before_exclusion": "none_frozen",
+    "zh-Hant_freeze_status_before_exclusion": "superseded_by_founder_decision",
     "non_excludable_authoring_ids": ["ZH08", "ZH09"]
   },
-  "selection_instruction": "21 supplied; select exactly one to exclude",
+  "selection_instruction": "Founder excluded ZH04; exactly 20 zh-Hant entries are selected",
   "registry": {
-    "blocked_until_one_allowed_zh-Hant_exclusion": true,
+    "blocked_until_one_allowed_zh-Hant_exclusion": false,
+    "excluded_authoring_id": "ZH04",
     "final_total": 40,
     "final_en": 20,
     "final_zh-Hant": 20,

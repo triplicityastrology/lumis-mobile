@@ -1,0 +1,41 @@
+{
+  "schema": "s2_t297_dice_polished_e2e_v1",
+  "task": "S2-T297",
+  "base_commit": "d40eb31415c6117e40323292a4c26f987aa80653",
+  "future_runtime_authority": {
+    "commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+    "runtime_package": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "imported_source": false,
+    "live_enabled": false
+  },
+  "product_surface": {
+    "component": "apps/mobile/src/features/dice/DiceRitualScreen.tsx",
+    "visual_authority_commit": "d40eb31415c6117e40323292a4c26f987aa80653",
+    "full_component_blob_byte_identical_to_parent": true,
+    "evidence_controls_outside_product_pixels": true,
+    "validation_interface_status": "SAFE_STOP_DICE_PRE_SUBMIT_INTERFACE_SLOT_NOT_AUTHORIZED",
+    "interpretation_interface_status": "SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED"
+  },
+  "question_bank": {
+    "supplied": 41,
+    "en_selected": 20,
+    "zh_Hant_selected": 20,
+    "excluded_authoring_id": "ZH04",
+    "zh08_expected": "DICE_QUESTION_BUNDLED",
+    "zh09_expected": "accepted_timing"
+  },
+  "effects": {
+    "provider_calls": 0,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "ports": {
+    "web": 8171,
+    "simulator": 8172,
+    "expo_go": 8173
+  },
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  }
+}

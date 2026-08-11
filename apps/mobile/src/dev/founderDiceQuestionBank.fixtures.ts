@@ -1,5 +1,6 @@
 import {
   FOUNDER_ENGLISH_DRAFTS,
+  FOUNDER_EXCLUDED_ZH_AUTHORING_ID,
   FOUNDER_QUESTION_DRAFTS,
   FOUNDER_SELECTION_INSTRUCTION,
   FOUNDER_ZH_HANT_DRAFTS,
@@ -66,7 +67,8 @@ const expectedZhHant = [
   "我幾時先至可以搵到份新工？",
 ] as const;
 
-check(FOUNDER_SELECTION_INSTRUCTION === "21 supplied; select exactly one to exclude", "instruction exact");
+check(FOUNDER_SELECTION_INSTRUCTION === "Founder excluded ZH04; exactly 20 zh-Hant entries are selected", "instruction exact");
+check(FOUNDER_EXCLUDED_ZH_AUTHORING_ID === "ZH04", "Founder exclusion must remain ZH04");
 check(FOUNDER_QUESTION_DRAFTS.length === 41, "all 41 drafts preserved");
 check(FOUNDER_ENGLISH_DRAFTS.length === 20, "20 English supplied");
 check(FOUNDER_ZH_HANT_DRAFTS.length === 21, "21 zh-Hant supplied");
@@ -75,15 +77,17 @@ check(JSON.stringify(FOUNDER_ZH_HANT_DRAFTS.map((item) => item.exact_text)) === 
 check(JSON.stringify(NON_EXCLUDABLE_ZH_AUTHORING_IDS) === JSON.stringify(["ZH08", "ZH09"]), "control IDs drifted");
 
 const checksums = FOUNDER_QUESTION_DRAFTS.map((item, index) => ({ authoring_id: item.authoring_id, sha256: (index + 1).toString(16).padStart(64, "0") }));
-rejects(() => buildFounderQuestionRegistry(null, checksums), "STOP_S2_T295_SELECT_EXACTLY_ONE_ZH_EXCLUSION");
+rejects(() => buildFounderQuestionRegistry(null, checksums), "STOP_S2_T297_ZH04_EXCLUSION_REQUIRED");
 rejects(() => buildFounderQuestionRegistry("ZH08", checksums), "STOP_S2_T295_CONTROL_QUESTION_NON_EXCLUDABLE");
 rejects(() => buildFounderQuestionRegistry("ZH09", checksums), "STOP_S2_T295_CONTROL_QUESTION_NON_EXCLUDABLE");
-const registry = buildFounderQuestionRegistry("ZH21", checksums);
+rejects(() => buildFounderQuestionRegistry("ZH21", checksums), "STOP_S2_T297_ONLY_ZH04_EXCLUSION_AUTHORIZED");
+const registry = buildFounderQuestionRegistry("ZH04", checksums);
 check(registry.fixture_total === 40, "registry must be 40");
 check(registry.language_totals.en === 20 && registry.language_totals["zh-Hant"] === 20, "registry must be 20/20");
 check(registry.fixtures.filter((item) => item.language === "en").every((item, index) => item.authoring_id === `EN${String(index + 1).padStart(2, "0")}`), "English IDs drifted");
 check(registry.fixtures.some((item) => item.authoring_id === "ZH08") && registry.fixtures.some((item) => item.authoring_id === "ZH09"), "controls must remain");
-check(!registry.fixtures.some((item) => item.authoring_id === "ZH21"), "selected exclusion must be absent");
+check(!registry.fixtures.some((item) => item.authoring_id === "ZH04"), "ZH04 must be the only exclusion");
+check(registry.fixtures.some((item) => item.authoring_id === "ZH21"), "ZH21 must remain");
 check(registry.runtime_request_fields.join(",") === "fixture_id", "runtime must accept fixture_id only");
 check(registry.effects.provider_calls === 0 && registry.effects.persistence_writes === 0 && registry.effects.units_charged === 0, "registry must be zero effect");
 

@@ -16,7 +16,8 @@ assert.equal(manifest.drafts.total, 41);
 assert.equal(manifest.drafts.en, 20);
 assert.equal(manifest.drafts["zh-Hant"], 21);
 assert.deepEqual(manifest.drafts.non_excludable_authoring_ids, ["ZH08", "ZH09"]);
-assert.equal(manifest.selection_instruction, "21 supplied; select exactly one to exclude");
+assert.equal(manifest.selection_instruction, "Founder excluded ZH04; exactly 20 zh-Hant entries are selected");
+assert.equal(manifest.registry.excluded_authoring_id, "ZH04");
 assert.equal(manifest.registry.runtime_available, false);
 assert.deepEqual(manifest.registry.runtime_request_fields, ["fixture_id"]);
 assert.equal(manifest.effects.provider_calls, 0);
@@ -26,11 +27,11 @@ assert.equal(manifest.authority.normal_chat, "NO_NORMAL_CHAT_INTEGRATION_AUTHORI
 assert.equal(manifest.authority.azure_traffic, "NO_AZURE_TRAFFIC_AUTHORITY");
 
 assert.match(bank, /NON_EXCLUDABLE_ZH_AUTHORING_IDS = Object\.freeze\(\["ZH08", "ZH09"\]/);
-assert.match(bank, /STOP_S2_T295_SELECT_EXACTLY_ONE_ZH_EXCLUSION/);
+assert.match(bank, /STOP_S2_T297_ZH04_EXCLUSION_REQUIRED/);
 assert.match(bank, /STOP_S2_T295_CONTROL_QUESTION_NON_EXCLUDABLE/);
 assert.match(bank, /runtime_request_fields: Object\.freeze\(\["fixture_id"\]/);
-assert.match(panel, /21 supplied; select exactly one to exclude|FOUNDER_SELECTION_INSTRUCTION/);
-assert.match(panel, /No zh-Hant entry frozen/);
+assert.match(panel, /FOUNDER_SELECTION_INSTRUCTION/);
+assert.match(panel, /ZH04 excluded/);
 assert.match(panel, /Download rating \/ review export/);
 assert.match(panel, /Runtime accepts fixture_id only · unavailable/);
 assert.match(consoleSource, /FounderDiceQuestionBankPanel/);

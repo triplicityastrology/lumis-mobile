@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from
 import { colors, radii, spacing } from "../theme/tokens";
 import {
   FOUNDER_ENGLISH_DRAFTS,
+  FOUNDER_EXCLUDED_ZH_AUTHORING_ID,
   FOUNDER_QUESTION_DRAFTS,
   FOUNDER_SELECTION_INSTRUCTION,
   FOUNDER_ZH_HANT_DRAFTS,
@@ -24,10 +25,10 @@ function canonicalJson(value: unknown): string {
 export function FounderDiceQuestionBankPanel({ buildSha }: { buildSha: string }) {
   const { fontScale, width } = useWindowDimensions();
   const stacked = width < 760 || fontScale >= 1.2;
-  const [excludedZhId, setExcludedZhId] = useState<string | null>(null);
+  const excludedZhId = FOUNDER_EXCLUDED_ZH_AUTHORING_ID;
   const [checksums, setChecksums] = useState<readonly QuestionChecksum[]>([]);
   const [exportText, setExportText] = useState<string | null>(null);
-  const [status, setStatus] = useState("Traditional Chinese registry blocked pending one exclusion");
+  const [status, setStatus] = useState("Founder exclusion recorded · ZH04 excluded · preparing checksums");
 
   useEffect(() => {
     let active = true;
@@ -69,10 +70,10 @@ export function FounderDiceQuestionBankPanel({ buildSha }: { buildSha: string })
 
   return <View accessibilityLabel="Founder exact Dice question bank" style={styles.card}>
     <Text accessibilityRole="header" style={styles.title}>Founder question bank</Text>
-    <Text style={styles.helper}>All 41 supplied drafts are preserved exactly. English is locally frozen. Traditional Chinese remains entirely unfrozen until one exclusion is selected.</Text>
+    <Text style={styles.helper}>All 41 supplied drafts remain preserved exactly. The final 20/20 registry excludes only ZH04 by Founder decision.</Text>
     <View accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.blocker}>
       <Text style={styles.blockerText}>{FOUNDER_SELECTION_INSTRUCTION}</Text>
-      <Text style={styles.statusText}>{excludedZhId ? `${excludedZhId} selected for exclusion · 20 zh-Hant entries can now be frozen on export` : "No zh-Hant entry frozen · 20/20 registry blocked"}</Text>
+      <Text style={styles.statusText}>ZH04 excluded · ZH08 bundled-question test retained · ZH09 single-question control retained</Text>
     </View>
     <View style={[styles.columns, stacked && styles.columnsStacked]}>
       <View style={styles.column}>
@@ -83,23 +84,19 @@ export function FounderDiceQuestionBankPanel({ buildSha }: { buildSha: string })
         <Text accessibilityRole="header" style={styles.columnTitle}>繁體中文 · 21 supplied</Text>
         {FOUNDER_ZH_HANT_DRAFTS.map((draft) => {
           const selected = excludedZhId === draft.authoring_id;
-          const nonExcludable = (NON_EXCLUDABLE_ZH_AUTHORING_IDS as readonly string[]).includes(draft.authoring_id);
-          return <Pressable
-            accessibilityLabel={`${draft.authoring_id}, ${nonExcludable ? "required control, cannot be excluded" : selected ? "selected for exclusion" : "candidate to exclude"}`}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected, disabled: nonExcludable }}
-            disabled={nonExcludable}
+          const requiredControl = (NON_EXCLUDABLE_ZH_AUTHORING_IDS as readonly string[]).includes(draft.authoring_id);
+          return <View
+            accessibilityLabel={`${draft.authoring_id}, ${selected ? "excluded by Founder decision" : requiredControl ? "required validation control" : "selected for final registry"}`}
             key={draft.authoring_id}
-            onPress={() => { setExcludedZhId(draft.authoring_id); setExportText(null); setStatus(`${draft.authoring_id} selected for exclusion · export not prepared`); }}
-            style={[styles.choice, selected && styles.choiceSelected, nonExcludable && styles.choiceLocked]}
+            style={[styles.choice, selected && styles.choiceSelected, requiredControl && styles.choiceLocked]}
           >
-            <QuestionRow checksum={checksumById.get(draft.authoring_id)} draft={draft} state={nonExcludable ? "required control" : selected ? "excluded" : "pending"} />
-          </Pressable>;
+            <QuestionRow checksum={checksumById.get(draft.authoring_id)} draft={draft} state={requiredControl ? "required control" : selected ? "excluded" : "frozen"} />
+          </View>;
         })}
       </View>
     </View>
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled: excludedZhId === null || checksums.length !== 41 }} disabled={excludedZhId === null || checksums.length !== 41} onPress={() => void prepareExport()} style={[styles.button, (excludedZhId === null || checksums.length !== 41) && styles.disabled]}>
-      <Text style={styles.buttonText}>Freeze selected 20/20 registry</Text>
+    <Pressable accessibilityRole="button" accessibilityState={{ disabled: checksums.length !== 41 }} disabled={checksums.length !== 41} onPress={() => void prepareExport()} style={[styles.button, checksums.length !== 41 && styles.disabled]}>
+      <Text style={styles.buttonText}>Prepare final 20/20 registry</Text>
     </Pressable>
     {exportText ? <Pressable accessibilityRole="button" onPress={downloadExport} style={styles.secondaryButton}><Text style={styles.secondaryText}>Download rating / review export</Text></Pressable> : null}
     <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.statusText}>{status}</Text>
