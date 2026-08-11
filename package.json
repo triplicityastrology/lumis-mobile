@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "dice:v4-deployment-readiness": "node scripts/s2-t287-dice-v4-deployment-authorization.mjs",
+    "dice:v4-deployment-request": "node scripts/s2-t287-dice-v4-deployment-authorization.mjs",
+    "test:s2-t287-dice-v4-deployment": "node scripts/s2-t287-dice-v4-deployment-contract.mjs",
+    "verify:s2-t287-dice-runtime": "zsh scripts/run-s2-t277-dice-runtime-recheck.zsh",
     "setup:check": "node scripts/mobile-setup-doctor.mjs",
     "dice:authorization-operator": "node scripts/s2-t259-dice-authorization-operator.mjs",
     "test:s2-t262-dice-integrated-operator": "pnpm test:s2-t257-canonical-dice-port && node scripts/s2-t259-dice-authorization-operator-contract.mjs",
