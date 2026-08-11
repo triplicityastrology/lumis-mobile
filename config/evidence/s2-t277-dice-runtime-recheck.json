@@ -1,0 +1,37 @@
+{
+  "evidence_type": "s2_t277_dice_edge_runtime_recheck_v1",
+  "observed_on": "2026-08-11",
+  "source_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+  "source_tree": "666558397b6247ffa54b25ff8ac3f5c64ff5989e",
+  "runtime": {
+    "deno_cli": "2.2.7",
+    "supabase_cli": "2.113.0",
+    "edge_runtime": "0.1.0",
+    "edge_runtime_deno": "2.1.4",
+    "edge_image": "public.ecr.aws/supabase/edge-runtime@sha256:a82676277615aee03c4f288cbbbf68dedb5ba8693073e567ab8dbfdd11ba5d45"
+  },
+  "proof": {
+    "deno_check": "passed",
+    "edge_eszip_bundle": "passed",
+    "edge_eszip_sha256": "d01c6b74614fd862b8029b4cb986de3fc08b8ced8644af0389699e61be1cb2fc",
+    "import_graph_module_count": 14,
+    "import_graph_sha256": "940d96b442ed9c200ed0273510e0f2b34b766ddbca717f5eb3d5784436d6b731",
+    "bundle_network": "none",
+    "probe_network": "internal_only",
+    "disabled_before_json_parse_and_client_construction": true,
+    "disabled_probes_passed": 4,
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "remote_calls": 0,
+    "staging_calls": 0
+  },
+  "authority_status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "limitations": [
+    "This is local runtime evidence, not hosted deployment evidence.",
+    "Migration 0039 was not applied.",
+    "No Azure connectivity or model behavior was exercised."
+  ]
+}
