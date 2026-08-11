@@ -25,7 +25,8 @@ import {
   ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256,
   ACCEPTED_POST_WINDOW_DISABLED_PROOF_SHA256,
   DOCUMENTED_CHAT_RUNTIME_COMMIT,
-  FINAL_DICE_RUNTIME_COMMIT,
+  FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
+  FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
   FINAL_DICE_TECHNICAL_AUTHORITY,
   FOUNDER_CHAT_FIXTURE_SETS,
   WINDOW_PREVIEW_RECORDS,
@@ -208,7 +209,8 @@ export default function FounderCompanionChatJourney() {
             <Text style={styles.gateTitle}>{executionReady ? "Authority present" : "Not authorized"}</Text>
             <Text style={styles.helper}>Authorization request requires accepted Dice evidence and a complete fixture checksum. Runtime accepts only fixture_id.</Text>
             <Text style={styles.code}>chat_runtime={DOCUMENTED_CHAT_RUNTIME_COMMIT}</Text>
-            <Text style={styles.code}>dice_runtime={FINAL_DICE_RUNTIME_COMMIT}</Text>
+            <Text style={styles.code}>dice_deployment={FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA}</Text>
+            <Text style={styles.code}>dice_technical={FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA}</Text>
             <Text style={styles.code}>dice_authority={FINAL_DICE_TECHNICAL_AUTHORITY}</Text>
             <Text style={styles.code}>dice_evidence={ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 ?? "null"}</Text>
             <Text style={styles.code}>window_authorization={ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256 ?? "null"}</Text>

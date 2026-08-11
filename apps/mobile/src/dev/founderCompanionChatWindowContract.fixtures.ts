@@ -8,9 +8,8 @@ import {
   ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256,
   ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256,
   ACCEPTED_POST_WINDOW_DISABLED_PROOF_SHA256,
-  FINAL_DICE_RUNTIME_COMMIT,
-  FINAL_DICE_RUNTIME_CONTROL_SHA256,
-  FINAL_DICE_RUNTIME_PROOF_SHA256,
+  FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
+  FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
   FINAL_DICE_TECHNICAL_AUTHORITY,
   FOUNDER_CHAT_FIXTURE_SETS,
   WINDOW_PREVIEW_RECORDS,
@@ -36,30 +35,29 @@ check(WINDOW_PREVIEW_RECORDS.every(({ state }) => state === "offline_preview" ||
 check(new Set(WINDOW_PREVIEW_RECORDS.map(({ surface }) => surface)).size === 2, "both surfaces have preview records");
 
 const structurallyValidDiceEvidence = {
-  schema: "lumis_dice_technical_window_acceptance_v2",
+  schema: FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
   review_decision: "accepted",
-  runtime_source_commit: FINAL_DICE_RUNTIME_COMMIT,
-  runtime_control_sha256: FINAL_DICE_RUNTIME_CONTROL_SHA256,
-  runtime_proof_sha256: FINAL_DICE_RUNTIME_PROOF_SHA256,
-  technical_window_authority: FINAL_DICE_TECHNICAL_AUTHORITY,
-  technical_evidence_package_sha256: "c".repeat(64),
-  logical_total: 80,
-  en: 40,
-  zh_hant: 40,
-  provider_disabled_verified: true,
-  founder_cases_run: 0,
-  persistence_writes: 0,
-  units_charged: 0,
+  deployment_receipt: {
+    schema: FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
+    source_commit: "b".repeat(40), runtime_package_sha256: "c".repeat(64),
+    disabled_probes: ["DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED"],
+    provider_calls: 0, model_invocations: 0, migration_applied: false,
+  },
+  technical_window: {
+    authority: FINAL_DICE_TECHNICAL_AUTHORITY, evidence_package_sha256: "d".repeat(64),
+    logical_total: 80, en: 40, zh_hant: 40, attempt_total: 96, max_attempts: 160,
+    provider_disabled_verified: true, founder_cases_run: 0, persistence_writes: 0, units_charged: 0,
+  },
   accepted_at: "2026-08-11T12:00:00.000Z",
 };
 const inspection = inspectDiceTechnicalEvidence(structurallyValidDiceEvidence, "a".repeat(64));
 check(inspection.structurally_valid && !inspection.accepted && inspection.code === "DICE_EVIDENCE_VALID_NOT_ACCEPTED", "valid self-authored evidence cannot become accepted");
 for (const hostile of [
   { ...structurallyValidDiceEvidence, account_id: "forbidden" },
-  { ...structurallyValidDiceEvidence, logical_total: 79, zh_hant: 39 },
-  { ...structurallyValidDiceEvidence, provider_disabled_verified: false },
-  { ...structurallyValidDiceEvidence, runtime_source_commit: "0".repeat(40) },
-  { ...structurallyValidDiceEvidence, units_charged: 1 },
+  { ...structurallyValidDiceEvidence, technical_window: { ...structurallyValidDiceEvidence.technical_window, logical_total: 79, zh_hant: 39 } },
+  { ...structurallyValidDiceEvidence, technical_window: { ...structurallyValidDiceEvidence.technical_window, provider_disabled_verified: false } },
+  { ...structurallyValidDiceEvidence, deployment_receipt: { ...structurallyValidDiceEvidence.deployment_receipt, source_commit: "0".repeat(40) } },
+  { ...structurallyValidDiceEvidence, technical_window: { ...structurallyValidDiceEvidence.technical_window, units_charged: 1 } },
 ]) check(!inspectDiceTechnicalEvidence(hostile, "a".repeat(64)).structurally_valid, "hostile Dice evidence rejected");
 
 check(ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 === null, "no accepted Dice evidence compiled");

@@ -19,24 +19,32 @@ const SHA_B = "b".repeat(64);
 const SHA_C = "c".repeat(64);
 const SHA_D = "d".repeat(64);
 const NOW = Date.parse("2026-08-09T12:00:00.000Z");
-const DICE_RUNTIME_COMMIT = "f5f9e9da238633d84eb8695307c573eef8f1bc96";
-
 function evidence(overrides: Record<string, unknown> = {}) {
   return {
-    schema: "lumis_dice_technical_window_acceptance_v2",
+    schema: "s2_t284_dice_technical_evidence_acceptance_v1",
     review_decision: "accepted",
-    runtime_source_commit: DICE_RUNTIME_COMMIT,
-    runtime_control_sha256: "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
-    runtime_proof_sha256: "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
-    technical_window_authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
-    technical_evidence_package_sha256: SHA_C,
-    logical_total: 80,
-    en: 40,
-    zh_hant: 40,
-    provider_disabled_verified: true,
-    founder_cases_run: 0,
-    persistence_writes: 0,
-    units_charged: 0,
+    deployment_receipt: {
+      schema: "s2_t282_dice_default_off_deployment_receipt_v1",
+      source_commit: "e".repeat(40),
+      runtime_package_sha256: SHA_D,
+      disabled_probes: ["DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED"],
+      provider_calls: 0,
+      model_invocations: 0,
+      migration_applied: false
+    },
+    technical_window: {
+      authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+      evidence_package_sha256: SHA_C,
+      logical_total: 80,
+      en: 40,
+      zh_hant: 40,
+      attempt_total: 96,
+      max_attempts: 160,
+      provider_disabled_verified: true,
+      founder_cases_run: 0,
+      persistence_writes: 0,
+      units_charged: 0
+    },
     accepted_at: "2026-08-09T11:00:00.000Z",
     ...overrides
   };

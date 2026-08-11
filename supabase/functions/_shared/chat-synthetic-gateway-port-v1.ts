@@ -13,20 +13,30 @@ export const NO_NORMAL_CHAT_INTEGRATION_AUTHORITY = "NO_NORMAL_CHAT_INTEGRATION_
 export const NO_AZURE_TRAFFIC_AUTHORITY = "NO_AZURE_TRAFFIC_AUTHORITY" as const;
 
 type DiceEvidencePrerequisite = Readonly<{
-  schema: "lumis_dice_technical_window_acceptance_v2";
+  schema: "s2_t284_dice_technical_evidence_acceptance_v1";
   review_decision: "accepted";
-  runtime_source_commit: "f5f9e9da238633d84eb8695307c573eef8f1bc96";
-  runtime_control_sha256: "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1";
-  runtime_proof_sha256: "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256";
-  technical_window_authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY";
-  technical_evidence_package_sha256: string;
-  logical_total: 80;
-  en: 40;
-  zh_hant: 40;
-  provider_disabled_verified: true;
-  founder_cases_run: 0;
-  persistence_writes: 0;
-  units_charged: 0;
+  deployment_receipt: Readonly<{
+    schema: "s2_t282_dice_default_off_deployment_receipt_v1";
+    source_commit: string;
+    runtime_package_sha256: string;
+    disabled_probes: readonly ["DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED"];
+    provider_calls: 0;
+    model_invocations: 0;
+    migration_applied: false;
+  }>;
+  technical_window: Readonly<{
+    authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY";
+    evidence_package_sha256: string;
+    logical_total: 80;
+    en: 40;
+    zh_hant: 40;
+    attempt_total: number;
+    max_attempts: 160;
+    provider_disabled_verified: true;
+    founder_cases_run: 0;
+    persistence_writes: 0;
+    units_charged: 0;
+  }>;
   accepted_at: string;
 }>;
 
@@ -100,7 +110,9 @@ type ActiveAuthority = Readonly<{ receipt: ChatWindowAuthority; receiptSha256: s
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const RUN_ID = /^chat-syn-[a-z0-9]{12,32}$/;
-const EVIDENCE_KEYS = ["schema", "review_decision", "runtime_source_commit", "runtime_control_sha256", "runtime_proof_sha256", "technical_window_authority", "technical_evidence_package_sha256", "logical_total", "en", "zh_hant", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged", "accepted_at"];
+const EVIDENCE_KEYS = ["schema", "review_decision", "deployment_receipt", "technical_window", "accepted_at"];
+const DEPLOYMENT_EVIDENCE_KEYS = ["schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied"];
+const TECHNICAL_EVIDENCE_KEYS = ["authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged"];
 const AUTHORITY_KEYS = ["schema", "authority", "scope", "gateway_interface", "review_package_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "dice_evidence_sha256", "run_id", "caps", "issued_at", "valid_until"];
 const CAP_KEYS = ["logical", "en", "zh_hant", "attempts", "input_tokens", "output_tokens", "concurrency", "deadline_ms", "retries"];
 const REQUEST_KEYS = ["fixture_id", "idempotency_key", "run_id"];
@@ -207,18 +219,29 @@ export class ChatSyntheticGatewayPortV1 {
 export function validateAcceptedDiceEvidence(value: unknown, checksum: string, control: ChatSyntheticReviewControl): DiceEvidencePrerequisite {
   exactRecord(value, EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
   const evidence = value as DiceEvidencePrerequisite;
+  exactRecord(evidence.deployment_receipt, DEPLOYMENT_EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
+  exactRecord(evidence.technical_window, TECHNICAL_EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
+  const deployment = evidence.deployment_receipt;
+  const technical = evidence.technical_window;
   if (
     !SHA256.test(checksum) || control.acceptedDiceEvidenceSha256 !== checksum ||
-    evidence.schema !== "lumis_dice_technical_window_acceptance_v2" || evidence.review_decision !== "accepted" ||
-    evidence.runtime_source_commit !== "f5f9e9da238633d84eb8695307c573eef8f1bc96" ||
-    evidence.runtime_control_sha256 !== "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1" ||
-    evidence.runtime_proof_sha256 !== "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256" ||
-    evidence.technical_window_authority !== "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" ||
-    !SHA256.test(evidence.technical_evidence_package_sha256) || evidence.logical_total !== 80 || evidence.en !== 40 || evidence.zh_hant !== 40 ||
-    evidence.provider_disabled_verified !== true || evidence.founder_cases_run !== 0 || evidence.persistence_writes !== 0 || evidence.units_charged !== 0 ||
+    evidence.schema !== "s2_t284_dice_technical_evidence_acceptance_v1" || evidence.review_decision !== "accepted" ||
+    deployment.schema !== "s2_t282_dice_default_off_deployment_receipt_v1" || !/^[a-f0-9]{40}$/.test(deployment.source_commit) || /^0+$/.test(deployment.source_commit) ||
+    !SHA256.test(deployment.runtime_package_sha256) || deployment.disabled_probes.length !== 4 ||
+    deployment.disabled_probes.some((code) => code !== "DICE_AI_DISABLED") || deployment.provider_calls !== 0 ||
+    deployment.model_invocations !== 0 || deployment.migration_applied !== false ||
+    technical.authority !== "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" || !SHA256.test(technical.evidence_package_sha256) ||
+    technical.logical_total !== 80 || technical.en !== 40 || technical.zh_hant !== 40 ||
+    !Number.isInteger(technical.attempt_total) || technical.attempt_total < 0 || technical.attempt_total > 160 ||
+    technical.max_attempts !== 160 || technical.provider_disabled_verified !== true || technical.founder_cases_run !== 0 ||
+    technical.persistence_writes !== 0 || technical.units_charged !== 0 ||
     !Number.isFinite(Date.parse(evidence.accepted_at))
   ) fail("CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
-  return Object.freeze({ ...evidence });
+  return Object.freeze({
+    ...evidence,
+    deployment_receipt: Object.freeze({ ...deployment, disabled_probes: Object.freeze([...deployment.disabled_probes]) as DiceEvidencePrerequisite["deployment_receipt"]["disabled_probes"] }),
+    technical_window: Object.freeze({ ...technical })
+  });
 }
 
 function validateChatAuthority(value: unknown, checksum: string, diceChecksum: string, control: ChatSyntheticReviewControl, now: number): ChatWindowAuthority {

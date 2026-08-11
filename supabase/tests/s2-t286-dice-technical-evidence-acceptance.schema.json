@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t284_dice_technical_evidence_acceptance_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "review_decision", "deployment_receipt", "technical_window", "accepted_at"],
+  "properties": {
+    "schema": { "const": "s2_t284_dice_technical_evidence_acceptance_v1" },
+    "review_decision": { "const": "accepted" },
+    "deployment_receipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied"],
+      "properties": {
+        "schema": { "const": "s2_t282_dice_default_off_deployment_receipt_v1" },
+        "source_commit": { "$ref": "#/$defs/commit" },
+        "runtime_package_sha256": { "$ref": "#/$defs/sha" },
+        "disabled_probes": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "const": "DICE_AI_DISABLED" } },
+        "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 }, "migration_applied": { "const": false }
+      }
+    },
+    "technical_window": {
+      "type": "object", "additionalProperties": false,
+      "required": ["authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged"],
+      "properties": {
+        "authority": { "const": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" },
+        "evidence_package_sha256": { "$ref": "#/$defs/sha" },
+        "logical_total": { "const": 80 }, "en": { "const": 40 }, "zh_hant": { "const": 40 },
+        "attempt_total": { "type": "integer", "minimum": 0, "maximum": 160 }, "max_attempts": { "const": 160 },
+        "provider_disabled_verified": { "const": true }, "founder_cases_run": { "const": 0 },
+        "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 }
+      }
+    },
+    "accepted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

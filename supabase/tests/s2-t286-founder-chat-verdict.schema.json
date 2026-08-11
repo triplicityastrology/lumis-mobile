@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "founder_chat_window_verdict_v2",
+  "type": "object", "additionalProperties": false, "required": ["payload", "sha256"],
+  "properties": {
+    "sha256": { "$ref": "#/$defs/sha" },
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "build_sha", "chat_runtime_commit", "dice_deployment_evidence_schema", "dice_technical_evidence_schema", "fixture_export_sha256", "accepted_execution_evidence_sha256", "post_window_disabled_proof_sha256", "authority_status", "entries"],
+      "properties": {
+        "schema_version": { "const": "founder_chat_window_verdict_v2" }, "build_sha": { "$ref": "#/$defs/commit" },
+        "chat_runtime_commit": { "const": "39f16d33d481f35a17c389332aa2de701ed7e07e" },
+        "dice_deployment_evidence_schema": { "const": "s2_t282_dice_default_off_deployment_receipt_v1" },
+        "dice_technical_evidence_schema": { "const": "s2_t284_dice_technical_evidence_acceptance_v1" },
+        "fixture_export_sha256": { "$ref": "#/$defs/sha" },
+        "accepted_execution_evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] },
+        "post_window_disabled_proof_sha256": { "anyOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] },
+        "authority_status": { "type": "object", "additionalProperties": false, "required": ["normal_chat", "azure_traffic"], "properties": { "normal_chat": { "const": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY" }, "azure_traffic": { "const": "NO_AZURE_TRAFFIC_AUTHORITY" } } },
+        "entries": { "type": "array", "maxItems": 60, "items": { "type": "object" } }
+      }
+    }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}
