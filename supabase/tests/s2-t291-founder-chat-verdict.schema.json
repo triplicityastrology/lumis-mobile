@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "s2_t291_founder_chat_verdict_v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "build_sha", "chat_runtime_commit", "dice_deployment_authorization_schema", "dice_deployment_evidence_schema", "dice_technical_evidence_schema", "fixture_export_sha256", "accepted_execution_evidence_sha256", "post_window_disabled_proof_sha256", "authority_status", "entries"],
+  "properties": {
+    "schema_version": { "const": "founder_chat_verdict_v1" }, "build_sha": { "$ref": "#/$defs/commit" }, "chat_runtime_commit": { "const": "28175d8faed11491311eb28c7b8e33aedba3d2d3" },
+    "dice_deployment_authorization_schema": { "const": "lumis_dice_default_off_function_deployment_authorization_v4" }, "dice_deployment_evidence_schema": { "const": "lumis_dice_default_off_function_deployment_receipt_v4" }, "dice_technical_evidence_schema": { "const": "lumis_dice_technical_window_80_accepted_evidence_v4" },
+    "fixture_export_sha256": { "$ref": "#/$defs/sha" }, "accepted_execution_evidence_sha256": { "anyOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] }, "post_window_disabled_proof_sha256": { "anyOf": [{ "$ref": "#/$defs/sha" }, { "type": "null" }] },
+    "authority_status": { "const": { "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY" } }, "entries": { "type": "array" }
+  }, "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

@@ -25,6 +25,7 @@ import {
   ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256,
   ACCEPTED_POST_WINDOW_DISABLED_PROOF_SHA256,
   DOCUMENTED_CHAT_RUNTIME_COMMIT,
+  FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
   FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
   FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
   FINAL_DICE_TECHNICAL_AUTHORITY,
@@ -151,7 +152,7 @@ export default function FounderCompanionChatJourney() {
     <SafeAreaView style={styles.safe}>
       <CelestialBackground />
       <View accessibilityLabel="Exact source build" style={styles.buildStrip}>
-        <Text style={styles.buildLabel}>S2-T271 · FOUNDER WINDOW · PRELOGIN · {BUILD_VALID ? "EXACT BUILD" : "BUILD UNAVAILABLE"}</Text>
+        <Text style={styles.buildLabel}>S2-T291 · FOUNDER WINDOW · PRELOGIN · {BUILD_VALID ? "EXACT BUILD" : "BUILD UNAVAILABLE"}</Text>
         <Text numberOfLines={1} selectable style={styles.buildSha}>{BUILD_SHA}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled">
@@ -209,6 +210,7 @@ export default function FounderCompanionChatJourney() {
             <Text style={styles.gateTitle}>{executionReady ? "Authority present" : "Not authorized"}</Text>
             <Text style={styles.helper}>Authorization request requires accepted Dice evidence and a complete fixture checksum. Runtime accepts only fixture_id.</Text>
             <Text style={styles.code}>chat_runtime={DOCUMENTED_CHAT_RUNTIME_COMMIT}</Text>
+            <Text style={styles.code}>dice_authorization={FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA}</Text>
             <Text style={styles.code}>dice_deployment={FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA}</Text>
             <Text style={styles.code}>dice_technical={FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA}</Text>
             <Text style={styles.code}>dice_authority={FINAL_DICE_TECHNICAL_AUTHORITY}</Text>

@@ -13,18 +13,26 @@ export const NO_NORMAL_CHAT_INTEGRATION_AUTHORITY = "NO_NORMAL_CHAT_INTEGRATION_
 export const NO_AZURE_TRAFFIC_AUTHORITY = "NO_AZURE_TRAFFIC_AUTHORITY" as const;
 
 type DiceEvidencePrerequisite = Readonly<{
-  schema: "s2_t284_dice_technical_evidence_acceptance_v1";
+  schema: "lumis_dice_technical_window_80_accepted_evidence_v4";
   review_decision: "accepted";
   deployment_receipt: Readonly<{
-    schema: "s2_t282_dice_default_off_deployment_receipt_v1";
+    schema: "lumis_dice_default_off_function_deployment_receipt_v4";
+    authorization_schema: "lumis_dice_default_off_function_deployment_authorization_v4";
     source_commit: string;
     runtime_package_sha256: string;
-    disabled_probes: readonly ["DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED"];
+    disabled_probes: Readonly<{
+      unknown_fixture: "DICE_AI_DISABLED";
+      free_form_body: "DICE_AI_DISABLED";
+      normal_mobile_body: "DICE_AI_DISABLED";
+      allow_listed_fixture: "DICE_AI_DISABLED";
+    }>;
     provider_calls: 0;
     model_invocations: 0;
     migration_applied: false;
+    post_deploy_disabled: true;
   }>;
   technical_window: Readonly<{
+    schema: "lumis_dice_technical_window_80_evidence_v4";
     authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY";
     evidence_package_sha256: string;
     logical_total: 80;
@@ -32,7 +40,14 @@ type DiceEvidencePrerequisite = Readonly<{
     zh_hant: 40;
     attempt_total: number;
     max_attempts: 160;
+    input_token_limit: 800;
+    output_token_limit: 300;
+    concurrency_limit: 2;
+    shared_deadline_ms: 12000;
+    cost_ceiling_usd: 0.128;
     provider_disabled_verified: true;
+    finally_disabled: true;
+    post_window_disabled_proof_sha256: string;
     founder_cases_run: 0;
     persistence_writes: 0;
     units_charged: 0;
@@ -111,8 +126,9 @@ type ActiveAuthority = Readonly<{ receipt: ChatWindowAuthority; receiptSha256: s
 const SHA256 = /^[a-f0-9]{64}$/;
 const RUN_ID = /^chat-syn-[a-z0-9]{12,32}$/;
 const EVIDENCE_KEYS = ["schema", "review_decision", "deployment_receipt", "technical_window", "accepted_at"];
-const DEPLOYMENT_EVIDENCE_KEYS = ["schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied"];
-const TECHNICAL_EVIDENCE_KEYS = ["authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged"];
+const DEPLOYMENT_EVIDENCE_KEYS = ["schema", "authorization_schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied", "post_deploy_disabled"];
+const DISABLED_PROBE_KEYS = ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"];
+const TECHNICAL_EVIDENCE_KEYS = ["schema", "authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "input_token_limit", "output_token_limit", "concurrency_limit", "shared_deadline_ms", "cost_ceiling_usd", "provider_disabled_verified", "finally_disabled", "post_window_disabled_proof_sha256", "founder_cases_run", "persistence_writes", "units_charged"];
 const AUTHORITY_KEYS = ["schema", "authority", "scope", "gateway_interface", "review_package_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "dice_evidence_sha256", "run_id", "caps", "issued_at", "valid_until"];
 const CAP_KEYS = ["logical", "en", "zh_hant", "attempts", "input_tokens", "output_tokens", "concurrency", "deadline_ms", "retries"];
 const REQUEST_KEYS = ["fixture_id", "idempotency_key", "run_id"];
@@ -220,26 +236,33 @@ export function validateAcceptedDiceEvidence(value: unknown, checksum: string, c
   exactRecord(value, EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
   const evidence = value as DiceEvidencePrerequisite;
   exactRecord(evidence.deployment_receipt, DEPLOYMENT_EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
+  exactRecord(evidence.deployment_receipt.disabled_probes, DISABLED_PROBE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
   exactRecord(evidence.technical_window, TECHNICAL_EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
   const deployment = evidence.deployment_receipt;
   const technical = evidence.technical_window;
   if (
     !SHA256.test(checksum) || control.acceptedDiceEvidenceSha256 !== checksum ||
-    evidence.schema !== "s2_t284_dice_technical_evidence_acceptance_v1" || evidence.review_decision !== "accepted" ||
-    deployment.schema !== "s2_t282_dice_default_off_deployment_receipt_v1" || !/^[a-f0-9]{40}$/.test(deployment.source_commit) || /^0+$/.test(deployment.source_commit) ||
-    !SHA256.test(deployment.runtime_package_sha256) || deployment.disabled_probes.length !== 4 ||
-    deployment.disabled_probes.some((code) => code !== "DICE_AI_DISABLED") || deployment.provider_calls !== 0 ||
-    deployment.model_invocations !== 0 || deployment.migration_applied !== false ||
+    evidence.schema !== "lumis_dice_technical_window_80_accepted_evidence_v4" || evidence.review_decision !== "accepted" ||
+    deployment.schema !== "lumis_dice_default_off_function_deployment_receipt_v4" ||
+    deployment.authorization_schema !== "lumis_dice_default_off_function_deployment_authorization_v4" ||
+    !/^[a-f0-9]{40}$/.test(deployment.source_commit) || /^0+$/.test(deployment.source_commit) ||
+    deployment.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" ||
+    Object.values(deployment.disabled_probes).some((code) => code !== "DICE_AI_DISABLED") || deployment.provider_calls !== 0 ||
+    deployment.model_invocations !== 0 || deployment.migration_applied !== false || deployment.post_deploy_disabled !== true ||
+    technical.schema !== "lumis_dice_technical_window_80_evidence_v4" ||
     technical.authority !== "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" || !SHA256.test(technical.evidence_package_sha256) ||
     technical.logical_total !== 80 || technical.en !== 40 || technical.zh_hant !== 40 ||
     !Number.isInteger(technical.attempt_total) || technical.attempt_total < 0 || technical.attempt_total > 160 ||
-    technical.max_attempts !== 160 || technical.provider_disabled_verified !== true || technical.founder_cases_run !== 0 ||
+    technical.max_attempts !== 160 || technical.input_token_limit !== 800 || technical.output_token_limit !== 300 ||
+    technical.concurrency_limit !== 2 || technical.shared_deadline_ms !== 12000 || technical.cost_ceiling_usd !== 0.128 ||
+    technical.provider_disabled_verified !== true || technical.finally_disabled !== true ||
+    !SHA256.test(technical.post_window_disabled_proof_sha256) || technical.founder_cases_run !== 0 ||
     technical.persistence_writes !== 0 || technical.units_charged !== 0 ||
     !Number.isFinite(Date.parse(evidence.accepted_at))
   ) fail("CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
   return Object.freeze({
     ...evidence,
-    deployment_receipt: Object.freeze({ ...deployment, disabled_probes: Object.freeze([...deployment.disabled_probes]) as DiceEvidencePrerequisite["deployment_receipt"]["disabled_probes"] }),
+    deployment_receipt: Object.freeze({ ...deployment, disabled_probes: Object.freeze({ ...deployment.disabled_probes }) }),
     technical_window: Object.freeze({ ...technical })
   });
 }

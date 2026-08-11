@@ -1,0 +1,55 @@
+{
+  "schema": "s2_t291_chat_v4_final_control_v1",
+  "task": "S2-T291",
+  "base_commit": "28175d8faed11491311eb28c7b8e33aedba3d2d3",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "chat-synthetic",
+  "gateway_interface": "chat_synthetic_gateway_port_v1",
+  "canonical_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "dice_prerequisite": {
+    "deployment_authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "deployment_receipt_schema": "lumis_dice_default_off_function_deployment_receipt_v4",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "accepted_technical_evidence_schema": "lumis_dice_technical_window_80_accepted_evidence_v4",
+    "technical_window_schema": "lumis_dice_technical_window_80_evidence_v4",
+    "technical_authority": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+    "logical_total": 80,
+    "en": 40,
+    "zh_hant": 40,
+    "accepted_evidence_sha256": null
+  },
+  "founder_v4_receipt_design_authority": {
+    "status": "APPROVED_DESIGN_ONLY",
+    "operational_authority": false,
+    "deployment_authorized": false,
+    "migration_authorized": false,
+    "azure_traffic_authorized": false,
+    "normal_chat_integration_authorized": false,
+    "member_data_authorized": false,
+    "public_use_authorized": false
+  },
+  "scopes": {
+    "deployment": "CHAT_SYNTHETIC_DEFAULT_OFF_DEPLOYMENT_ONLY",
+    "migration": "CHAT_SYNTHETIC_AUTHORITY_LEDGER_0040_MIGRATION_ONLY",
+    "traffic": "CHAT_SYNTHETIC_CLOSED_FIXTURE_WINDOW_ONLY"
+  },
+  "disabled_probe_code": "CHAT_AI_DISABLED",
+  "disabled_probe_count": 4,
+  "migration_0040_applied": false,
+  "deployment_executed": false,
+  "traffic_executed": false,
+  "provider_calls": 0,
+  "model_invocations": 0,
+  "normal_chat_connected": false,
+  "member_context_allowed": false,
+  "threads_allowed": false,
+  "messages_allowed": false,
+  "persistence_writes": 0,
+  "units_charged": 0,
+  "statuses": [
+    "SOURCE_READY",
+    "LOCAL_DENO_RUNTIME_PROVED",
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

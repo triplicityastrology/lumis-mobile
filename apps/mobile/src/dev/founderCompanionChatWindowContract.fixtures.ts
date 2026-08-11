@@ -9,6 +9,7 @@ import {
   ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256,
   ACCEPTED_POST_WINDOW_DISABLED_PROOF_SHA256,
   FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
+  FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
   FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
   FINAL_DICE_TECHNICAL_AUTHORITY,
   FOUNDER_CHAT_FIXTURE_SETS,
@@ -39,14 +40,17 @@ const structurallyValidDiceEvidence = {
   review_decision: "accepted",
   deployment_receipt: {
     schema: FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
-    source_commit: "b".repeat(40), runtime_package_sha256: "c".repeat(64),
-    disabled_probes: ["DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED"],
-    provider_calls: 0, model_invocations: 0, migration_applied: false,
+    authorization_schema: FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
+    source_commit: "b".repeat(40), runtime_package_sha256: "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    disabled_probes: { unknown_fixture: "DICE_AI_DISABLED", free_form_body: "DICE_AI_DISABLED", normal_mobile_body: "DICE_AI_DISABLED", allow_listed_fixture: "DICE_AI_DISABLED" },
+    provider_calls: 0, model_invocations: 0, migration_applied: false, post_deploy_disabled: true,
   },
   technical_window: {
-    authority: FINAL_DICE_TECHNICAL_AUTHORITY, evidence_package_sha256: "d".repeat(64),
+    schema: "lumis_dice_technical_window_80_evidence_v4", authority: FINAL_DICE_TECHNICAL_AUTHORITY, evidence_package_sha256: "d".repeat(64),
     logical_total: 80, en: 40, zh_hant: 40, attempt_total: 96, max_attempts: 160,
-    provider_disabled_verified: true, founder_cases_run: 0, persistence_writes: 0, units_charged: 0,
+    input_token_limit: 800, output_token_limit: 300, concurrency_limit: 2, shared_deadline_ms: 12000, cost_ceiling_usd: 0.128,
+    provider_disabled_verified: true, finally_disabled: true, post_window_disabled_proof_sha256: "e".repeat(64),
+    founder_cases_run: 0, persistence_writes: 0, units_charged: 0,
   },
   accepted_at: "2026-08-11T12:00:00.000Z",
 };
@@ -94,7 +98,7 @@ for (const hostile of [
 
 let fabricatedExecutionRejected = false;
 try {
-  importAcceptedWindowExecution({ schema_version: "founder_chat_window_execution_evidence_v1", evidence_sha256: "e".repeat(64), authorization_sha256: "d".repeat(64), status: "accepted", response: { ...WINDOW_PREVIEW_RECORDS[0], state: "live_synthetic" } }, "e".repeat(64));
+  importAcceptedWindowExecution({ schema_version: "founder_chat_window_execution_evidence_v4", evidence_sha256: "e".repeat(64), authorization_sha256: "d".repeat(64), status: "accepted", response: { ...WINDOW_PREVIEW_RECORDS[0], state: "live_synthetic" } }, "e".repeat(64));
 } catch { fabricatedExecutionRejected = true; }
 check(fabricatedExecutionRejected, "self-authored live execution rejected");
 

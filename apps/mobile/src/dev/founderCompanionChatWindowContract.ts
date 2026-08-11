@@ -11,10 +11,11 @@ import {
   type CompanionVerdictEntry,
 } from "./founderCompanionChatContract";
 
-export const FOUNDER_CHAT_WINDOW_VERSION = "s2_t271_founder_chat_window_v1" as const;
-export const DOCUMENTED_CHAT_RUNTIME_COMMIT = "39f16d33d481f35a17c389332aa2de701ed7e07e" as const;
-export const FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA = "s2_t282_dice_default_off_deployment_receipt_v1" as const;
-export const FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA = "s2_t284_dice_technical_evidence_acceptance_v1" as const;
+export const FOUNDER_CHAT_WINDOW_VERSION = "s2_t291_founder_chat_window_v1" as const;
+export const DOCUMENTED_CHAT_RUNTIME_COMMIT = "28175d8faed11491311eb28c7b8e33aedba3d2d3" as const;
+export const FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA = "lumis_dice_default_off_function_deployment_authorization_v4" as const;
+export const FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA = "lumis_dice_default_off_function_deployment_receipt_v4" as const;
+export const FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA = "lumis_dice_technical_window_80_accepted_evidence_v4" as const;
 export const FINAL_DICE_TECHNICAL_AUTHORITY = "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" as const;
 export const ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256: string | null = null;
 export const ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256: string | null = null;
@@ -32,10 +33,11 @@ export type DiceEvidenceInspection = Readonly<{
 }>;
 
 export type ChatWindowAuthorizationRequest = Readonly<{
-  schema_version: "founder_chat_window_authorization_request_v1";
+  schema_version: "founder_chat_window_authorization_request_v4";
   build_sha: string;
   gateway_interface: typeof CHAT_SYNTHETIC_GATEWAY_INTERFACE;
   chat_runtime_commit: typeof DOCUMENTED_CHAT_RUNTIME_COMMIT;
+  dice_deployment_authorization_schema: typeof FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA;
   dice_deployment_evidence_schema: typeof FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA;
   dice_technical_evidence_schema: typeof FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA;
   dice_technical_authority: typeof FINAL_DICE_TECHNICAL_AUTHORITY;
@@ -67,7 +69,7 @@ export type FounderWindowRecord = Readonly<{
 }>;
 
 export type PostWindowDisabledProof = Readonly<{
-  schema_version: "founder_chat_post_window_disabled_v1";
+  schema_version: "founder_chat_post_window_disabled_v4";
   authorization_sha256: string;
   execution_evidence_sha256: string;
   status: "disabled";
@@ -120,19 +122,24 @@ export function inspectDiceTechnicalEvidence(input: unknown, independentlyComput
     if (!isObject(input)) throw new Error("invalid");
     exactKeys(input, ["schema", "review_decision", "deployment_receipt", "technical_window", "accepted_at"], "invalid");
     if (!isObject(input.deployment_receipt) || !isObject(input.technical_window)) throw new Error("invalid");
-    exactKeys(input.deployment_receipt, ["schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied"], "invalid");
-    exactKeys(input.technical_window, ["authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged"], "invalid");
+    exactKeys(input.deployment_receipt, ["schema", "authorization_schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied", "post_deploy_disabled"], "invalid");
+    exactKeys(input.technical_window, ["schema", "authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "input_token_limit", "output_token_limit", "concurrency_limit", "shared_deadline_ms", "cost_ceiling_usd", "provider_disabled_verified", "finally_disabled", "post_window_disabled_proof_sha256", "founder_cases_run", "persistence_writes", "units_charged"], "invalid");
     const deployment = input.deployment_receipt;
     const technical = input.technical_window;
     if (input.schema !== FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA || input.review_decision !== "accepted" ||
-      deployment.schema !== FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA || typeof deployment.source_commit !== "string" || !BUILD_SHA.test(deployment.source_commit) || /^0+$/.test(deployment.source_commit) ||
-      typeof deployment.runtime_package_sha256 !== "string" || !SHA256.test(deployment.runtime_package_sha256) || !Array.isArray(deployment.disabled_probes) ||
-      deployment.disabled_probes.length !== 4 || deployment.disabled_probes.some((value) => value !== "DICE_AI_DISABLED") ||
-      deployment.provider_calls !== 0 || deployment.model_invocations !== 0 || deployment.migration_applied !== false ||
-      technical.authority !== FINAL_DICE_TECHNICAL_AUTHORITY || typeof technical.evidence_package_sha256 !== "string" || !SHA256.test(technical.evidence_package_sha256) ||
+      deployment.schema !== FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA || deployment.authorization_schema !== FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA ||
+      typeof deployment.source_commit !== "string" || !BUILD_SHA.test(deployment.source_commit) || /^0+$/.test(deployment.source_commit) ||
+      deployment.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" ||
+      !isObject(deployment.disabled_probes) || Object.keys(deployment.disabled_probes).sort().join(",") !== ["allow_listed_fixture", "free_form_body", "normal_mobile_body", "unknown_fixture"].join(",") ||
+      Object.values(deployment.disabled_probes).some((value) => value !== "DICE_AI_DISABLED") ||
+      deployment.provider_calls !== 0 || deployment.model_invocations !== 0 || deployment.migration_applied !== false || deployment.post_deploy_disabled !== true ||
+      technical.schema !== "lumis_dice_technical_window_80_evidence_v4" || technical.authority !== FINAL_DICE_TECHNICAL_AUTHORITY || typeof technical.evidence_package_sha256 !== "string" || !SHA256.test(technical.evidence_package_sha256) ||
       technical.logical_total !== 80 || technical.en !== 40 || technical.zh_hant !== 40 || !Number.isInteger(technical.attempt_total) ||
       (technical.attempt_total as number) < 0 || (technical.attempt_total as number) > 160 || technical.max_attempts !== 160 ||
-      technical.provider_disabled_verified !== true || technical.founder_cases_run !== 0 || technical.persistence_writes !== 0 || technical.units_charged !== 0 ||
+      technical.input_token_limit !== 800 || technical.output_token_limit !== 300 || technical.concurrency_limit !== 2 ||
+      technical.shared_deadline_ms !== 12000 || technical.cost_ceiling_usd !== 0.128 || technical.provider_disabled_verified !== true ||
+      technical.finally_disabled !== true || typeof technical.post_window_disabled_proof_sha256 !== "string" || !SHA256.test(technical.post_window_disabled_proof_sha256) ||
+      technical.founder_cases_run !== 0 || technical.persistence_writes !== 0 || technical.units_charged !== 0 ||
       !Number.isFinite(Date.parse(input.accepted_at as string)) || !SHA256.test(independentlyComputedSha256)) throw new Error("invalid");
     const accepted = ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 !== null && independentlyComputedSha256 === ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256;
     return Object.freeze({ structurally_valid: true, accepted, code: accepted ? "DICE_EVIDENCE_ACCEPTED" : "DICE_EVIDENCE_VALID_NOT_ACCEPTED", evidence_sha256: independentlyComputedSha256 });
@@ -151,10 +158,11 @@ export function createChatWindowAuthorizationRequest(input: Readonly<{
     throw new Error("STOP_S2_T271_DICE_EVIDENCE_NOT_ACCEPTED");
   }
   return Object.freeze({
-    schema_version: "founder_chat_window_authorization_request_v1",
+    schema_version: "founder_chat_window_authorization_request_v4",
     build_sha: input.buildSha,
     gateway_interface: CHAT_SYNTHETIC_GATEWAY_INTERFACE,
     chat_runtime_commit: DOCUMENTED_CHAT_RUNTIME_COMMIT,
+    dice_deployment_authorization_schema: FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
     dice_deployment_evidence_schema: FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
     dice_technical_evidence_schema: FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
     dice_technical_authority: FINAL_DICE_TECHNICAL_AUTHORITY,
@@ -204,7 +212,7 @@ export function parseEmbeddedWindowRecord(input: unknown): FounderWindowRecord {
 export function importAcceptedWindowExecution(input: unknown, independentlyComputedSha256: string): FounderWindowRecord {
   if (!isObject(input)) throw new Error("STOP_S2_T271_EXECUTION_NOT_OBJECT");
   exactKeys(input, ["schema_version", "evidence_sha256", "authorization_sha256", "status", "response"], "STOP_S2_T271_EXECUTION_FIELDS");
-  if (input.schema_version !== "founder_chat_window_execution_evidence_v1" || input.status !== "accepted" ||
+  if (input.schema_version !== "founder_chat_window_execution_evidence_v4" || input.status !== "accepted" ||
     input.evidence_sha256 !== independentlyComputedSha256 || ACCEPTED_CHAT_EXECUTION_EVIDENCE_SHA256 === null || independentlyComputedSha256 !== ACCEPTED_CHAT_EXECUTION_EVIDENCE_SHA256 ||
     ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256 === null || input.authorization_sha256 !== ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256) {
     throw new Error("STOP_S2_T271_EXECUTION_NOT_ACCEPTED");
@@ -216,7 +224,7 @@ export function inspectPostWindowDisabledProof(input: unknown, independentlyComp
   try {
     if (!isObject(input)) throw new Error("invalid");
     exactKeys(input, ["schema_version", "authorization_sha256", "execution_evidence_sha256", "status", "provider_enabled", "residual_access", "provider_calls_after_disable", "checked_at_bucket"], "invalid");
-    if (input.schema_version !== "founder_chat_post_window_disabled_v1" || input.status !== "disabled" || input.provider_enabled !== false || input.residual_access !== false ||
+    if (input.schema_version !== "founder_chat_post_window_disabled_v4" || input.status !== "disabled" || input.provider_enabled !== false || input.residual_access !== false ||
       input.provider_calls_after_disable !== 0 || input.checked_at_bucket !== "same_controlled_window" || !SHA256.test(independentlyComputedSha256) ||
       input.authorization_sha256 !== ACCEPTED_CHAT_WINDOW_AUTHORIZATION_SHA256 || input.execution_evidence_sha256 !== ACCEPTED_CHAT_EXECUTION_EVIDENCE_SHA256) throw new Error("invalid");
     const accepted = ACCEPTED_POST_WINDOW_DISABLED_PROOF_SHA256 !== null && independentlyComputedSha256 === ACCEPTED_POST_WINDOW_DISABLED_PROOF_SHA256;
@@ -263,9 +271,10 @@ export function createFounderWindowVerdict(input: Readonly<{
     for (const rating of Object.values(entry.ratings as CompanionRatings)) if (![1, 2, 3, 4, 5].includes(rating)) throw new Error("STOP_S2_T271_VERDICT_RATING");
   }
   return Object.freeze({
-    schema_version: "founder_chat_window_verdict_v2" as const,
+    schema_version: "founder_chat_verdict_v1" as const,
     build_sha: input.buildSha,
     chat_runtime_commit: DOCUMENTED_CHAT_RUNTIME_COMMIT,
+    dice_deployment_authorization_schema: FINAL_DICE_DEPLOYMENT_AUTHORIZATION_SCHEMA,
     dice_deployment_evidence_schema: FINAL_DICE_DEPLOYMENT_EVIDENCE_SCHEMA,
     dice_technical_evidence_schema: FINAL_DICE_TECHNICAL_EVIDENCE_SCHEMA,
     fixture_export_sha256: input.fixtureExportSha256,

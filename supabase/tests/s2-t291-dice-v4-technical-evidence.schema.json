@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_technical_window_80_accepted_evidence_v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "review_decision", "deployment_receipt", "technical_window", "accepted_at"],
+  "properties": {
+    "schema": { "const": "lumis_dice_technical_window_80_accepted_evidence_v4" },
+    "review_decision": { "const": "accepted" },
+    "deployment_receipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "authorization_schema", "source_commit", "runtime_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_applied", "post_deploy_disabled"],
+      "properties": {
+        "schema": { "const": "lumis_dice_default_off_function_deployment_receipt_v4" },
+        "authorization_schema": { "const": "lumis_dice_default_off_function_deployment_authorization_v4" },
+        "source_commit": { "$ref": "#/$defs/commit" },
+        "runtime_package_sha256": { "const": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" },
+        "disabled_probes": { "type": "object", "additionalProperties": false, "required": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"], "properties": { "unknown_fixture": { "const": "DICE_AI_DISABLED" }, "free_form_body": { "const": "DICE_AI_DISABLED" }, "normal_mobile_body": { "const": "DICE_AI_DISABLED" }, "allow_listed_fixture": { "const": "DICE_AI_DISABLED" } } },
+        "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 }, "migration_applied": { "const": false }, "post_deploy_disabled": { "const": true }
+      }
+    },
+    "technical_window": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "authority", "evidence_package_sha256", "logical_total", "en", "zh_hant", "attempt_total", "max_attempts", "input_token_limit", "output_token_limit", "concurrency_limit", "shared_deadline_ms", "cost_ceiling_usd", "provider_disabled_verified", "finally_disabled", "post_window_disabled_proof_sha256", "founder_cases_run", "persistence_writes", "units_charged"],
+      "properties": {
+        "schema": { "const": "lumis_dice_technical_window_80_evidence_v4" }, "authority": { "const": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" },
+        "evidence_package_sha256": { "$ref": "#/$defs/sha" }, "logical_total": { "const": 80 }, "en": { "const": 40 }, "zh_hant": { "const": 40 },
+        "attempt_total": { "type": "integer", "minimum": 0, "maximum": 160 }, "max_attempts": { "const": 160 },
+        "input_token_limit": { "const": 800 }, "output_token_limit": { "const": 300 }, "concurrency_limit": { "const": 2 }, "shared_deadline_ms": { "const": 12000 }, "cost_ceiling_usd": { "const": 0.128 },
+        "provider_disabled_verified": { "const": true }, "finally_disabled": { "const": true }, "post_window_disabled_proof_sha256": { "$ref": "#/$defs/sha" },
+        "founder_cases_run": { "const": 0 }, "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 }
+      }
+    },
+    "accepted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

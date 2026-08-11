@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "s2_t291_chat_default_off_deployment_receipt_v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "authorization_sha256", "source_commit", "review_package_sha256", "disabled_probes", "provider_calls", "model_invocations", "migration_0040_applied", "traffic_authorized", "rollback_revision", "deployed_at"],
+  "properties": {
+    "schema": { "const": "s2_t291_chat_default_off_deployment_receipt_v1" }, "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "function_name": { "const": "chat-synthetic" },
+    "authorization_sha256": { "$ref": "#/$defs/sha" }, "source_commit": { "$ref": "#/$defs/commit" }, "review_package_sha256": { "$ref": "#/$defs/sha" },
+    "disabled_probes": { "type": "object", "additionalProperties": false, "required": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"], "properties": { "unknown_fixture": { "const": "CHAT_AI_DISABLED" }, "free_form_body": { "const": "CHAT_AI_DISABLED" }, "normal_mobile_body": { "const": "CHAT_AI_DISABLED" }, "allow_listed_fixture": { "const": "CHAT_AI_DISABLED" } } },
+    "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 }, "migration_0040_applied": { "const": false }, "traffic_authorized": { "const": false },
+    "rollback_revision": { "type": "string", "minLength": 1, "maxLength": 120 }, "deployed_at": { "type": "string", "format": "date-time" }
+  }, "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

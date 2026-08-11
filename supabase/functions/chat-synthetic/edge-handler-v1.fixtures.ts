@@ -10,18 +10,21 @@ const NOW = Date.parse("2026-08-11T04:00:00.000Z");
 
 function evidence(overrides: Record<string, unknown> = {}) {
   return {
-    schema: "s2_t284_dice_technical_evidence_acceptance_v1",
+    schema: "lumis_dice_technical_window_80_accepted_evidence_v4",
     review_decision: "accepted",
     deployment_receipt: {
-      schema: "s2_t282_dice_default_off_deployment_receipt_v1",
-      source_commit: "e".repeat(40), runtime_package_sha256: SHA_D,
-      disabled_probes: ["DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED", "DICE_AI_DISABLED"],
-      provider_calls: 0, model_invocations: 0, migration_applied: false,
+      schema: "lumis_dice_default_off_function_deployment_receipt_v4",
+      authorization_schema: "lumis_dice_default_off_function_deployment_authorization_v4",
+      source_commit: "e".repeat(40), runtime_package_sha256: "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+      disabled_probes: { unknown_fixture: "DICE_AI_DISABLED", free_form_body: "DICE_AI_DISABLED", normal_mobile_body: "DICE_AI_DISABLED", allow_listed_fixture: "DICE_AI_DISABLED" },
+      provider_calls: 0, model_invocations: 0, migration_applied: false, post_deploy_disabled: true,
     },
     technical_window: {
-      authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY", evidence_package_sha256: SHA_B,
+      schema: "lumis_dice_technical_window_80_evidence_v4", authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY", evidence_package_sha256: SHA_B,
       logical_total: 80, en: 40, zh_hant: 40, attempt_total: 96, max_attempts: 160,
-      provider_disabled_verified: true, founder_cases_run: 0, persistence_writes: 0, units_charged: 0,
+      input_token_limit: 800, output_token_limit: 300, concurrency_limit: 2, shared_deadline_ms: 12000, cost_ceiling_usd: 0.128,
+      provider_disabled_verified: true, finally_disabled: true, post_window_disabled_proof_sha256: SHA_A,
+      founder_cases_run: 0, persistence_writes: 0, units_charged: 0,
     },
     accepted_at: "2026-08-11T03:00:00.000Z",
     ...overrides,

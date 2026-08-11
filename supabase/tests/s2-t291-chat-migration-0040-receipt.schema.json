@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "s2_t291_chat_migration_0040_receipt_v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "project_ref", "migration_version", "migration_sha256", "authorization_sha256", "rpc_service_only_passed", "rls_passed", "cleanup_passed", "function_deployment_authorized", "traffic_authorized", "provider_calls"],
+  "properties": {
+    "schema": { "const": "s2_t291_chat_migration_0040_receipt_v1" }, "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "migration_version": { "const": "0040" },
+    "migration_sha256": { "$ref": "#/$defs/sha" }, "authorization_sha256": { "$ref": "#/$defs/sha" }, "rpc_service_only_passed": { "const": true }, "rls_passed": { "const": true }, "cleanup_passed": { "const": true },
+    "function_deployment_authorized": { "const": false }, "traffic_authorized": { "const": false }, "provider_calls": { "const": 0 }
+  }, "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
