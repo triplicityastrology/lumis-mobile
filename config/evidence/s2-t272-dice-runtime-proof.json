@@ -1,0 +1,39 @@
+{
+  "evidence_type": "s2_t272_dice_edge_runtime_proof_v1",
+  "observed_on": "2026-08-11",
+  "base_commit": "776620bfa1bf3c80090313c83e753cb3004db50d",
+  "authority_status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "runtime": {
+    "deno_cli": "2.2.7",
+    "supabase_cli": "2.113.0",
+    "edge_runtime": "0.1.0",
+    "edge_runtime_deno": "2.1.4",
+    "edge_image": "public.ecr.aws/supabase/edge-runtime@sha256:a82676277615aee03c4f288cbbbf68dedb5ba8693073e567ab8dbfdd11ba5d45"
+  },
+  "proof": {
+    "deno_check": "passed",
+    "edge_eszip_bundle": "passed",
+    "edge_eszip_sha256": "a046b5efe6f73e2f5531ee56c45c9dc96d1c80e84ed3d20e21c709c5a310a865",
+    "import_graph_module_count": 14,
+    "import_graph_sha256": "16e7248056634c0fc5d47c63cccb5eca9e892f92c3c3512e4632aba5cfae0c8b",
+    "docker_network": "internal_only",
+    "disabled_before_json_parse_and_client_construction": true,
+    "probes": [
+      { "fixture": "malformed_json", "http_status": 503, "result_code": "DICE_AI_DISABLED" },
+      { "fixture": "empty_object", "http_status": 503, "result_code": "DICE_AI_DISABLED" },
+      { "fixture": "null_authorization", "http_status": 503, "result_code": "DICE_AI_DISABLED" },
+      { "fixture": "unknown_field", "http_status": 503, "result_code": "DICE_AI_DISABLED" }
+    ],
+    "provider_calls": 0,
+    "remote_calls": 0,
+    "staging_calls": 0
+  },
+  "limitations": [
+    "Local runtime evidence is not hosted deployment evidence.",
+    "Migration 0039 was not applied by this task.",
+    "No Azure connectivity or model behavior was exercised."
+  ]
+}

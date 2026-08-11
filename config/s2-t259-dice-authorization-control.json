@@ -19,14 +19,14 @@
   "source_seal": {
     "base_commit": "083af57ed7685419fc093fb0f1e467385a5039ff",
     "algorithm": "sha256_sorted_path_nul_digest_v1",
-    "package_sha256": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba",
+    "package_sha256": "7962b7059e678819a7ca91263b4b6aaaea020932f3fa1b4faacbadb4b1ac7959",
     "files": {
       "config/evidence/s2-t262-azure-foundry-api-route-family-v1.json": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e",
       "config/evidence/s2-t262-azure-foundry-deployment-readonly-v1.json": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f",
       "config/evidence/s2-t262-azure-foundry-sanitized-price-v1.json": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772",
       "config/s2-t262-dice-technical-registry-v1.json": "00ba2d0c9ff60825ba9fbc285d64bf7179e62da8e305480ad3e45612d6d4de0b",
-      "package.json": "834f434743c1f5b4ccba3cfe5ca8c08caa3ee346b29ec4e8663f4329fdd75dd1",
-      "pnpm-lock.yaml": "5cbaf2d98672e036084aad0c64d87fd020f0c2da392ed789f9101dafbf3f5231",
+      "package.json": "0654ae1e2cc70e2a9361136a00c539490a5328b011f1fe9a6abb5f30be88749d",
+      "pnpm-lock.yaml": "8e4d7dd5ccbfdb520ae3df79341c8b82ef69b8119fe0b8566ae06a93d398a0f7",
       "scripts/lib/s2-t259-dice-authorization-operator.mjs": "f30a8a0aee32ca33ecbc5bf28f93c99f5b861f8207c4e3d00180596e49820d58",
       "scripts/lib/s2-t259-durable-deployment-claim.mjs": "827ce4c934beabb301cd1310116fef1f4d8dbb21fe0b9b025c38e5869fe81e6e",
       "scripts/s2-t259-dice-authorization-operator.mjs": "83787f3767ba24040badc1937671d281cdb27379f833155d62c07879e1764046",
@@ -37,8 +37,8 @@
       "supabase/functions/_shared/dice-synthetic-fixture-registry-v0-3.ts": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
       "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
       "supabase/functions/_shared/dice-tokenizer-v1.ts": "e6661489999cd512db1772c8b38ed2f9022b781ccc790a5212b541c25739cd04",
-      "supabase/functions/dice-synthetic/deno.json": "3ea6576d2998bb3b8cddb4a4e23cea6d3df3d539d358cfbc7d7ef1ea465ad9f9",
-      "supabase/functions/dice-synthetic/index.ts": "f7a3a347b94842a3d0a38fcb6d22843e0e269fd94ff266c8d24a4dc5426e56e9",
+      "supabase/functions/dice-synthetic/deno.json": "5ec28f1802aeaa4f2ce09edfc4259d855d4f89368cfe643372a9873f53e44551",
+      "supabase/functions/dice-synthetic/index.ts": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b",
       "supabase/migrations/0039_dice_synthetic_authority_ledger.sql": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
       "supabase/tests/lumis-dice-default-off-deployment-authorization-v2.schema.json": "b4864ca7981d29b084fa69927778af46c42d8a590c88720c06b2c60d0cafad3d",
       "supabase/tests/lumis-dice-synthetic-result-v1.schema.json": "effd36918f1fc48cdcadef81f27f15a130c9f626e318b0a54eb3371d1c81c9a2"

@@ -4,6 +4,8 @@ dist/
 build/
 coverage/
 .tmp/
+.runtime/
+.runtime-home/
 .lumis-local/
 .DS_Store
 .env

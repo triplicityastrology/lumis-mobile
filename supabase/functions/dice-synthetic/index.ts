@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.52.0";
+import { createClient } from "@supabase/supabase-js";
 
 import { createDiceSyntheticEdgeHandler } from "./edge-handler-v1.ts";
 
@@ -25,10 +25,16 @@ const environment = {
 const handler = createDiceSyntheticEdgeHandler({
   environment,
   createAuthorityClient(url, serviceRoleKey) {
-    return createClient(url, serviceRoleKey, {
+    const client = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
       global: { headers: { "x-lumis-server-boundary": "dice-synthetic-v1" } },
     });
+    return {
+      async rpc(name, parameters) {
+        const { data, error } = await client.rpc(name, parameters);
+        return { data, error };
+      },
+    };
   },
 });
 

@@ -3,7 +3,7 @@ import { createPostgresDiceAuthorityStore, type DiceAuthorityRpcClient } from ".
 import { DiceGatewayStop, DiceSyntheticGatewayPortV1 } from "../_shared/dice-synthetic-gateway-port-v1.ts";
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
-export const DICE_EDGE_PACKAGE_SHA256 = "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" as const;
+export const DICE_EDGE_PACKAGE_SHA256 = "7962b7059e678819a7ca91263b4b6aaaea020932f3fa1b4faacbadb4b1ac7959" as const;
 export const DICE_EDGE_REGISTRY_SHA256 = "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62" as const;
 
 type EdgeEnvironment = Readonly<Record<string, string | undefined>>;

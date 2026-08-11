@@ -223,6 +223,8 @@
     "test:staging-auth-readiness": "node scripts/staging-auth-readiness-contract.mjs",
     "test:account-deletion-finalizer": "node scripts/account-deletion-finalizer-contract.mjs",
     "test:s2-t267-dice-edge-final": "tsc -p supabase/functions/tsconfig.dice-synthetic-port-v1-test.json && tsc -p supabase/functions/tsconfig.dice-synthetic-edge-v1-test.json && tsc -p supabase/functions/tsconfig.dice-synthetic-edge-v1-bundle.json && node scripts/s2-t267-deno-tokenizer-contract.mjs && node .tmp/dice-synthetic-port-v1-tests/supabase/functions/_shared/dice-synthetic-gateway-port-v1.fixtures.js && node scripts/s2-t263-azure-protocol-emulator.mjs && node scripts/s2-t267-wrapper-ledger-integration.mjs && node scripts/s2-t259-dice-authorization-operator-contract.mjs && node scripts/s2-t263-dice-edge-contract.mjs && node scripts/s2-t267-dice-edge-release-contract.mjs",
+    "test:s2-t272-dice-deno-runtime": "node scripts/s2-t272-dice-runtime-contract.mjs",
+    "verify:s2-t272-dice-deno-runtime": "zsh scripts/run-s2-t272-dice-runtime-proof.zsh",
     "staging:auth-readiness": "node scripts/staging-auth-readiness.mjs",
     "pretest:all-local": "pnpm test:care-circle-aggregate-static && pnpm test:care-circle-qr",
     "posttest:all-local": "pnpm test:persona-selection-compatibility && pnpm test:persona-prompt-pipeline && pnpm test:persona-legacy-audit-readiness && pnpm test:persona-source-hygiene && pnpm test:s2-care-circle-postgres17-ci-evidence && pnpm test:s2-t252-dice-ai-rc",
@@ -232,10 +234,12 @@
     "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.52.0",
+    "@supabase/supabase-js": "2.110.2",
+    "deno-bin": "2.2.7",
     "js-tiktoken": "1.0.21",
     "jsqr": "1.4.0",
     "qrcode": "1.5.4",
+    "supabase": "2.113.0",
     "typescript": "^5.8.3"
   }
 }
