@@ -1,0 +1,78 @@
+{
+  "schema": "s2_t264_founder_dice_e2e_manifest_v1",
+  "task": "S2-T264",
+  "branch": "codex/s2-t264-founder-dice-e2e",
+  "base_commit": "9f36ca6386fd421de409e73d8399c88737909033",
+  "source_contracts": ["S2-T257"],
+  "t257_documented_contract": {
+    "commit": "083af57ed7685419fc093fb0f1e467385a5039ff",
+    "interface_version": "dice_synthetic_gateway_port_v1",
+    "sha256": {
+      "docs/architecture/S2-T257-canonical-dice-gateway-port.md": "016b02f6a3c23c5d2151fbf56fd2570d75f6b3972f64c23f6b0384f1182cb0a4",
+      "config/s2-t257-canonical-dice-gateway-manifest.json": "f011b2da9209f1891b6ef6fa99acf16dff02b4074096aac423f59829eb872899"
+    }
+  },
+  "journey": [
+    "select_and_freeze",
+    "external_validation_and_classification",
+    "eligibility",
+    "fixture_id_only_invoke",
+    "accepted_checksum_live_synthetic",
+    "rating",
+    "checksum_verdict"
+  ],
+  "default_states": ["not_yet_run", "offline_preview"],
+  "live_synthetic": {
+    "accepted_envelope_checked_in": false,
+    "gateway_default": "disabled",
+    "required_evidence": ["independently_computed_envelope_sha256", "accepted_technical_evidence_sha256"]
+  },
+  "effects": {
+    "member_auth": 0,
+    "normal_routes": 0,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "web": {
+    "port": 8141,
+    "command": "pnpm start:s2-t264-founder-dice-web",
+    "binding": "clean_branch_head_export_marker_verified"
+  },
+  "simulator": {
+    "port": 8144,
+    "command": "pnpm start:s2-t264-founder-dice-simulator",
+    "device": "booted_iOS_Simulator_with_Expo_Go"
+  },
+  "verification": [
+    "pnpm test:s2-t264-founder-dice",
+    "pnpm typecheck",
+    "pnpm test:mobile-ui",
+    "pnpm test:s2-accessibility",
+    "pnpm test:pii",
+    "pnpm --dir apps/mobile exec expo export --platform web --dev --clear",
+    "pnpm --dir apps/mobile exec expo export --platform ios --dev --clear",
+    "git diff --check"
+  ],
+  "failure_codes": [
+    "STOP_S2_T264_ENVELOPE_NOT_OBJECT",
+    "STOP_S2_T264_ENVELOPE_FIELDS",
+    "STOP_S2_T264_ENVELOPE_CHECKSUM_NOT_ACCEPTED",
+    "STOP_S2_T264_ENVELOPE_NOT_ELIGIBLE",
+    "STOP_S2_T264_ENVELOPE_CLASSIFICATION",
+    "STOP_S2_T264_TECHNICAL_EVIDENCE_NOT_ACCEPTED",
+    "STOP_S2_T264_ENVELOPE_EFFECTS",
+    "STOP_S2_T264_ENVELOPE_NOT_ACCEPTED",
+    "STOP_S2_T264_GATEWAY_DISABLED",
+    "STOP_S2_T264_GATEWAY_RESULT_MISMATCH",
+    "STOP_S2_T264_WEB_WRONG_BRANCH",
+    "STOP_S2_T264_WEB_TRACKED_TREE_DIRTY",
+    "STOP_S2_T264_WEB_PORT_OWNED_BY_ANOTHER_PROJECT",
+    "STOP_S2_T264_SIMULATOR_NOT_BOOTED",
+    "STOP_S2_T264_SIMULATOR_EXPO_GO_NOT_INSTALLED"
+  ],
+  "rollback": {
+    "command": "git revert <S2-T264-commit>",
+    "data_recovery": "none_zero_persistence",
+    "server_cleanup": "Ctrl+C only in the owned launcher terminal"
+  }
+}

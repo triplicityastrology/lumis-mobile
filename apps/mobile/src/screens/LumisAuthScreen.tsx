@@ -140,7 +140,7 @@ export function LumisAuthScreen({
           </View>
         </View>
         {authNotice || message ? (
-          <View accessibilityLiveRegion="polite" style={flowStyles.success}>
+          <View accessibilityLiveRegion="polite" accessibilityRole="text" style={flowStyles.success}>
             <Text style={flowStyles.successTitle}>Account update</Text>
             <Text style={flowStyles.message}>{message || authNotice}</Text>
           </View>

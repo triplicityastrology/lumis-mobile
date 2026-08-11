@@ -1,6 +1,6 @@
 import * as Crypto from "expo-crypto";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text as NativeText, TextInput, type TextProps, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CelestialBackground } from "../components/CelestialBackground";
@@ -25,6 +25,10 @@ import {
   type ReviewSection,
   type SyntheticReviewRecord,
 } from "./founderAiReviewContract";
+import {
+  createDisabledFounderDiceGateway,
+  resolveFounderDiceJourneyState,
+} from "./founderDiceE2eContract";
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_HEAD ?? "build-unavailable";
 const BUILD_STATE = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_STATE ?? "dice-founder-intake";
@@ -52,6 +56,10 @@ const LABELS: Record<RatingDimension, string> = {
   safety: "Safety",
 };
 
+function Text({ maxFontSizeMultiplier = 1.4, ...props }: TextProps) {
+  return <NativeText {...props} maxFontSizeMultiplier={maxFontSizeMultiplier} />;
+}
+
 function allRecords(section: ReviewSection, frozen: Readonly<Record<string, FrozenFounderQuestion>>): SyntheticReviewRecord[] {
   const fixtureMap = new Map(REVIEW_FIXTURES.filter((item) => item.section === section).map((item) => [item.fixture_id, item]));
   const ids = section === "dice" ? RESERVED_DICE_FOUNDER_IDS : LATER_CHAT_FIXTURE_IDS;
@@ -64,6 +72,8 @@ function allRecords(section: ReviewSection, frozen: Readonly<Record<string, Froz
 }
 
 export default function FounderAiQualityReviewConsole() {
+  const { fontScale, width } = useWindowDimensions();
+  const compactLayout = width < 420 || fontScale >= 1.2;
   const [section, setSection] = useState<ReviewSection>("dice");
   const [frozenFixtures, setFrozenFixtures] = useState<Record<string, FrozenFounderQuestion>>({});
   const records = useMemo(() => allRecords(section, frozenFixtures), [frozenFixtures, section]);
@@ -78,11 +88,18 @@ export default function FounderAiQualityReviewConsole() {
   const [draftDecision, setDraftDecision] = useState<DraftDecision | null>(null);
   const [draftStatus, setDraftStatus] = useState("Draft has not been validated");
   const [fixtureExport, setFixtureExport] = useState<string | null>(null);
+  const founderGateway = useMemo(() => createDisabledFounderDiceGateway(), []);
   const selectedRatings = ratings[selected.fixture_id] ?? DEFAULT_RATINGS;
   const diceEvidenceAccepted = ACCEPTED_DICE_TECHNICAL_EVIDENCE_SHA256 !== null;
   const companionGate = resolveCompanionGate(diceEvidenceAccepted, false);
   const ratingEligible = section === "dice" && selected.rendered_output !== null &&
     (selected.state === "offline_preview" || (selected.state === "live_synthetic" && diceEvidenceAccepted));
+  const journeyState = resolveFounderDiceJourneyState({
+    frozen: Boolean(frozenFixtures[selected.fixture_id]),
+    offlinePreview: selected.state === "offline_preview",
+    acceptedEnvelope: null,
+    gatewayStatus: founderGateway.status(),
+  });
 
   const updateRating = (dimension: RatingDimension, value: 1 | 2 | 3 | 4 | 5) => {
     setRatings((current) => ({ ...current, [selected.fixture_id]: { ...(current[selected.fixture_id] ?? DEFAULT_RATINGS), [dimension]: value } }));
@@ -100,10 +117,14 @@ export default function FounderAiQualityReviewConsole() {
 
   const freezeDraft = () => {
     if (!draftDecision?.ok) return;
-    const prefix = draftLanguage === "en" ? "DICE-FOUNDER-EN-" : "DICE-FOUNDER-ZH-";
-    const slot = Array.from({ length: 20 }, (_, index) => `${prefix}${String(index + 1).padStart(2, "0")}`).find((id) => !frozenFixtures[id]);
-    if (!slot) {
-      setDraftStatus(`All 20 ${draftLanguage} Founder slots are frozen`);
+    const slot = selectedIds.dice;
+    const expectedPrefix = draftLanguage === "en" ? "DICE-FOUNDER-EN-" : "DICE-FOUNDER-ZH-";
+    if (!slot.startsWith(expectedPrefix)) {
+      setDraftStatus(`Select a ${draftLanguage} slot before freezing`);
+      return;
+    }
+    if (frozenFixtures[slot]) {
+      setDraftStatus(`${slot} is already frozen`);
       return;
     }
     const fixture = freezeFounderDiceDraft(slot, draftDecision);
@@ -158,17 +179,18 @@ export default function FounderAiQualityReviewConsole() {
         <Text style={styles.intro}>Synthetic evidence only. This console cannot call Azure, charge units, write member data, or enter customer navigation.</Text>
 
         <View accessibilityLabel="Founder review journey" style={styles.journey}>
-          <Text style={styles.journeyStep}>1 · Question</Text>
+          <Text style={styles.journeyStep}>1 · Select and freeze question</Text>
           <Text style={styles.journeyStep}>2 · External validation + classification</Text>
           <Text style={styles.journeyStep}>3 · Eligibility</Text>
-          <Text style={styles.journeyStep}>4 · Evidence-bound synthetic result</Text>
-          <Text style={styles.journeyStep}>5 · Rating</Text>
-          <Text style={styles.journeyStep}>6 · Checksum verdict</Text>
+          <Text style={styles.journeyStep}>4 · Fixture ID-only invoke seam</Text>
+          <Text style={styles.journeyStep}>5 · Evidence-bound synthetic result</Text>
+          <Text style={styles.journeyStep}>6 · Rating</Text>
+          <Text style={styles.journeyStep}>7 · Checksum verdict</Text>
         </View>
 
         <View accessibilityRole="tablist" style={styles.tabs}>
-          <SectionTab label="Dice" selected={section === "dice"} onPress={() => setSection("dice")} />
-          <SectionTab label="Companion / Chat" selected={section === "companion_chat"} onPress={() => setSection("companion_chat")} />
+          <SectionTab label="Dice" largeText={compactLayout} selected={section === "dice"} onPress={() => setSection("dice")} />
+          <SectionTab label="Companion / Chat" largeText={compactLayout} selected={section === "companion_chat"} onPress={() => setSection("companion_chat")} />
         </View>
 
         <View style={styles.summaryRow}>
@@ -180,12 +202,28 @@ export default function FounderAiQualityReviewConsole() {
           <View style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>Prepare Founder questions</Text>
             <Text style={styles.helper}>Draft and preflight locally, then freeze exactly 20 EN and 20 zh-Hant questions. The checksum package goes to external Technical validation and classification; only accepted eligible IDs can run later.</Text>
-            <View style={styles.languageRow}>
-              <SectionTab label="English" selected={draftLanguage === "en"} onPress={() => { setDraftLanguage("en"); setDraftDecision(null); }} />
-              <SectionTab label="繁體中文" selected={draftLanguage === "zh-Hant"} onPress={() => { setDraftLanguage("zh-Hant"); setDraftDecision(null); }} />
+            <View style={[styles.languageRow, compactLayout && styles.wrapRow]}>
+              <SectionTab label="English" largeText={compactLayout} selected={draftLanguage === "en"} onPress={() => { setDraftLanguage("en"); setDraftDecision(null); }} />
+              <SectionTab label="繁體中文" largeText={compactLayout} selected={draftLanguage === "zh-Hant"} onPress={() => { setDraftLanguage("zh-Hant"); setDraftDecision(null); }} />
             </View>
+            <Text style={styles.slotLabel}>SELECT SLOT · {selectedIds.dice}</Text>
+            <ScrollView accessibilityLabel={`${draftLanguage} Founder fixture slots`} horizontal showsHorizontalScrollIndicator={false} style={styles.slotRail}>
+              {RESERVED_DICE_FOUNDER_IDS.filter((id) => id.includes(draftLanguage === "en" ? "-EN-" : "-ZH-")).map((id) => (
+                <Pressable
+                  accessibilityLabel={`${id}${frozenFixtures[id] ? ", frozen" : ", available"}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: selectedIds.dice === id }}
+                  key={id}
+                  onPress={() => setSelectedIds((current) => ({ ...current, dice: id }))}
+                  style={[styles.slotButton, selectedIds.dice === id && styles.slotButtonSelected]}
+                >
+                  <Text style={[styles.slotButtonText, selectedIds.dice === id && styles.slotButtonTextSelected]}>{id.slice(-2)}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
             <TextInput
               accessibilityLabel="Synthetic Founder Dice question"
+              maxFontSizeMultiplier={1.4}
               multiline
               onChangeText={(value) => { setDraftQuestion(value); setDraftDecision(null); setDraftStatus("Changed since validation"); }}
               placeholder={draftLanguage === "en" ? "What should I notice about this decision?" : "這個決定有什麼值得我留意？"}
@@ -193,9 +231,9 @@ export default function FounderAiQualityReviewConsole() {
               style={styles.draftInput}
               value={draftQuestion}
             />
-            <View style={styles.actionRow}>
+            <View style={[styles.actionRow, compactLayout && styles.wrapRow]}>
               <Pressable accessibilityRole="button" onPress={validateDraft} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Validate</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftDecision?.ok }} disabled={!draftDecision?.ok} onPress={freezeDraft} style={[styles.exportButton, styles.flexButton, !draftDecision?.ok && styles.disabledButton]}><Text style={styles.exportButtonText}>Freeze next slot</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftDecision?.ok }} disabled={!draftDecision?.ok} onPress={freezeDraft} style={[styles.exportButton, styles.flexButton, !draftDecision?.ok && styles.disabledButton]}><Text style={styles.exportButtonText}>Freeze selected slot</Text></Pressable>
             </View>
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{draftStatus}</Text>
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: Object.keys(frozenFixtures).length !== 40 }} disabled={Object.keys(frozenFixtures).length !== 40} onPress={() => void prepareFixtureExport()} style={[styles.fixtureExportButton, Object.keys(frozenFixtures).length !== 40 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Prepare fixture checksum · {Object.keys(frozenFixtures).length}/40</Text></Pressable>
@@ -239,11 +277,28 @@ export default function FounderAiQualityReviewConsole() {
           {frozenFixtures[selected.fixture_id] ? <Text style={styles.frozenNote}>Locally frozen · {frozenFixtures[selected.fixture_id].expected_route.replaceAll("_", " ")} · pending external validation, classification and eligibility</Text> : null}
         </View>
 
+        {section === "dice" ? (
+          <View accessibilityLabel="Founder Dice eligibility and gateway status" style={styles.card}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Eligibility and invoke seam</Text>
+            <View style={styles.readinessList}>
+              <Readiness label="Selected and frozen" value={journeyState.frozen ? "ready" : "not ready"} />
+              <Readiness label="External validation / classification" value={journeyState.external_validation.replaceAll("_", " ")} />
+              <Readiness label="Founder eligibility" value={journeyState.eligibility.replaceAll("_", " ")} />
+              <Readiness label="Gateway" value={journeyState.gateway} />
+            </View>
+            <Text style={styles.helper}>The invoke boundary accepts only the selected fixture ID. This exact build has no accepted Founder envelope, so provider access remains disabled and no request can leave the device.</Text>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled style={[styles.exportButton, styles.disabledButton]}>
+              <Text style={styles.exportButtonText}>Invoke eligible fixture ID</Text>
+            </Pressable>
+            <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>STOP_S2_T264_GATEWAY_DISABLED · accepted envelope required</Text>
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>Founder ratings</Text>
           <Text style={styles.helper}>{ratingEligible ? "1 means return; 5 means strong. Ratings remain in memory until exported." : "Rating unlocks only for an offline demo or a checksum-verified live result."}</Text>
           {RATING_DIMENSIONS.map((dimension) => (
-            <View key={dimension} style={styles.ratingRow}>
+            <View key={dimension} style={[styles.ratingRow, compactLayout && styles.ratingRowCompact]}>
               <Text style={styles.ratingLabel}>{LABELS[dimension]}</Text>
               <View accessibilityLabel={`${LABELS[dimension]} rating ${selectedRatings[dimension]}`} style={styles.ratingButtons}>
                 {([1, 2, 3, 4, 5] as const).map((value) => (
@@ -292,11 +347,14 @@ export default function FounderAiQualityReviewConsole() {
   );
 }
 
-function SectionTab({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="tab" accessibilityState={{ selected }} onPress={onPress} style={[styles.tab, selected && styles.tabSelected]}><Text style={[styles.tabText, selected && styles.tabTextSelected]}>{label}</Text></Pressable>;
+function SectionTab({ label, largeText = false, selected, onPress }: { label: string; largeText?: boolean; selected: boolean; onPress: () => void }) {
+  return <Pressable accessibilityRole="tab" accessibilityState={{ selected }} onPress={onPress} style={[styles.tab, largeText && styles.tabLargeText, selected && styles.tabSelected]}><Text style={[styles.tabText, selected && styles.tabTextSelected]}>{label}</Text></Pressable>;
 }
 function Summary({ label, value }: { label: string; value: string }) {
   return <View style={styles.summary}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.summaryValue}>{value}</Text></View>;
+}
+function Readiness({ label, value }: { label: string; value: string }) {
+  return <View style={styles.readinessRow}><Text style={styles.readinessLabel}>{label}</Text><Text style={styles.readinessValue}>{value}</Text></View>;
 }
 function StateBadge({ state }: { state: SyntheticReviewRecord["state"] }) {
   return <View style={[styles.badge, state === "live_synthetic" && styles.badgeLive]}><Text style={styles.badgeText}>{state.replaceAll("_", " ")}</Text></View>;
@@ -315,6 +373,7 @@ const styles = StyleSheet.create({
   journeyStep: { color: colors.textSoft, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   tabs: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, flexDirection: "row", marginTop: spacing.lg, padding: 4 },
   tab: { alignItems: "center", borderRadius: 6, flex: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 6 },
+  tabLargeText: { minHeight: 64, paddingVertical: 8 },
   tabSelected: { backgroundColor: colors.gold },
   tabText: { color: colors.textSoft, fontSize: 14, fontWeight: "700", textAlign: "center" },
   tabTextSelected: { color: colors.navy950 },
@@ -341,6 +400,13 @@ const styles = StyleSheet.create({
   metaLabel: { color: colors.muted, fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
   helper: { color: colors.textSoft, fontSize: 13, lineHeight: 19, marginTop: spacing.sm },
   languageRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  wrapRow: { flexWrap: "wrap" },
+  slotLabel: { color: colors.goldLight, fontSize: 11, fontWeight: "800", marginTop: spacing.md },
+  slotRail: { marginTop: spacing.sm },
+  slotButton: { alignItems: "center", borderColor: colors.line, borderRadius: 6, borderWidth: 1, height: 42, justifyContent: "center", marginRight: 7, width: 42 },
+  slotButtonSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  slotButtonText: { color: colors.textSoft, fontSize: 13, fontWeight: "800" },
+  slotButtonTextSelected: { color: colors.navy950 },
   draftInput: { backgroundColor: colors.navy950, borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, color: colors.ice, fontSize: 16, lineHeight: 23, marginTop: spacing.md, minHeight: 96, padding: spacing.md, textAlignVertical: "top" },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   flexButton: { flex: 1, marginTop: 0 },
@@ -349,8 +415,13 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.42 },
   fixtureExportButton: { alignItems: "center", borderColor: colors.line, borderRadius: 7, borderWidth: 1, justifyContent: "center", marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.sm },
   frozenNote: { color: colors.goldLight, fontSize: 12, fontWeight: "700", marginTop: spacing.md },
+  readinessList: { gap: spacing.sm, marginTop: spacing.md },
+  readinessRow: { alignItems: "flex-start", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "space-between", paddingBottom: spacing.sm },
+  readinessLabel: { color: colors.textSoft, flex: 1, fontSize: 13, lineHeight: 19 },
+  readinessValue: { color: colors.goldLight, fontSize: 12, fontWeight: "800", textAlign: "right" },
   gateCode: { color: colors.goldLight, fontFamily: "Courier", fontSize: 11, marginTop: spacing.md },
   ratingRow: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "space-between", marginTop: spacing.md },
+  ratingRowCompact: { alignItems: "flex-start", flexDirection: "column" },
   ratingLabel: { color: colors.textSoft, flex: 1, fontSize: 13, fontWeight: "600" },
   ratingButtons: { flexDirection: "row", gap: 4 },
   ratingButton: { alignItems: "center", borderColor: colors.line, borderRadius: 6, borderWidth: 1, height: 34, justifyContent: "center", width: 34 },

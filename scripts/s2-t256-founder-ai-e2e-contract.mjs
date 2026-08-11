@@ -21,7 +21,7 @@ assert.match(consoleSource, /Dice/);
 assert.match(consoleSource, /Companion \/ Chat/);
 assert.match(consoleSource, /Prepare checksum package/);
 assert.match(consoleSource, /Prepare Founder questions/);
-assert.match(consoleSource, /Freeze next slot/);
+assert.match(consoleSource, /Freeze (?:next|selected) slot/);
 assert.match(consoleSource, /External validation \+ classification/);
 assert.match(consoleSource, /Evidence-bound synthetic result/);
 assert.match(consoleSource, /NO_NORMAL_CHAT_INTEGRATION_AUTHORITY/);
