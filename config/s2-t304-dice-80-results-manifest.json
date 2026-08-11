@@ -1,0 +1,22 @@
+{
+  "schema": "s2_t304_dice_80_results_manifest_v1",
+  "base_commit": "8028dd5adc2282f284f037e3db10aaf9827c0e65",
+  "package_sha256": "5a0014c0e756a710e38760298bb7e4b5ad6298eace98a6ae2c77ace5612c0981",
+  "execution_mode": "inert_without_three_independently_accepted_receipts",
+  "local_rehearsal_is_live_proof": false,
+  "files": {
+    "config/s2-t304-dice-80-results.json": "4e3d899d897ebb42c690876b14154a07bc26a9cb9a88bef6b8f235d1a5b6edb7",
+    "docs/qa/S2-T304-dice-technical-results.md": "c07b245205dba1ae9bae89ab2ebdfb327a646740f8f2775027dccafaa17eb081",
+    "package.json": "f6b306a667aed895519fee3198035a1a84eb7b061b1cbe3f2da33db3f7d7ca0a",
+    "scripts/lib/s2-t304-dice-80-results.mjs": "b6c866dc92542a41b1117cb65429f4fbeb9959a5ce46275d2999032738ebba2d",
+    "scripts/s2-t304-dice-80-results.mjs": "fc3f760c708e694e8e9f79c321740a9c3ccb37f5979ffec79100082c931b95a1",
+    "scripts/s2-t304-dice-80-results-contract.mjs": "aeb666b92ff4eba10b1632c5613f4da949f389491f253b4af839102ed1a27dc4",
+    "scripts/s2-t304-dice-80-results-emulator.mjs": "690eb6dcd4c9fb968e1950035b886ed5fb736ad782a3fa5ae22ab260fe9c6345",
+    "supabase/tests/s2-t304-dice-technical-results-review.schema.json": "c068d0cff87a5f5247c27005597f7e05852ded0a39a11812469df862859543c1",
+    "supabase/tests/s2-t304-zero-network-rehearsal-receipt.schema.json": "f7c1cea472d491bde3665424a1f6e2201f622ab74a93cf7f4c5f422c107299e6"
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

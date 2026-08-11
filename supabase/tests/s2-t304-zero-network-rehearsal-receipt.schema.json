@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S2-T304 zero-network rehearsal receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_class", "live_azure_proof", "cases", "en", "zh_hant", "attempts", "peak_concurrency", "cost_usd", "cost_ceiling_usd", "provider_disabled_verified", "remote_calls", "review_sha256"],
+  "properties": {
+    "schema": { "const": "s2_t304_zero_network_rehearsal_receipt_v1" },
+    "evidence_class": { "const": "local_zero_network_rehearsal_only" },
+    "live_azure_proof": { "const": false },
+    "cases": { "const": 80 },
+    "en": { "const": 40 },
+    "zh_hant": { "const": 40 },
+    "attempts": { "type": "integer", "minimum": 0, "maximum": 160 },
+    "peak_concurrency": { "type": "integer", "minimum": 0, "maximum": 2 },
+    "cost_usd": { "type": "number", "minimum": 0, "maximum": 0.128 },
+    "cost_ceiling_usd": { "const": 0.128 },
+    "provider_disabled_verified": { "const": true },
+    "remote_calls": { "const": 0 },
+    "review_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

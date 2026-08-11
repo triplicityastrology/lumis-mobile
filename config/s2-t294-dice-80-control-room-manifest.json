@@ -1,7 +1,7 @@
 {
   "schema": "s2_t294_dice_80_control_room_manifest_v1",
   "base_commit": "4b2c8c7578773b59b04d4e44ef4ca2dc57b7555f",
-  "package_sha256": "f72a417f25651e4540e69183853b77ece0194a7dfe02700bb30a7611355ee6dd",
+  "package_sha256": "0e0c3e404c832acf43d5ed4308c3208bf54269b4db660dd47229f4a7a5167f92",
   "execution_mode": "inert_without_three_independently_accepted_receipts",
   "local_rehearsal_is_live_proof": false,
   "files": {
@@ -11,7 +11,7 @@
     "apps/mobile/src/types/env.d.ts": "c097cc8cf8f45b1dfe16d24dc0c3df36dfcd4a92563dd349c87917f517915938",
     "config/s2-t294-dice-80-control-room.json": "6d3e3c359bb1430499597bd996423c1bc3d98f6d02a93144059206b129cee725",
     "docs/qa/S2-T294-dice-technical-control-room.md": "a191580acb99f37a9aaf7e3e2cbeeb1f8f81aa586b084bfeac25ec7e90235ff4",
-    "package.json": "af507a32b64d4df075713685adbca5c6d3d4b292b80c902b18e23036e597fb87",
+    "package.json": "f6b306a667aed895519fee3198035a1a84eb7b061b1cbe3f2da33db3f7d7ca0a",
     "scripts/lib/s2-t294-dice-control-room.mjs": "f0bc856041616c1703a097de7c29c971f61039f51500c4ed87c6de2e074aacfc",
     "scripts/s2-t294-dice-control-room.mjs": "a8e8a9a22097ead28c0b685885f1bc5e5707fcf7e30b0585f75a7f9f0f48c9ea",
     "scripts/s2-t294-dice-control-room-emulator.mjs": "9ee67705680bbdc4dfed81341fdfa8816b6b6fda20de70432dbc8e0285ceab81",

@@ -1,0 +1,50 @@
+{
+  "schema": "s2_t304_dice_80_results_control_v1",
+  "task": "S2-T304",
+  "base_commit": "8028dd5adc2282f284f037e3db10aaf9827c0e65",
+  "deployment_authority": {
+    "canonical_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+    "zero_call_package_commit": "69c3de399acf3fa9ec746deaeb7a1880128955ca",
+    "authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457"
+  },
+  "migration_boundary": {
+    "version": "0039",
+    "authorization_scope": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY",
+    "proof_commit": "b469cb7e0824bd6b864edc983bcd352b37994894",
+    "proof_receipt_sha256": "0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e"
+  },
+  "required_receipts": [
+    "accepted_v4_post_deploy_disabled_receipt",
+    "accepted_0039_migration_receipt",
+    "accepted_DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY_receipt"
+  ],
+  "limits": {
+    "technical_cases": 80,
+    "en": 40,
+    "zh_hant": 40,
+    "founder_cases": 0,
+    "attempts": 160,
+    "concurrency": 2,
+    "eligible_retries": 1,
+    "shared_deadline_ms": 12000,
+    "input_tokens": 800,
+    "output_tokens": 300,
+    "tokenizer": "js-tiktoken@1.0.21/o200k_base",
+    "cost_ceiling_usd": 0.128,
+    "input_price_usd_per_1m_tokens": 0.25,
+    "output_price_usd_per_1m_tokens": 2.0
+  },
+  "kill_policy": {
+    "input_token_cap": "KILL_S2_T304_INPUT_TOKEN_CAP",
+    "output_token_cap": "KILL_S2_T304_OUTPUT_TOKEN_CAP",
+    "provider_timeout": "KILL_S2_T304_SHARED_DEADLINE",
+    "provider_rate_limited": "KILL_S2_T304_PROVIDER_RATE_LIMITED_AFTER_RETRY",
+    "provider_unavailable": "KILL_S2_T304_PROVIDER_UNAVAILABLE_AFTER_RETRY",
+    "provider_malformed": "KILL_S2_T304_PROVIDER_OUTPUT_INVALID",
+    "budget": "KILL_S2_T304_COST_OR_ATTEMPT_BUDGET",
+    "disable": "KILL_S2_T304_DISABLE_NOT_PROVEN"
+  },
+  "review_dimensions": ["authority", "relevance", "tone", "language_quality", "safety"],
+  "authority_status": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"]
+}

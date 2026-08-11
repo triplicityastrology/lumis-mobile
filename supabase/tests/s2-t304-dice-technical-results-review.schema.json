@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S2-T304 Dice technical results review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_class", "rating_source", "live_azure_proof", "run_id", "status", "authority_status", "limits", "summary", "failed_answers", "weak_answers", "rows"],
+  "properties": {
+    "schema": { "const": "s2_t304_dice_technical_results_review_v1" },
+    "evidence_class": { "enum": ["local_zero_network_rehearsal_only", "accepted_live_synthetic_evidence"] },
+    "rating_source": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "live_azure_proof": { "type": "boolean" },
+    "run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,40}$" },
+    "status": { "const": "completed" },
+    "authority_status": { "type": "array", "prefixItems": [{ "const": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY" }, { "const": "NO_AZURE_TRAFFIC_AUTHORITY" }], "items": false },
+    "limits": { "type": "object" },
+    "summary": { "type": "object" },
+    "failed_answers": { "type": "array" },
+    "weak_answers": { "type": "array" },
+    "rows": { "type": "array", "minItems": 80, "maxItems": 80 }
+  }
+}
