@@ -1,0 +1,39 @@
+{
+  "evidence_type": "lumis_azure_foundry_deployment_readonly_v1",
+  "observed_at": "2026-08-11",
+  "environment": "staging",
+  "verified": {
+    "deployment_alias": "lumis-ai-chat-stg",
+    "model": "gpt-5-mini",
+    "model_version": "2025-08-07",
+    "deployment_type": "GlobalStandard",
+    "model_version_upgrade_policy": "NoAutoUpgrade",
+    "guardrail": "Microsoft.DefaultV2",
+    "tokens_per_minute_limit": 10000,
+    "requests_per_minute_limit": 10,
+    "foundry_service_hostname": "lumis-foundry-stg-sea-20260731.services.ai.azure.com"
+  },
+  "not_verified_or_not_collected": {
+    "organization_specific_usd_input_token_price": null,
+    "organization_specific_usd_output_token_price": null,
+    "price_observed_timestamp_with_timezone": null,
+    "price_sheet_billing_period": null,
+    "azure_api_version": null
+  },
+  "explicitly_excluded": [
+    "email_addresses",
+    "created_by",
+    "modified_by",
+    "endpoint_url_or_path",
+    "masked_or_unmasked_keys",
+    "credentials_or_tokens",
+    "subscription_identifiers",
+    "tenant_identifiers",
+    "billing_account_identifiers"
+  ],
+  "authority_status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "evidence_sha256": null
+}

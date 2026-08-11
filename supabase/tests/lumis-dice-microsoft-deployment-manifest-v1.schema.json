@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_microsoft_deployment_manifest_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "issuer", "decision", "project_ref", "function_name", "single_use_deployment_id", "issued_at", "expires_at", "integrated_source_seal_sha256", "readonly_evidence_sha256", "sanitized_price_evidence_sha256", "api_route_evidence_sha256", "canonical_sha256", "provider_authority", "pricing", "normal_chat_binding", "configuration_names", "technical_scope"],
+  "properties": {
+    "schema": { "const": "lumis_dice_microsoft_deployment_manifest_v1" },
+    "issuer": { "const": "Microsoft" },
+    "decision": { "const": "AUTHORIZED_DEFAULT_OFF_DEPLOYMENT" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "dice-synthetic" },
+    "single_use_deployment_id": { "type": "string", "pattern": "^dice-deploy-[a-z0-9]{16,40}$" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "integrated_source_seal_sha256": { "$ref": "#/$defs/sha" },
+    "readonly_evidence_sha256": { "const": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f" },
+    "sanitized_price_evidence_sha256": { "const": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772" },
+    "api_route_evidence_sha256": { "const": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e" },
+    "canonical_sha256": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gateway", "registry", "registry_payload", "adapter", "response_schema", "operator"],
+      "properties": {
+        "gateway": { "$ref": "#/$defs/sha" }, "registry": { "$ref": "#/$defs/sha" }, "registry_payload": { "$ref": "#/$defs/sha" },
+        "adapter": { "$ref": "#/$defs/sha" }, "response_schema": { "$ref": "#/$defs/sha" }, "operator": { "$ref": "#/$defs/sha" }
+      }
+    },
+    "provider_authority": { "$ref": "#/$defs/provider_authority" },
+    "pricing": { "$ref": "#/$defs/evidence_bound_pricing" },
+    "normal_chat_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_commit", "tree", "entry_blob", "unchanged_required"],
+      "properties": { "base_commit": { "$ref": "#/$defs/commit" }, "tree": { "$ref": "#/$defs/commit" }, "entry_blob": { "$ref": "#/$defs/commit" }, "unchanged_required": { "const": true } }
+    },
+    "configuration_names": { "$ref": "#/$defs/configuration_names" },
+    "technical_scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operator", "logical_total", "en", "zh_hant", "founder_total"],
+      "properties": { "operator": { "const": "TECHNICAL_80_ONLY" }, "logical_total": { "const": 80 }, "en": { "const": 40 }, "zh_hant": { "const": 40 }, "founder_total": { "const": 0 } }
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "provider_authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["deployment_alias", "model", "model_version", "deployment_type", "model_version_upgrade_policy", "guardrail", "tokens_per_minute_limit", "requests_per_minute_limit", "foundry_service_hostname", "transport", "api_route_family"],
+      "properties": {
+        "deployment_alias": { "const": "lumis-ai-chat-stg" }, "model": { "const": "gpt-5-mini" }, "model_version": { "const": "2025-08-07" },
+        "deployment_type": { "const": "GlobalStandard" }, "model_version_upgrade_policy": { "const": "NoAutoUpgrade" }, "guardrail": { "const": "Microsoft.DefaultV2" },
+        "tokens_per_minute_limit": { "const": 10000 }, "requests_per_minute_limit": { "const": 10 },
+        "foundry_service_hostname": { "const": "lumis-foundry-stg-sea-20260731.services.ai.azure.com" }, "transport": { "const": "https" }, "api_route_family": { "const": "v1" }
+      }
+    },
+    "evidence_bound_pricing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["input_price_usd_per_1m_tokens", "output_price_usd_per_1m_tokens", "calculated_provider_maximum_usd", "full_maximum_dice_window_estimate_usd", "absolute_window_cap_usd", "azure_api_version", "status"],
+      "properties": {
+        "input_price_usd_per_1m_tokens": { "const": 0.25 }, "output_price_usd_per_1m_tokens": { "const": 2.00 },
+        "calculated_provider_maximum_usd": { "const": 0.128 }, "full_maximum_dice_window_estimate_usd": { "const": 0.192 },
+        "absolute_window_cap_usd": { "const": 1.00 }, "azure_api_version": { "type": "null" },
+        "status": { "const": "EVIDENCE_BOUND_ROUTE_V1_NO_TRAFFIC_AUTHORITY" }
+      }
+    },
+    "configuration_names": {
+      "type": "array", "minItems": 12, "maxItems": 12, "uniqueItems": true,
+      "items": { "enum": ["LUMIS_DICE_AI_ENABLED", "LUMIS_DICE_DEPLOYMENT_ALIAS", "LUMIS_DICE_MODEL", "LUMIS_DICE_MODEL_VERSION", "LUMIS_DICE_DEPLOYMENT_TYPE", "LUMIS_DICE_UPGRADE_POLICY", "LUMIS_DICE_GUARDRAIL", "LUMIS_DICE_TPM_LIMIT", "LUMIS_DICE_RPM_LIMIT", "LUMIS_DICE_FOUNDRY_HOSTNAME", "LUMIS_DICE_FOUNDRY_PROTOCOL", "LUMIS_DICE_API_ROUTE_FAMILY"] }
+    }
+  }
+}

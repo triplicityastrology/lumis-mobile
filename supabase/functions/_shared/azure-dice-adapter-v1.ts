@@ -11,6 +11,19 @@ export const DICE_AZURE_DEPLOYMENT_TYPE = "GlobalStandard" as const;
 export const DICE_AZURE_UPGRADE_POLICY = "NoAutoUpgrade" as const;
 export const DICE_AZURE_GUARDRAIL = "Microsoft.DefaultV2" as const;
 export const DICE_AZURE_LIMITS = Object.freeze({ tokensPerMinute: 10_000, requestsPerMinute: 10 });
+export const DICE_AZURE_AUTHORITY = Object.freeze({
+  deployment_alias: DICE_AZURE_DEPLOYMENT,
+  model: DICE_AZURE_MODEL,
+  model_version: DICE_AZURE_MODEL_VERSION,
+  deployment_type: DICE_AZURE_DEPLOYMENT_TYPE,
+  model_version_upgrade_policy: DICE_AZURE_UPGRADE_POLICY,
+  guardrail: DICE_AZURE_GUARDRAIL,
+  tokens_per_minute_limit: DICE_AZURE_LIMITS.tokensPerMinute,
+  requests_per_minute_limit: DICE_AZURE_LIMITS.requestsPerMinute,
+  foundry_service_hostname: DICE_AZURE_HOSTNAME,
+  transport: "https",
+  api_route_family: DICE_AZURE_ROUTE_FAMILY,
+});
 
 export type DiceAzureServerConfig = Readonly<{
   endpoint: string;
@@ -23,9 +36,36 @@ export type ServerEnvironment = Readonly<Record<string, string | undefined>>;
 
 export function readDiceAzureServerConfig(environment: ServerEnvironment):
   | { ok: true; config: DiceAzureServerConfig }
-  | { ok: false; code: string } {
+  | { ok: false; code: string; authority?: typeof DICE_AZURE_AUTHORITY } {
   if (environment.LUMIS_DICE_AI_ENABLED !== "true") return { ok: false, code: "DICE_AI_DISABLED" };
-  return { ok: false, code: "DICE_AZURE_TRAFFIC_NOT_AUTHORIZED" };
+  const exactNames = environment.LUMIS_DICE_DEPLOYMENT_ALIAS === DICE_AZURE_DEPLOYMENT &&
+    environment.LUMIS_DICE_MODEL === DICE_AZURE_MODEL &&
+    environment.LUMIS_DICE_MODEL_VERSION === DICE_AZURE_MODEL_VERSION &&
+    environment.LUMIS_DICE_DEPLOYMENT_TYPE === DICE_AZURE_DEPLOYMENT_TYPE &&
+    environment.LUMIS_DICE_UPGRADE_POLICY === DICE_AZURE_UPGRADE_POLICY &&
+    environment.LUMIS_DICE_GUARDRAIL === DICE_AZURE_GUARDRAIL &&
+    environment.LUMIS_DICE_TPM_LIMIT === String(DICE_AZURE_LIMITS.tokensPerMinute) &&
+    environment.LUMIS_DICE_RPM_LIMIT === String(DICE_AZURE_LIMITS.requestsPerMinute) &&
+    environment.LUMIS_DICE_FOUNDRY_HOSTNAME === DICE_AZURE_HOSTNAME &&
+    environment.LUMIS_DICE_FOUNDRY_PROTOCOL === "https" &&
+    environment.LUMIS_DICE_API_ROUTE_FAMILY === DICE_AZURE_ROUTE_FAMILY;
+  if (!exactNames || environment.LUMIS_DICE_AZURE_API_VERSION !== undefined) {
+    return { ok: false, code: "DICE_PROVIDER_AUTHORITY_INVALID" };
+  }
+  if (environment.LUMIS_DICE_TRAFFIC_AUTHORIZED !== "true") {
+    return { ok: false, code: "DICE_AZURE_TRAFFIC_AUTHORITY_MISSING", authority: DICE_AZURE_AUTHORITY };
+  }
+  const apiKey = environment.LUMIS_DICE_AZURE_API_KEY?.trim();
+  if (!apiKey) return { ok: false, code: "DICE_AZURE_CONFIGURATION_INVALID" };
+  return {
+    ok: true,
+    config: {
+      endpoint: `https://${DICE_AZURE_HOSTNAME}`,
+      apiKey,
+      deployment: DICE_AZURE_DEPLOYMENT,
+      routeFamily: DICE_AZURE_ROUTE_FAMILY,
+    },
+  };
 }
 
 export function createAzureDiceAdapter(config: DiceAzureServerConfig, fetchImpl: typeof fetch = fetch): DiceProviderAdapter {

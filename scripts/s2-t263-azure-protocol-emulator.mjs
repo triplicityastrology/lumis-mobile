@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,14 +17,14 @@ const LOCAL_CREDENTIAL = crypto.randomUUID();
 const EN = JSON.stringify({ reading: "Notice the measured opening.", watch_out: "Avoid certainty.", practical_direction: "Take one reversible step." });
 const ZH = JSON.stringify({ reading: "留意較平穩的開端。", watch_out: "避免過早下定論。", practical_direction: "先踏出可以回頭的一步。" });
 const state = { mode: "success", calls: 0 };
-const server = createServer(async (request, response) => {
+const strictOrigin = `https://${DICE_AZURE_HOSTNAME}`;
+const transport = async (input, init) => {
   state.calls += 1;
-  const chunks = [];
-  for await (const chunk of request) chunks.push(chunk);
-  const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  assert.equal(request.method, "POST");
-  assert.equal(request.headers["api-key"], LOCAL_CREDENTIAL);
-  const requestUrl = new URL(request.url, "http://local.invalid");
+  const body = JSON.parse(String(init?.body));
+  assert.equal(init?.method, "POST");
+  assert.equal(new Headers(init?.headers).get("api-key"), LOCAL_CREDENTIAL);
+  const requestUrl = new URL(String(input));
+  assert.equal(requestUrl.origin, strictOrigin);
   assert.equal(requestUrl.pathname, "/openai/v1/responses");
   assert.equal(requestUrl.search, "");
   assert.deepEqual(Object.keys(body).sort(), ["input", "max_output_tokens", "model", "store"]);
@@ -33,28 +32,22 @@ const server = createServer(async (request, response) => {
   assert.equal(body.model, DICE_AZURE_DEPLOYMENT);
   assert.equal(body.store, false);
 
-  if (state.mode === "timeout") return;
-  if (state.mode === "transient-once" && state.calls === 1) return json(response, 500, { error: { code: "local_transient" } });
-  if (state.mode === "block") return json(response, 400, { error: { code: "content_filter" } });
-  if (state.mode === "partial") return json(response, 200, { status: "incomplete", incomplete_details: { reason: "content_filter" } });
-  if (state.mode === "malformed") return json(response, 200, { status: "completed", output_text: "not-json" });
-  if (state.mode === "401" || state.mode === "403") return json(response, Number(state.mode), { error: { code: "redacted" } });
+  if (state.mode === "timeout") {
+    await new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true }));
+  }
+  if (state.mode === "transient-once" && state.calls === 1) return json(500, { error: { code: "local_transient" } });
+  if (state.mode === "block") return json(400, { error: { code: "content_filter" } });
+  if (state.mode === "partial") return json(200, { status: "incomplete", incomplete_details: { reason: "content_filter" } });
+  if (state.mode === "malformed") return json(200, { status: "completed", output_text: "not-json" });
+  if (state.mode === "401" || state.mode === "403") return json(Number(state.mode), { error: { code: "redacted" } });
   const prompt = body.input;
   const content = state.mode === "oversized"
     ? JSON.stringify({ reading: " hello".repeat(301), watch_out: "Avoid certainty.", practical_direction: "Pause." })
     : prompt.includes("language=zh-Hant") ? ZH : EN;
-  return json(response, 200, { status: "completed", output_text: content });
-});
+  return json(200, { status: "completed", output_text: content });
+};
 
-await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-const address = server.address();
-if (!address || typeof address === "string") throw new Error("LOCAL_EMULATOR_BIND_FAILED");
-const localOrigin = `http://127.0.0.1:${address.port}`;
-const strictOrigin = `https://${DICE_AZURE_HOSTNAME}`;
-const transport = (input, init) => fetch(String(input).replace(strictOrigin, localOrigin), init);
-
-try {
-  assert.deepEqual({
+assert.deepEqual({
     deploymentAlias: DICE_AZURE_DEPLOYMENT,
     model: DICE_AZURE_MODEL,
     version: DICE_AZURE_MODEL_VERSION,
@@ -113,14 +106,10 @@ try {
   });
   assert.deepEqual(timeout, { kind: "timeout" });
   assert.equal(state.calls, 1);
-  console.log("S2_T263_LOCAL_AZURE_PROTOCOL_OK scenarios=success,block,partial,malformed,401,403,transient-once,timeout,oversized");
-} finally {
-  server.closeAllConnections?.();
-  await new Promise((resolve) => server.close(resolve));
-}
+console.log("S2_T263_LOCAL_AZURE_PROTOCOL_OK transport=network-disabled scenarios=success,block,partial,malformed,401,403,transient-once,timeout,oversized");
 
 async function disabledProbes() {
-  for (const [enabled, code] of [[undefined, "DICE_AI_DISABLED"], ["false", "DICE_AI_DISABLED"], ["true", "DICE_AZURE_TRAFFIC_NOT_AUTHORIZED"]]) {
+  for (const [enabled, code] of [[undefined, "DICE_AI_DISABLED"], ["false", "DICE_AI_DISABLED"], ["true", "DICE_AZURE_TRAFFIC_AUTHORITY_MISSING"]]) {
     let authorityClients = 0;
     let providerCalls = 0;
     const handler = createDiceSyntheticEdgeHandler({
@@ -176,9 +165,21 @@ function localProviderConfig() {
 function environment(...arguments_) {
   const enabled = arguments_.length === 0 ? "true" : arguments_[0];
   return {
-    LUMIS_AI_ENABLED: enabled,
+    LUMIS_DICE_AI_ENABLED: enabled,
+    LUMIS_DICE_TRAFFIC_AUTHORIZED: "false",
     LUMIS_DICE_AZURE_API_KEY: LOCAL_CREDENTIAL,
     LUMIS_DICE_AUTHORITY_HMAC_SECRET: SECRET,
+    LUMIS_DICE_DEPLOYMENT_ALIAS: "lumis-ai-chat-stg",
+    LUMIS_DICE_MODEL: "gpt-5-mini",
+    LUMIS_DICE_MODEL_VERSION: "2025-08-07",
+    LUMIS_DICE_DEPLOYMENT_TYPE: "GlobalStandard",
+    LUMIS_DICE_UPGRADE_POLICY: "NoAutoUpgrade",
+    LUMIS_DICE_GUARDRAIL: "Microsoft.DefaultV2",
+    LUMIS_DICE_TPM_LIMIT: "10000",
+    LUMIS_DICE_RPM_LIMIT: "10",
+    LUMIS_DICE_FOUNDRY_HOSTNAME: "lumis-foundry-stg-sea-20260731.services.ai.azure.com",
+    LUMIS_DICE_FOUNDRY_PROTOCOL: "https",
+    LUMIS_DICE_API_ROUTE_FAMILY: "v1",
     SUPABASE_URL: "https://local-project.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY: "local-service-role-placeholder",
   };
@@ -193,7 +194,6 @@ function assertMetadataOnly(value) {
   }
 }
 
-function json(response, status, body) {
-  response.writeHead(status, { "content-type": "application/json" });
-  response.end(JSON.stringify(body));
+function json(status, body) {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }

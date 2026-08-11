@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_default_off_post_deploy_receipt_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "single_use_deployment_id", "microsoft_manifest_sha256", "integrated_source_seal_sha256", "function_version", "configuration_names_present", "disabled_before", "disabled_during", "disabled_after", "disabled_probes", "provider_calls", "normal_chat_binding", "normal_chat_unchanged", "deployed_at"],
+  "properties": {
+    "schema": { "const": "lumis_dice_default_off_post_deploy_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "function_name": { "const": "dice-synthetic" },
+    "single_use_deployment_id": { "type": "string", "pattern": "^dice-deploy-[a-z0-9]{16,40}$" },
+    "microsoft_manifest_sha256": { "$ref": "#/$defs/sha" }, "integrated_source_seal_sha256": { "$ref": "#/$defs/sha" },
+    "function_version": { "type": "integer", "minimum": 1 },
+    "configuration_names_present": { "type": "array", "minItems": 12, "maxItems": 12, "uniqueItems": true, "items": { "enum": ["LUMIS_DICE_AI_ENABLED", "LUMIS_DICE_DEPLOYMENT_ALIAS", "LUMIS_DICE_MODEL", "LUMIS_DICE_MODEL_VERSION", "LUMIS_DICE_DEPLOYMENT_TYPE", "LUMIS_DICE_UPGRADE_POLICY", "LUMIS_DICE_GUARDRAIL", "LUMIS_DICE_TPM_LIMIT", "LUMIS_DICE_RPM_LIMIT", "LUMIS_DICE_FOUNDRY_HOSTNAME", "LUMIS_DICE_FOUNDRY_PROTOCOL", "LUMIS_DICE_API_ROUTE_FAMILY"] } },
+    "disabled_before": { "const": true }, "disabled_during": { "const": true }, "disabled_after": { "const": true },
+    "disabled_probes": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"],
+      "properties": { "unknown_fixture": { "const": "DICE_AI_DISABLED" }, "free_form_body": { "const": "DICE_AI_DISABLED" }, "normal_mobile_body": { "const": "DICE_AI_DISABLED" }, "allow_listed_fixture": { "const": "DICE_AI_DISABLED" } }
+    },
+    "provider_calls": { "const": 0 },
+    "normal_chat_binding": {
+      "type": "object", "additionalProperties": false, "required": ["base_commit", "tree", "entry_blob"],
+      "properties": { "base_commit": { "$ref": "#/$defs/commit" }, "tree": { "$ref": "#/$defs/commit" }, "entry_blob": { "$ref": "#/$defs/commit" } }
+    },
+    "normal_chat_unchanged": { "const": true }, "deployed_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

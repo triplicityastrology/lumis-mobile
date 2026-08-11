@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_sanitized_price_evidence_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["price_sheet_billing_period", "relevant_service_dates", "price_observed_at", "input_price_usd_per_1m_tokens", "output_price_usd_per_1m_tokens", "region_evidence", "currency", "full_maximum_dice_window_estimate_usd", "deployment_alias"],
+  "properties": {
+    "price_sheet_billing_period": { "const": "2026-08-01 to 2026-09-01" },
+    "relevant_service_dates": { "const": ["2026-08-01", "2026-08-02"] },
+    "price_observed_at": { "const": "2026-08-11 10:49:08 HKT (+0800)" },
+    "input_price_usd_per_1m_tokens": { "const": 0.25 },
+    "output_price_usd_per_1m_tokens": { "const": 2.00 },
+    "region_evidence": { "const": "AP Southeast / Southeast Asia" },
+    "currency": { "const": "USD" },
+    "full_maximum_dice_window_estimate_usd": { "const": 0.192 },
+    "deployment_alias": { "const": "lumis-ai-chat-stg" }
+  }
+}

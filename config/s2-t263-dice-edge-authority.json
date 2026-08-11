@@ -28,5 +28,5 @@
   "provider_calls": 0,
   "evidence_file": "config/evidence/s2-t263-azure-foundry-deployment-readonly-v1.json",
   "evidence_sha256": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f",
-  "canonical_package_sha256": "39352d83abfbb61dba616be4a3a7f00b365365346f584cfab9e612c1c975b03b"
+  "canonical_package_sha256": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba"
 }

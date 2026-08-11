@@ -1,0 +1,141 @@
+{
+  "schema": "s2_t262_dice_integrated_authorization_control_v1",
+  "status": "WAITING_FOR_MICROSOFT_FINAL_INTEGRATED_DICE_AUTHORIZATION",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "gateway_interface": "dice_synthetic_gateway_port_v1",
+  "deployment_claim_interface": {
+    "interface_version": "lumis_dice_deployment_claim_store_v1",
+    "durability": "atomic_persistent"
+  },
+  "canonical_sha256": {
+    "gateway": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
+    "registry": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
+    "registry_payload": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030",
+    "adapter": "be54e303aa157b62f8907c0c5d20e8086e2194f5cdbf37ba37f847ebbff82903",
+    "response_schema": "effd36918f1fc48cdcadef81f27f15a130c9f626e318b0a54eb3371d1c81c9a2",
+    "operator": "f30a8a0aee32ca33ecbc5bf28f93c99f5b861f8207c4e3d00180596e49820d58"
+  },
+  "source_seal": {
+    "base_commit": "083af57ed7685419fc093fb0f1e467385a5039ff",
+    "algorithm": "sha256_sorted_path_nul_digest_v1",
+    "package_sha256": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba",
+    "files": {
+      "config/evidence/s2-t262-azure-foundry-api-route-family-v1.json": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e",
+      "config/evidence/s2-t262-azure-foundry-deployment-readonly-v1.json": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f",
+      "config/evidence/s2-t262-azure-foundry-sanitized-price-v1.json": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772",
+      "config/s2-t262-dice-technical-registry-v1.json": "00ba2d0c9ff60825ba9fbc285d64bf7179e62da8e305480ad3e45612d6d4de0b",
+      "package.json": "834f434743c1f5b4ccba3cfe5ca8c08caa3ee346b29ec4e8663f4329fdd75dd1",
+      "pnpm-lock.yaml": "5cbaf2d98672e036084aad0c64d87fd020f0c2da392ed789f9101dafbf3f5231",
+      "scripts/lib/s2-t259-dice-authorization-operator.mjs": "f30a8a0aee32ca33ecbc5bf28f93c99f5b861f8207c4e3d00180596e49820d58",
+      "scripts/lib/s2-t259-durable-deployment-claim.mjs": "827ce4c934beabb301cd1310116fef1f4d8dbb21fe0b9b025c38e5869fe81e6e",
+      "scripts/s2-t259-dice-authorization-operator.mjs": "83787f3767ba24040badc1937671d281cdb27379f833155d62c07879e1764046",
+      "scripts/s2-t267-wrapper-ledger-integration.mjs": "616beae0f592b0be7be319ea96e0010e66c27ec177dc5b71960e1911cc988f97",
+      "supabase/functions/_shared/azure-dice-adapter-v1.ts": "be54e303aa157b62f8907c0c5d20e8086e2194f5cdbf37ba37f847ebbff82903",
+      "supabase/functions/_shared/dice-authority-store-v1.ts": "c1a9c2887a2a4d491af9cfbd6989f2c04e6ca3182393dfd68b437da8d09ccf1b",
+      "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "c22c4f24d49059100af82e6217f702c1128c014552e019a2aafbd52ec1d623af",
+      "supabase/functions/_shared/dice-synthetic-fixture-registry-v0-3.ts": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
+      "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
+      "supabase/functions/_shared/dice-tokenizer-v1.ts": "e6661489999cd512db1772c8b38ed2f9022b781ccc790a5212b541c25739cd04",
+      "supabase/functions/dice-synthetic/deno.json": "3ea6576d2998bb3b8cddb4a4e23cea6d3df3d539d358cfbc7d7ef1ea465ad9f9",
+      "supabase/functions/dice-synthetic/index.ts": "f7a3a347b94842a3d0a38fcb6d22843e0e269fd94ff266c8d24a4dc5426e56e9",
+      "supabase/migrations/0039_dice_synthetic_authority_ledger.sql": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
+      "supabase/tests/lumis-dice-default-off-deployment-authorization-v2.schema.json": "b4864ca7981d29b084fa69927778af46c42d8a590c88720c06b2c60d0cafad3d",
+      "supabase/tests/lumis-dice-synthetic-result-v1.schema.json": "effd36918f1fc48cdcadef81f27f15a130c9f626e318b0a54eb3371d1c81c9a2"
+    }
+  },
+  "normal_chat_binding": {
+    "base_commit": "30f928777caf47bd2037c9700c97851926c2e9e2",
+    "tree": "97c682accb3c94e95498762de5026985540a3b6b",
+    "entry_blob": "26d0423187c718a748bf981e6d1643cb4dcdad25"
+  },
+  "configuration_names": [
+    "LUMIS_DICE_AI_ENABLED",
+    "LUMIS_DICE_TRAFFIC_AUTHORIZED",
+    "LUMIS_DICE_AZURE_API_KEY",
+    "LUMIS_DICE_AUTHORITY_HMAC_SECRET",
+    "LUMIS_DICE_DEPLOYMENT_ALIAS",
+    "LUMIS_DICE_MODEL",
+    "LUMIS_DICE_MODEL_VERSION",
+    "LUMIS_DICE_DEPLOYMENT_TYPE",
+    "LUMIS_DICE_UPGRADE_POLICY",
+    "LUMIS_DICE_GUARDRAIL",
+    "LUMIS_DICE_TPM_LIMIT",
+    "LUMIS_DICE_RPM_LIMIT",
+    "LUMIS_DICE_FOUNDRY_HOSTNAME",
+    "LUMIS_DICE_FOUNDRY_PROTOCOL",
+    "LUMIS_DICE_API_ROUTE_FAMILY"
+  ],
+  "disabled_probe_names": [
+    "unknown_fixture",
+    "free_form_body",
+    "normal_mobile_body",
+    "allow_listed_fixture"
+  ],
+  "technical_limits": {
+    "logical_total": 80,
+    "en": 40,
+    "zh_hant": 40,
+    "founder_total": 0,
+    "attempt_total": 160,
+    "input_tokens_per_attempt": 800,
+    "output_tokens_per_attempt": 300,
+    "concurrency": 2,
+    "shared_deadline_ms": 12000,
+    "eligible_retries": 1
+  },
+  "kill_criteria": [
+    "provider_authentication",
+    "provider_permission",
+    "provider_alias_drift",
+    "defaultv2_block",
+    "defaultv2_partial",
+    "unsafe_projection",
+    "cap_state_unavailable",
+    "normal_chat_binding_drift",
+    "disabled_probe_drift",
+    "provider_disable_unverified"
+  ],
+  "microsoft_authorization": {
+    "status": "AWAITING_MICROSOFT_MANIFEST"
+  },
+  "network_calls_in_default_mode": 0,
+  "readonly_evidence": {
+    "path": "config/evidence/s2-t262-azure-foundry-deployment-readonly-v1.json",
+    "sha256": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f"
+  },
+  "sanitized_price_evidence": {
+    "path": "config/evidence/s2-t262-azure-foundry-sanitized-price-v1.json",
+    "sha256": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772"
+  },
+  "api_route_evidence": {
+    "path": "config/evidence/s2-t262-azure-foundry-api-route-family-v1.json",
+    "sha256": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e",
+    "official_reference": {
+      "url": "https://learn.microsoft.com/en-us/rest/api/microsoft-foundry/azureopenai/responses",
+      "url_sha256": "fad1b61431bc2906d38b662ab1e6746fb54a8e93f2cb68035ecd06129a4fc265"
+    }
+  },
+  "provider_authority": {
+    "deployment_alias": "lumis-ai-chat-stg",
+    "model": "gpt-5-mini",
+    "model_version": "2025-08-07",
+    "deployment_type": "GlobalStandard",
+    "model_version_upgrade_policy": "NoAutoUpgrade",
+    "guardrail": "Microsoft.DefaultV2",
+    "tokens_per_minute_limit": 10000,
+    "requests_per_minute_limit": 10,
+    "foundry_service_hostname": "lumis-foundry-stg-sea-20260731.services.ai.azure.com",
+    "transport": "https",
+    "api_route_family": "v1"
+  },
+  "pricing": {
+    "input_price_usd_per_1m_tokens": 0.25,
+    "output_price_usd_per_1m_tokens": 2,
+    "calculated_provider_maximum_usd": 0.128,
+    "full_maximum_dice_window_estimate_usd": 0.192,
+    "absolute_window_cap_usd": 1,
+    "azure_api_version": null,
+    "status": "EVIDENCE_BOUND_ROUTE_V1_NO_TRAFFIC_AUTHORITY"
+  }
+}

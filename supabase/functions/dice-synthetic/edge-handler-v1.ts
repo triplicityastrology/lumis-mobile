@@ -3,7 +3,7 @@ import { createPostgresDiceAuthorityStore, type DiceAuthorityRpcClient } from ".
 import { DiceGatewayStop, DiceSyntheticGatewayPortV1 } from "../_shared/dice-synthetic-gateway-port-v1.ts";
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
-export const DICE_EDGE_PACKAGE_SHA256 = "39352d83abfbb61dba616be4a3a7f00b365365346f584cfab9e612c1c975b03b" as const;
+export const DICE_EDGE_PACKAGE_SHA256 = "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" as const;
 export const DICE_EDGE_REGISTRY_SHA256 = "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62" as const;
 
 type EdgeEnvironment = Readonly<Record<string, string | undefined>>;
@@ -21,8 +21,20 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
     if (request.method !== "POST") return errorResponse("DICE_METHOD_NOT_ALLOWED", 405);
 
     const providerConfig = readDiceAzureServerConfig({
-      LUMIS_DICE_AI_ENABLED: dependencies.environment.LUMIS_AI_ENABLED,
+      LUMIS_DICE_AI_ENABLED: dependencies.environment.LUMIS_DICE_AI_ENABLED,
+      LUMIS_DICE_TRAFFIC_AUTHORIZED: dependencies.environment.LUMIS_DICE_TRAFFIC_AUTHORIZED,
       LUMIS_DICE_AZURE_API_KEY: dependencies.environment.LUMIS_DICE_AZURE_API_KEY,
+      LUMIS_DICE_DEPLOYMENT_ALIAS: dependencies.environment.LUMIS_DICE_DEPLOYMENT_ALIAS,
+      LUMIS_DICE_MODEL: dependencies.environment.LUMIS_DICE_MODEL,
+      LUMIS_DICE_MODEL_VERSION: dependencies.environment.LUMIS_DICE_MODEL_VERSION,
+      LUMIS_DICE_DEPLOYMENT_TYPE: dependencies.environment.LUMIS_DICE_DEPLOYMENT_TYPE,
+      LUMIS_DICE_UPGRADE_POLICY: dependencies.environment.LUMIS_DICE_UPGRADE_POLICY,
+      LUMIS_DICE_GUARDRAIL: dependencies.environment.LUMIS_DICE_GUARDRAIL,
+      LUMIS_DICE_TPM_LIMIT: dependencies.environment.LUMIS_DICE_TPM_LIMIT,
+      LUMIS_DICE_RPM_LIMIT: dependencies.environment.LUMIS_DICE_RPM_LIMIT,
+      LUMIS_DICE_FOUNDRY_HOSTNAME: dependencies.environment.LUMIS_DICE_FOUNDRY_HOSTNAME,
+      LUMIS_DICE_FOUNDRY_PROTOCOL: dependencies.environment.LUMIS_DICE_FOUNDRY_PROTOCOL,
+      LUMIS_DICE_API_ROUTE_FAMILY: dependencies.environment.LUMIS_DICE_API_ROUTE_FAMILY,
     });
     if (!providerConfig.ok) return errorResponse(providerConfig.code, 503);
 

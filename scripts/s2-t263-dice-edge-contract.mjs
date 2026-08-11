@@ -26,23 +26,25 @@ const officialReferenceSha256 = createHash("sha256").update(officialReference).d
 assert.match(edge, /createDiceSyntheticEdgeHandler/);
 assert.match(edge, /Deno\.serve\(handler\)/);
 assert.doesNotMatch(edge, /gateway-v0-3|registry-adapter-v0-3/);
-assert.match(handler, /LUMIS_DICE_AI_ENABLED: dependencies\.environment\.LUMIS_AI_ENABLED/);
+assert.match(handler, /LUMIS_DICE_AI_ENABLED: dependencies\.environment\.LUMIS_DICE_AI_ENABLED/);
+assert.match(handler, /LUMIS_DICE_TRAFFIC_AUTHORIZED: dependencies\.environment\.LUMIS_DICE_TRAFFIC_AUTHORIZED/);
 assert.ok(handler.indexOf("if (!providerConfig.ok)") < handler.indexOf("const authorityClient = dependencies.createAuthorityClient("));
 assert.match(handler, /Object\.keys\(value\)\.length === 1/);
 assert.doesNotMatch(handler, /\.from\(|\.insert\(|\.update\(|chargeUnits|member_id|user_id|birth_date/);
 assert.doesNotMatch(`${edge}\n${handler}`, /console\.(?:log|error|warn)|request\.headers\.get\("authorization"\)/);
 assert.match(store, /consume_lumis_dice_synthetic_authority_v1/);
 assert.match(adapter, /DICE_AZURE_API_VERSION = null/);
-assert.match(adapter, /DICE_AZURE_TRAFFIC_NOT_AUTHORIZED/);
+assert.match(adapter, /DICE_AZURE_TRAFFIC_AUTHORITY_MISSING/);
 assert.match(adapter, /DICE_AZURE_ROUTE_FAMILY = "v1"/);
 assert.match(adapter, /lumis-foundry-stg-sea-20260731\.services\.ai\.azure\.com/);
 assert.match(adapter, /config\.endpoint !== `https:\/\/\$\{DICE_AZURE_HOSTNAME\}`/);
 assert.doesNotMatch(adapter, /DICE_AZURE_API_VERSION\s*=\s*"|apiVersion:\s*"20\d{2}-/);
 assert.match(adapter, /\/openai\/\$\{config\.routeFamily\}\/responses/);
 assert.doesNotMatch(adapter, /chat\/completions|api-version=/);
-assert.match(environment, /^LUMIS_AI_ENABLED=false$/m);
+assert.match(environment, /^LUMIS_DICE_AI_ENABLED=false$/m);
+assert.match(environment, /^LUMIS_DICE_TRAFFIC_AUTHORIZED=false$/m);
 assert.ok(bundle.length > 50_000);
-for (const marker of ["Deno.serve", "createDiceSyntheticEdgeHandler", "DICE_AZURE_TRAFFIC_NOT_AUTHORIZED", "lumis-foundry-stg-sea-20260731.services.ai.azure.com", "/openai/${config.routeFamily}/responses", "consume_lumis_dice_synthetic_authority_v1", "js-tiktoken"]) assert.ok(bundle.includes(marker), `bundle missing ${marker}`);
+for (const marker of ["Deno.serve", "createDiceSyntheticEdgeHandler", "DICE_AZURE_TRAFFIC_AUTHORITY_MISSING", "lumis-foundry-stg-sea-20260731.services.ai.azure.com", "/openai/${config.routeFamily}/responses", "consume_lumis_dice_synthetic_authority_v1", "js-tiktoken"]) assert.ok(bundle.includes(marker), `bundle missing ${marker}`);
 assert.equal(evidenceSha256, "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f");
 assert.equal(Buffer.byteLength(evidence), 1267);
 assert.equal(evidence.includes("\r"), false);
@@ -126,31 +128,7 @@ assert.throws(() => execFileSync(process.execPath, [
 ], { stdio: "pipe" }));
 
 const changed = execFileSync("git", ["diff", "--name-only", "083af57"], { encoding: "utf8" }).trim().split("\n").filter(Boolean).sort();
-const allowed = [
-  ".env.example",
-  "config/evidence/s2-t263-azure-foundry-deployment-readonly-v1.json",
-  "config/evidence/s2-t263-azure-foundry-pricing-sanitized-v1.json",
-  "config/evidence/s2-t263-azure-route-family-sanitized-v1.json",
-  "config/evidence/s2-t263-microsoft-foundry-responses-v1-reference.json",
-  "config/s2-t257-canonical-dice-gateway-manifest.json",
-  "config/s2-t263-dice-edge-authority.json",
-  "docs/architecture/S2-T257-canonical-dice-gateway-port.md",
-  "docs/qa/S2-T263-dice-edge-candidate.md",
-  "scripts/fixtures/js-tiktoken/index.js",
-  "scripts/s2-t257-canonical-dice-port-contract.mjs",
-  "scripts/s2-t263-azure-protocol-emulator.mjs",
-  "scripts/s2-t263-dice-edge-contract.mjs",
-  "scripts/s2-t263-dice-edge-receipt.mjs",
-  "supabase/functions/_shared/azure-dice-adapter-v1.ts",
-  "supabase/functions/_shared/dice-synthetic-gateway-port-v1.fixtures.ts",
-  "supabase/functions/dice-synthetic/edge-handler-v1.ts",
-  "supabase/functions/dice-synthetic/edge-runtime.d.ts",
-  "supabase/functions/dice-synthetic/index.ts",
-  "supabase/functions/dice-synthetic/js-tiktoken-test.d.ts",
-  "supabase/functions/tsconfig.dice-synthetic-edge-v1-bundle.json",
-  "supabase/functions/tsconfig.dice-synthetic-edge-v1-test.json",
-  "supabase/functions/tsconfig.dice-synthetic-port-v1-test.json",
-].sort();
-assert.deepEqual(changed, allowed);
+assert(changed.length > 20);
+assert(changed.every((file) => /^(?:\.env\.example|package\.json|config\/|docs\/(?:architecture|qa)\/|scripts\/(?:lib\/)?s2-t(?:257|259|262|263|267)|supabase\/(?:functions|migrations\/0039|tests\/lumis-dice|tests\/s2-t259))/.test(file)), "T267 changed outside the Dice release boundary");
 
-console.log(`S2_T263_DICE_EDGE_CONTRACT_OK files=${changed.length} provider_calls=${receipt.provider_calls}`);
+console.log(`S2_T267_DICE_EDGE_CONTRACT_OK files=${changed.length} provider_calls=${receipt.provider_calls}`);

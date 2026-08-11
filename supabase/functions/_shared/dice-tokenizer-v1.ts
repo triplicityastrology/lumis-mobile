@@ -1,6 +1,7 @@
 import { getEncoding } from "js-tiktoken";
 
 export const DICE_TOKENIZER_VERSION = "o200k_base" as const;
+export const DICE_TOKENIZER_PACKAGE = "npm:js-tiktoken@1.0.21" as const;
 
 const encoding = getEncoding(DICE_TOKENIZER_VERSION);
 

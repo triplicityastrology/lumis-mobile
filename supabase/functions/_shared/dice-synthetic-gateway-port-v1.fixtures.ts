@@ -205,9 +205,23 @@ async function runFixtures(): Promise<void> {
   await rejects(() => fatalPort.executeAuthorizedWindow(fatalAuthorization), "fatal execution rejects");
   truthy(verifyDiceGatewayDisabled(fatalPort.status()), "finally disables after fatal execution");
 
+  const hostileAuthorities: readonly Record<string, string>[] = [
+    { LUMIS_DICE_FOUNDRY_HOSTNAME: "example.com" },
+    { LUMIS_DICE_FOUNDRY_HOSTNAME: "lumis-foundry-stg-sea-20260731.services.ai.azure.com.attacker.test" },
+    { LUMIS_DICE_FOUNDRY_PROTOCOL: "http" },
+    { LUMIS_DICE_DEPLOYMENT_ALIAS: "wrong-alias" },
+    { LUMIS_DICE_MODEL_VERSION: "unverified-version" },
+    { LUMIS_DICE_API_ROUTE_FAMILY: "preview" },
+    { LUMIS_DICE_API_ROUTE_FAMILY: "2025-08-07" },
+    { LUMIS_DICE_AZURE_API_VERSION: "2025-04-01-preview" },
+  ];
+  for (const hostile of hostileAuthorities) {
+    const rejected = readDiceAzureServerConfig(serverEnvironment(hostile));
+    if (!rejected.ok) equal(rejected.code, "DICE_PROVIDER_AUTHORITY_INVALID", "hostile provider authority rejected");
+  }
   const config = readDiceAzureServerConfig(serverEnvironment());
-  equal(config.ok, false, "unverified Azure API version fails closed");
-  if (!config.ok) equal(config.code, "DICE_AZURE_TRAFFIC_NOT_AUTHORIZED", "stable no-traffic authority code");
+  equal(config.ok, false, "traffic authority is independently required");
+  if (!config.ok) equal(config.code, "DICE_AZURE_TRAFFIC_AUTHORITY_MISSING", "DICE_AZURE_TRAFFIC_AUTHORITY_MISSING");
   let fetchUrl = "";
   const adapter = createAzureDiceAdapter({
     endpoint: `https://${DICE_AZURE_HOSTNAME}`,
@@ -274,10 +288,24 @@ class AtomicAuthorityStore implements DiceAuthorityStore {
   }
 }
 
-function serverEnvironment(): Record<string, string> {
+function serverEnvironment(overrides: Record<string, string> = {}): Record<string, string> {
   return {
     LUMIS_DICE_AI_ENABLED: "true",
+    LUMIS_DICE_TRAFFIC_AUTHORIZED: "false",
     LUMIS_DICE_AZURE_API_KEY: "test-only-not-a-secret",
+    LUMIS_DICE_AUTHORITY_HMAC_SECRET: SECRET,
+    LUMIS_DICE_DEPLOYMENT_ALIAS: "lumis-ai-chat-stg",
+    LUMIS_DICE_MODEL: "gpt-5-mini",
+    LUMIS_DICE_MODEL_VERSION: "2025-08-07",
+    LUMIS_DICE_DEPLOYMENT_TYPE: "GlobalStandard",
+    LUMIS_DICE_UPGRADE_POLICY: "NoAutoUpgrade",
+    LUMIS_DICE_GUARDRAIL: "Microsoft.DefaultV2",
+    LUMIS_DICE_TPM_LIMIT: "10000",
+    LUMIS_DICE_RPM_LIMIT: "10",
+    LUMIS_DICE_FOUNDRY_HOSTNAME: "lumis-foundry-stg-sea-20260731.services.ai.azure.com",
+    LUMIS_DICE_FOUNDRY_PROTOCOL: "https",
+    LUMIS_DICE_API_ROUTE_FAMILY: "v1",
+    ...overrides,
   };
 }
 

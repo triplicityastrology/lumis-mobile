@@ -77,7 +77,7 @@ assert(packageJson.devDependencies["js-tiktoken"] === "1.0.21", "STOP_S2_T257_TO
 assert(lockfile.includes("js-tiktoken@1.0.21:") && lockfile.includes("sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g=="), "STOP_S2_T257_TOKENIZER_LOCK");
 assert(canonicalSource.includes("technicalCases: 80") && canonicalSource.includes("founderCasesExecutable: 0") && canonicalSource.includes("providerAttempts: 160"), "STOP_S2_T257_CANONICAL_LIMITS");
 assert(azureSource.includes("DICE_AZURE_API_VERSION = null") && azureSource.includes('DICE_AZURE_ROUTE_FAMILY = "v1"') &&
-  azureSource.includes("DICE_AZURE_TRAFFIC_NOT_AUTHORIZED"), "STOP_S2_T257_AZURE_API_VERSION_OPEN");
+  azureSource.includes("DICE_AZURE_TRAFFIC_AUTHORITY_MISSING"), "STOP_S2_T257_AZURE_API_VERSION_OPEN");
 assert(azureSource.includes('DICE_AZURE_HOSTNAME = "lumis-foundry-stg-sea-20260731.services.ai.azure.com"') &&
   azureSource.includes('config.endpoint !== `https://${DICE_AZURE_HOSTNAME}`'), "STOP_S2_T257_AZURE_HOSTNAME_OPEN");
 assert(!/DICE_AZURE_API_VERSION\s*=\s*"/.test(azureSource) && !/apiVersion:\s*"20\d{2}-/.test(azureSource), "STOP_S2_T257_LIVE_API_VERSION_INFERRED");

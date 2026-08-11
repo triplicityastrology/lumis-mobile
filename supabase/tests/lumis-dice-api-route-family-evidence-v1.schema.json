@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_api_route_family_evidence_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["api_route_family", "evidence_method", "observed_at", "explicitly_excluded"],
+  "properties": {
+    "api_route_family": { "const": "v1" },
+    "evidence_method": { "const": "Microsoft Foundry deployment Details page showed the Azure OpenAI-compatible v1 route family" },
+    "observed_at": { "const": "2026-08-11 10:51:58 HKT (+0800)" },
+    "explicitly_excluded": { "const": ["endpoint_url_or_path", "key", "subscription", "tenant", "email", "account_identifier"] }
+  }
+}
