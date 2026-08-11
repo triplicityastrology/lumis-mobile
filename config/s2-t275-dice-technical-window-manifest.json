@@ -1,0 +1,23 @@
+{
+  "schema": "s2_t275_dice_technical_window_manifest_v1",
+  "task": "S2-T275",
+  "base_commit": "776620bfa1bf3c80090313c83e753cb3004db50d",
+  "gateway_package_sha256": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba",
+  "mode": "inert_without_separate_deployment_and_traffic_authority",
+  "files": {
+    "config/s2-t275-dice-technical-window.json": "30408c733042ad1df8a32bc4f34e133367361496f5f9db500aa8c12b56a20140",
+    "docs/qa/S2-T275-dice-technical-window.md": "130ebac190556f056e725d77a3ff008613a9682bba35664d2274a986ae487358",
+    "scripts/lib/s2-t275-dice-technical-window.mjs": "5452aa12b945a29e87b1054de147b0ada1a05b9d8dd5866546a8b80eddcff90d",
+    "scripts/s2-t275-dice-technical-window.mjs": "3374f68ab4f63bf8170bfb551e578102a32b31b1001854328619b8ffb46c27d2",
+    "scripts/s2-t275-dice-technical-window-contract.mjs": "7ee1fe52857f46993896ca743627a260c9e0b1fc1092d5cab1f97b9d7e9229e4",
+    "scripts/s2-t275-dice-technical-window-emulator.mjs": "f3fb9b95651c0dd086b30c6ffdafd1a98e84b9ff08b73d7bd57067e19e110e15",
+    "supabase/tests/s2-t275-default-off-deployment-receipt.schema.json": "b642125d9efb5bb79f71197b59f26705fda0fbddd85cdfba44ad03c67132ef87",
+    "supabase/tests/s2-t275-dice-technical-evidence-package.schema.json": "8440bfb2ec89e465c386839975566075b5f753d775af22efa7e625bb25213219",
+    "supabase/tests/s2-t275-technical-qa-bundle.schema.json": "c4511eb310106c2d28ca0473a600e3c7441cbc661c2089e38d7289a5a01b502b",
+    "supabase/tests/s2-t275-technical-traffic-authorization.schema.json": "a22f51ffaad9c057a3d191006de4cb909a781a88d9d865a361a97fcc6f4eeb1f"
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema": "s2_t275_dice_technical_window_control_v1",
+  "task": "S2-T275",
+  "base_commit": "776620bfa1bf3c80090313c83e753cb3004db50d",
+  "gateway_package_sha256": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba",
+  "registry_sha256": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
+  "registry_file_sha256": "00ba2d0c9ff60825ba9fbc285d64bf7179e62da8e305480ad3e45612d6d4de0b",
+  "registry_file": "config/s2-t262-dice-technical-registry-v1.json",
+  "release_manifest": "config/s2-t267-dice-edge-release.json",
+  "scope": {
+    "technical_cases": 80,
+    "en": 40,
+    "zh_hant": 40,
+    "founder_cases": 0
+  },
+  "limits": {
+    "attempts": 160,
+    "concurrency": 2,
+    "eligible_retries": 1,
+    "shared_case_deadline_ms": 12000,
+    "input_tokens": 800,
+    "output_tokens": 300,
+    "technical_cost_ceiling_usd": 0.128
+  },
+  "pricing": {
+    "currency": "USD",
+    "input_usd_per_1m_tokens": 0.25,
+    "output_usd_per_1m_tokens": 2,
+    "evidence_file": "config/evidence/s2-t262-azure-foundry-sanitized-price-v1.json"
+  },
+  "required_authorities": [
+    "accepted_default_off_deployment_receipt",
+    "accepted_dice_technical_traffic_authorization"
+  ],
+  "immediate_kill_criteria": [
+    "sealed_source_or_registry_drift",
+    "stale_or_replayed_authority",
+    "founder_fixture_present",
+    "attempt_token_concurrency_or_deadline_cap",
+    "provider_authentication_or_permission_failure",
+    "unsafe_or_unknown_evidence_field",
+    "defaultv2_projection_mismatch",
+    "post_window_disable_not_proven"
+  ],
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "effects": {
+    "normal_routes": 0,
+    "units_charged": 0,
+    "persistence_writes": 0,
+    "founder_cases_run": 0,
+    "evidence_retention_days": 30,
+    "evidence_class": "metadata_only"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t275_dice_technical_qa_bundle_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_class", "grants_remote_authority", "source_commit", "package_sha256", "evidence_sha256", "technical_cases", "founder_cases", "language", "attempts", "concurrency_peak", "provider_disabled_verified", "provider_calls_remote", "local_protocol_attempts", "network_calls", "effects"],
+  "properties": {
+    "schema": { "const": "s2_t275_dice_technical_qa_bundle_v1" },
+    "evidence_class": { "const": "local_zero_network_emulator_only" },
+    "grants_remote_authority": { "const": false },
+    "source_commit": { "const": "776620bfa1bf3c80090313c83e753cb3004db50d" },
+    "package_sha256": { "const": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" },
+    "evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "technical_cases": { "const": 80 },
+    "founder_cases": { "const": 0 },
+    "language": { "type": "object" },
+    "attempts": { "type": "integer", "minimum": 0, "maximum": 160 },
+    "concurrency_peak": { "type": "integer", "maximum": 2 },
+    "provider_disabled_verified": { "const": true },
+    "provider_calls_remote": { "const": 0 },
+    "local_protocol_attempts": { "type": "integer", "minimum": 0, "maximum": 160 },
+    "network_calls": { "const": 0 },
+    "effects": { "type": "object" }
+  }
+}
