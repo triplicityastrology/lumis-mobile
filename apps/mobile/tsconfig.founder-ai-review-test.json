@@ -14,6 +14,8 @@
     "src/dev/founderDiceE2eContract.ts",
     "src/dev/founderDiceE2eContract.fixtures.ts",
     "src/dev/founderDiceWindowContract.ts",
-    "src/dev/founderDiceWindowContract.fixtures.ts"
+    "src/dev/founderDiceWindowContract.fixtures.ts",
+    "src/dev/founderDiceIntakeContract.ts",
+    "src/dev/founderDiceIntakeContract.fixtures.ts"
   ]
 }

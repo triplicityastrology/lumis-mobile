@@ -16,7 +16,6 @@ import {
   createVerdictPayload,
   freezeFounderDiceDraft,
   resolveCompanionGate,
-  validateFounderDiceDraft,
   type DraftDecision,
   type FrozenFounderQuestion,
   type RatingDimension,
@@ -45,6 +44,16 @@ import {
   type RuntimePackageAcceptance,
   type TechnicalEvidenceImport,
 } from "./founderDiceWindowContract";
+import {
+  FOUNDER_INTAKE_STATES,
+  createFounderIntakePackage,
+  createFounderRatingSheet,
+  createFrozenIntakeQuestion,
+  intakeCanonicalJson,
+  validateFounderIntakeQuestion,
+  type FrozenIntakeQuestion,
+  type IntakeState,
+} from "./founderDiceIntakeContract";
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_HEAD ?? "build-unavailable";
 const BUILD_STATE = process.env.EXPO_PUBLIC_FOUNDER_AI_REVIEW_STATE ?? "dice-founder-intake";
@@ -93,6 +102,7 @@ export default function FounderAiQualityReviewConsole() {
   const compactLayout = width < 420 || fontScale >= 1.2;
   const [section, setSection] = useState<ReviewSection>("dice");
   const [frozenFixtures, setFrozenFixtures] = useState<Record<string, FrozenFounderQuestion>>({});
+  const [frozenIntakeFixtures, setFrozenIntakeFixtures] = useState<Record<string, FrozenIntakeQuestion>>({});
   const [liveRecords, setLiveRecords] = useState<Record<string, SyntheticReviewRecord>>({});
   const records = useMemo(() => allRecords(section, frozenFixtures, liveRecords), [frozenFixtures, liveRecords, section]);
   const [selectedIds, setSelectedIds] = useState<Record<ReviewSection, string>>({ dice: "DICE-FOUNDER-EN-01", companion_chat: "chat_en_reflection_01" });
@@ -107,6 +117,8 @@ export default function FounderAiQualityReviewConsole() {
   const [draftStatus, setDraftStatus] = useState("Draft has not been validated");
   const [fixtureExport, setFixtureExport] = useState<string | null>(null);
   const [fixturePackageSha, setFixturePackageSha] = useState<string | null>(null);
+  const [ratingSheetExport, setRatingSheetExport] = useState<string | null>(null);
+  const [intakeState, setIntakeState] = useState<IntakeState>("validation");
   const [runtimeEnvelopeText, setRuntimeEnvelopeText] = useState("");
   const [runtimeEnvelope, setRuntimeEnvelope] = useState<RuntimePackageAcceptance | null>(null);
   const [runtimeEnvelopeSha, setRuntimeEnvelopeSha] = useState<string | null>(null);
@@ -146,14 +158,14 @@ export default function FounderAiQualityReviewConsole() {
   };
 
   const validateDraft = () => {
-    const decision = validateFounderDiceDraft(draftQuestion, draftLanguage);
+    const decision = validateFounderIntakeQuestion(draftQuestion, draftLanguage);
     setDraftDecision(decision);
     setDraftStatus(decision.ok
       ? `Validated · ${decision.classification} · ${decision.language}`
       : `Not accepted · ${decision.code.replaceAll("_", " ").toLowerCase()}`);
   };
 
-  const freezeDraft = () => {
+  const freezeDraft = async () => {
     if (!draftDecision?.ok) return;
     const slot = selectedIds.dice;
     const expectedPrefix = draftLanguage === "en" ? "DICE-FOUNDER-EN-" : "DICE-FOUNDER-ZH-";
@@ -170,28 +182,55 @@ export default function FounderAiQualityReviewConsole() {
       setDraftStatus("Freeze stopped by the closed fixture boundary");
       return;
     }
+    const questionSha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, fixture.question);
+    const intakeFixture = createFrozenIntakeQuestion(slot, fixture.question, fixture.language, questionSha256);
     setFrozenFixtures((current) => ({ ...current, [slot]: fixture }));
+    setFrozenIntakeFixtures((current) => ({ ...current, [slot]: intakeFixture }));
     setSelectedIds((current) => ({ ...current, dice: slot }));
     setDraftQuestion("");
     setDraftDecision(null);
     setFixtureExport(null);
+    setRatingSheetExport(null);
     setDraftStatus(`${slot} frozen locally · pending review · zero provider calls`);
   };
 
   const prepareFixtureExport = async () => {
     const fixtures = Object.values(frozenFixtures).sort((a, b) => a.fixture_id.localeCompare(b.fixture_id));
-    if (fixtures.length !== 40) {
+    const intakeFixtures = Object.values(frozenIntakeFixtures).sort((a, b) => a.fixture_id.localeCompare(b.fixture_id));
+    if (fixtures.length !== 40 || intakeFixtures.length !== 40) {
       setDraftStatus(`Complete all 40 slots first · ${fixtures.length}/40 frozen`);
       return;
     }
-    const payload = createFounderFixtureExportPayload(BUILD_SHA, fixtures);
-    const canonical = canonicalJson(payload);
+    createFounderFixtureExportPayload(BUILD_SHA, fixtures);
+    const payload = createFounderIntakePackage(BUILD_SHA, intakeFixtures);
+    const canonical = intakeCanonicalJson(payload);
     const sha256 = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, canonical);
     setFixtureExport(canonicalJson({ payload, sha256 }));
+    setRatingSheetExport(intakeCanonicalJson(createFounderRatingSheet(BUILD_SHA, sha256, intakeFixtures)));
     setFixturePackageSha(sha256);
     setAuthorizationRequest(null);
     setAuthorizationRequestSha(null);
     setDraftStatus(`Fixture package ready · ${fixtures.length}/40 frozen · ${sha256.slice(0, 12)}…`);
+  };
+
+  const clearSelectedSlot = () => {
+    const slot = selectedIds.dice;
+    setFrozenFixtures((current) => {
+      const next = { ...current };
+      delete next[slot];
+      return next;
+    });
+    setFrozenIntakeFixtures((current) => {
+      const next = { ...current };
+      delete next[slot];
+      return next;
+    });
+    setFixtureExport(null);
+    setFixturePackageSha(null);
+    setRatingSheetExport(null);
+    setAuthorizationRequest(null);
+    setAuthorizationRequestSha(null);
+    setDraftStatus(`${slot} cleared locally · checksum package invalidated`);
   };
 
   const importRuntimeEnvelope = async () => {
@@ -416,11 +455,31 @@ export default function FounderAiQualityReviewConsole() {
             />
             <View style={[styles.actionRow, compactLayout && styles.wrapRow]}>
               <Pressable accessibilityRole="button" onPress={validateDraft} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Validate</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftDecision?.ok }} disabled={!draftDecision?.ok} onPress={freezeDraft} style={[styles.exportButton, styles.flexButton, !draftDecision?.ok && styles.disabledButton]}><Text style={styles.exportButtonText}>Freeze selected slot</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityState={{ disabled: !draftDecision?.ok }} disabled={!draftDecision?.ok} onPress={() => void freezeDraft()} style={[styles.exportButton, styles.flexButton, !draftDecision?.ok && styles.disabledButton]}><Text style={styles.exportButtonText}>Freeze selected slot</Text></Pressable>
             </View>
+            {frozenFixtures[selectedIds.dice] ? <Pressable accessibilityRole="button" onPress={clearSelectedSlot} style={styles.fixtureExportButton}><Text style={styles.secondaryButtonText}>Clear selected slot</Text></Pressable> : null}
             <Text accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.exportStatus}>{draftStatus}</Text>
             <Pressable accessibilityRole="button" accessibilityState={{ disabled: Object.keys(frozenFixtures).length !== 40 }} disabled={Object.keys(frozenFixtures).length !== 40} onPress={() => void prepareFixtureExport()} style={[styles.fixtureExportButton, Object.keys(frozenFixtures).length !== 40 && styles.disabledButton]}><Text style={styles.secondaryButtonText}>Prepare fixture checksum · {Object.keys(frozenFixtures).length}/40</Text></Pressable>
             {fixtureExport ? <Text selectable style={styles.exportPreview}>{fixtureExport}</Text> : null}
+            {ratingSheetExport ? <><Text style={styles.slotLabel}>EXPORTABLE FOUNDER RATING SHEET</Text><Text selectable style={styles.exportPreview}>{ratingSheetExport}</Text></> : null}
+          </View>
+          <View accessibilityLabel="Founder Dice local state navigator" style={styles.card}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Local state review</Text>
+            <Text style={styles.helper}>These are deterministic presentation fixtures. They never indicate live AI, accepted evidence, units, or persistence.</Text>
+            <View style={styles.stateGrid}>
+              {FOUNDER_INTAKE_STATES.map((state) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: intakeState === state.id }}
+                  key={state.id}
+                  onPress={() => setIntakeState(state.id)}
+                  style={[styles.stateButton, intakeState === state.id && styles.stateButtonSelected]}
+                >
+                  <Text style={[styles.stateButtonText, intakeState === state.id && styles.stateButtonTextSelected]}>{state.title}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <FounderIntakeStatePreview state={intakeState} />
           </View>
           <View style={styles.card}>
             <Text accessibilityRole="header" style={styles.sectionTitle}>3 · Founder-window request</Text>
@@ -565,6 +624,21 @@ function StateBadge({ state }: { state: SyntheticReviewRecord["state"] }) {
   return <View style={[styles.badge, state === "live_synthetic" && styles.badgeLive]}><Text style={styles.badgeText}>{state.replaceAll("_", " ")}</Text></View>;
 }
 
+function FounderIntakeStatePreview({ state }: { state: IntakeState }) {
+  const copy: Record<IntakeState, string> = {
+    validation: "Enter one clear synthetic question. Specific validation guidance appears before any roll or runtime request.",
+    loading: "Preparing a local interpretation preview… No provider request has started.",
+    interpretation: "Local deterministic interpretation fixture: pause, compare the practical signals, and choose the next reversible step.",
+    safety: "This request needs a safer form of support. No roll, interpretation request, unit, or persistence action occurs.",
+    fallback: "Lumis couldn’t complete that reflection just now. Please try again.",
+  };
+  return <View accessibilityLiveRegion="polite" accessibilityRole="text" style={styles.statePreview}>
+    <Text style={styles.outputLabel}>{state.replaceAll("_", " ").toUpperCase()} · LOCAL SYNTHETIC FIXTURE</Text>
+    <Text style={styles.output}>{copy[state]}</Text>
+    <Text style={styles.frozenNote}>provider calls 0 · units 0 · persistence 0</Text>
+  </View>;
+}
+
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.navy950, flex: 1 },
   scroll: { width: "100%" },
@@ -621,6 +695,12 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: colors.goldLight, fontSize: 13, fontWeight: "800", textAlign: "center" },
   disabledButton: { opacity: 0.42 },
   fixtureExportButton: { alignItems: "center", borderColor: colors.line, borderRadius: 7, borderWidth: 1, justifyContent: "center", marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.sm },
+  stateGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.md },
+  stateButton: { alignItems: "center", borderColor: colors.line, borderRadius: 7, borderWidth: 1, justifyContent: "center", minHeight: 46, paddingHorizontal: 10, paddingVertical: 7 },
+  stateButtonSelected: { backgroundColor: colors.gold, borderColor: colors.gold },
+  stateButtonText: { color: colors.textSoft, fontSize: 12, fontWeight: "800" },
+  stateButtonTextSelected: { color: colors.navy950 },
+  statePreview: { backgroundColor: "rgba(9,24,42,0.72)", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, marginTop: spacing.md, padding: spacing.md },
   frozenNote: { color: colors.goldLight, fontSize: 12, fontWeight: "700", marginTop: spacing.md },
   readinessList: { gap: spacing.sm, marginTop: spacing.md },
   readinessRow: { alignItems: "flex-start", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "space-between", paddingBottom: spacing.sm },
