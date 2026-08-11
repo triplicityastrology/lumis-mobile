@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t280_dice_technical_evidence_acceptance_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "phase", "runtime_package_sha256", "runtime_acceptance_sha256", "technical_evidence_package_sha256", "ledger_proof_receipt_sha256", "registry_checksum", "logical_total", "language_totals", "founder_cases", "partial", "provider_disabled_verified", "post_window_disabled_receipt_sha256", "effects"],
+  "properties": {
+    "schema_version": { "const": "s2_t280_dice_technical_evidence_acceptance_v1" },
+    "status": { "const": "accepted" },
+    "phase": { "const": "technical_80_only" },
+    "runtime_package_sha256": { "$ref": "#/$defs/sha256" },
+    "runtime_acceptance_sha256": { "$ref": "#/$defs/sha256" },
+    "technical_evidence_package_sha256": { "$ref": "#/$defs/sha256" },
+    "ledger_proof_receipt_sha256": { "const": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e" },
+    "registry_checksum": { "const": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030" },
+    "logical_total": { "const": 80 },
+    "language_totals": { "type": "object", "additionalProperties": false, "required": ["en", "zh-Hant"], "properties": { "en": { "const": 40 }, "zh-Hant": { "const": 40 } } },
+    "founder_cases": { "const": 0 },
+    "partial": { "const": false },
+    "provider_disabled_verified": { "const": true },
+    "post_window_disabled_receipt_sha256": { "$ref": "#/$defs/sha256" },
+    "effects": { "type": "object", "additionalProperties": false, "required": ["member_data", "persistence_writes", "units_charged"], "properties": { "member_data": { "const": 0 }, "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 } } }
+  },
+  "$defs": { "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

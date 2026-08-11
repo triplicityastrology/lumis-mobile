@@ -1,0 +1,30 @@
+{
+  "schema": "s2_t307_dice_release_candidate_seal_v1",
+  "package_sha256": "5eb152dbbf4062b45b9eee78fccfa3aaaadeaa20a0c22f2e9561f1667b4b442f",
+  "source_binding": "clean_git_head_plus_exact_selected_file_hashes",
+  "files": {
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6",
+    "apps/mobile/src/screens/LumisDiceScreen.tsx": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac",
+    "apps/mobile/src/services/diceLiveResultAdapter.ts": "28f3b378debfdcb93c5b4aa0af3bdd2f97c05c57ad48b8bcb3585945a4e86c21",
+    "apps/mobile/src/services/diceLiveResultAdapter.fixtures.ts": "8041d6560130d9d73eb70bfbd3584ece11ee373558ade50031655b60db9ba3fb",
+    "config/evidence/s2-t263-azure-foundry-pricing-sanitized-v1.json": "2c22ddc1fe40689e99c7a74aed4653e64c39a5ed3ba317a259b5637a8bb41772",
+    "config/evidence/s2-t272-dice-runtime-proof.json": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+    "config/evidence/s2-t307-dice-deno-check.json": "873f042c43eeff0509e48f084f62b7801dc05d03dd596c4ac35989641f2904f7",
+    "config/s2-t303-dice-default-off-final-control.json": "f724083c035a7d94a272f6d107ba88136a89529a73e621cbe3ddb96bd066bc19",
+    "config/s2-t303-dice-default-off-final-package-seal.json": "d3e3464ef89270953309e50069677fa370d98f9c2f2e7ebe2f327b8dc77c2d67",
+    "config/s2-t304-dice-80-results.json": "4e3d899d897ebb42c690876b14154a07bc26a9cb9a88bef6b8f235d1a5b6edb7",
+    "config/s2-t304-dice-80-results-manifest.json": "4111462bc5d4ae0474393b504a3268d5317e9da47f163b327dc096a3901a7ef9",
+    "scripts/lib/s2-t303-dice-default-off-final.mjs": "0f4ab958bfd5c104acc4932516444e73493b664d1b35ef4969c8d86c69208398",
+    "scripts/lib/s2-t304-dice-80-results.mjs": "b6c866dc92542a41b1117cb65429f4fbeb9959a5ce46275d2999032738ebba2d",
+    "scripts/run-s2-t303-dice-default-off-deployment.zsh": "78252ec1563703cf1779214263d1ef6adce908046245580112dccaf32e805e65",
+    "scripts/s2-t304-dice-80-results.mjs": "fc3f760c708e694e8e9f79c321740a9c3ccb37f5979ffec79100082c931b95a1",
+    "scripts/s2-t304-dice-80-results-emulator.mjs": "690eb6dcd4c9fb968e1950035b886ed5fb736ad782a3fa5ae22ab260fe9c6345",
+    "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "c22c4f24d49059100af82e6217f702c1128c014552e019a2aafbd52ec1d623af",
+    "supabase/functions/_shared/dice-synthetic-fixture-registry-v0-3.ts": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62",
+    "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
+    "supabase/functions/_shared/dice-tokenizer-v1.ts": "e6661489999cd512db1772c8b38ed2f9022b781ccc790a5212b541c25739cd04",
+    "supabase/functions/dice-synthetic/deno.json": "5ec28f1802aeaa4f2ce09edfc4259d855d4f89368cfe643372a9873f53e44551",
+    "supabase/functions/dice-synthetic/index.ts": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b",
+    "supabase/tests/s2-t247-dice-interpretation-response-v0-3.schema.json": "7c57654ad8b6b0aa650eafe08fde2b69623298de66950ea96f723fb6f20cc746"
+  }
+}

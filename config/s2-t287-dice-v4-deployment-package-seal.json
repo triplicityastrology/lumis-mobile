@@ -1,0 +1,29 @@
+{
+  "schema": "s2_t287_dice_v4_deployment_package_seal_v1",
+  "base_commit": "fc0e516835b2a693344a4e86e558898ee1cf4237",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  "authorization_clock": {
+    "policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
+    "window_seconds": 900
+  },
+  "migration_0039_application_authorized": false,
+  "provider_calls_authorized": 0,
+  "model_invocations_authorized": 0,
+  "files": {
+    "package.json": "561888268fff5abe9fcfbefd59cc253ab76cd256fb4744fe1ed1955ea5d05318",
+    "config/s2-t287-dice-v4-deployment-control.json": "3993200efca4d751a41e77cd1f9783738f400f350d0e2b8a2ff2a53ffa0f5dc5",
+    "config/evidence/s2-t287-dice-runtime-recheck.json": "f9b592ecc6781ff0ec566034c9a707796516464b1f23d4ca349634bfaf505d09",
+    "docs/qa/S2-T287-canonical-v4-dice-deployment.md": "6c741374be6861917d54d375e4c3298ecf6282f4e974b460ece7f2c1e04e1d2f",
+    "scripts/lib/s2-t287-dice-v4-deployment-authorization.mjs": "b9d7cc4ee2d25cc4bdc146015b645855e81c1b39569889d231085f54c5834d85",
+    "scripts/s2-t287-dice-v4-deployment-authorization.mjs": "cad632d66e63114e969891cb1222dc45bd4b8647a2b3671618ec0374b9bdbc4f",
+    "scripts/s2-t287-remote-deploy-proof.mjs": "581f7a7a43f5a4e839e75fc3711f09d5b54e17bc256ac6f4d5c47e80024ee768",
+    "scripts/run-s2-t287-dice-deployment.zsh": "3d62c9e2f0960790910cd799e9a7701e5e72b35aba7f551e73907b776d6be480",
+    "scripts/s2-t287-dice-v4-deployment-contract.mjs": "471173412d415a7d9e843f2ce3981e4307d05d17d18771517f8a4870698b5099",
+    "scripts/s2-t287-refresh-v4-deployment-seal.mjs": "4bcc934544563752bafbc58a182984ab3c5ffb56a3781fb52a8462ba72cbecf5",
+    "supabase/tests/s2-t287-default-off-deployment-authorization-request-v4.schema.json": "9d8a283a2bfd8a9c19cbe5ba65f8ae6953b5adca5c47432c7391b3063c89f1dc",
+    "supabase/tests/s2-t287-microsoft-default-off-deployment-authorization-v4.schema.json": "c521c7d2d89e5bcd37977d29b6c7dd522fafddca89931cd8aa0db90ee80bd8e2",
+    "supabase/tests/s2-t287-dice-deployment-receipt.schema.json": "cb14716815f967cbe3b5f65a40986fbd1b44446c91daca776b901d5f54624ea7",
+    "supabase/tests/s2-t287-dice-rollback-receipt.schema.json": "dbbbaa00a56251a2c35dbb070d4731fd14f9a5b791aff7f77775fb81fe09759a"
+  }
+}

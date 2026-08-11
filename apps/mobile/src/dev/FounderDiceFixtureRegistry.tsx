@@ -71,10 +71,6 @@ export function FounderDiceFixtureRegistry() {
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.productFrame}>
         <DiceRitualScreen
-          developmentInitialQuestion={decision.ok ? decision.question : question}
-          developmentLanguage={language}
-          developmentNoPersistence
-          developmentPreSubmitBoundary
           onBack={() => undefined}
           onNotifications={() => undefined}
           onReflect={() => undefined}

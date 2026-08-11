@@ -1,0 +1,16 @@
+{
+  "schema": "s2_t303_dice_default_off_final_package_seal_v1",
+  "base_commit": "69c3de399acf3fa9ec746deaeb7a1880128955ca",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  "package_sha256": "38b9213b54d377204d1e128528478e23f3baddb703d9f7895471df34809be928",
+  "files": {
+    "config/s2-t303-dice-default-off-final-control.json": "f724083c035a7d94a272f6d107ba88136a89529a73e621cbe3ddb96bd066bc19",
+    "docs/qa/S2-T303-dice-default-off-final.md": "bd0755217e801710cb5a68e80bc3451b36568c9d1df2545da4f4d6b6d259628c",
+    "scripts/lib/s2-t303-dice-default-off-final.mjs": "0f4ab958bfd5c104acc4932516444e73493b664d1b35ef4969c8d86c69208398",
+    "scripts/run-s2-t303-dice-default-off-deployment.zsh": "78252ec1563703cf1779214263d1ef6adce908046245580112dccaf32e805e65",
+    "scripts/s2-t303-dice-default-off-preflight.mjs": "43d14dbacb20e25e067b991aca0f2981f9d56c2e0fa846ffd36681e7f4c37c3b",
+    "scripts/s2-t303-dice-default-off-contract.mjs": "337ad7a3ca3baeb4afff4c6d6386f9d9a0158ffb3dcf51024d4599a6874a15db",
+    "scripts/s2-t303-refresh-default-off-seal.mjs": "4899f0650d91f0557a3a08e9e9f1b0ff2b79f05dab6fca2154a59ed83503e80c"
+  }
+}

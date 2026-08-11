@@ -1,86 +1,99 @@
-import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
-import { useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { classifyDiceQuestionRequest } from "@lumis/shared";
+import { useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CelestialBackground } from "../components/CelestialBackground";
 import { DiceRitualScreen } from "../features/dice/DiceRitualScreen";
-import { colors, spacing } from "../theme/tokens";
-import {
-  buildInteractiveDiceFixture,
-  DICE_INACTIVE_FOUNDER_DECISIONS,
-  DICE_INTERPRETATION_FIXTURES,
-  DICE_EXACT_CAPTURE_FIXTURES,
-  getDiceExactCaptureFixture,
-  getDiceFixture,
-} from "./diceInterpretationFixture";
+import { createDiceLiveResultAdapter } from "../services/diceLiveResultAdapter";
+import { colors, radii, spacing } from "../theme/tokens";
+import { FOUNDER_ENGLISH_DRAFTS, FOUNDER_EXCLUDED_ZH_AUTHORING_ID, FOUNDER_ZH_HANT_DRAFTS } from "./founderDiceQuestionBank";
+
+type ReviewCase = Readonly<{
+  id: "open" | "en01" | "zh08" | "zh09" | "fallback";
+  label: string;
+  question: string;
+  expected: string;
+}>;
+
+const ZH08 = FOUNDER_ZH_HANT_DRAFTS.find((item) => item.authoring_id === "ZH08")!;
+const ZH09 = FOUNDER_ZH_HANT_DRAFTS.find((item) => item.authoring_id === "ZH09")!;
+const CASES: readonly ReviewCase[] = Object.freeze([
+  { id: "open", label: "Try your own question", question: "", expected: "A clear single question can proceed to the existing roll." },
+  { id: "en01", label: "EN accepted control", question: FOUNDER_ENGLISH_DRAFTS[0].exact_text, expected: "Accepted before roll; classification remains outside product pixels." },
+  { id: "zh08", label: "ZH08 bundled rejection", question: ZH08.exact_text, expected: "External classifier rejects it as bundled; product enforcement awaits an authorized interface hook." },
+  { id: "zh09", label: "ZH09 accepted control", question: ZH09.exact_text, expected: "Accepted as one timing question." },
+  { id: "fallback", label: "Safe fallback boundary", question: "What should I notice about this situation?", expected: "The current signed-off Dice screen has no authorized AI-result slot; fallback remains external and zero-effect." },
+]);
+
+type ExternalState = Readonly<{
+  title: string;
+  detail: string;
+  classification: string;
+}>;
+
+const INITIAL_STATE: ExternalState = Object.freeze({
+  title: "Ready for a question",
+  detail: "Use the unchanged Lumis Dice screen below. Validation runs before the existing roll transition.",
+  classification: "not evaluated",
+});
 
 export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => void }) {
-  const initialCaptureState = process.env.EXPO_PUBLIC_DICE_CAPTURE_STATE;
-  const [captureState, setCaptureState] = useState(initialCaptureState);
-  const [index, setIndex] = useState(resolveDiceCaptureIndex(initialCaptureState));
-  const fixture = captureState
-    ? getDiceExactCaptureFixture(captureState)
-    : DICE_INTERPRETATION_FIXTURES[index];
-  const captureMode = Boolean(captureState);
-  const buildMarker = resolveDiceBuildMarker(process.env.EXPO_PUBLIC_DICE_GALLERY_HEAD);
+  const [caseIndex, setCaseIndex] = useState(0);
+  const [externalState, setExternalState] = useState<ExternalState>(INITIAL_STATE);
+  const [interpretation, setInterpretation] = useState<string | null>(null);
+  const selected = CASES[caseIndex];
+  const build = process.env.EXPO_PUBLIC_FOUNDER_DICE_E2E_HEAD ?? "unavailable";
 
-  useEffect(() => {
-    const selectFromUrl = ({ url }: { url: string }) => {
-      const state = new URL(url).searchParams.get("state") ?? undefined;
-      setCaptureState(state);
-      setIndex(resolveDiceCaptureIndex(state));
-    };
-    const subscription = Linking.addEventListener("url", selectFromUrl);
-    void Linking.getInitialURL().then((url) => url && selectFromUrl({ url }));
-    return () => subscription.remove();
-  }, []);
+  const changeCase = (next: number) => {
+    const nextIndex = (next + CASES.length) % CASES.length;
+    const nextCase = CASES[nextIndex];
+    setCaseIndex(nextIndex);
+    setExternalState(classifyExternalCase(nextCase));
+    setInterpretation(null);
+  };
 
-  const previous = () => setIndex((current) => (current + DICE_INTERPRETATION_FIXTURES.length - 1) % DICE_INTERPRETATION_FIXTURES.length);
-  const next = () => setIndex((current) => (current + 1) % DICE_INTERPRETATION_FIXTURES.length);
-  const externalLabel = `${fixture.classification} · ${fixture.routeLabel}`;
+  const handleInterpretationBoundary = async () => {
+    setExternalState((current) => ({ ...current, title: "Preparing interpretation", detail: "Zero-network local boundary check. The product screen remains unchanged." }));
+    const state = await createDiceLiveResultAdapter({ ai_enabled: false, traffic_authorized: false, authority: null }).request({
+      fixture_id: selected.id === "zh09" ? "dice-founder-zh-09" : "dice-founder-en-01",
+      question: selected.question || "What should I notice about this situation?",
+    });
+    setExternalState((current) => ({ ...current, title: "Interpretation interface not authorized", detail: "The signed-off Dice screen has no approved AI-response slot. The adapter remains disabled outside customer pixels." }));
+    setInterpretation(state.kind === "disabled" ? `${state.code} · SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED` : "SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED");
+  };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
+    <SafeAreaView edges={["top", "bottom"]} style={styles.safe}>
       <CelestialBackground />
-      {!captureMode ? (
-        <View accessibilityLabel={`Local deterministic Dice fixture. ${externalLabel}. No live AI, persistence, or units.`} style={styles.fixtureBar}>
-          <Pressable accessibilityLabel="Back to Founder Test Hub" accessibilityRole="button" onPress={onBack} style={styles.iconButton}>
-            <ArrowLeft color={colors.ice} size={19} />
-          </Pressable>
-          <View style={styles.fixtureCopy}>
-            <Text accessibilityRole="header" numberOfLines={1} style={styles.title}>{fixture.title} · {fixture.language}</Text>
-            <Text numberOfLines={2} style={styles.classification}>Founder evidence: {externalLabel}</Text>
-            <Text numberOfLines={1} style={styles.disclaimer} testID="dice-zero-effects-boundary">Local deterministic fixture · zero provider · zero units · zero persistence</Text>
-            <Text selectable style={styles.buildMarker}>Build {buildMarker}</Text>
-            <Text style={styles.inactive}>Length · persona · repeat wording remain unselected</Text>
+      <View accessibilityLabel="Founder Dice evidence controls outside the product screen" style={styles.externalPanel}>
+        <View style={styles.pagerRow}>
+          <Pressable accessibilityLabel="Previous Founder test case" accessibilityRole="button" onPress={() => changeCase(caseIndex - 1)} style={styles.iconButton}><ChevronLeft color={colors.ice} size={18} /></Pressable>
+          <View style={styles.externalCopy}>
+            <Text accessibilityRole="header" style={styles.caseLabel}>{selected.label}</Text>
+            <Text style={styles.statusTitle}>{externalState.title}</Text>
+            <Text style={styles.statusDetail}>{externalState.detail}</Text>
           </View>
-          <View style={styles.pager}>
-            <Pressable accessibilityLabel="Previous fixture" accessibilityRole="button" onPress={previous} style={styles.pagerButton}><ChevronLeft color={colors.ice} size={19} /></Pressable>
-            <Pressable accessibilityLabel="Next fixture" accessibilityRole="button" onPress={next} style={styles.pagerButton}><ChevronRight color={colors.ice} size={19} /></Pressable>
-          </View>
+          <Pressable accessibilityLabel="Next Founder test case" accessibilityRole="button" onPress={() => changeCase(caseIndex + 1)} style={styles.iconButton}><ChevronRight color={colors.ice} size={18} /></Pressable>
         </View>
-      ) : (
-        <View accessibilityLabel={`Verified local Dice fixture ${fixture.id}. Full build ${buildMarker}. No persistence, units, or live AI.`} style={styles.captureEvidenceStrip} testID="dice-capture-evidence-strip">
-          <Text adjustsFontSizeToFit allowFontScaling={false} minimumFontScale={0.7} numberOfLines={1} style={styles.captureEvidenceText}>STATE {captureState}</Text>
-          <Text adjustsFontSizeToFit allowFontScaling={false} minimumFontScale={0.7} numberOfLines={1} selectable style={styles.captureBuildText}>BUILD {buildMarker}</Text>
-        </View>
-      )}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.evidenceRail}>
+          <Text selectable style={styles.evidenceText}>Expected: {selected.expected}</Text>
+          <Text selectable style={styles.evidenceText}>Type exactly: {selected.question || "your own single question"}</Text>
+          <Text selectable style={styles.evidenceText}>Classification: {externalState.classification}</Text>
+          <Text selectable style={styles.evidenceText}>Build: {build}</Text>
+          <Text selectable style={styles.evidenceText}>Registry: 20 EN + 20 zh-Hant · excludes {FOUNDER_EXCLUDED_ZH_AUTHORING_ID}</Text>
+          <Text selectable style={styles.evidenceText}>Effects: provider 0 · persistence 0 · units 0</Text>
+          {interpretation ? <Text selectable style={styles.evidenceText}>{interpretation}</Text> : null}
+        </ScrollView>
+      </View>
       <View style={styles.productFrame}>
         <DiceRitualScreen
-          developmentBuildInterpretation={fixture.screen === "interactive" ? buildInteractiveDiceFixture : undefined}
-          developmentFixture={fixture.screen === "result" ? fixture : undefined}
-          developmentInitialBoundaryError={fixture.screen === "question" ? fixture.boundaryMessage ?? undefined : undefined}
-          developmentInitialQuestion={fixture.screen !== "result" ? fixture.question : undefined}
-          developmentLanguage={fixture.language}
-          developmentNoPersistence
-          developmentPreSubmitBoundary
-          key={fixture.id}
+          key={selected.id}
           onBack={onBack}
           onNotifications={() => undefined}
-          onReflect={() => undefined}
+          onReflect={handleInterpretationBoundary}
           onSelectTab={() => undefined}
         />
       </View>
@@ -88,36 +101,37 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
   );
 }
 
-export function resolveDiceBuildMarker(value: string | undefined): string {
-  return value && /^[0-9a-f]{40}$/.test(value) ? value : "INVALID_BUILD_MARKER";
+function classifyExternalCase(reviewCase: ReviewCase): ExternalState {
+  if (!reviewCase.question) return INITIAL_STATE;
+  const result = classifyDiceQuestionRequest({ question: reviewCase.question });
+  return result.accepted
+    ? { title: "External preflight accepted", detail: "Type the exact question in the unchanged product field. The current product interface does not expose an injectable validation hook.", classification: `${result.route} · ${result.shape} · ${result.language}` }
+    : { title: validationTitle(result.code), detail: `${validationGuidance(result.code)} The signed-off product interface cannot yet enforce this result without an approved boundary.`, classification: `rejected · ${result.code}` };
 }
 
-export function resolveDiceCaptureIndex(value: string | undefined): number {
-  const fixtureId = value && value in DICE_EXACT_CAPTURE_FIXTURES
-    ? DICE_EXACT_CAPTURE_FIXTURES[value as keyof typeof DICE_EXACT_CAPTURE_FIXTURES]
-    : value;
-  const index = DICE_INTERPRETATION_FIXTURES.findIndex((fixture) => fixture.id === fixtureId);
-  return index >= 0 ? index : 0;
+function validationTitle(code: string): string {
+  if (code === "DICE_QUESTION_BUNDLED") return "Ask one question for this throw";
+  if (code === "DICE_QUESTION_SAFETY_ROUTE_REQUIRED") return "Use immediate human support";
+  if (code === "DICE_QUESTION_PROFESSIONAL_ROUTE_REQUIRED") return "Professional guidance is needed";
+  if (code === "DICE_QUESTION_SCOPE_EXCLUDED") return "This is outside Dice scope";
+  return "Make the question clearer";
 }
 
-export function resolveDiceFixtureFromUrl(url: string): string {
-  return getDiceFixture(new URL(url).searchParams.get("state") ?? undefined).id;
+function validationGuidance(code: string): string {
+  if (code === "DICE_QUESTION_BUNDLED") return "Split the request into one question and try again. No roll, provider call, unit, or persistence action occurred.";
+  return `Correct the question before rolling. ${code}. No effect occurred.`;
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: colors.navy950, flex: 1 },
-  fixtureBar: { alignItems: "center", backgroundColor: "rgba(6,16,28,0.97)", borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 96, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  captureEvidenceStrip: { backgroundColor: "#081423", borderBottomColor: colors.line, borderBottomWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: 4 },
-  captureEvidenceText: { color: colors.goldLight, fontSize: 9, fontWeight: "700", lineHeight: 11, textAlign: "center" },
-  captureBuildText: { color: colors.muted, fontFamily: "monospace", fontSize: 7, lineHeight: 9, textAlign: "center" },
-  iconButton: { alignItems: "center", borderColor: colors.line, borderRadius: 20, borderWidth: 1, height: 40, justifyContent: "center", width: 40 },
-  fixtureCopy: { flex: 1, gap: 2, minWidth: 0 },
-  title: { color: colors.ice, fontSize: 14, fontWeight: "700" },
-  classification: { color: colors.goldLight, fontSize: 11, fontWeight: "700", lineHeight: 14 },
-  disclaimer: { color: colors.textSoft, fontSize: 10.5, lineHeight: 14 },
-  buildMarker: { color: colors.muted, fontFamily: "monospace", fontSize: 9, lineHeight: 12 },
-  inactive: { color: colors.muted, display: DICE_INACTIVE_FOUNDER_DECISIONS.finalResultLength === "inactive_unresolved" ? "flex" : "none", fontSize: 10 },
-  pager: { flexDirection: "row", gap: 6 },
-  pagerButton: { alignItems: "center", borderColor: colors.line, borderRadius: 18, borderWidth: 1, height: 38, justifyContent: "center", width: 36 },
+  safe: { backgroundColor: colors.navy950, flex: 1 },
+  externalPanel: { backgroundColor: "#071422", borderBottomColor: colors.line, borderBottomWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  pagerRow: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
+  externalCopy: { flex: 1, minWidth: 0 },
+  caseLabel: { color: colors.goldLight, fontSize: 12, fontWeight: "800" },
+  statusTitle: { color: colors.ice, fontSize: 14, fontWeight: "700", marginTop: 2 },
+  statusDetail: { color: colors.textSoft, fontSize: 11, lineHeight: 15, marginTop: 2 },
+  iconButton: { alignItems: "center", borderColor: colors.line, borderRadius: radii.sm, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
+  evidenceRail: { marginTop: spacing.xs },
+  evidenceText: { color: colors.muted, fontFamily: "Courier", fontSize: 9, marginRight: spacing.md },
   productFrame: { flex: 1, minHeight: 0 },
 });

@@ -1,0 +1,90 @@
+{
+  "schema": "s2_t287_dice_default_off_deployment_control_v1",
+  "status": "WAITING_FOR_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION",
+  "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "release_parent_commit": "fc0e516835b2a693344a4e86e558898ee1cf4237",
+  "runtime_authority_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+  "runtime_authority_tree": "666558397b6247ffa54b25ff8ac3f5c64ff5989e",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "bindings": {
+    "release_manifest": { "path": "config/s2-t267-dice-edge-release.json", "sha256": "8595eb61e903e5050209d4536ae9b5b342e73210c034b78a86dc1a0dec960218" },
+    "registry": { "path": "config/s2-t262-dice-technical-registry-v1.json", "sha256": "00ba2d0c9ff60825ba9fbc285d64bf7179e62da8e305480ad3e45612d6d4de0b" },
+    "gateway": { "path": "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts", "sha256": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969" },
+    "handler": { "path": "supabase/functions/dice-synthetic/edge-handler-v1.ts", "sha256": "10b733f809bcbc043db357304bfbbedb033e464a948e113a09ed48d53118ee36" },
+    "entry": { "path": "supabase/functions/dice-synthetic/index.ts", "sha256": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b" },
+    "deno_config": { "path": "supabase/functions/dice-synthetic/deno.json", "sha256": "5ec28f1802aeaa4f2ce09edfc4259d855d4f89368cfe643372a9873f53e44551" },
+    "tokenizer": { "path": "supabase/functions/_shared/dice-tokenizer-v1.ts", "sha256": "e6661489999cd512db1772c8b38ed2f9022b781ccc790a5212b541c25739cd04" },
+    "adapter": { "path": "supabase/functions/_shared/azure-dice-adapter-v1.ts", "sha256": "be54e303aa157b62f8907c0c5d20e8086e2194f5cdbf37ba37f847ebbff82903" },
+    "deployment_operator": { "path": "scripts/run-s2-t277-dice-deployment.zsh", "sha256": "2ba63a0b04a5f587c268034ec36fc4a70269471fd58aedb0114f305b658230ba" },
+    "deployment_validator": { "path": "scripts/lib/s2-t277-dice-deployment-authorization.mjs", "sha256": "d0efc66624f1e1848a5ce0b5a9320f795deb02ecf016e5a6f75f36d6bd023df1" },
+    "deployment_receipt_helper": { "path": "scripts/s2-t277-remote-deploy-proof.mjs", "sha256": "d865567e181476a9199a4832d02cbb836e3fdb1cc0520ecd0052447c9d4384da" },
+    "runtime_recheck_operator": { "path": "scripts/run-s2-t277-dice-runtime-recheck.zsh", "sha256": "2df3ed006de5db1471dffb4550da27f150b17c942ee843b8f3a68d608a6cde20" },
+    "runtime_control": { "path": "config/s2-t272-dice-deno-runtime.json", "sha256": "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1" },
+    "runtime_receipt": { "path": "config/evidence/s2-t272-dice-runtime-proof.json", "sha256": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256" },
+    "runtime_import_graph": { "path": "config/evidence/s2-t272-dice-runtime-import-graph.json", "sha256": "07ea413de0bf3e005cadbf4329d91f56fedb532b7a86eb2e873bd573f1679740" },
+    "runtime_recheck_receipt": { "path": "config/evidence/s2-t277-dice-runtime-recheck.json", "sha256": "a55bd419008354f025affd47de4e9d05078531a20745440aad85d56292272416" }
+  },
+  "runtime_proof": {
+    "deno_check": "passed",
+    "edge_eszip_bundle": "passed",
+    "edge_eszip_sha256": "4a68573139f66566e2acb6e3abdc6445443e38dd412627449807f27aa3f3af10",
+    "import_graph_sha256": "e398677d300dde548a42bbf8adfa964e8ab598317fafe84900724aab4303aabf",
+    "disabled_before_json_parse_and_client_construction": true,
+    "disabled_probes_passed": 4,
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "remote_calls": 0
+  },
+  "configuration_names": [
+    "LUMIS_DICE_AI_ENABLED",
+    "LUMIS_DICE_TRAFFIC_AUTHORIZED",
+    "LUMIS_DICE_AZURE_API_KEY",
+    "LUMIS_DICE_AUTHORITY_HMAC_SECRET",
+    "LUMIS_DICE_DEPLOYMENT_ALIAS",
+    "LUMIS_DICE_MODEL",
+    "LUMIS_DICE_MODEL_VERSION",
+    "LUMIS_DICE_DEPLOYMENT_TYPE",
+    "LUMIS_DICE_UPGRADE_POLICY",
+    "LUMIS_DICE_GUARDRAIL",
+    "LUMIS_DICE_TPM_LIMIT",
+    "LUMIS_DICE_RPM_LIMIT",
+    "LUMIS_DICE_FOUNDRY_HOSTNAME",
+    "LUMIS_DICE_FOUNDRY_PROTOCOL",
+    "LUMIS_DICE_API_ROUTE_FAMILY"
+  ],
+  "kill_switch": { "name": "LUMIS_DICE_AI_ENABLED", "required_value": false },
+  "traffic_switch": { "name": "LUMIS_DICE_TRAFFIC_AUTHORIZED", "required_value": false },
+  "provider_calls_authorized": 0,
+  "model_invocations_authorized": 0,
+  "disabled_probes": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"],
+  "migration_boundary": {
+    "path": "supabase/migrations/0039_dice_synthetic_authority_ledger.sql",
+    "sha256": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
+    "application_authorized": false,
+    "required_authorization_scope": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY"
+  },
+  "normal_chat_binding": {
+    "base_commit": "30f928777caf47bd2037c9700c97851926c2e9e2",
+    "entry_path": "supabase/functions/chat-message/index.ts",
+    "entry_blob": "26d0423187c718a748bf981e6d1643cb4dcdad25",
+    "current_sha256": "73a7df7042c4b8400996092ebbc7fb9a67eb24c3185fd812918b4887a56cd7ad"
+  },
+  "authorization": {
+    "schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "request_schema": "lumis_dice_default_off_function_deployment_authorization_request_v4",
+    "window_seconds": 900,
+    "clock_policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
+    "single_use_claim_schema": "s2_t287_dice_deployment_claim_v1",
+    "signature_algorithm": "Ed25519",
+    "signing_key_sha256_required": true
+  },
+  "rollback": {
+    "target": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED",
+    "previous_revision_required": true
+  },
+  "remote_calls_in_default_mode": 0,
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}

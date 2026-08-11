@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t277_dice_default_off_deployment_authorization_request_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authorization_scope", "request_id", "project_ref", "function_name", "issued_at", "valid_until", "source_commit", "source_tree", "runtime_package_sha256", "bindings", "microsoft_signing_key_sha256", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision_required", "request_sha256"],
+  "properties": {
+    "schema": { "const": "s2_t277_dice_default_off_deployment_authorization_request_v1" },
+    "authorization_scope": { "const": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY" },
+    "request_id": { "type": "string", "pattern": "^dice-auth-request-[a-z0-9]{16,40}$" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "dice-synthetic" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "source_commit": { "const": "f5f9e9da238633d84eb8695307c573eef8f1bc96" },
+    "source_tree": { "const": "666558397b6247ffa54b25ff8ac3f5c64ff5989e" },
+    "runtime_package_sha256": { "$ref": "#/$defs/sha256" },
+    "bindings": { "$ref": "#/$defs/bindings" },
+    "microsoft_signing_key_sha256": { "$ref": "#/$defs/sha256" },
+    "configuration_names": { "type": "array", "minItems": 15, "maxItems": 15, "uniqueItems": true, "items": { "type": "string", "pattern": "^LUMIS_DICE_[A-Z0-9_]+$" } },
+    "kill_switch_required": { "const": false },
+    "traffic_switch_required": { "const": false },
+    "provider_calls_authorized": { "const": 0 },
+    "model_invocations_authorized": { "const": 0 },
+    "disabled_probes": { "const": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"] },
+    "migration_application_authorized": { "const": false },
+    "migration_required_authorization_scope": { "const": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY" },
+    "normal_chat_binding": { "$ref": "#/$defs/normalChat" },
+    "rollback_target": { "const": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED" },
+    "rollback_revision_required": { "const": true },
+    "request_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["release_manifest", "registry", "gateway", "handler", "entry", "deno_config", "tokenizer", "adapter", "deployment_operator", "deployment_validator", "deployment_receipt_helper", "runtime_recheck_operator", "runtime_control", "runtime_receipt", "runtime_import_graph", "runtime_recheck_receipt"],
+      "properties": {
+        "release_manifest": { "$ref": "#/$defs/sha256" }, "registry": { "$ref": "#/$defs/sha256" },
+        "gateway": { "$ref": "#/$defs/sha256" }, "handler": { "$ref": "#/$defs/sha256" },
+        "entry": { "$ref": "#/$defs/sha256" }, "deno_config": { "$ref": "#/$defs/sha256" },
+        "tokenizer": { "$ref": "#/$defs/sha256" }, "adapter": { "$ref": "#/$defs/sha256" },
+        "deployment_operator": { "$ref": "#/$defs/sha256" }, "deployment_validator": { "$ref": "#/$defs/sha256" },
+        "deployment_receipt_helper": { "$ref": "#/$defs/sha256" }, "runtime_recheck_operator": { "$ref": "#/$defs/sha256" },
+        "runtime_control": { "$ref": "#/$defs/sha256" },
+        "runtime_receipt": { "$ref": "#/$defs/sha256" }, "runtime_import_graph": { "$ref": "#/$defs/sha256" },
+        "runtime_recheck_receipt": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "normalChat": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_commit", "entry_path", "entry_blob", "current_sha256"],
+      "properties": {
+        "base_commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "entry_path": { "const": "supabase/functions/chat-message/index.ts" },
+        "entry_blob": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "current_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "../../.tmp/dice-live-result-adapter-tests",
+    "rootDir": "../..",
+    "noEmit": false
+  },
+  "include": [
+    "src/services/diceLiveResultAdapter.ts",
+    "src/services/diceLiveResultAdapter.fixtures.ts",
+    "../../packages/shared/src/config/dice-question-boundary.ts"
+  ]
+}

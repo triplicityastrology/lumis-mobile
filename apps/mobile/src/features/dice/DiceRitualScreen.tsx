@@ -6,8 +6,7 @@ import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, ActivityIndicator, Animated, AppState, BackHandler, KeyboardAvoidingView,
-  Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View
+  AccessibilityInfo, Animated, AppState, BackHandler, Pressable, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
@@ -15,7 +14,6 @@ import Svg, {
 
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { classifyDiceQuestionRequest } from "@lumis/shared";
 
 import { MainTabBar, type MainTab } from "../../components/MainTabBar";
 import { colors, radii, spacing } from "../../theme/tokens";
@@ -34,7 +32,6 @@ import { beginNewDiceQuestion, normalizeDiceQuestion } from "./question";
 import { useDiceResultActionLayout } from "./useDiceResultActionLayout";
 import { useMotionGestures } from "./useMotionGestures";
 import { DiceHelpSheet, DiceUnavailableView } from "./DiceHelpAndUnavailable";
-import type { DiceInterpretationFixture, DiceFixtureLanguage } from "../../dev/diceInterpretationFixture";
 
 configureSecureRandom(getRandomValues);
 
@@ -121,43 +118,26 @@ function SoftButton({
 }
 
 export function DiceRitualScreen({
-  developmentPreSubmitBoundary = false,
-  developmentNoPersistence = false,
-  developmentLanguage = "en",
-  developmentInitialBoundaryError,
-  developmentFixture,
-  developmentInitialQuestion,
-  developmentBuildInterpretation,
   onNotifications,
   onReflect,
   onSelectTab,
   onBack
 }: {
-  developmentPreSubmitBoundary?: boolean;
-  developmentNoPersistence?: boolean;
-  developmentLanguage?: DiceFixtureLanguage;
-  developmentInitialBoundaryError?: string;
-  developmentFixture?: DiceInterpretationFixture;
-  developmentInitialQuestion?: string;
-  developmentBuildInterpretation?: (input: { language: DiceFixtureLanguage; question: string; symbols: StageSymbols }) => DiceInterpretationFixture;
   onNotifications: () => void;
   onReflect: (chatDraft: string) => void;
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
 }) {
   const { stackResultActions } = useDiceResultActionLayout();
-  const initialQuestion = developmentFixture?.question ?? developmentInitialQuestion ?? "";
-  const [question, setQuestion] = useState(initialQuestion);
-  const [phase, setPhase] = useState<Phase>(developmentFixture ? "INTERPRET" : "IDLE");
-  const [symbols, setSymbols] = useState<StageSymbols | null>(developmentFixture?.symbols ?? null);
-  const [developmentResult, setDevelopmentResult] = useState<DiceInterpretationFixture | null>(developmentFixture ?? null);
+  const [question, setQuestion] = useState("");
+  const [phase, setPhase] = useState<Phase>("IDLE");
+  const [symbols, setSymbols] = useState<StageSymbols | null>(null);
   const [showTapThrow, setShowTapThrow] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [, setFrame] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const [questionBoundaryError, setQuestionBoundaryError] = useState(developmentInitialBoundaryError ?? "");
   // DICE-009 help sheet + DICE-010 unavailable-outcome preview (dev only; the
   // release trigger for DICE-010 is a backend "no throw available" result).
   const [helpOpen, setHelpOpen] = useState(false);
@@ -165,9 +145,9 @@ export function DiceRitualScreen({
   const lastThrowRef = useRef<{ question: string | null; planetKey: string; signKey: string; houseKey: string } | null>(null);
   const sessionRollsRef = useRef<SessionRoll[]>([]);
 
-  const phaseRef = useRef<Phase>(developmentFixture ? "INTERPRET" : "IDLE");
-  const questionRef = useRef(initialQuestion);
-  const activeQuestionRef = useRef<string | null>(developmentFixture?.question ?? null);
+  const phaseRef = useRef<Phase>("IDLE");
+  const questionRef = useRef("");
+  const activeQuestionRef = useRef<string | null>(null);
   const worldRef = useRef<DiceWorld>(createWorld());
   const palmOrientations = useRef([randomOrientation(), randomOrientation(), randomOrientation()]);
   const palmSpin = useRef<Vec3[]>([vec(0, 0, 0), vec(0, 0, 0), vec(0, 0, 0)]);
@@ -186,8 +166,8 @@ export function DiceRitualScreen({
   const completeSettleRef = useRef<() => void>(() => undefined);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const dimAnim = useRef(new Animated.Value(developmentFixture ? 1 : 0)).current;
-  const cardAnim = useRef(new Animated.Value(developmentFixture ? 1 : 0)).current;
+  const dimAnim = useRef(new Animated.Value(0)).current;
+  const cardAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let mounted = true;
@@ -237,17 +217,13 @@ export function DiceRitualScreen({
   // Persist the throw and surface a safe, non-blocking retry if saving fails.
   // "local" mode (demo, no account) is not a failure — rolling is unaffected.
   const persistThrow = useCallback(async (input: NonNullable<typeof lastThrowRef.current>) => {
-    if (developmentNoPersistence) {
-      setSaveError(false);
-      return;
-    }
     try {
       const result = await saveDiceThrow(input);
       setSaveError(result.mode === "error");
     } catch {
       setSaveError(true);
     }
-  }, [developmentNoPersistence]);
+  }, []);
 
   const completeSettle = useCallback(() => {
     const activeQuestion = activeQuestionRef.current;
@@ -267,13 +243,6 @@ export function DiceRitualScreen({
       house: FACE_SETS.house[houseReading.faceIndex]
     };
     setSymbols(nextSymbols);
-    if (developmentBuildInterpretation) {
-      setDevelopmentResult(developmentBuildInterpretation({
-        language: developmentLanguage,
-        question: activeQuestion,
-        symbols: nextSymbols,
-      }));
-    }
     settleAtRef.current = Date.now();
     transition("SETTLE");
     AccessibilityInfo.announceForAccessibility(
@@ -281,18 +250,16 @@ export function DiceRitualScreen({
     );
     // Persist the throw (no-op in local demo mode); interpretation stays unlinked
     // until the user asks Lumis to read it.
-    if (!developmentNoPersistence) {
-      sessionRollsRef.current = [
-        {
-          question: activeQuestion,
-          planetKey: nextSymbols.planet.key,
-          signKey: nextSymbols.sign.key,
-          houseKey: nextSymbols.house.key,
-          at: Date.now()
-        },
-        ...sessionRollsRef.current
-      ];
-    }
+    sessionRollsRef.current = [
+      {
+        question: activeQuestion,
+        planetKey: nextSymbols.planet.key,
+        signKey: nextSymbols.sign.key,
+        houseKey: nextSymbols.house.key,
+        at: Date.now()
+      },
+      ...sessionRollsRef.current
+    ];
     lastThrowRef.current = {
       question: activeQuestion,
       planetKey: nextSymbols.planet.key,
@@ -300,7 +267,7 @@ export function DiceRitualScreen({
       houseKey: nextSymbols.house.key
     };
     void persistThrow(lastThrowRef.current);
-  }, [developmentBuildInterpretation, developmentLanguage, developmentNoPersistence, transition, persistThrow]);
+  }, [transition, persistThrow]);
   completeSettleRef.current = completeSettle;
 
   const beginReady = useCallback(() => {
@@ -309,16 +276,6 @@ export function DiceRitualScreen({
     if (!normalizedQuestion) {
       AccessibilityInfo.announceForAccessibility("Enter a question to begin your throw.");
       return;
-    }
-    if (developmentPreSubmitBoundary) {
-      const decision = classifyDiceQuestionRequest({ question: normalizedQuestion });
-      if (!decision.accepted) {
-        const message = diceQuestionStopMessage(decision.code, developmentLanguage);
-        setQuestionBoundaryError(message);
-        AccessibilityInfo.announceForAccessibility(message);
-        return;
-      }
-      setQuestionBoundaryError("");
     }
     questionRef.current = normalizedQuestion;
     activeQuestionRef.current = normalizedQuestion;
@@ -348,7 +305,7 @@ export function DiceRitualScreen({
         setShowTapThrow(true);
       }
     })();
-  }, [developmentLanguage, developmentPreSubmitBoundary, transition]);
+  }, [transition]);
 
   const performThrow = useCallback(
     (strength: number) => {
@@ -390,7 +347,6 @@ export function DiceRitualScreen({
     cameraZoomRef.current = 0;
     glowRef.current = 0;
     setSymbols(null);
-    setDevelopmentResult(null);
     setShowTapThrow(false);
     questionRef.current = nextQuestion.draft;
     activeQuestionRef.current = nextQuestion.activeQuestion;
@@ -503,8 +459,6 @@ export function DiceRitualScreen({
   const showTable = !showPalm;
   const normalizedQuestion = normalizeDiceQuestion(question);
   const activeQuestion = activeQuestionRef.current;
-  const activeDevelopmentFixture = developmentResult;
-  const isZhHant = developmentLanguage === "zh-Hant";
   const reflectionPrompt = symbols
     && activeQuestion
     ? `Help me reflect on my astrology dice throw. My question was: “${activeQuestion}” The dice showed ${symbols.planet.en}, ${symbols.sign.en}, ${symbols.house.en}.`
@@ -523,7 +477,7 @@ export function DiceRitualScreen({
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.safe}>
+    <View style={styles.safe}>
       <DiceHelpSheet visible={helpOpen} onClose={() => setHelpOpen(false)} />
       <View style={styles.frame}>
         <View style={styles.header}>
@@ -540,21 +494,19 @@ export function DiceRitualScreen({
           >
             <ChevronLeft color={colors.ice} size={20} />
           </Pressable>
-          <Text accessibilityRole="header" style={styles.headerTitle}>{isZhHant ? "占星骰子" : "Astrology Dice"}</Text>
+          <Text style={styles.headerTitle}>Astrology Dice</Text>
           <View style={styles.headerActions}>
             {/* DICE-009 — "How to ask Dice" help sheet. */}
             <Pressable style={styles.iconButton} onPress={() => setHelpOpen(true)} accessibilityLabel="How to ask Dice">
               <CircleQuestionMark color={colors.ice} size={19} />
             </Pressable>
-            {!developmentNoPersistence ? (
-              <Pressable style={styles.iconButton} onPress={() => setHistoryOpen(true)} accessibilityLabel="Past rolls">
-                <List color={colors.ice} size={19} />
-              </Pressable>
-            ) : null}
+            <Pressable style={styles.iconButton} onPress={() => setHistoryOpen(true)} accessibilityLabel="Past rolls">
+              <List color={colors.ice} size={19} />
+            </Pressable>
             <Pressable style={styles.iconButton} onPress={onNotifications} accessibilityLabel="Notifications">
               <Bell color={colors.ice} size={19} />
             </Pressable>
-            {__DEV__ && !developmentNoPersistence ? (
+            {__DEV__ ? (
               <Pressable style={styles.iconButton} onPress={() => setPreviewUnavailable(true)} accessibilityLabel="Preview Dice unavailable state">
                 <Text style={{ color: colors.muted, fontSize: 11, fontWeight: "700" }}>DEV</Text>
               </Pressable>
@@ -593,16 +545,15 @@ export function DiceRitualScreen({
 
           <View pointerEvents="box-none" style={styles.overlay}>
             <BlurView intensity={24} tint="dark" style={styles.questionCard}>
-              <Text style={styles.questionLabel}>{isZhHant ? "你的問題" : "YOUR QUESTION"}</Text>
+              <Text style={styles.questionLabel}>YOUR QUESTION</Text>
               <TextInput
                 accessibilityLabel="Dice question"
                 editable={phase === "IDLE"}
                 onChangeText={(text) => {
                   questionRef.current = text;
                   setQuestion(text);
-                  if (questionBoundaryError) setQuestionBoundaryError("");
                 }}
-                placeholder={isZhHant ? "你想問甚麼？" : "What is your question?"}
+                placeholder="What is your question?"
                 placeholderTextColor={colors.muted}
                 style={styles.questionInput}
                 value={question}
@@ -614,7 +565,7 @@ export function DiceRitualScreen({
             {phase === "IDLE" ? (
               <View style={styles.readyBlock}>
                 <BrandButton
-                  label={isZhHant ? "準備" : "Ready"}
+                  label="Ready"
                   onPress={beginReady}
                   disabled={normalizedQuestion.length === 0}
                   style={styles.fullWidthButton}
@@ -625,12 +576,7 @@ export function DiceRitualScreen({
                     accessibilityRole="alert"
                     style={styles.readyHint}
                   >
-                    {isZhHant ? "先輸入一個問題，再開始擲骰" : "Enter a question to begin your throw"}
-                  </Text>
-                ) : null}
-                {questionBoundaryError ? (
-                  <Text accessibilityLiveRegion="assertive" accessibilityRole="alert" style={styles.boundaryError}>
-                    {questionBoundaryError}
+                    Enter a question to begin your throw
                   </Text>
                 ) : null}
               </View>
@@ -661,13 +607,6 @@ export function DiceRitualScreen({
             ]}
           >
             <BlurView intensity={28} tint="dark" style={styles.sheet}>
-            <ScrollView
-              accessibilityLabel={isZhHant ? "骰子結果與解讀" : "Dice result and interpretation"}
-              contentContainerStyle={styles.sheetContent}
-              contentInsetAdjustmentBehavior="never"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator
-            >
             {activeQuestion ? (
               <Text style={styles.sheetQuestion}>“{activeQuestion}”</Text>
             ) : null}
@@ -675,46 +614,18 @@ export function DiceRitualScreen({
               {symbols
                 ? DIE_ORDER.map((kind) => {
                     const face = symbols[kind];
-                    const kindLabel = isZhHant
-                      ? kind === "planet" ? "行星" : kind === "sign" ? "星座" : "宮位"
-                      : kind === "planet" ? "PLANET" : kind === "sign" ? "SIGN" : "HOUSE";
+                    const kindLabel = kind === "planet" ? "PLANET" : kind === "sign" ? "SIGN" : "HOUSE";
                     return (
                       <View key={kind} style={styles.symbolCell}>
                         <Text style={styles.symbolKind}>{kindLabel}</Text>
                         <Text style={styles.symbolGlyph}>{face.glyph + TEXT_STYLE}</Text>
-                        <Text style={styles.symbolZh}>{isZhHant ? face.zh : face.en}</Text>
+                        <Text style={styles.symbolZh}>{face.en}</Text>
                       </View>
                     );
                   })
                 : null}
             </View>
-            <Text style={styles.sheetNote}>{isZhHant ? "骰子是反思的鏡子，不是判決。" : "Dice are a mirror for reflection, not a verdict."}</Text>
-            {activeDevelopmentFixture ? (
-              <View
-                accessibilityLiveRegion="polite"
-                accessibilityRole={activeDevelopmentFixture.state === "loading" ? "progressbar" : "text"}
-                style={[styles.fixtureEvidence, isDiceFailureState(activeDevelopmentFixture.state) && styles.fixtureEvidenceError]}
-                testID={`dice-interpretation-${activeDevelopmentFixture.state}`}
-              >
-                {activeDevelopmentFixture.state === "loading" ? (
-                  <View style={styles.loadingRow}>
-                    <ActivityIndicator color={colors.gold} size="small" />
-                    <View style={styles.loadingCopy}>
-                      <Text style={styles.fixtureEvidenceTitle}>{isZhHant ? "正在準備解讀" : "Preparing your interpretation"}</Text>
-                      <Text style={styles.fixtureEvidenceText}>{isZhHant ? "你的問題和骰子結果會保留在這裡。" : "Your question and landed symbols stay here."}</Text>
-                    </View>
-                  </View>
-                ) : null}
-                {activeDevelopmentFixture.state !== "loading" && isDiceFailureState(activeDevelopmentFixture.state) ? (
-                  <Text accessibilityRole="header" style={styles.fixtureEvidenceErrorTitle}>
-                    {diceFixtureStatusTitle(activeDevelopmentFixture.state, isZhHant)}
-                  </Text>
-                ) : null}
-                {activeDevelopmentFixture.reading ? <Text style={styles.fixtureEvidenceText}>{activeDevelopmentFixture.reading}</Text> : null}
-                {activeDevelopmentFixture.watchOut ? <Text style={styles.fixtureEvidenceText}><Text style={styles.fixtureEvidenceStrong}>{isZhHant ? "留意：" : "Watch-out: "}</Text>{activeDevelopmentFixture.watchOut}</Text> : null}
-                {activeDevelopmentFixture.practicalDirection ? <Text style={styles.fixtureEvidenceText}><Text style={styles.fixtureEvidenceStrong}>{isZhHant ? "方向：" : "Direction: "}</Text>{activeDevelopmentFixture.practicalDirection}</Text> : null}
-              </View>
-            ) : null}
+            <Text style={styles.sheetNote}>Dice are a mirror for reflection, not a verdict.</Text>
             {saveError ? (
               // DICE-004 — save-to-history failed after the throw completed. The
               // result and reflection stay on screen; Retry save re-persists the
@@ -742,7 +653,7 @@ export function DiceRitualScreen({
                 />
               </View>
             ) : null}
-            {phase === "INTERPRET" && !developmentNoPersistence ? (
+            {phase === "INTERPRET" ? (
               <>
                 <View style={[styles.sheetActions, stackResultActions && styles.sheetActionsStacked]}>
                   <SoftButton
@@ -763,53 +674,18 @@ export function DiceRitualScreen({
                 </View>
               </>
             ) : null}
-            {phase === "INTERPRET" && developmentNoPersistence ? (
-              <View style={styles.sheetActions}>
-                <SoftButton label={isZhHant ? "再擲一次" : "Roll again"} onPress={rethrow} style={styles.sheetActionRoll} />
-              </View>
-            ) : null}
-            </ScrollView>
             </BlurView>
           </Animated.View>
         ) : null}
 
-        {!developmentNoPersistence && historyOpen ? (
+        {historyOpen ? (
           <DiceHistorySheet onClose={() => setHistoryOpen(false)} sessionRolls={sessionRollsRef.current} />
         ) : null}
 
-        {!developmentNoPersistence ? <MainTabBar active="dice" onSelect={onSelectTab} /> : null}
+        <MainTabBar active="dice" onSelect={onSelectTab} />
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
-}
-
-function isDiceFailureState(state: DiceInterpretationFixture["state"]): boolean {
-  return state === "safety_redirect"
-    || state === "content_filter"
-    || state === "fallback"
-    || state === "malformed"
-    || state === "timeout_unavailable"
-    || state === "retry";
-}
-
-function diceFixtureStatusTitle(state: DiceInterpretationFixture["state"], isZhHant: boolean): string {
-  if (state === "safety_redirect") return isZhHant ? "這個問題需要更合適的支援" : "A safer support route is needed";
-  if (state === "content_filter") return isZhHant ? "解讀因安全原因暫停" : "Reading paused for safety";
-  if (state === "fallback") return isZhHant ? "暫時無法完成這次解讀" : "This interpretation could not be completed";
-  if (state === "malformed") return isZhHant ? "無法安全顯示這次解讀" : "This interpretation could not be shown safely";
-  if (state === "retry") return isZhHant ? "重試一次後仍然逾時" : "Timed out after one retry";
-  return isZhHant ? "解讀服務暫時不可用" : "Interpretation service unavailable";
-}
-
-function diceQuestionStopMessage(code: string, language: DiceFixtureLanguage): string {
-  const zh = language === "zh-Hant";
-  if (code === "DICE_CHOICE_REQUIRES_SEPARATE_THROWS") return zh ? "每個選擇需要分開擲骰。" : "Use one separate Dice throw for each choice.";
-  if (code === "DICE_QUESTION_BUNDLED") return zh ? "這次擲骰只問一個清楚的問題。" : "Ask one clear question for this throw.";
-  if (code === "DICE_QUESTION_SAFETY_ROUTE_REQUIRED") return zh ? "這需要即時的人際支援，而不是骰子解讀。" : "This needs immediate human support rather than a Dice reading.";
-  if (code === "DICE_QUESTION_PROFESSIONAL_ROUTE_REQUIRED") return zh ? "骰子不能提供醫療、法律或財務意見。" : "Dice cannot provide medical, legal, or financial advice.";
-  if (code === "DICE_QUESTION_SCOPE_EXCLUDED") return zh ? "這個要求不在骰子解讀範圍內。" : "That request is outside this Dice reading.";
-  if (code === "DICE_QUESTION_OVERSIZED") return zh ? "請縮短問題並保留一個清楚焦點。" : "Make the question shorter and keep one clear focus.";
-  return zh ? "請先寫成一個清楚的問題。" : "Make this one clear question before continuing.";
 }
 
 /* ---------- stage painters (ported from the validated motion prototype) ---------- */
@@ -1207,7 +1083,6 @@ const styles = StyleSheet.create({
   hint: { color: colors.ice, fontSize: 15, marginBottom: 12, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 8 },
   readyBlock: { alignItems: "center", marginTop: 16, width: "100%" },
   readyHint: { color: "#A2B0C6", fontSize: 12.5, marginTop: 10, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6 },
-  boundaryError: { color: "#F2B8A7", fontSize: 12.5, lineHeight: 18, marginTop: 10, maxWidth: 380, textAlign: "center" },
   brandButtonWrap: { borderRadius: 15, elevation: 6, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.45, shadowRadius: 18 },
   brandButtonDisabled: { opacity: 0.42, shadowOpacity: 0 },
   brandButtonGrad: { alignItems: "center", borderRadius: 15, justifyContent: "center", minHeight: 54, paddingHorizontal: 32 },
@@ -1216,9 +1091,8 @@ const styles = StyleSheet.create({
   softButton: { alignItems: "center", backgroundColor: "rgba(122,134,200,0.24)", borderColor: "rgba(139,147,212,0.34)", borderRadius: 15, borderWidth: 1, justifyContent: "center", minHeight: 48, paddingHorizontal: 26 },
   softButtonText: { color: "#EAEDFB", fontSize: 14.5, fontWeight: "600" },
   dim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(4,10,20,0.6)" },
-  sheetWrap: { borderTopLeftRadius: 22, borderTopRightRadius: 22, maxHeight: "64%", minHeight: 300, overflow: "hidden" },
-  sheet: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(206,216,255,0.16)", borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, flexShrink: 1, overflow: "hidden" },
-  sheetContent: { paddingBottom: spacing.xl, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  sheetWrap: { borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: "hidden" },
+  sheet: { backgroundColor: "rgba(58,80,118,0.42)", borderColor: "rgba(206,216,255,0.16)", borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, paddingBottom: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   sheetQuestion: { color: "#A2B0C6", fontSize: 12.5, fontStyle: "italic", marginBottom: 14, textAlign: "center" },
   symbolsRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   symbolCell: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.045)", borderColor: "rgba(206,216,255,0.16)", borderRadius: radii.md, borderWidth: 1, flex: 1, maxWidth: 112, paddingVertical: 10 },
@@ -1227,14 +1101,6 @@ const styles = StyleSheet.create({
   symbolZh: { color: colors.ice, fontSize: 14, marginTop: 2 },
   symbolEn: { color: "#A2B0C6", fontSize: 11 },
   sheetNote: { color: "#A2B0C6", fontSize: 12, marginTop: 12, textAlign: "center" },
-  fixtureEvidence: { backgroundColor: "rgba(201,169,110,0.1)", borderColor: "rgba(201,169,110,0.32)", borderRadius: 8, borderWidth: 1, gap: 7, marginTop: 12, padding: 14 },
-  fixtureEvidenceError: { backgroundColor: "rgba(227,142,124,0.1)", borderColor: "rgba(227,142,124,0.4)" },
-  fixtureEvidenceTitle: { color: colors.ice, fontSize: 15, fontWeight: "700", lineHeight: 20 },
-  fixtureEvidenceErrorTitle: { color: "#F2B8A7", fontSize: 15, fontWeight: "700", lineHeight: 20 },
-  fixtureEvidenceText: { color: colors.ice, fontSize: 14, lineHeight: 20 },
-  fixtureEvidenceStrong: { color: colors.goldLight, fontWeight: "700" },
-  loadingRow: { alignItems: "flex-start", flexDirection: "row", gap: 12 },
-  loadingCopy: { flex: 1, gap: 4 },
   saveErrorRow: { alignItems: "center", backgroundColor: "rgba(224,153,127,0.1)", borderColor: "rgba(224,153,127,0.34)", borderRadius: 12, borderWidth: 1, gap: 8, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10 },
   saveErrorText: { color: "#E9B083", fontSize: 12, lineHeight: 17, textAlign: "center" },
   saveRetryButton: { borderColor: "rgba(224,153,127,0.5)", borderRadius: 999, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 6 },

@@ -1,0 +1,50 @@
+{
+  "schema": "s2_t307_dice_release_candidate_v1",
+  "status": "WAITING_FOR_EXTERNAL_RECEIPTS",
+  "branch": "codex/s2-t307-dice-release-candidate",
+  "authorities": {
+    "founder_ui": "1bf07f1769d67777792cfa3b27d150e738339a02",
+    "live_result_adapter": "a4aa42f90cbbf36cfeec32015e255dec24b7d604",
+    "default_off_operator": "85f6e308a752393105eac99216f79df5e18c8a20",
+    "technical_runner": "5e6127d751a110b0b1452cb9bc056bd763a65a57"
+  },
+  "canonical_packages": {
+    "runtime_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "authorization_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+    "zero_call_sha256": "af35103c94e1acdc88f346fd926c9459fa262c1222eec87b03dc0777a9613e80",
+    "deployment_operator_sha256": "38b9213b54d377204d1e128528478e23f3baddb703d9f7895471df34809be928",
+    "technical_runner_sha256": "cb5acffe7602bc3900b551f2339d0874fa4874bf3ba35c1927030e2480eaba9c"
+  },
+  "protected_dice_ui": {
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": {
+      "git_blob": "33ca100bf56f91ef0de4d8688927953988e73bcc",
+      "sha256": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6"
+    },
+    "apps/mobile/src/screens/LumisDiceScreen.tsx": {
+      "git_blob": "6968d574639537faeb150b508e5a1d72bfa1e275",
+      "sha256": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac"
+    }
+  },
+  "founder_bank": {
+    "english": 20,
+    "zh_hant": 20,
+    "excluded_authoring_id": "ZH04",
+    "excluded_exact_text": "我去到澳洲應該讀書定係做嘢？",
+    "zh08": "bundled_question_rejection",
+    "zh09": "accepted_single_question_control"
+  },
+  "required_external_receipts": [
+    "accepted_v4_post_deploy_disabled_receipt",
+    "accepted_0039_migration_receipt",
+    "accepted_DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY_receipt"
+  ],
+  "effects_without_receipts": {
+    "remote_calls": 0,
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}

@@ -3,7 +3,13 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 const denoConfig = JSON.parse(readFileSync("supabase/functions/dice-synthetic/deno.json", "utf8"));
-assert.deepEqual(denoConfig, { imports: { "js-tiktoken": "npm:js-tiktoken@1.0.21" }, nodeModulesDir: "auto" });
+assert.deepEqual(denoConfig, {
+  imports: {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.2",
+    "js-tiktoken": "npm:js-tiktoken@1.0.21",
+  },
+  nodeModulesDir: "manual",
+});
 assert.equal(existsSync("scripts/fixtures/js-tiktoken/index.js"), false, "test tokenizer stub must not exist");
 const packageMetadata = JSON.parse(readFileSync("node_modules/js-tiktoken/package.json", "utf8"));
 assert.equal(packageMetadata.name, "js-tiktoken");

@@ -1,0 +1,35 @@
+{
+  "schema": "s2_t290_founder_dice_v4_manifest_v1",
+  "task": "S2-T290",
+  "base_commit": "e838f9498aec60c7c7a3e053f9675aa9dfd45f76",
+  "branch": "codex/s2-t290-founder-dice-v4",
+  "fixture_counts": { "total": 40, "en": 20, "zh-Hant": 20 },
+  "authoring": "local_question_text_only_then_closed_server_freeze",
+  "runtime_request_fields": ["fixture_id"],
+  "eligibility": {
+    "deployment_receipt_schema": "s2_t287_dice_default_off_deployment_receipt_v1",
+    "deployment_authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "technical_evidence_schema": "s2_t289_dice_technical_window_evidence_v1",
+    "founder_authorization_schema": "lumis_dice_founder_window_authorization_v1",
+    "checked_in_acceptance_digests": 0
+  },
+  "founder_receipt_design_authority": {
+    "status": "APPROVED_AS_DESIGN_ONLY",
+    "schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+    "operational_authority_granted": false,
+    "deployment_authorized": false,
+    "migration_authorized": false,
+    "azure_traffic_authorized": false,
+    "normal_chat_authorized": false,
+    "member_data_authorized": false,
+    "public_use_authorized": false,
+    "separate_reviewed_authorization_required_per_action": true
+  },
+  "effects": { "provider_calls": 0, "persistence_writes": 0, "units_charged": 0 },
+  "ports": { "web": 8157, "simulator": 8158, "expo_go": 8159 },
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  }
+}

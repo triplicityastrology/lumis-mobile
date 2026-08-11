@@ -1,0 +1,16 @@
+{
+  "schema": "s2_t292_dice_v4_microsoft_decision_package_seal_v1",
+  "source_authority_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  "decision_packet_sha256": "c6e72c5917e671d0822d28184a55e211108e92680d1219ef2f9c4c7cadd6c64c",
+  "files": {
+    "config/s2-t292-dice-v4-decision-control.json": "b8beaa278dcbeb3dd8fcb4497a5d17de597569dbe2fa399a80c4c491bcbfbf2b",
+    "docs/qa/S2-T292-dice-v4-microsoft-decision-packet.md": "392abde6ae810b1f10239b666ff0cb1b65004b041898224adcd4a5e94f966851",
+    "scripts/lib/s2-t292-dice-v4-decision-packet.mjs": "b587d500ace13602372bacd26971719e3c1d612b5fbed8f09ba4ccc685564d52",
+    "scripts/s2-t292-dice-v4-decision-preflight.mjs": "4e0e6fb5eb07f334b0d655a6430eca9c0bcb637d1a47a1f0a47d60bf40768841",
+    "scripts/s2-t292-dice-v4-decision-contract.mjs": "fbf6e726f5cfbdb68c93449a2dfbcb77c7ef4b3368a473d7e5c804574782aac0",
+    "scripts/s2-t292-refresh-decision-seal.mjs": "9f2f69f3d34d7db1c9554b39b7ece686d76cd22d277cb4af8cd8dd3b2fcf64c9",
+    "supabase/tests/s2-t292-dice-v4-microsoft-decision-packet.schema.json": "5f605ef177af0c263d474d90fbe94fd2d3292c4711238130a2ca5828d66c8411"
+  }
+}

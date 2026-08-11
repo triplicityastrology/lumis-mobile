@@ -1,0 +1,15 @@
+{
+  "schema": "s2_t307_dice_deno_check_v1",
+  "runtime": "deno 2.2.7",
+  "typescript": "5.7.3",
+  "entry": "supabase/functions/dice-synthetic/index.ts",
+  "entry_sha256": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b",
+  "import_graph_module_count": 14,
+  "import_graph_sha256": "daaca3c8a64e6cee0b7ee331475875fe7fdb708c3d0cd9a768c5af4b519609fc",
+  "tokenizer": "js-tiktoken@1.0.21/o200k_base",
+  "command_mode": "check_and_info_no_remote",
+  "provider_calls": 0,
+  "remote_calls": 0,
+  "eszip_regenerated": false,
+  "eszip_limitation": "Docker unavailable; accepted historical ESZIP evidence was not relabelled as a T307 execution"
+}

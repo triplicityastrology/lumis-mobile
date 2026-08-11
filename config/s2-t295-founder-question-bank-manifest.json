@@ -1,0 +1,38 @@
+{
+  "schema": "s2_t295_founder_question_bank_manifest_v1",
+  "task": "S2-T295",
+  "branch": "codex/s2-t295-founder-question-bank",
+  "base_commit": "ba42b449bf801727a92c8fb6e757681e5c4523aa",
+  "drafts": {
+    "total": 41,
+    "en": 20,
+    "zh-Hant": 21,
+    "english_freeze_status": "locally_frozen_pending_external_review",
+    "zh-Hant_freeze_status_before_exclusion": "superseded_by_founder_decision",
+    "non_excludable_authoring_ids": ["ZH08", "ZH09"]
+  },
+  "selection_instruction": "Founder excluded ZH04; exactly 20 zh-Hant entries are selected",
+  "registry": {
+    "blocked_until_one_allowed_zh-Hant_exclusion": false,
+    "excluded_authoring_id": "ZH04",
+    "final_total": 40,
+    "final_en": 20,
+    "final_zh-Hant": 20,
+    "runtime_request_fields": ["fixture_id"],
+    "runtime_available": false
+  },
+  "ports": {
+    "web": 8163,
+    "simulator": 8164,
+    "expo_go": 8165
+  },
+  "effects": {
+    "provider_calls": 0,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  }
+}

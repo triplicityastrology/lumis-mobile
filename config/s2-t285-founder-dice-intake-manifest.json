@@ -1,0 +1,18 @@
+{
+  "schema": "s2_t285_founder_dice_intake_manifest_v1",
+  "task": "S2-T285",
+  "base_commit": "98649f346b3ffafec3dc8412f53eaea4256a8608",
+  "branch": "codex/s2-t285-founder-dice-intake",
+  "fixture_counts": { "total": 40, "en": 20, "zh-Hant": 20 },
+  "authoring": "local_text_only_then_closed_server_freeze",
+  "runtime_request_fields": ["fixture_id"],
+  "states": ["validation", "loading", "interpretation", "safety", "fallback"],
+  "effects": { "provider_calls": 0, "persistence_writes": 0, "units_charged": 0 },
+  "gates": ["accepted_technical_80_evidence", "separate_founder_window_receipt"],
+  "web": { "port": 8153, "command": "pnpm start:s2-t285-founder-dice-intake-web" },
+  "simulator": { "port": 8154, "command": "pnpm start:s2-t285-founder-dice-intake-simulator" },
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  }
+}

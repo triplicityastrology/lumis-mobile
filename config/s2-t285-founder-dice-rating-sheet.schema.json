@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t285_founder_dice_rating_sheet_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "build_sha", "intake_package_sha256", "rows"],
+  "properties": {
+    "schema_version": { "const": "s2_t285_founder_dice_rating_sheet_v1" },
+    "build_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "intake_package_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "rows": {
+      "type": "array",
+      "minItems": 40,
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fixture_id", "language", "question_sha256", "correctness", "usefulness", "tone", "astrological_sense", "translation_quality", "vagueness", "repetition", "overconfidence", "safety", "verdict"],
+        "properties": {
+          "fixture_id": { "type": "string", "pattern": "^DICE-FOUNDER-(EN|ZH)-(0[1-9]|1[0-9]|20)$" },
+          "language": { "enum": ["en", "zh-Hant"] },
+          "question_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "correctness": { "type": "null" },
+          "usefulness": { "type": "null" },
+          "tone": { "type": "null" },
+          "astrological_sense": { "type": "null" },
+          "translation_quality": { "type": "null" },
+          "vagueness": { "type": "null" },
+          "repetition": { "type": "null" },
+          "overconfidence": { "type": "null" },
+          "safety": { "type": "null" },
+          "verdict": { "const": "pending" }
+        }
+      }
+    }
+  }
+}

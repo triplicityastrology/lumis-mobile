@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t261_founder_verdict_v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["payload", "sha256"],
+  "properties": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "review_contract_version", "build_sha", "generated_from", "entries"],
+      "properties": {
+        "schema_version": { "const": "s2_t261_founder_verdict_v2" },
+        "review_contract_version": { "const": "s2_t261_founder_ai_review_v2" },
+        "build_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "generated_from": { "const": "local_founder_console" },
+        "entries": {
+          "type": "array",
+          "maxItems": 44,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fixture_id", "ratings", "verdict"],
+            "properties": {
+              "fixture_id": { "type": "string", "pattern": "^(DICE-FOUNDER-(EN|ZH)-[0-9]{2}|chat_(en|zh_hant)_[a-z0-9_]+)$" },
+              "verdict": { "enum": ["pending", "accepted", "returned"] },
+              "ratings": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["correctness", "usefulness", "tone", "astrological_sense", "translation_quality", "vagueness", "repetition", "overconfidence", "safety"],
+                "properties": {
+                  "correctness": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "usefulness": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "tone": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "astrological_sense": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "translation_quality": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "vagueness": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "repetition": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "overconfidence": { "type": "integer", "minimum": 1, "maximum": 5 },
+                  "safety": { "type": "integer", "minimum": 1, "maximum": 5 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

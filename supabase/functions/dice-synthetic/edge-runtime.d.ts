@@ -3,7 +3,7 @@ declare const Deno: {
   serve(handler: (request: Request) => Response | Promise<Response>): void;
 };
 
-declare module "npm:@supabase/supabase-js@2.52.0" {
+declare module "@supabase/supabase-js" {
   type RpcResponse = Promise<{ data: unknown; error: unknown }>;
   type Client = { rpc(name: string, parameters: Readonly<Record<string, unknown>>): RpcResponse };
   export function createClient(

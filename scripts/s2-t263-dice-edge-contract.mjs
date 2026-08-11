@@ -129,6 +129,6 @@ assert.throws(() => execFileSync(process.execPath, [
 
 const changed = execFileSync("git", ["diff", "--name-only", "083af57"], { encoding: "utf8" }).trim().split("\n").filter(Boolean).sort();
 assert(changed.length > 20);
-assert(changed.every((file) => /^(?:\.env\.example|package\.json|config\/|docs\/(?:architecture|qa)\/|scripts\/(?:lib\/)?s2-t(?:257|259|262|263|267)|supabase\/(?:functions|migrations\/0039|tests\/lumis-dice|tests\/s2-t259))/.test(file)), "T267 changed outside the Dice release boundary");
+assert(changed.every((file) => /^(?:\.env\.example|\.gitignore|package\.json|pnpm-lock\.yaml|config\/|docs\/(?:architecture|qa)\/|scripts\/(?:lib\/)?s2-t(?:257|259|262|263|267|272)|supabase\/(?:functions|migrations\/0039|tests\/lumis-dice|tests\/s2-t259))/.test(file)), "T267/T272 changed outside the Dice runtime release boundary");
 
 console.log(`S2_T267_DICE_EDGE_CONTRACT_OK files=${changed.length} provider_calls=${receipt.provider_calls}`);

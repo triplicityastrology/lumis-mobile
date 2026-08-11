@@ -46,4 +46,16 @@ for (const [input, code] of stopped) {
 
 const normalized = classifyDiceQuestionRequest({ question: "  What\r\nshould   I notice here?  " });
 assert.equal(normalized.accepted && normalized.normalized_question, "What should I notice here?");
+
+const zh08 = classifyDiceQuestionRequest({ question: "我個application 會唔會批？幾時會批？" });
+assert.equal(zh08.accepted, false);
+if (!zh08.accepted) assert.equal(zh08.code, "DICE_QUESTION_BUNDLED");
+
+const zh09 = classifyDiceQuestionRequest({ question: "我個application幾時會批？" });
+assert.equal(zh09.accepted, true);
+if (zh09.accepted) {
+  assert.equal(zh09.language, "zh-Hant");
+  assert.equal(zh09.route, "judgment");
+  assert.equal(zh09.shape, "timing");
+}
 console.log("Dice v0.3 pre-submit boundary fixtures passed");

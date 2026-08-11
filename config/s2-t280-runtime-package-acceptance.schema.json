@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t280_dice_runtime_package_acceptance_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "interface_version", "runtime_source_commit", "runtime_proof_sha256", "final_release_commit", "final_package_sha256", "deployment_receipt_sha256", "function_name", "deployment_scope", "migration_0039_in_scope", "provider_disabled_verified", "provider_calls", "model_invocations"],
+  "properties": {
+    "schema_version": { "const": "s2_t280_dice_runtime_package_acceptance_v1" },
+    "status": { "const": "accepted" },
+    "interface_version": { "const": "dice_synthetic_gateway_port_v1" },
+    "runtime_source_commit": { "const": "f5f9e9da238633d84eb8695307c573eef8f1bc96" },
+    "runtime_proof_sha256": { "const": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256" },
+    "final_release_commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "final_package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "deployment_receipt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "function_name": { "const": "dice-synthetic" },
+    "deployment_scope": { "const": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY" },
+    "migration_0039_in_scope": { "const": false },
+    "provider_disabled_verified": { "const": true },
+    "provider_calls": { "const": 0 },
+    "model_invocations": { "const": 0 }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "evidence_type": "s2_t272_dice_deno_import_graph_v1",
+  "observed_on": "2026-08-11",
+  "entrypoint": "supabase/functions/dice-synthetic/index.ts",
+  "deno_cli_version": "2.2.7",
+  "module_count": 14,
+  "external_modules": [
+    "@supabase/supabase-js@2.110.2/dist/index.d.mts",
+    "@supabase/supabase-js@2.110.2/dist/index.mjs",
+    "js-tiktoken@1.0.21/dist/index.d.ts",
+    "js-tiktoken@1.0.21/dist/index.js"
+  ],
+  "source_modules": [
+    "packages/shared/src/config/dice-question-boundary.ts",
+    "supabase/functions/_shared/azure-dice-adapter-v1.ts",
+    "supabase/functions/_shared/cors.ts",
+    "supabase/functions/_shared/dice-authority-store-v1.ts",
+    "supabase/functions/_shared/dice-synthetic-canonical-v1.ts",
+    "supabase/functions/_shared/dice-synthetic-fixture-registry-v0-3.ts",
+    "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts",
+    "supabase/functions/_shared/dice-tokenizer-v1.ts",
+    "supabase/functions/dice-synthetic/edge-handler-v1.ts",
+    "supabase/functions/dice-synthetic/index.ts"
+  ],
+  "raw_graph_sha256": "16e7248056634c0fc5d47c63cccb5eca9e892f92c3c3512e4632aba5cfae0c8b",
+  "raw_graph_retained": false
+}

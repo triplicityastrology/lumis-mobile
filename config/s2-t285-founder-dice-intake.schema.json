@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t285_founder_dice_intake_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "build_sha", "registry_interface", "registry_checksum", "fixture_total", "language_totals", "runtime_request_fields", "authority_required", "fixtures", "effects"],
+  "properties": {
+    "schema_version": { "const": "s2_t285_founder_dice_intake_v1" },
+    "build_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "registry_interface": { "const": "dice-synthetic-registry-v0.3.0" },
+    "registry_checksum": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fixture_total": { "const": 40 },
+    "language_totals": { "type": "object", "additionalProperties": false, "required": ["en", "zh-Hant"], "properties": { "en": { "const": 20 }, "zh-Hant": { "const": 20 } } },
+    "runtime_request_fields": { "const": ["fixture_id"] },
+    "authority_required": { "type": "object", "additionalProperties": false, "required": ["accepted_technical_80_evidence", "separate_founder_window_receipt"], "properties": { "accepted_technical_80_evidence": { "const": true }, "separate_founder_window_receipt": { "const": true } } },
+    "fixtures": { "type": "array", "minItems": 40, "maxItems": 40, "items": { "type": "object", "additionalProperties": false, "required": ["fixture_id", "language", "question", "question_sha256", "expected_route", "review_status"], "properties": { "fixture_id": { "type": "string", "pattern": "^DICE-FOUNDER-(EN|ZH)-(0[1-9]|1[0-9]|20)$" }, "language": { "enum": ["en", "zh-Hant"] }, "question": { "type": "string", "minLength": 8, "maxLength": 280 }, "question_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "expected_route": { "enum": ["judgment", "descriptive_reflection"] }, "review_status": { "const": "locally_frozen_pending_review" } } } },
+    "effects": { "type": "object", "additionalProperties": false, "required": ["provider_calls", "persistence_writes", "units_charged"], "properties": { "provider_calls": { "const": 0 }, "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 } } }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t287_dice_rollback_receipt_v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "deployment_id", "source_commit", "function_disabled", "function_removed_or_previous_restored", "restored_revision", "migration_0039_unchanged", "provider_calls", "model_invocations", "normal_chat_unchanged", "credentials_unset"],
+  "properties": {
+    "schema": { "const": "s2_t287_dice_rollback_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "function_name": { "const": "dice-synthetic" },
+    "deployment_id": { "type": "string", "pattern": "^dice-deploy-[a-z0-9]{16,40}$" },
+    "source_commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "function_disabled": { "const": true }, "function_removed_or_previous_restored": { "const": true },
+    "restored_revision": { "type": "string", "pattern": "^[a-zA-Z0-9._:-]{1,120}$" },
+    "migration_0039_unchanged": { "const": true }, "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 },
+    "normal_chat_unchanged": { "const": true }, "credentials_unset": { "const": true }
+  }
+}

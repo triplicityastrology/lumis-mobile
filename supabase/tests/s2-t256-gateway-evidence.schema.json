@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "founder_ai_gateway_evidence_v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fixture_id", "gateway", "language", "state", "expected_class", "result_class", "safe_rendered_output", "latency_bucket", "input_token_bucket", "output_token_bucket", "attempt_count", "retry_class", "effects", "technical_acceptance"],
+  "properties": {
+    "schema_version": { "const": "founder_ai_gateway_evidence_v2" },
+    "fixture_id": { "type": "string", "pattern": "^DICE-FOUNDER-(EN|ZH)-(0[1-9]|1[0-9]|20)$" },
+    "gateway": { "const": "dice" },
+    "language": { "enum": ["en", "zh-Hant"] },
+    "state": { "const": "live_synthetic" },
+    "expected_class": { "enum": ["judgment", "descriptive", "safety", "fallback", "technical_error"] },
+    "result_class": { "enum": ["not_run", "completed", "safety_redirect", "fixed_fallback", "technical_error"] },
+    "safe_rendered_output": { "type": ["string", "null"], "maxLength": 1200 },
+    "latency_bucket": { "enum": ["not_run", "under_3s", "3_to_8s", "8_to_12s", "timeout"] },
+    "input_token_bucket": { "enum": ["not_run", "0_to_400", "401_to_800", "801_to_1200"] },
+    "output_token_bucket": { "enum": ["not_run", "0_to_150", "151_to_300"] },
+    "attempt_count": { "enum": [0, 1, 2] },
+    "retry_class": { "enum": ["none", "eligible_once", "retried_once", "not_eligible"] },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_calls", "persistence_writes", "units_charged"],
+      "properties": {
+        "provider_calls": { "enum": [0, 1, 2] },
+        "persistence_writes": { "const": 0 },
+        "units_charged": { "const": 0 }
+      }
+    },
+    "technical_acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "registry_checksum", "evidence_sha256"],
+      "properties": {
+        "schema_version": { "const": "dice_technical_evidence_acceptance_v1" },
+        "status": { "const": "accepted" },
+        "registry_checksum": { "const": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030" },
+        "evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/founder-ai-review-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/dev/founderAiReviewContract.ts",
+    "src/dev/founderAiReviewContract.fixtures.ts",
+    "src/dev/founderDiceE2eContract.ts",
+    "src/dev/founderDiceE2eContract.fixtures.ts",
+    "src/dev/founderDiceWindowContract.ts",
+    "src/dev/founderDiceWindowContract.fixtures.ts",
+    "src/dev/founderDiceV4WindowContract.ts",
+    "src/dev/founderDiceV4WindowContract.fixtures.ts",
+    "src/dev/founderDiceIntakeContract.ts",
+    "src/dev/founderDiceIntakeContract.fixtures.ts",
+    "src/dev/founderDiceQuestionBank.ts",
+    "src/dev/founderDiceQuestionBank.fixtures.ts"
+  ]
+}

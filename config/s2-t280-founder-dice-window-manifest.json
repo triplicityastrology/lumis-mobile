@@ -1,0 +1,61 @@
+{
+  "schema": "s2_t280_founder_dice_window_manifest_v1",
+  "task": "S2-T280",
+  "branch": "codex/s2-t280-founder-dice-window-final",
+  "base_commit": "e85c150678483620c1bbd0cc534210401f364ebf",
+  "stable_interfaces": {
+    "gateway": "dice_synthetic_gateway_port_v1",
+    "runtime_acceptance": "s2_t280_dice_runtime_package_acceptance_v1",
+    "technical_evidence_acceptance": "s2_t280_dice_technical_evidence_acceptance_v1",
+    "founder_authorization_receipt": "s2_t280_founder_window_authorization_receipt_v1",
+    "runtime_request_fields": ["fixture_id"]
+  },
+  "completed_authority": {
+    "t272_runtime_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+    "t272_runtime_proof_sha256": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+    "t274_ledger_proof_receipt_sha256": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e",
+    "technical_registry_checksum": "43cccc009f15a43c1801bd090234540e474a6cb20a1a48aa3a3bcd9b86a1a030"
+  },
+  "founder_window": {
+    "fixtures": 40,
+    "language_counts": { "en": 20, "zh-Hant": 20 },
+    "scope": "DICE_FOUNDER_SYNTHETIC_WINDOW_40_ONLY",
+    "accepted_runtime_envelope_checked_in": false,
+    "accepted_technical_evidence_checked_in": false,
+    "accepted_founder_authorization_checked_in": false,
+    "accepted_execution_evidence_checked_in": false,
+    "default_state": "not_yet_run"
+  },
+  "journey": [
+    "import_accepted_final_runtime_package",
+    "import_accepted_80_case_technical_evidence",
+    "freeze_exactly_40_founder_fixtures",
+    "prepare_checksum_authorization_request",
+    "import_separately_accepted_founder_window_receipt",
+    "later_fixture_id_only_invocation",
+    "verify_interpretation_rate_export_verdict",
+    "verify_post_window_disabled"
+  ],
+  "effects": {
+    "provider_calls": 0,
+    "member_data": 0,
+    "history_reads": 0,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "web": {
+    "port": 8147,
+    "command": "pnpm start:s2-t280-founder-dice-web",
+    "mode": "prelogin_dev_exact_build"
+  },
+  "simulator": {
+    "port": 8148,
+    "command": "pnpm start:s2-t280-founder-dice-simulator",
+    "mode": "prelogin_dev_exact_build"
+  },
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "rollback": "git revert <S2-T280-commit>"
+}

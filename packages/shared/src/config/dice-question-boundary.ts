@@ -69,7 +69,7 @@ export function classifyDiceQuestionRequest(input: unknown): DiceQuestionDecisio
     /(自殺|自殘|緊急危險|立即危險)/u
   ])) return stopped("DICE_QUESTION_SAFETY_ROUTE_REQUIRED");
   if (matchesAny(lowered, [
-    /\b(diagnos(?:e|is)|treatment|medication|medicine|legal advice|lawsuit|invest|stock|financial advice)\b/u,
+    /\b(diagnos(?:e|is)|treatment|medication|legal advice|lawsuit|invest|stock|financial advice)\b/u,
     /(診斷|治療|藥物|法律意見|訴訟|投資建議|股票)/u
   ])) return stopped("DICE_QUESTION_PROFESSIONAL_ROUTE_REQUIRED");
   if (matchesAny(lowered, [

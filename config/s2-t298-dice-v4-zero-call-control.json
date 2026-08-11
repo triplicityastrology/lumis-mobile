@@ -1,0 +1,59 @@
+{
+  "schema": "s2_t298_dice_v4_zero_call_control_v1",
+  "status": "WAITING_FOR_SEPARATE_MICROSOFT_V4_DEPLOYMENT_AUTHORIZATION",
+  "next_decision": "AUTHORIZE_DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "base_commit": "f1288d6159d23317f6f4db05bcf194bc93af65d6",
+  "canonical_deployment_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  "authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
+  "authorization_window_seconds": 900,
+  "clock_policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
+  "signature_algorithm": "Ed25519",
+  "single_use": true,
+  "protected_dice_product_sources": {
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6",
+    "apps/mobile/src/screens/LumisDiceScreen.tsx": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac"
+  },
+  "configuration_names": [
+    "LUMIS_DICE_AI_ENABLED",
+    "LUMIS_DICE_TRAFFIC_AUTHORIZED",
+    "LUMIS_DICE_AZURE_API_KEY",
+    "LUMIS_DICE_AUTHORITY_HMAC_SECRET",
+    "LUMIS_DICE_DEPLOYMENT_ALIAS",
+    "LUMIS_DICE_MODEL",
+    "LUMIS_DICE_MODEL_VERSION",
+    "LUMIS_DICE_DEPLOYMENT_TYPE",
+    "LUMIS_DICE_UPGRADE_POLICY",
+    "LUMIS_DICE_GUARDRAIL",
+    "LUMIS_DICE_TPM_LIMIT",
+    "LUMIS_DICE_RPM_LIMIT",
+    "LUMIS_DICE_FOUNDRY_HOSTNAME",
+    "LUMIS_DICE_FOUNDRY_PROTOCOL",
+    "LUMIS_DICE_API_ROUTE_FAMILY"
+  ],
+  "disabled_probes": [
+    "unknown_fixture",
+    "free_form_body",
+    "normal_mobile_body",
+    "allow_listed_fixture"
+  ],
+  "expected_disabled_result": "DICE_AI_DISABLED",
+  "post_deploy": {
+    "schema": "s2_t298_dice_v4_zero_call_post_deploy_receipt_v1",
+    "kill_switch_value": false,
+    "traffic_switch_value": false,
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "migration_0039_applied": false,
+    "normal_chat_unchanged": true,
+    "credentials_unset": true
+  },
+  "rollback_target": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED",
+  "remote_calls_in_preflight": 0,
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}
