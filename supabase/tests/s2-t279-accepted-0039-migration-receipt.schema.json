@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t279_accepted_dice_0039_migration_receipt_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_ref", "migration_version", "migration_name", "migration_sha256", "ledger_contract_commit", "local_proof_schema_sha256", "local_proof_receipt_sha256", "applied", "parity_verified", "rpc_rls_verified", "metadata_only_verified", "provider_calls", "issued_at", "expires_at"],
+  "properties": {
+    "schema": { "const": "s2_t279_accepted_dice_0039_migration_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "migration_version": { "const": "0039" },
+    "migration_name": { "const": "dice_synthetic_authority_ledger" },
+    "migration_sha256": { "const": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610" },
+    "ledger_contract_commit": { "const": "5db1b0e34e5c3e34933e8c68f8481e192bcc62ce" },
+    "local_proof_schema_sha256": { "const": "0f937c1bb836dafe2fecc2e745e42d2b13e1d75fd62d5d238da17ab0c649a74d" },
+    "local_proof_receipt_sha256": { "const": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e" },
+    "applied": { "const": true },
+    "parity_verified": { "const": true },
+    "rpc_rls_verified": { "const": true },
+    "metadata_only_verified": { "const": true },
+    "provider_calls": { "const": 0 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" }
+  }
+}

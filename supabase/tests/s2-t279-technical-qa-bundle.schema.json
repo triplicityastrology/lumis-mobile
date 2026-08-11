@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t279_dice_technical_qa_bundle_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_class", "grants_remote_authority", "runtime_commit", "runtime_package_sha256", "gateway_package_sha256", "ledger_proof_receipt_sha256", "evidence_sha256", "technical_cases", "founder_cases", "language", "attempts", "concurrency_peak", "provider_disabled_verified", "provider_calls_remote", "local_protocol_attempts", "network_calls", "effects"],
+  "properties": {
+    "schema": { "const": "s2_t279_dice_technical_qa_bundle_v1" },
+    "evidence_class": { "const": "local_zero_network_emulator_only" },
+    "grants_remote_authority": { "const": false },
+    "runtime_commit": { "const": "f5f9e9da238633d84eb8695307c573eef8f1bc96" },
+    "runtime_package_sha256": { "const": "f47b7a825dda6ee2a9fba0e269a8e1f7d1f94e96732a9445fa32e6a6fa9c98a5" },
+    "gateway_package_sha256": { "const": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" },
+    "ledger_proof_receipt_sha256": { "const": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e" },
+    "evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "technical_cases": { "const": 80 },
+    "founder_cases": { "const": 0 },
+    "language": { "type": "object" },
+    "attempts": { "type": "integer", "minimum": 0, "maximum": 160 },
+    "concurrency_peak": { "type": "integer", "maximum": 2 },
+    "provider_disabled_verified": { "const": true },
+    "provider_calls_remote": { "const": 0 },
+    "local_protocol_attempts": { "type": "integer", "minimum": 0, "maximum": 160 },
+    "network_calls": { "const": 0 },
+    "effects": { "type": "object" }
+  }
+}

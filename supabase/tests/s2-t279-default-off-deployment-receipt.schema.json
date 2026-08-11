@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t279_accepted_default_off_deployment_receipt_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "deployment_id", "runtime_commit", "runtime_package_sha256", "gateway_package_sha256", "provider_calls", "model_invocations", "disabled_verified", "issued_at", "expires_at"],
+  "properties": {
+    "schema": { "const": "s2_t279_accepted_default_off_deployment_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "dice-synthetic" },
+    "deployment_id": { "type": "string", "pattern": "^dice-deploy-[a-z0-9]{16,40}$" },
+    "runtime_commit": { "const": "f5f9e9da238633d84eb8695307c573eef8f1bc96" },
+    "runtime_package_sha256": { "const": "f47b7a825dda6ee2a9fba0e269a8e1f7d1f94e96732a9445fa32e6a6fa9c98a5" },
+    "gateway_package_sha256": { "const": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" },
+    "provider_calls": { "const": 0 },
+    "model_invocations": { "const": 0 },
+    "disabled_verified": { "const": true },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t279_dice_technical_traffic_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authorization_scope", "single_use_run_id", "deployment_id", "migration_version", "runtime_commit", "runtime_package_sha256", "gateway_package_sha256", "ledger_proof_receipt_sha256", "technical_cases", "language", "founder_cases", "attempt_cap", "concurrency", "eligible_retries", "shared_deadline_ms", "cost_ceiling_usd", "issued_at", "valid_until", "microsoft_review", "gateway_authorization"],
+  "properties": {
+    "schema": { "const": "s2_t279_dice_technical_traffic_authorization_v1" },
+    "authorization_scope": { "const": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" },
+    "single_use_run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,40}$" },
+    "deployment_id": { "type": "string", "pattern": "^dice-deploy-[a-z0-9]{16,40}$" },
+    "migration_version": { "const": "0039" },
+    "runtime_commit": { "const": "f5f9e9da238633d84eb8695307c573eef8f1bc96" },
+    "runtime_package_sha256": { "const": "f47b7a825dda6ee2a9fba0e269a8e1f7d1f94e96732a9445fa32e6a6fa9c98a5" },
+    "gateway_package_sha256": { "const": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" },
+    "ledger_proof_receipt_sha256": { "const": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e" },
+    "technical_cases": { "const": 80 },
+    "language": { "type": "object", "additionalProperties": false, "required": ["en", "zh-Hant"], "properties": { "en": { "const": 40 }, "zh-Hant": { "const": 40 } } },
+    "founder_cases": { "const": 0 },
+    "attempt_cap": { "const": 160 },
+    "concurrency": { "const": 2 },
+    "eligible_retries": { "const": 1 },
+    "shared_deadline_ms": { "const": 12000 },
+    "cost_ceiling_usd": { "const": 0.128 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "microsoft_review": { "const": "accepted" },
+    "gateway_authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "interface_version", "authorization_scope", "single_use_run_id", "issued_at", "valid_until", "gateway_package_sha256", "fixture_registry_sha256", "technical_case_count", "founder_execution", "authorization_hmac_sha256"],
+      "properties": {
+        "schema": { "const": "lumis_dice_default_off_deployment_authorization_v2" },
+        "interface_version": { "const": "dice_synthetic_gateway_port_v1" },
+        "authorization_scope": { "const": "technical_80_only" },
+        "single_use_run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,40}$" },
+        "issued_at": { "type": "string", "format": "date-time" },
+        "valid_until": { "type": "string", "format": "date-time" },
+        "gateway_package_sha256": { "const": "3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba" },
+        "fixture_registry_sha256": { "const": "200cd67c782e0f29038c7cc373d1f749fc790363188d3e5da62d8040ef0e3c62" },
+        "technical_case_count": { "const": 80 },
+        "founder_execution": { "const": false },
+        "authorization_hmac_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

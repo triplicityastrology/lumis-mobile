@@ -1,0 +1,25 @@
+{
+  "schema": "s2_t279_dice_technical_window_manifest_v1",
+  "task": "S2-T279",
+  "base_commit": "1433a4168ab57a4e8b5f010a022e7cfe91f691dc",
+  "runtime_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+  "runtime_package_sha256": "f47b7a825dda6ee2a9fba0e269a8e1f7d1f94e96732a9445fa32e6a6fa9c98a5",
+  "ledger_proof_commit": "5db1b0e34e5c3e34933e8c68f8481e192bcc62ce",
+  "ledger_proof_receipt_sha256": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e",
+  "package_sha256": "374fc21fbba8f20f4f9b452876f25996d8d58def2b18e6dc2bb060386b1555c5",
+  "mode": "inert_without_deployment_migration_and_traffic_receipts",
+  "files": {
+    "config/evidence/s2-t274-dice-postgres17-proof-receipt.json": "4b10620285c08a16688bfa5f8dd85912ce6a4ee6d7cff13c8a17f2ce13da2f9e",
+    "config/s2-t279-dice-technical-window-final.json": "0380876bdf4e62c3aa9eddbeeb0df5e01e9688d9345cb10e8e033081c3750def",
+    "scripts/lib/s2-t279-dice-technical-window.mjs": "829f2522cf940f562c784353ebd02f1359409d31796debcc3d150601a09917f8",
+    "scripts/s2-t279-dice-technical-authorization-request.mjs": "2a1ef0066a40a392456681001d4f23219a25b26501d9f2efee0deaa202c60be7",
+    "scripts/s2-t279-dice-technical-window-emulator.mjs": "f704bba08ccbb7fd3f12f1a6f4657f809a67498a0869a68084903ad7eff0309c",
+    "scripts/s2-t279-dice-technical-window.mjs": "f327a099a55069c85bfb7aa2659a1772f22c79fc5f00be4396d29f9edcf82b7a",
+    "supabase/tests/s2-t279-accepted-0039-migration-receipt.schema.json": "597529daf9cdd088329050dca541d5aa9c7888eb09b33c81522c746ad75620cb",
+    "supabase/tests/s2-t279-default-off-deployment-receipt.schema.json": "29dbc3f0102e12098eb684b0e1ddb3082373b64befe894e7a8f76c7023eecad7",
+    "supabase/tests/s2-t279-dice-technical-evidence-package.schema.json": "c427e67abd788d02544e2f810bae433bbcd3e4dc42aacfc4ae77a4ffdcc65a1d",
+    "supabase/tests/s2-t279-dice-technical-traffic-authorization.schema.json": "74d4aed0388bd0a2349cb5bc8e70f86b07d52a033dd415def765f4b5e39e3e4b",
+    "supabase/tests/s2-t279-technical-qa-bundle.schema.json": "9836deea76d54d2e0c5d95bef0f35d622ef1a1fc5cf6fa44c98dd10429e464f9"
+  },
+  "authority_status": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"]
+}

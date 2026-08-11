@@ -1,0 +1,36 @@
+{
+  "schema": "s2_t274_dice_postgres17_proof_receipt_v1",
+  "status": "LOCAL_POSTGRES17_PROOF_PASSED",
+  "runtime": {
+    "engine": "docker",
+    "postgres_version": "17.6",
+    "image": "public.ecr.aws/supabase/postgres@sha256:80d7b27c3e8d77cfa7226eee9508671796da214781ff15a35b3670d7ad5ee453",
+    "network": "none"
+  },
+  "sources": {
+    "migration_0039_sha256": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
+    "gateway_sha256": "2b80bbcade9671e01791076f11bb79586b49a0b5e4ab96e6d8967ba46ca8c969",
+    "canonical_limits_sha256": "c22c4f24d49059100af82e6217f702c1128c014552e019a2aafbd52ec1d623af",
+    "technical_registry_sha256": "00ba2d0c9ff60825ba9fbc285d64bf7179e62da8e305480ad3e45612d6d4de0b"
+  },
+  "assertions": {
+    "migration_rehearsal_rollback": true,
+    "service_role_only_claim": true,
+    "single_use_run_claim": true,
+    "cross_session_replay_rejected": true,
+    "concurrent_claim_converged": true,
+    "expired_future_and_overlong_authority_rejected": true,
+    "source_bound_technical_registry_exactly_80": true,
+    "source_bound_attempt_cap_exactly_160": true,
+    "forced_rls_and_grants": true,
+    "metadata_only_shape": true,
+    "retention_30_days_and_purge": true,
+    "cleanup_zero_residue": true
+  },
+  "remote_database_used": false,
+  "provider_calls": 0,
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}
