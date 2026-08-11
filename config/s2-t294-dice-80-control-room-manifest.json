@@ -1,0 +1,27 @@
+{
+  "schema": "s2_t294_dice_80_control_room_manifest_v1",
+  "base_commit": "4b2c8c7578773b59b04d4e44ef4ca2dc57b7555f",
+  "package_sha256": "f72a417f25651e4540e69183853b77ece0194a7dfe02700bb30a7611355ee6dd",
+  "execution_mode": "inert_without_three_independently_accepted_receipts",
+  "local_rehearsal_is_live_proof": false,
+  "files": {
+    "apps/mobile/index.ts": "ebe7011eede0759852f9856ea7392e1cfc6ee6ff24221af9bd3a3ed9d83eb3cd",
+    "apps/mobile/src/dev/FounderDiceTechnicalControlRoom.tsx": "d6ca4225a0aa94585016df2cb0605469b1e89d59ce207fc3b743123c1d07b419",
+    "apps/mobile/src/dev/diceTechnicalControlRoomFixture.ts": "a4001e18a6e0402f69b93f0e2d80471651da5fa30376b1f1699d75cc88cdfe8b",
+    "apps/mobile/src/types/env.d.ts": "c097cc8cf8f45b1dfe16d24dc0c3df36dfcd4a92563dd349c87917f517915938",
+    "config/s2-t294-dice-80-control-room.json": "6d3e3c359bb1430499597bd996423c1bc3d98f6d02a93144059206b129cee725",
+    "docs/qa/S2-T294-dice-technical-control-room.md": "a191580acb99f37a9aaf7e3e2cbeeb1f8f81aa586b084bfeac25ec7e90235ff4",
+    "package.json": "af507a32b64d4df075713685adbca5c6d3d4b292b80c902b18e23036e597fb87",
+    "scripts/lib/s2-t294-dice-control-room.mjs": "f0bc856041616c1703a097de7c29c971f61039f51500c4ed87c6de2e074aacfc",
+    "scripts/s2-t294-dice-control-room.mjs": "a8e8a9a22097ead28c0b685885f1bc5e5707fcf7e30b0585f75a7f9f0f48c9ea",
+    "scripts/s2-t294-dice-control-room-emulator.mjs": "9ee67705680bbdc4dfed81341fdfa8816b6b6fda20de70432dbc8e0285ceab81",
+    "scripts/s2-t294-dice-control-room-contract.mjs": "295ef579a38560c93f14f225337a4029e78a4ac86fed30800c8b66399e72ac52",
+    "scripts/start-s2-t294-dice-control-room-web.sh": "aaea99b582990b4008d0588e879562b51fcf298b04525d350e832633c6cec913",
+    "supabase/tests/s2-t294-run-journal.schema.json": "d940fe66e3a489e7254e11125d11c9c9b4be21d9693a92d755ae777338b0f534",
+    "supabase/tests/s2-t294-redacted-review.schema.json": "953b3023497390cb774ceb1544849c9b7e3d70ba3ca42269892183d047743397"
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

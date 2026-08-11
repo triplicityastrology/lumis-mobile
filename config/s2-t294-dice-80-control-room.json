@@ -1,0 +1,36 @@
+{
+  "schema": "s2_t294_dice_80_control_room_v1",
+  "task": "S2-T294",
+  "base_commit": "4b2c8c7578773b59b04d4e44ef4ca2dc57b7555f",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "migration_proof_receipt_sha256": "0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e",
+  "registry_path": "config/s2-t289-dice-technical-registry-v1.json",
+  "receipt_order": [
+    "accepted_v4_post_deploy_disabled_receipt",
+    "accepted_0039_migration_receipt",
+    "accepted_DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY_receipt"
+  ],
+  "limits": {
+    "technical_cases": 80,
+    "en": 40,
+    "zh_hant": 40,
+    "founder_cases": 0,
+    "attempts": 160,
+    "concurrency": 2,
+    "eligible_retries": 1,
+    "shared_deadline_ms": 12000,
+    "input_tokens": 800,
+    "output_tokens": 300,
+    "cost_ceiling_usd": 0.128,
+    "input_price_usd_per_1m_tokens": 0.25,
+    "output_price_usd_per_1m_tokens": 2.0
+  },
+  "resume_policy": "never_repeat_dispatched_or_completed_provider_attempts",
+  "kill_policy": "stop_new_dispatch_then_disable_in_finally_and_verify_disabled",
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

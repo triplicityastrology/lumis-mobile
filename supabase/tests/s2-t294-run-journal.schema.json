@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t294_dice_technical_run_journal_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "state", "created_at", "updated_at", "kill_requested", "provider_disabled_verified", "records"],
+  "properties": {
+    "schema": { "const": "s2_t294_dice_technical_run_journal_v1" },
+    "run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,40}$" },
+    "state": { "enum": ["ready", "running", "stopped", "completed", "needs_review"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "kill_requested": { "type": "boolean" },
+    "provider_disabled_verified": { "type": "boolean" },
+    "records": { "type": "array", "minItems": 80, "maxItems": 80 }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t294_dice_technical_redacted_review_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "evidence_class", "live_azure_proof", "run_id", "status", "summary", "rows"],
+  "properties": {
+    "schema": { "const": "s2_t294_dice_technical_redacted_review_v1" },
+    "evidence_class": { "const": "local_zero_network_rehearsal_only" },
+    "live_azure_proof": { "const": false },
+    "run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,40}$" },
+    "status": { "enum": ["ready", "running", "stopped", "completed", "needs_review"] },
+    "summary": { "type": "object" },
+    "rows": { "type": "array", "minItems": 80, "maxItems": 80 }
+  }
+}
