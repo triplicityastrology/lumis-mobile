@@ -1,0 +1,29 @@
+{
+  "schema": "s2_t302_dice_live_result_adapter_control_v1",
+  "status": "SOURCE_READY_UI_SLOT_NOT_AUTHORIZED",
+  "base_commit": "1bf07f1769d67777792cfa3b27d150e738339a02",
+  "authority": {
+    "canonical_v4_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
+    "decision_packet_commit": "f1288d6159d23317f6f4db05bcf194bc93af65d6",
+    "zero_call_commit": "69c3de399acf3fa9ec746deaeb7a1880128955ca",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+    "authorization_package_sha256": "53f5cbc0552a30016c8b6c8fb827740bbafcdedd1a36146092fd469b11ba7799",
+    "zero_call_package_sha256": "17251a9155750cb6c788426a84d4ea3e434cd478a3cdd0032b8bd333b1931bca"
+  },
+  "protected_product_sources": {
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": {
+      "git_blob": "33ca100bf56f91ef0de4d8688927953988e73bcc",
+      "sha256": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6"
+    },
+    "apps/mobile/src/screens/LumisDiceScreen.tsx": {
+      "git_blob": "6968d574639537faeb150b508e5a1d72bfa1e275",
+      "sha256": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac"
+    }
+  },
+  "mobile_request_fields": ["fixture_id"],
+  "states": ["disabled", "validation", "loading", "interpretation", "safety", "fallback", "retry"],
+  "provider_calls_default": 0,
+  "remote_calls": 0,
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}

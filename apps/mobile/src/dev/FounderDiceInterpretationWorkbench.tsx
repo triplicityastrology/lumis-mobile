@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CelestialBackground } from "../components/CelestialBackground";
 import { DiceRitualScreen } from "../features/dice/DiceRitualScreen";
+import { createDiceLiveResultAdapter } from "../services/diceLiveResultAdapter";
 import { colors, radii, spacing } from "../theme/tokens";
 import { FOUNDER_ENGLISH_DRAFTS, FOUNDER_EXCLUDED_ZH_AUTHORING_ID, FOUNDER_ZH_HANT_DRAFTS } from "./founderDiceQuestionBank";
 
@@ -54,10 +55,14 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
     setInterpretation(null);
   };
 
-  const handleInterpretationBoundary = () => {
+  const handleInterpretationBoundary = async () => {
     setExternalState((current) => ({ ...current, title: "Preparing interpretation", detail: "Zero-network local boundary check. The product screen remains unchanged." }));
-    setExternalState((current) => ({ ...current, title: "Interpretation interface not authorized", detail: "The signed-off Dice screen has no approved AI-response slot. Integration stops here instead of changing customer pixels." }));
-    setInterpretation("SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED");
+    const state = await createDiceLiveResultAdapter({ ai_enabled: false, traffic_authorized: false, authority: null }).request({
+      fixture_id: selected.id === "zh09" ? "dice-founder-zh-09" : "dice-founder-en-01",
+      question: selected.question || "What should I notice about this situation?",
+    });
+    setExternalState((current) => ({ ...current, title: "Interpretation interface not authorized", detail: "The signed-off Dice screen has no approved AI-response slot. The adapter remains disabled outside customer pixels." }));
+    setInterpretation(state.kind === "disabled" ? `${state.code} · SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED` : "SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED");
   };
 
   return (
