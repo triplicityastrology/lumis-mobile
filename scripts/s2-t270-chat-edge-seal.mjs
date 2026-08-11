@@ -40,7 +40,10 @@ const manifest = {
   migration: "0040_chat_synthetic_authority_ledger.sql",
   tokenizer: { name: "o200k_base", package: "js-tiktoken", version: "1.0.21", deno_specifier: "npm:js-tiktoken@1.0.21" },
   accepted_t240_schema_sha256: "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
-  accepted_dice_gateway_package_sha256: "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71",
+  accepted_dice_runtime_commit: "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+  accepted_dice_runtime_control_sha256: "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
+  accepted_dice_runtime_proof_sha256: "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+  accepted_dice_technical_authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
   azure: {
     deployment_alias: "lumis-ai-chat-stg", model: "gpt-5-mini", model_version: "2025-08-07",
     deployment_type: "GlobalStandard", upgrade_policy: "NoAutoUpgrade", guardrail: "Microsoft.DefaultV2",

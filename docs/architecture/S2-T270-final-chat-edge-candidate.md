@@ -16,7 +16,9 @@ Azure clients. No deployment, migration, credential use, or provider call was ma
 1. Microsoft accepts the exact package binding in
    `config/s2-t270-chat-edge-final.json`.
 2. Accepted Dice evidence must bind package
-   `adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71`
+   T272 runtime commit `f5f9e9da238633d84eb8695307c573eef8f1bc96`,
+   its exact control/proof digests, and the separately accepted
+   `DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY` evidence envelope
    and record 80 Technical cases, 40 EN and 40 zh-Hant, zero Founder cases,
    provider disabled afterward, zero persistence, and zero units.
 3. A separate single-use Chat authority binds that evidence, the exact gateway,

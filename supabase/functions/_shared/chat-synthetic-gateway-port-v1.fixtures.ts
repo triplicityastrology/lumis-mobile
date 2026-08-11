@@ -19,13 +19,16 @@ const SHA_B = "b".repeat(64);
 const SHA_C = "c".repeat(64);
 const SHA_D = "d".repeat(64);
 const NOW = Date.parse("2026-08-09T12:00:00.000Z");
-const DICE_PACKAGE_SHA = "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71";
+const DICE_RUNTIME_COMMIT = "f5f9e9da238633d84eb8695307c573eef8f1bc96";
 
 function evidence(overrides: Record<string, unknown> = {}) {
   return {
-    schema: "lumis_dice_technical_window_acceptance_v1",
+    schema: "lumis_dice_technical_window_acceptance_v2",
     review_decision: "accepted",
-    dice_gateway_package_sha256: DICE_PACKAGE_SHA,
+    runtime_source_commit: DICE_RUNTIME_COMMIT,
+    runtime_control_sha256: "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
+    runtime_proof_sha256: "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+    technical_window_authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
     technical_evidence_package_sha256: SHA_C,
     logical_total: 80,
     en: 40,

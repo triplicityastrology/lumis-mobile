@@ -19,7 +19,10 @@
     "deno_specifier": "npm:js-tiktoken@1.0.21"
   },
   "accepted_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
-  "accepted_dice_gateway_package_sha256": "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71",
+  "accepted_dice_runtime_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+  "accepted_dice_runtime_control_sha256": "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
+  "accepted_dice_runtime_proof_sha256": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+  "accepted_dice_technical_authority": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
   "azure": {
     "deployment_alias": "lumis-ai-chat-stg",
     "model": "gpt-5-mini",
@@ -60,9 +63,9 @@
     "config/evidence/s2-t265-sanitized-api-route-family-v1.json": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e",
     "config/evidence/s2-t265-sanitized-pricing-v1.json": "8d8a3d9b155d950ea76f23808f4eec6b507de8a02203d233522c3583f22e799b",
     "supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts": "29433b8c38c93645f68a45ba66b2cd8ec9442a9640d6e87b3ee5513282e9fc96",
-    "supabase/functions/_shared/chat-synthetic-gateway-port-v1.ts": "59f7cf4e612c9125a0e5afdb03e1bb706788c2a6f1c1316f2da5b02eb62c9dc0",
+    "supabase/functions/_shared/chat-synthetic-gateway-port-v1.ts": "edc4ead49b6bec0cd2393d2ad367e837b76c0ac4b052bad5fbae1f20199ceea0",
     "supabase/functions/_shared/chat-synthetic-gateway-v1.ts": "61cdcb987814d198b8ba6025596778fe442fb44d36e5f745e45b81847f23ad3a",
-    "supabase/functions/_shared/chat-synthetic-integrated-authorization-v1.ts": "29848054b484c156abbe5f724983ba10afb503f48377f440409cf89f0cd31eaa",
+    "supabase/functions/_shared/chat-synthetic-integrated-authorization-v1.ts": "adbb4073d0acd8bd3a490f80e91d1186782886f31b1f1342f2d62065b9725534",
     "supabase/functions/_shared/chat-synthetic-postgres-authority-store-v1.ts": "ceff8eea3f9bc7ab952ac73e05faec2bf1da91e3d91ac722c7f4b7e5a0a4aeda",
     "supabase/functions/_shared/chat-synthetic-registry-v1.ts": "6930941fc52e6d4efb91646bbb4a829909f06b973e508b047e7a81115b44575c",
     "supabase/functions/_shared/chat-tokenizer-v1.ts": "fb132bc98f0f5d466e3f2fa75b7df8e18d963c1ef2f411721a88cc2f1e584903",
@@ -73,7 +76,7 @@
     "supabase/migrations/0040_chat_synthetic_authority_ledger.sql": "5b8e14c3e10081b9175ffbceadbc0890d58863241ba772d0fc874d75f4c1a0a0",
     "supabase/tests/s2-t193-normal-chat-contract-v1.schema.json": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
     "supabase/tests/s2-t265-chat-authorization.schema.json": "b90dea5b8dec67e4df104a3d6777b48acd74aef3fd2799d60ebb360ad88e80d3",
-    "supabase/tests/s2-t270-accepted-dice-technical-evidence.schema.json": "7b980088a990fd0562f773cd06b17dec176f50cf9b48a09aeba737b94146aad6"
+    "supabase/tests/s2-t270-accepted-dice-technical-evidence.schema.json": "3d4b859c2188072bc79e4bd380c183995593d5e6941ae539ae07dd9711dd44d6"
   },
-  "package_binding_sha256": "6cc82347467eaf30a9095dae9bd94139d7e1799f9fad9d1b543527b880586f42"
+  "package_binding_sha256": "c8a30dc6f64b810557760908cd6054a8aedcf02f2ff7071c70c43ac63e26b952"
 }

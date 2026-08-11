@@ -13,9 +13,12 @@ export const NO_NORMAL_CHAT_INTEGRATION_AUTHORITY = "NO_NORMAL_CHAT_INTEGRATION_
 export const NO_AZURE_TRAFFIC_AUTHORITY = "NO_AZURE_TRAFFIC_AUTHORITY" as const;
 
 type DiceEvidencePrerequisite = Readonly<{
-  schema: "lumis_dice_technical_window_acceptance_v1";
+  schema: "lumis_dice_technical_window_acceptance_v2";
   review_decision: "accepted";
-  dice_gateway_package_sha256: "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71";
+  runtime_source_commit: "f5f9e9da238633d84eb8695307c573eef8f1bc96";
+  runtime_control_sha256: "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1";
+  runtime_proof_sha256: "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256";
+  technical_window_authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY";
   technical_evidence_package_sha256: string;
   logical_total: 80;
   en: 40;
@@ -97,7 +100,7 @@ type ActiveAuthority = Readonly<{ receipt: ChatWindowAuthority; receiptSha256: s
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const RUN_ID = /^chat-syn-[a-z0-9]{12,32}$/;
-const EVIDENCE_KEYS = ["schema", "review_decision", "dice_gateway_package_sha256", "technical_evidence_package_sha256", "logical_total", "en", "zh_hant", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged", "accepted_at"];
+const EVIDENCE_KEYS = ["schema", "review_decision", "runtime_source_commit", "runtime_control_sha256", "runtime_proof_sha256", "technical_window_authority", "technical_evidence_package_sha256", "logical_total", "en", "zh_hant", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged", "accepted_at"];
 const AUTHORITY_KEYS = ["schema", "authority", "scope", "gateway_interface", "review_package_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "dice_evidence_sha256", "run_id", "caps", "issued_at", "valid_until"];
 const CAP_KEYS = ["logical", "en", "zh_hant", "attempts", "input_tokens", "output_tokens", "concurrency", "deadline_ms", "retries"];
 const REQUEST_KEYS = ["fixture_id", "idempotency_key", "run_id"];
@@ -206,8 +209,11 @@ export function validateAcceptedDiceEvidence(value: unknown, checksum: string, c
   const evidence = value as DiceEvidencePrerequisite;
   if (
     !SHA256.test(checksum) || control.acceptedDiceEvidenceSha256 !== checksum ||
-    evidence.schema !== "lumis_dice_technical_window_acceptance_v1" || evidence.review_decision !== "accepted" ||
-    evidence.dice_gateway_package_sha256 !== "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71" ||
+    evidence.schema !== "lumis_dice_technical_window_acceptance_v2" || evidence.review_decision !== "accepted" ||
+    evidence.runtime_source_commit !== "f5f9e9da238633d84eb8695307c573eef8f1bc96" ||
+    evidence.runtime_control_sha256 !== "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1" ||
+    evidence.runtime_proof_sha256 !== "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256" ||
+    evidence.technical_window_authority !== "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" ||
     !SHA256.test(evidence.technical_evidence_package_sha256) || evidence.logical_total !== 80 || evidence.en !== 40 || evidence.zh_hant !== 40 ||
     evidence.provider_disabled_verified !== true || evidence.founder_cases_run !== 0 || evidence.persistence_writes !== 0 || evidence.units_charged !== 0 ||
     !Number.isFinite(Date.parse(evidence.accepted_at))

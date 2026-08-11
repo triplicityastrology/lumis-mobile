@@ -1,0 +1,21 @@
+{
+  "schema": "s2_t271_founder_chat_window_control_v1",
+  "base_commit": "3bc762c05cf10589bc2ec27ee3e4fd23a1ce6da9",
+  "documented_gateway_commit": "3bc762c05cf10589bc2ec27ee3e4fd23a1ce6da9",
+  "documented_gateway_interface": "chat_synthetic_gateway_port_v1",
+  "dice_runtime_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+  "dice_runtime_control_sha256": "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
+  "dice_runtime_proof_sha256": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+  "dice_technical_authority": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+  "canonical_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "fixture_sets": { "companion": 30, "normal_chat": 30, "en": 30, "zh_hant": 30 },
+  "embedded_states": ["offline_preview", "not_yet_run"],
+  "accepted_dice_evidence_sha256": null,
+  "accepted_window_authorization_sha256": null,
+  "accepted_execution_evidence_sha256": null,
+  "accepted_post_window_disabled_proof_sha256": null,
+  "runtime_request_fields": ["fixture_id"],
+  "effects": { "provider_calls": 0, "persistence_writes": 0, "units_charged": 0, "member_data": false },
+  "statuses": ["NO_NORMAL_CHAT_INTEGRATION_AUTHORITY", "NO_AZURE_TRAFFIC_AUTHORITY"],
+  "prohibited": ["normal_chat_route", "runtime_free_text", "account_id", "member_id", "device_id", "thread_id", "raw_prompt", "raw_response", "provider_diagnostics", "birth_data", "persistence", "units"]
+}

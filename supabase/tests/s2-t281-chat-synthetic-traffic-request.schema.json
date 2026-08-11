@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t281_chat_synthetic_traffic_request_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authority", "project_ref", "function_name", "review_package_sha256", "source_commit", "accepted_dice_evidence_sha256", "deployment_receipt_sha256", "migration_0040_receipt_sha256", "fixture_count", "language_counts", "runtime_request_fields", "normal_chat_connected", "member_data", "persistence_writes", "units_charged", "issued_at", "valid_until", "nonce"],
+  "properties": {
+    "schema": { "const": "s2_t281_chat_synthetic_traffic_request_v1" },
+    "authority": { "const": "CHAT_SYNTHETIC_CLOSED_FIXTURE_WINDOW_ONLY" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "chat-synthetic" },
+    "review_package_sha256": { "$ref": "#/$defs/sha" },
+    "source_commit": { "$ref": "#/$defs/commit" },
+    "accepted_dice_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "deployment_receipt_sha256": { "$ref": "#/$defs/sha" },
+    "migration_0040_receipt_sha256": { "$ref": "#/$defs/sha" },
+    "fixture_count": { "const": 60 },
+    "language_counts": { "type": "object", "additionalProperties": false, "required": ["en", "zh_hant"], "properties": { "en": { "const": 30 }, "zh_hant": { "const": 30 } } },
+    "runtime_request_fields": { "const": ["fixture_id"] },
+    "normal_chat_connected": { "const": false },
+    "member_data": { "const": false },
+    "persistence_writes": { "const": 0 },
+    "units_charged": { "const": 0 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "nonce": { "type": "string", "pattern": "^[a-f0-9]{32}$" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

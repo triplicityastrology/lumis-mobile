@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "founder_chat_window_authorization_request_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "build_sha", "gateway_interface", "chat_runtime_commit", "dice_runtime_commit", "dice_runtime_control_sha256", "dice_runtime_proof_sha256", "dice_technical_authority", "canonical_t240_schema_sha256", "accepted_dice_evidence_sha256", "fixture_export_sha256", "requested_fixture_count", "language_counts", "runtime_request_fields", "effects", "authority_status"],
+  "properties": {
+    "schema_version": { "const": "founder_chat_window_authorization_request_v1" },
+    "build_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "gateway_interface": { "const": "chat_synthetic_gateway_port_v1" },
+    "chat_runtime_commit": { "const": "3bc762c05cf10589bc2ec27ee3e4fd23a1ce6da9" },
+    "dice_runtime_commit": { "const": "f5f9e9da238633d84eb8695307c573eef8f1bc96" },
+    "dice_runtime_control_sha256": { "const": "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1" },
+    "dice_runtime_proof_sha256": { "const": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256" },
+    "dice_technical_authority": { "const": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" },
+    "canonical_t240_schema_sha256": { "const": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07" },
+    "accepted_dice_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "fixture_export_sha256": { "$ref": "#/$defs/sha" },
+    "requested_fixture_count": { "const": 60 },
+    "language_counts": { "type": "object", "additionalProperties": false, "required": ["en", "zh_hant"], "properties": { "en": { "const": 30 }, "zh_hant": { "const": 30 } } },
+    "runtime_request_fields": { "const": ["fixture_id"] },
+    "effects": { "type": "object", "additionalProperties": false, "required": ["member_data", "persistence_writes", "units_charged"], "properties": { "member_data": { "const": false }, "persistence_writes": { "const": 0 }, "units_charged": { "const": 0 } } },
+    "authority_status": { "type": "object", "additionalProperties": false, "required": ["normal_chat", "azure_traffic"], "properties": { "normal_chat": { "const": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY" }, "azure_traffic": { "const": "NO_AZURE_TRAFFIC_AUTHORITY" } } }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

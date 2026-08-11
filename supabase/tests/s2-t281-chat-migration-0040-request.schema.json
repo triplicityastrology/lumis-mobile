@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t281_chat_migration_0040_request_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authority", "project_ref", "migration_version", "migration_sha256", "review_package_sha256", "source_commit", "function_deployment_authorized", "traffic_authorized", "provider_calls_allowed", "issued_at", "valid_until", "nonce"],
+  "properties": {
+    "schema": { "const": "s2_t281_chat_migration_0040_request_v1" },
+    "authority": { "const": "CHAT_SYNTHETIC_AUTHORITY_LEDGER_0040_MIGRATION_ONLY" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "migration_version": { "const": "0040" },
+    "migration_sha256": { "$ref": "#/$defs/sha" },
+    "review_package_sha256": { "$ref": "#/$defs/sha" },
+    "source_commit": { "$ref": "#/$defs/commit" },
+    "function_deployment_authorized": { "const": false },
+    "traffic_authorized": { "const": false },
+    "provider_calls_allowed": { "const": 0 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "nonce": { "type": "string", "pattern": "^[a-f0-9]{32}$" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

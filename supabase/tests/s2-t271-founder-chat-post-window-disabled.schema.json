@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "founder_chat_post_window_disabled_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "authorization_sha256", "execution_evidence_sha256", "status", "provider_enabled", "residual_access", "provider_calls_after_disable", "checked_at_bucket"],
+  "properties": {
+    "schema_version": { "const": "founder_chat_post_window_disabled_v1" },
+    "authorization_sha256": { "$ref": "#/$defs/sha" },
+    "execution_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "status": { "const": "disabled" },
+    "provider_enabled": { "const": false },
+    "residual_access": { "const": false },
+    "provider_calls_after_disable": { "const": 0 },
+    "checked_at_bucket": { "const": "same_controlled_window" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

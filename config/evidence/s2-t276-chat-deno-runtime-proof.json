@@ -7,7 +7,7 @@
   },
   "entry": "supabase/functions/chat-synthetic/index.ts",
   "config": "supabase/functions/chat-synthetic/deno.json",
-  "import_graph_sha256": "d28b0b37783e3be5728ca71b964a0ace31e11b70f626663a10935de1730e567b",
+  "import_graph_sha256": "e32b0a52e560bac7be0496fd7a873eabb32ebdf83b2c71ec45721c55b7b13cd6",
   "tokenizer": {
     "version": "1.0.21",
     "specifier": "npm:js-tiktoken@1.0.21"

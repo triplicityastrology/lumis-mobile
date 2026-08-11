@@ -38,7 +38,8 @@ assert.ok(bundle.length > 45_000);
 for (const marker of ["Deno.serve", "createChatSyntheticEdgeHandler", "o200k_base", "CHAT_AI_DISABLED", "consume_chat_synthetic_authority_v1", "lumis-foundry-stg-sea-20260731.services.ai.azure.com"]) {
   assert.ok(bundle.includes(marker), `bundle missing ${marker}`);
 }
-assert.match(port, /adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71/);
+assert.match(port, /f5f9e9da238633d84eb8695307c573eef8f1bc96/);
+assert.match(port, /DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY/);
 assert.match(migration, /interval '30 days'/);
 assert.match(migration, /auth\.role\(\) <> 'service_role'/);
 assert.doesNotMatch(migration, /prompt_text|response_text|member_id|units_charged/);

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "founder_chat_window_execution_evidence_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_sha256", "authorization_sha256", "status", "response"],
+  "properties": {
+    "schema_version": { "const": "founder_chat_window_execution_evidence_v1" },
+    "evidence_sha256": { "$ref": "#/$defs/sha" },
+    "authorization_sha256": { "$ref": "#/$defs/sha" },
+    "status": { "const": "accepted" },
+    "response": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "fixture_id", "surface", "language", "state", "result", "assistant_message", "idempotency_outcome", "units_charged", "persistence_writes", "provider_diagnostics"],
+      "properties": {
+        "schema_version": { "const": "s2_t271_founder_chat_window_v1" },
+        "fixture_id": { "type": "string", "pattern": "^chat_(en|zh_hant)_[a-z0-9_]+_v1$" },
+        "surface": { "enum": ["companion", "normal_chat"] },
+        "language": { "enum": ["en", "zh-Hant"] },
+        "state": { "const": "live_synthetic" },
+        "result": { "enum": ["completed", "fixed_fallback", "safety_rejected", "technical_error"] },
+        "assistant_message": { "type": ["string", "null"], "maxLength": 1200 },
+        "idempotency_outcome": { "const": "not_committed" },
+        "units_charged": { "const": 0 },
+        "persistence_writes": { "const": 0 },
+        "provider_diagnostics": { "type": "null" }
+      }
+    }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

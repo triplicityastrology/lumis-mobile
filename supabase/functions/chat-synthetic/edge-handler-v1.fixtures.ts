@@ -6,14 +6,17 @@ const SHA_A = "a".repeat(64);
 const SHA_B = "b".repeat(64);
 const SHA_C = "c".repeat(64);
 const SHA_D = "d".repeat(64);
-const DICE_PACKAGE_SHA = "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71";
+const DICE_RUNTIME_COMMIT = "f5f9e9da238633d84eb8695307c573eef8f1bc96";
 const NOW = Date.parse("2026-08-11T04:00:00.000Z");
 
 function evidence(overrides: Record<string, unknown> = {}) {
   return {
-    schema: "lumis_dice_technical_window_acceptance_v1",
+    schema: "lumis_dice_technical_window_acceptance_v2",
     review_decision: "accepted",
-    dice_gateway_package_sha256: DICE_PACKAGE_SHA,
+    runtime_source_commit: DICE_RUNTIME_COMMIT,
+    runtime_control_sha256: "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
+    runtime_proof_sha256: "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+    technical_window_authority: "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
     technical_evidence_package_sha256: SHA_B,
     logical_total: 80,
     en: 40,
@@ -124,7 +127,7 @@ async function main() {
   assert.equal(JSON.stringify(rpcCalls).includes("edge-fixture-key-0001"), false);
 
   const wrongPackageHandler = createChatSyntheticEdgeHandler({
-    environment: { ...enabledEnvironment, LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(evidence({ dice_gateway_package_sha256: "0".repeat(64) })) },
+    environment: { ...enabledEnvironment, LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(evidence({ runtime_source_commit: "0".repeat(40) })) },
     nowMs: () => NOW,
     createAuthorityClient() { return { async rpc() { return { data: "consumed", error: null }; } }; },
     async fetchImpl() { providerCalls += 1; throw new Error("must not fetch"); },

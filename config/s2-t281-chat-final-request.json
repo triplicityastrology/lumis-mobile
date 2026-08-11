@@ -1,0 +1,39 @@
+{
+  "schema": "s2_t281_chat_final_request_control_v1",
+  "task": "S2-T281",
+  "base_commit": "3bc762c05cf10589bc2ec27ee3e4fd23a1ce6da9",
+  "founder_interface_commit": "52bd08b7ca724133b5e366d5bcdf9b7ae99be4ef",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "chat-synthetic",
+  "gateway_interface": "chat_synthetic_gateway_port_v1",
+  "canonical_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "dice_prerequisite": {
+    "schema": "lumis_dice_technical_window_acceptance_v2",
+    "runtime_source_commit": "f5f9e9da238633d84eb8695307c573eef8f1bc96",
+    "runtime_control_sha256": "b8d22c7c4677e654a83764f5499ddecb9bc97f327e115205ffd13848b5537be1",
+    "runtime_proof_sha256": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
+    "technical_window_authority": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+    "accepted_evidence_sha256": null
+  },
+  "scopes": {
+    "deployment": "CHAT_SYNTHETIC_DEFAULT_OFF_DEPLOYMENT_ONLY",
+    "migration": "CHAT_SYNTHETIC_AUTHORITY_LEDGER_0040_MIGRATION_ONLY",
+    "traffic": "CHAT_SYNTHETIC_CLOSED_FIXTURE_WINDOW_ONLY"
+  },
+  "disabled_probe_code": "CHAT_AI_DISABLED",
+  "disabled_probe_count": 4,
+  "migration_0040_applied": false,
+  "deployment_executed": false,
+  "traffic_executed": false,
+  "provider_calls": 0,
+  "model_invocations": 0,
+  "normal_chat_connected": false,
+  "persistence_writes": 0,
+  "units_charged": 0,
+  "statuses": [
+    "SOURCE_READY",
+    "LOCAL_DENO_RUNTIME_PROVED",
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

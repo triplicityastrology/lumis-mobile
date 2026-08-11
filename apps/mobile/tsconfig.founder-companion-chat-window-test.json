@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/founder-companion-chat-window-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/dev/founderCompanionChatContract.ts",
+    "src/dev/founderCompanionChatWindowContract.ts",
+    "src/dev/founderCompanionChatWindowContract.fixtures.ts"
+  ]
+}

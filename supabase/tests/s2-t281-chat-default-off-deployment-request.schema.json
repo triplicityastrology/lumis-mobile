@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t281_chat_default_off_deployment_request_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "authority", "project_ref", "function_name", "review_package_sha256", "source_commit", "provider_enabled", "provider_calls_allowed", "disabled_probe_count", "migration_0040_authorized", "traffic_authorized", "normal_chat_connected", "rollback_revision_sha256", "issued_at", "valid_until", "nonce"],
+  "properties": {
+    "schema": { "const": "s2_t281_chat_default_off_deployment_request_v1" },
+    "authority": { "const": "CHAT_SYNTHETIC_DEFAULT_OFF_DEPLOYMENT_ONLY" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "chat-synthetic" },
+    "review_package_sha256": { "$ref": "#/$defs/sha" },
+    "source_commit": { "$ref": "#/$defs/commit" },
+    "provider_enabled": { "const": false },
+    "provider_calls_allowed": { "const": 0 },
+    "disabled_probe_count": { "const": 4 },
+    "migration_0040_authorized": { "const": false },
+    "traffic_authorized": { "const": false },
+    "normal_chat_connected": { "const": false },
+    "rollback_revision_sha256": { "$ref": "#/$defs/sha" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "nonce": { "type": "string", "pattern": "^[a-f0-9]{32}$" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" } }
+}

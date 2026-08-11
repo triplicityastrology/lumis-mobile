@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t281_chat_post_window_disabled_receipt_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "review_package_sha256", "traffic_authorization_sha256", "provider_enabled", "provider_calls_after_disable", "residual_access", "normal_chat_connected", "persistence_writes", "units_charged", "disabled_probes", "status"],
+  "properties": {
+    "schema": { "const": "s2_t281_chat_post_window_disabled_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "chat-synthetic" },
+    "review_package_sha256": { "$ref": "#/$defs/sha" },
+    "traffic_authorization_sha256": { "$ref": "#/$defs/sha" },
+    "provider_enabled": { "const": false },
+    "provider_calls_after_disable": { "const": 0 },
+    "residual_access": { "const": false },
+    "normal_chat_connected": { "const": false },
+    "persistence_writes": { "const": 0 },
+    "units_charged": { "const": 0 },
+    "disabled_probes": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "const": "CHAT_AI_DISABLED" } },
+    "status": { "const": "disabled_verified" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}
