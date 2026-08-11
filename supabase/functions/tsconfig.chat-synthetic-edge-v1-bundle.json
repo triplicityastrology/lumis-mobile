@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "System",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outFile": "../../.tmp/chat-synthetic-edge-v1-bundle/chat-synthetic.bundle.js",
+    "rootDir": "../..",
+    "resolveJsonModule": false,
+    "skipLibCheck": true
+  },
+  "files": [
+    "chat-synthetic/edge-runtime.d.ts",
+    "chat-synthetic/js-tiktoken-test.d.ts",
+    "chat-synthetic/index.ts"
+  ]
+}

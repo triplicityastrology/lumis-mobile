@@ -33,7 +33,7 @@ type IntegratedAuthorization = Readonly<{
   microsoft_manifest_sha256: string;
   microsoft_readonly_evidence_sha256: typeof CHAT_SYNTHETIC_MICROSOFT_READONLY_EVIDENCE_SHA256;
   api_route_evidence_sha256: typeof CHAT_SYNTHETIC_API_ROUTE_EVIDENCE_SHA256;
-  azure_api_version_evidence_sha256: string;
+  azure_api_version: null;
   accepted_dice_evidence_sha256: string;
   gateway_source_sha256: string;
   fixture_registry_sha256: string;
@@ -61,7 +61,6 @@ export type IntegratedAuthorizationControl = Readonly<{
   microsoftManifestSha256: string;
   microsoftReadonlyEvidenceSha256: typeof CHAT_SYNTHETIC_MICROSOFT_READONLY_EVIDENCE_SHA256;
   apiRouteEvidenceSha256: typeof CHAT_SYNTHETIC_API_ROUTE_EVIDENCE_SHA256;
-  azureApiVersionEvidenceSha256: string | null;
   acceptedDiceEvidenceSha256: string | null;
   acceptedAuthorizationSha256: string | null;
   gatewaySourceSha256: string;
@@ -72,7 +71,7 @@ const SHA256 = /^[a-f0-9]{64}$/;
 const RUN_ID = /^chat-syn-[a-z0-9]{12,32}$/;
 const AUTHORIZATION_KEYS = [
   "schema", "authority", "prerequisite_authority", "base_commit", "candidate_sha256",
-  "microsoft_manifest_sha256", "microsoft_readonly_evidence_sha256", "api_route_evidence_sha256", "azure_api_version_evidence_sha256",
+  "microsoft_manifest_sha256", "microsoft_readonly_evidence_sha256", "api_route_evidence_sha256", "azure_api_version",
   "accepted_dice_evidence_sha256", "gateway_source_sha256",
   "fixture_registry_sha256", "canonical_t240_schema_sha256", "gateway_interface", "run_id",
   "caps", "issued_at", "valid_until"
@@ -108,7 +107,6 @@ export class ChatSyntheticIntegratedCandidateV1 {
     microsoftManifest: unknown;
     microsoftReadonlyEvidenceText: string;
     apiRouteEvidenceText: string;
-    azureApiVersionEvidenceText?: string;
     portAuthority: unknown;
     portAuthoritySha256: string;
   }>): Promise<void> {
@@ -135,9 +133,6 @@ export class ChatSyntheticIntegratedCandidateV1 {
     validateMicrosoftDeploymentManifest(input.microsoftManifest);
     validateMicrosoftReadonlyEvidence(input.microsoftReadonlyEvidenceText);
     validateApiRouteEvidence(input.apiRouteEvidenceText);
-    if (this.#control.azureApiVersionEvidenceSha256 === null) {
-      fail("CHAT_SYNTHETIC_AZURE_API_VERSION_EVIDENCE_REQUIRED");
-    }
     const authorization = validateAuthorization(
       input.authorization,
       input.authorizationSha256,
@@ -145,11 +140,6 @@ export class ChatSyntheticIntegratedCandidateV1 {
       this.#control,
       this.#nowMs()
     );
-    const apiEvidenceDigest = await textSha256(input.azureApiVersionEvidenceText ?? "");
-    if (
-      apiEvidenceDigest !== this.#control.azureApiVersionEvidenceSha256 ||
-      apiEvidenceDigest !== authorization.azure_api_version_evidence_sha256
-    ) fail("CHAT_SYNTHETIC_AZURE_API_VERSION_EVIDENCE_INVALID");
     const portAuthority = input.portAuthority as Record<string, unknown>;
     if (
       authorization.run_id !== portAuthority?.run_id ||
@@ -309,7 +299,7 @@ function validateAuthorization(
     authorization.microsoft_manifest_sha256 !== control.microsoftManifestSha256 ||
     authorization.microsoft_readonly_evidence_sha256 !== control.microsoftReadonlyEvidenceSha256 ||
     authorization.api_route_evidence_sha256 !== control.apiRouteEvidenceSha256 ||
-    authorization.azure_api_version_evidence_sha256 !== control.azureApiVersionEvidenceSha256 ||
+    authorization.azure_api_version !== null ||
     authorization.accepted_dice_evidence_sha256 !== evidenceChecksum ||
     control.acceptedDiceEvidenceSha256 !== evidenceChecksum ||
     authorization.gateway_source_sha256 !== control.gatewaySourceSha256 ||

@@ -1,0 +1,77 @@
+{
+  "schema": "s2_t270_chat_edge_final_v1",
+  "task": "S2-T270",
+  "base_commit": "5efca3b1c0d734bfcf0c2357a2697e1ba9b4364f",
+  "statuses": [
+    "SOURCE_COMPLETE",
+    "LOCAL_EMULATOR_ONLY",
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ],
+  "route": "chat-synthetic",
+  "gateway_interface": "chat_synthetic_gateway_port_v1",
+  "authority_store": "chat_synthetic_postgres_authority_store_v1",
+  "migration": "0040_chat_synthetic_authority_ledger.sql",
+  "tokenizer": {
+    "name": "o200k_base",
+    "package": "js-tiktoken",
+    "version": "1.0.21",
+    "deno_specifier": "npm:js-tiktoken@1.0.21"
+  },
+  "accepted_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "accepted_dice_gateway_package_sha256": "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71",
+  "azure": {
+    "deployment_alias": "lumis-ai-chat-stg",
+    "model": "gpt-5-mini",
+    "model_version": "2025-08-07",
+    "deployment_type": "GlobalStandard",
+    "upgrade_policy": "NoAutoUpgrade",
+    "guardrail": "Microsoft.DefaultV2",
+    "hostname": "lumis-foundry-stg-sea-20260731.services.ai.azure.com",
+    "route_family": "v1",
+    "api_version": null,
+    "input_usd_per_1m_tokens": 0.25,
+    "output_usd_per_1m_tokens": 2,
+    "evidence_retention_days": 30
+  },
+  "configuration_names": [
+    "LUMIS_CHAT_AI_ENABLED",
+    "LUMIS_CHAT_AZURE_API_KEY",
+    "LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_SHA256",
+    "LUMIS_CHAT_ACCEPTED_AUTHORITY_SHA256",
+    "LUMIS_CHAT_REVIEW_PACKAGE_SHA256",
+    "LUMIS_CHAT_GATEWAY_SOURCE_SHA256",
+    "LUMIS_CHAT_FIXTURE_REGISTRY_SHA256"
+  ],
+  "execution": {
+    "deployment": false,
+    "provider_calls": 0,
+    "migration_applied": false,
+    "normal_chat_connected": false,
+    "member_persistence": false,
+    "units_charged": 0
+  },
+  "source_sha256": {
+    ".env.example": "3687fc847400cab57f83aa663b640380365e57360a2ffff3d64934c223edf057",
+    "config/evidence/s2-t265-lumis-azure-foundry-deployment-readonly-v1.json": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f",
+    "config/evidence/s2-t265-microsoft-foundry-responses-v1-reference.json": "5086b0c4bb0fc7cd02d82c94c594897b71d191e72bf23108dfa26cf32d48bab5",
+    "config/evidence/s2-t265-sanitized-api-route-family-v1.json": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e",
+    "config/evidence/s2-t265-sanitized-pricing-v1.json": "8d8a3d9b155d950ea76f23808f4eec6b507de8a02203d233522c3583f22e799b",
+    "supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts": "3c0f39d62d764464ab9d11963f104ec9a8828c7bd469229f10855f2eadb69eda",
+    "supabase/functions/_shared/chat-synthetic-gateway-port-v1.ts": "59f7cf4e612c9125a0e5afdb03e1bb706788c2a6f1c1316f2da5b02eb62c9dc0",
+    "supabase/functions/_shared/chat-synthetic-gateway-v1.ts": "61cdcb987814d198b8ba6025596778fe442fb44d36e5f745e45b81847f23ad3a",
+    "supabase/functions/_shared/chat-synthetic-integrated-authorization-v1.ts": "29848054b484c156abbe5f724983ba10afb503f48377f440409cf89f0cd31eaa",
+    "supabase/functions/_shared/chat-synthetic-postgres-authority-store-v1.ts": "ceff8eea3f9bc7ab952ac73e05faec2bf1da91e3d91ac722c7f4b7e5a0a4aeda",
+    "supabase/functions/_shared/chat-synthetic-registry-v1.ts": "6930941fc52e6d4efb91646bbb4a829909f06b973e508b047e7a81115b44575c",
+    "supabase/functions/_shared/chat-tokenizer-v1.ts": "fb132bc98f0f5d466e3f2fa75b7df8e18d963c1ef2f411721a88cc2f1e584903",
+    "supabase/functions/_shared/companion-synthetic-prompt-v1.ts": "d0d082edf60fb0d888140987c37dd6794ffc893b13dd4eda03898c9468dabf22",
+    "supabase/functions/chat-synthetic/deno.json": "e1e3293ec003029f7bf746b95105bff2da12de3a97f6adaf5cad5f5a215b7803",
+    "supabase/functions/chat-synthetic/edge-handler-v1.ts": "46cfa2919243be3c57af176257db37ea2ccbecc26672db5c889d6252ee44664b",
+    "supabase/functions/chat-synthetic/index.ts": "52dd25658059fe050a0b3e2481d724e6540e31ac8220856d10eb383f7bef6983",
+    "supabase/migrations/0040_chat_synthetic_authority_ledger.sql": "5b8e14c3e10081b9175ffbceadbc0890d58863241ba772d0fc874d75f4c1a0a0",
+    "supabase/tests/s2-t193-normal-chat-contract-v1.schema.json": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+    "supabase/tests/s2-t265-chat-authorization.schema.json": "b90dea5b8dec67e4df104a3d6777b48acd74aef3fd2799d60ebb360ad88e80d3",
+    "supabase/tests/s2-t270-accepted-dice-technical-evidence.schema.json": "7b980088a990fd0562f773cd06b17dec176f50cf9b48a09aeba737b94146aad6"
+  },
+  "package_binding_sha256": "528812a9c085620f21b22795d053872884a2e0bb168508c0a70c544f7d30336b"
+}

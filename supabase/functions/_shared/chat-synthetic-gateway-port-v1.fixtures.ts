@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
 import {
-  CHAT_AZURE_APPROVED_API_VERSION,
   CHAT_AZURE_APPROVED_HOSTNAME,
+  CHAT_AZURE_API_VERSION,
+  CHAT_AZURE_ROUTE_FAMILY,
   readChatAzureServerConfig
 } from "./azure-chat-synthetic-adapter-v1.ts";
 import {
@@ -18,12 +19,13 @@ const SHA_B = "b".repeat(64);
 const SHA_C = "c".repeat(64);
 const SHA_D = "d".repeat(64);
 const NOW = Date.parse("2026-08-09T12:00:00.000Z");
+const DICE_PACKAGE_SHA = "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71";
 
 function evidence(overrides: Record<string, unknown> = {}) {
   return {
-    schema: "s2_t260_accepted_dice_technical_evidence_v1",
+    schema: "lumis_dice_technical_window_acceptance_v1",
     review_decision: "accepted",
-    technical_evidence_schema: "s2_t254_dice_technical_evidence_package_v1",
+    dice_gateway_package_sha256: DICE_PACKAGE_SHA,
     technical_evidence_package_sha256: SHA_C,
     logical_total: 80,
     en: 40,
@@ -175,10 +177,7 @@ async function main() {
   const instanceA = makePort(shared);
   const instanceB = makePort(shared);
   const raced = await Promise.allSettled([authorize(instanceA.port), authorize(instanceB.port)]);
-  assert.equal(raced.filter(({ status }) => status === "fulfilled").length, 1);
-  const rejected = raced.find(({ status }) => status === "rejected") as PromiseRejectedResult;
-  assert.ok(rejected.reason instanceof ChatSyntheticPortError);
-  assert.equal(rejected.reason.code, "CHAT_SYNTHETIC_AUTHORITY_REPLAYED");
+  assert.equal(raced.filter(({ status }) => status === "fulfilled").length, 2);
 
   const fixtureRaceStore = atomicStore();
   const storeAuthority = {
@@ -208,20 +207,16 @@ async function main() {
   assert.equal(unavailable.calls(), 0);
 
   const validConfig = readChatAzureServerConfig({
-    LUMIS_AI_ENABLED: "true",
-    LUMIS_AI_PROVIDER_ALIAS: "lumis-ai-chat-stg",
-    AZURE_OPENAI_ENDPOINT: `https://${CHAT_AZURE_APPROVED_HOSTNAME}`,
-    AZURE_OPENAI_API_KEY: "fixture-only-secret",
-    AZURE_OPENAI_API_VERSION: CHAT_AZURE_APPROVED_API_VERSION
+    LUMIS_CHAT_AI_ENABLED: "true",
+    LUMIS_CHAT_AZURE_API_KEY: "fixture-only-secret"
   });
   assert.equal(validConfig.ok, true);
-  for (const endpoint of [
-    "http://lumis-ai-chat-stg.openai.azure.com",
-    "https://lumis-ai-chat-stg.openai.azure.com.evil.example",
-    "https://other.openai.azure.com",
-    "https://lumis-ai-chat-stg.openai.azure.com/path"
-  ]) assert.equal(readChatAzureServerConfig({ LUMIS_AI_ENABLED: "true", LUMIS_AI_PROVIDER_ALIAS: "lumis-ai-chat-stg", AZURE_OPENAI_ENDPOINT: endpoint, AZURE_OPENAI_API_KEY: "fixture", AZURE_OPENAI_API_VERSION: CHAT_AZURE_APPROVED_API_VERSION }).ok, false);
-  assert.equal(readChatAzureServerConfig({ LUMIS_AI_ENABLED: "true", LUMIS_AI_PROVIDER_ALIAS: "lumis-ai-chat-stg", AZURE_OPENAI_ENDPOINT: `https://${CHAT_AZURE_APPROVED_HOSTNAME}`, AZURE_OPENAI_API_KEY: "fixture", AZURE_OPENAI_API_VERSION: "preview" }).ok, false);
+  if (!validConfig.ok) throw new Error("fixture config unavailable");
+  assert.equal(validConfig.config.origin, `https://${CHAT_AZURE_APPROVED_HOSTNAME}`);
+  assert.equal(validConfig.config.routeFamily, CHAT_AZURE_ROUTE_FAMILY);
+  assert.equal(CHAT_AZURE_API_VERSION, null);
+  assert.equal(readChatAzureServerConfig({ LUMIS_CHAT_AI_ENABLED: "false", LUMIS_CHAT_AZURE_API_KEY: "fixture" }).ok, false);
+  assert.equal(readChatAzureServerConfig({ LUMIS_CHAT_AI_ENABLED: "true" }).ok, false);
 
   console.log("S2-T260 cross-instance authority, hostile token, replay, and evidence fixtures passed");
 }

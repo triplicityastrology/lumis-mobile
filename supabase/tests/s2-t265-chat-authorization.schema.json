@@ -3,7 +3,7 @@
   "$id": "s2_t265_chat_authorization_v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "authority", "prerequisite_authority", "base_commit", "candidate_sha256", "microsoft_manifest_sha256", "microsoft_readonly_evidence_sha256", "api_route_evidence_sha256", "azure_api_version_evidence_sha256", "accepted_dice_evidence_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "gateway_interface", "run_id", "caps", "issued_at", "valid_until"],
+  "required": ["schema", "authority", "prerequisite_authority", "base_commit", "candidate_sha256", "microsoft_manifest_sha256", "microsoft_readonly_evidence_sha256", "api_route_evidence_sha256", "azure_api_version", "accepted_dice_evidence_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "gateway_interface", "run_id", "caps", "issued_at", "valid_until"],
   "properties": {
     "schema": { "const": "s2_t265_chat_authorization_v1" },
     "authority": { "const": "CHAT_SYNTHETIC_SINGLE_USE_AUTHORIZED" },
@@ -13,7 +13,7 @@
     "microsoft_manifest_sha256": { "$ref": "#/$defs/sha" },
     "microsoft_readonly_evidence_sha256": { "const": "e5a29800e9a1be702612a664b60e4a8e0804f81e59cf72c40433141617373f7f" },
     "api_route_evidence_sha256": { "const": "2dec65e48845fe4fd2ecedd4d83ce10857b2a773a25855d0bea7454bedb4490e" },
-    "azure_api_version_evidence_sha256": { "$ref": "#/$defs/sha" },
+    "azure_api_version": { "type": "null" },
     "accepted_dice_evidence_sha256": { "$ref": "#/$defs/sha" },
     "gateway_source_sha256": { "$ref": "#/$defs/sha" },
     "fixture_registry_sha256": { "$ref": "#/$defs/sha" },

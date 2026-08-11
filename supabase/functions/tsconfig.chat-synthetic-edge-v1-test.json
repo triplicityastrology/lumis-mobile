@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-synthetic-edge-v1-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "chat-synthetic/js-tiktoken-test.d.ts",
+    "_shared/cors.ts",
+    "_shared/chat-synthetic-registry-v1.ts",
+    "_shared/chat-tokenizer-v1.ts",
+    "_shared/companion-synthetic-prompt-v1.ts",
+    "_shared/chat-synthetic-gateway-v1.ts",
+    "_shared/chat-synthetic-gateway-port-v1.ts",
+    "_shared/chat-synthetic-postgres-authority-store-v1.ts",
+    "_shared/azure-chat-synthetic-adapter-v1.ts",
+    "chat-synthetic/edge-handler-v1.ts",
+    "chat-synthetic/edge-handler-v1.fixtures.ts"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_technical_window_acceptance_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "review_decision", "dice_gateway_package_sha256", "technical_evidence_package_sha256", "logical_total", "en", "zh_hant", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged", "accepted_at"],
+  "properties": {
+    "schema": { "const": "lumis_dice_technical_window_acceptance_v1" },
+    "review_decision": { "const": "accepted" },
+    "dice_gateway_package_sha256": { "const": "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71" },
+    "technical_evidence_package_sha256": { "$ref": "#/$defs/sha" },
+    "logical_total": { "const": 80 },
+    "en": { "const": 40 },
+    "zh_hant": { "const": 40 },
+    "provider_disabled_verified": { "const": true },
+    "founder_cases_run": { "const": 0 },
+    "persistence_writes": { "const": 0 },
+    "units_charged": { "const": 0 },
+    "accepted_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": { "sha": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+}

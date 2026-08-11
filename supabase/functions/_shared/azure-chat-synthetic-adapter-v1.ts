@@ -1,70 +1,70 @@
 import type { ChatSyntheticAdapter, ProviderResult } from "./chat-synthetic-gateway-v1.ts";
 
-export const CHAT_AZURE_APPROVED_HOSTNAME = "lumis-ai-chat-stg.openai.azure.com" as const;
-export const CHAT_AZURE_APPROVED_API_VERSION = "2024-10-21" as const;
+export const CHAT_AZURE_APPROVED_HOSTNAME = "lumis-foundry-stg-sea-20260731.services.ai.azure.com" as const;
+export const CHAT_AZURE_ROUTE_FAMILY = "v1" as const;
+export const CHAT_AZURE_API_VERSION = null;
+export const CHAT_AZURE_DEPLOYMENT = "lumis-ai-chat-stg" as const;
+export const CHAT_AZURE_MODEL = "gpt-5-mini" as const;
+export const CHAT_AZURE_MODEL_VERSION = "2025-08-07" as const;
+export const CHAT_AZURE_DEPLOYMENT_TYPE = "GlobalStandard" as const;
+export const CHAT_AZURE_UPGRADE_POLICY = "NoAutoUpgrade" as const;
+export const CHAT_AZURE_GUARDRAIL = "Microsoft.DefaultV2" as const;
 
 export type ChatAzureServerConfig = Readonly<{
-  endpoint: `https://${typeof CHAT_AZURE_APPROVED_HOSTNAME}`;
+  origin: `https://${typeof CHAT_AZURE_APPROVED_HOSTNAME}`;
   apiKey: string;
-  apiVersion: typeof CHAT_AZURE_APPROVED_API_VERSION;
-  providerAlias: "lumis-ai-chat-stg";
+  deployment: typeof CHAT_AZURE_DEPLOYMENT;
+  routeFamily: typeof CHAT_AZURE_ROUTE_FAMILY;
 }>;
 
 export function readChatAzureServerConfig(environment: Readonly<Record<string, string | undefined>>):
   | { ok: true; config: ChatAzureServerConfig }
   | { ok: false; code: string } {
-  if (environment.LUMIS_AI_ENABLED !== "true") return { ok: false, code: "CHAT_SYNTHETIC_PROVIDER_DISABLED" };
-  if (environment.LUMIS_AI_PROVIDER_ALIAS !== "lumis-ai-chat-stg") return { ok: false, code: "CHAT_SYNTHETIC_PROVIDER_ALIAS_INVALID" };
-  if (environment.AZURE_OPENAI_API_VERSION !== CHAT_AZURE_APPROVED_API_VERSION) return { ok: false, code: "CHAT_SYNTHETIC_API_VERSION_INVALID" };
-  if (!environment.AZURE_OPENAI_API_KEY) return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
-  let endpoint: URL;
-  try {
-    endpoint = new URL(environment.AZURE_OPENAI_ENDPOINT ?? "");
-  } catch {
-    return { ok: false, code: "CHAT_SYNTHETIC_ENDPOINT_INVALID" };
-  }
-  if (
-    endpoint.protocol !== "https:" || endpoint.hostname !== CHAT_AZURE_APPROVED_HOSTNAME ||
-    endpoint.port || endpoint.username || endpoint.password || endpoint.pathname !== "/" || endpoint.search || endpoint.hash
-  ) return { ok: false, code: "CHAT_SYNTHETIC_ENDPOINT_INVALID" };
+  if (environment.LUMIS_CHAT_AI_ENABLED !== "true") return { ok: false, code: "CHAT_AI_DISABLED" };
+  const apiKey = environment.LUMIS_CHAT_AZURE_API_KEY?.trim();
+  if (!apiKey) return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
   return {
     ok: true,
     config: Object.freeze({
-      endpoint: `https://${CHAT_AZURE_APPROVED_HOSTNAME}`,
-      apiKey: environment.AZURE_OPENAI_API_KEY,
-      apiVersion: CHAT_AZURE_APPROVED_API_VERSION,
-      providerAlias: "lumis-ai-chat-stg"
-    })
+      origin: `https://${CHAT_AZURE_APPROVED_HOSTNAME}`,
+      apiKey,
+      deployment: CHAT_AZURE_DEPLOYMENT,
+      routeFamily: CHAT_AZURE_ROUTE_FAMILY,
+    }),
   };
 }
 
 export function createAzureChatSyntheticAdapter(config: ChatAzureServerConfig, fetchImpl: typeof fetch = fetch): ChatSyntheticAdapter {
+  if (config.origin !== `https://${CHAT_AZURE_APPROVED_HOSTNAME}` ||
+      config.deployment !== CHAT_AZURE_DEPLOYMENT || config.routeFamily !== CHAT_AZURE_ROUTE_FAMILY) {
+    throw new Error("CHAT_SYNTHETIC_AZURE_CONFIGURATION_INVALID");
+  }
   return Object.freeze({
     async complete(input): Promise<ProviderResult> {
-      if (input.providerAlias !== config.providerAlias || input.safetyProfile !== "DefaultV2") return { kind: "forbidden" };
+      if (input.providerAlias !== config.deployment || input.safetyProfile !== "DefaultV2") return { kind: "forbidden" };
       const remainingMs = input.deadlineAtMs - Date.now();
       if (remainingMs <= 0) return { kind: "timeout" };
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), remainingMs);
       try {
-        const deployment = encodeURIComponent(config.providerAlias);
-        const url = `${config.endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${config.apiVersion}`;
-        const response = await fetchImpl(url, {
+        const response = await fetchImpl(`${config.origin}/openai/${config.routeFamily}/responses`, {
           method: "POST",
           headers: { "api-key": config.apiKey, "content-type": "application/json" },
           body: JSON.stringify({
-            messages: [{ role: "user", content: input.promptInput }],
-            max_completion_tokens: input.maxOutputTokens
+            model: config.deployment,
+            input: input.promptInput,
+            max_output_tokens: input.maxOutputTokens,
+            store: false,
           }),
-          signal: controller.signal
+          signal: controller.signal,
         });
         if (response.status === 401) return { kind: "unauthorized" };
         if (response.status === 403) return { kind: "forbidden" };
         if (response.status === 429) return { kind: "rate_limited" };
         if (response.status >= 500) return { kind: "server_error" };
         const value = await response.json().catch(() => null) as null | Record<string, unknown>;
-        if (isFilterBlock(value)) return { kind: "content_filter_block" };
-        if (isFilterPartial(value)) return { kind: "content_filter_partial" };
+        const filter = contentFilter(value);
+        if (filter) return filter;
         if (!response.ok) return { kind: "malformed" };
         const assistantMessage = extractAssistantMessage(value);
         return assistantMessage ? { kind: "completed", assistantMessage } : { kind: "malformed" };
@@ -73,22 +73,31 @@ export function createAzureChatSyntheticAdapter(config: ChatAzureServerConfig, f
       } finally {
         clearTimeout(timer);
       }
-    }
+    },
   });
 }
 
-function isFilterBlock(value: Record<string, unknown> | null): boolean {
-  return !!value?.error && typeof value.error === "object" && (value.error as Record<string, unknown>).code === "content_filter";
-}
-
-function isFilterPartial(value: Record<string, unknown> | null): boolean {
-  const choice = value && Array.isArray(value.choices) ? value.choices[0] : null;
-  return !!choice && typeof choice === "object" && (choice as Record<string, unknown>).finish_reason === "content_filter";
+function contentFilter(value: Record<string, unknown> | null): ProviderResult | null {
+  if (!value) return null;
+  if (isRecord(value.error) && value.error.code === "content_filter") return { kind: "content_filter_block" };
+  if (value.status === "incomplete" && isRecord(value.incomplete_details) && value.incomplete_details.reason === "content_filter") {
+    return { kind: "content_filter_partial" };
+  }
+  return null;
 }
 
 function extractAssistantMessage(value: Record<string, unknown> | null): string | null {
-  const choice = value && Array.isArray(value.choices) ? value.choices[0] : null;
-  const message = choice && typeof choice === "object" ? (choice as Record<string, unknown>).message : null;
-  const content = message && typeof message === "object" ? (message as Record<string, unknown>).content : null;
-  return typeof content === "string" && content.trim() ? content : null;
+  if (value && typeof value.output_text === "string" && value.output_text.trim()) return value.output_text;
+  if (!value || !Array.isArray(value.output)) return null;
+  for (const item of value.output) {
+    if (!isRecord(item) || !Array.isArray(item.content)) continue;
+    for (const content of item.content) {
+      if (isRecord(content) && content.type === "output_text" && typeof content.text === "string" && content.text.trim()) return content.text;
+    }
+  }
+  return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

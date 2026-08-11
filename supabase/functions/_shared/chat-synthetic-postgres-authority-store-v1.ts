@@ -3,39 +3,14 @@ import type { ChatSyntheticAuthorityStore } from "./chat-synthetic-gateway-port-
 export const CHAT_SYNTHETIC_AUTHORITY_STORE_VERSION = "chat_synthetic_postgres_authority_store_v1" as const;
 export const CHAT_SYNTHETIC_APPROVED_SUPABASE_ORIGIN = "https://bmqhwofmdgebpcihjlnb.supabase.co" as const;
 
-type StoreConfig = Readonly<{
-  supabaseOrigin: typeof CHAT_SYNTHETIC_APPROVED_SUPABASE_ORIGIN;
-  serviceRoleKey: string;
+export type ChatAuthorityRpcClient = Readonly<{
+  rpc(name: string, parameters: Readonly<Record<string, unknown>>): Promise<{ data: unknown; error: unknown }>;
 }>;
 
-export function readChatSyntheticAuthorityStoreConfig(environment: Readonly<Record<string, string | undefined>>):
-  | { ok: true; config: StoreConfig }
-  | { ok: false; code: "CHAT_SYNTHETIC_AUTHORITY_STORE_UNAVAILABLE" } {
-  if (environment.SUPABASE_URL !== CHAT_SYNTHETIC_APPROVED_SUPABASE_ORIGIN || !environment.SUPABASE_SERVICE_ROLE_KEY) {
-    return { ok: false, code: "CHAT_SYNTHETIC_AUTHORITY_STORE_UNAVAILABLE" };
-  }
-  return {
-    ok: true,
-    config: Object.freeze({
-      supabaseOrigin: CHAT_SYNTHETIC_APPROVED_SUPABASE_ORIGIN,
-      serviceRoleKey: environment.SUPABASE_SERVICE_ROLE_KEY
-    })
-  };
-}
-
-export function createChatSyntheticPostgresAuthorityStore(config: StoreConfig, fetchImpl: typeof fetch = fetch): ChatSyntheticAuthorityStore {
+export function createChatSyntheticPostgresAuthorityStore(client: ChatAuthorityRpcClient): ChatSyntheticAuthorityStore {
   const rpc = async <T extends string>(name: string, body: Record<string, unknown>, allowed: readonly T[]): Promise<T> => {
-    const response = await fetchImpl(`${config.supabaseOrigin}/rest/v1/rpc/${name}`, {
-      method: "POST",
-      headers: {
-        apikey: config.serviceRoleKey,
-        authorization: `Bearer ${config.serviceRoleKey}`,
-        "content-type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) throw new Error("CHAT_SYNTHETIC_AUTHORITY_STORE_UNAVAILABLE");
-    const outcome = await response.json().catch(() => null) as unknown;
+    const { data: outcome, error } = await client.rpc(name, body);
+    if (error) throw new Error("CHAT_SYNTHETIC_AUTHORITY_STORE_UNAVAILABLE");
     if (typeof outcome !== "string" || !allowed.includes(outcome as T)) throw new Error("CHAT_SYNTHETIC_AUTHORITY_STORE_UNAVAILABLE");
     return outcome as T;
   };

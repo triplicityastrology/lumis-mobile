@@ -13,9 +13,9 @@ export const NO_NORMAL_CHAT_INTEGRATION_AUTHORITY = "NO_NORMAL_CHAT_INTEGRATION_
 export const NO_AZURE_TRAFFIC_AUTHORITY = "NO_AZURE_TRAFFIC_AUTHORITY" as const;
 
 type DiceEvidencePrerequisite = Readonly<{
-  schema: "s2_t260_accepted_dice_technical_evidence_v1";
+  schema: "lumis_dice_technical_window_acceptance_v1";
   review_decision: "accepted";
-  technical_evidence_schema: "s2_t254_dice_technical_evidence_package_v1";
+  dice_gateway_package_sha256: "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71";
   technical_evidence_package_sha256: string;
   logical_total: 80;
   en: 40;
@@ -97,7 +97,7 @@ type ActiveAuthority = Readonly<{ receipt: ChatWindowAuthority; receiptSha256: s
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const RUN_ID = /^chat-syn-[a-z0-9]{12,32}$/;
-const EVIDENCE_KEYS = ["schema", "review_decision", "technical_evidence_schema", "technical_evidence_package_sha256", "logical_total", "en", "zh_hant", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged", "accepted_at"];
+const EVIDENCE_KEYS = ["schema", "review_decision", "dice_gateway_package_sha256", "technical_evidence_package_sha256", "logical_total", "en", "zh_hant", "provider_disabled_verified", "founder_cases_run", "persistence_writes", "units_charged", "accepted_at"];
 const AUTHORITY_KEYS = ["schema", "authority", "scope", "gateway_interface", "review_package_sha256", "gateway_source_sha256", "fixture_registry_sha256", "canonical_t240_schema_sha256", "dice_evidence_sha256", "run_id", "caps", "issued_at", "valid_until"];
 const CAP_KEYS = ["logical", "en", "zh_hant", "attempts", "input_tokens", "output_tokens", "concurrency", "deadline_ms", "retries"];
 const REQUEST_KEYS = ["fixture_id", "idempotency_key", "run_id"];
@@ -162,7 +162,9 @@ export class ChatSyntheticGatewayPortV1 {
       fixtureRegistrySha256: authority.fixture_registry_sha256,
       validUntil: authority.valid_until
     }));
-    if (outcome !== "consumed") fail(outcome === "replayed" ? "CHAT_SYNTHETIC_AUTHORITY_REPLAYED" : "CHAT_SYNTHETIC_AUTHORITY_STORE_REJECTED");
+    // A matching durable replay restores the same single-use authority on a new
+    // stateless Edge instance; fixture claims still enforce one execution.
+    if (outcome !== "consumed" && outcome !== "replayed") fail("CHAT_SYNTHETIC_AUTHORITY_STORE_REJECTED");
     this.#active = Object.freeze({ receipt: authority, receiptSha256: input.authoritySha256 });
   }
 
@@ -204,8 +206,8 @@ export function validateAcceptedDiceEvidence(value: unknown, checksum: string, c
   const evidence = value as DiceEvidencePrerequisite;
   if (
     !SHA256.test(checksum) || control.acceptedDiceEvidenceSha256 !== checksum ||
-    evidence.schema !== "s2_t260_accepted_dice_technical_evidence_v1" || evidence.review_decision !== "accepted" ||
-    evidence.technical_evidence_schema !== "s2_t254_dice_technical_evidence_package_v1" ||
+    evidence.schema !== "lumis_dice_technical_window_acceptance_v1" || evidence.review_decision !== "accepted" ||
+    evidence.dice_gateway_package_sha256 !== "adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71" ||
     !SHA256.test(evidence.technical_evidence_package_sha256) || evidence.logical_total !== 80 || evidence.en !== 40 || evidence.zh_hant !== 40 ||
     evidence.provider_disabled_verified !== true || evidence.founder_cases_run !== 0 || evidence.persistence_writes !== 0 || evidence.units_charged !== 0 ||
     !Number.isFinite(Date.parse(evidence.accepted_at))
