@@ -1,0 +1,35 @@
+{
+  "schema": "s2_t306_normal_chat_integration_candidate_v1",
+  "base_commit": "ad36ddc46f0f46cb473f86aae77b284f73439223",
+  "accepted_t240_commit": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+  "accepted_t240_schema_sha256": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+  "accepted_dice_evidence_schema": "s2_t296_accepted_dice_v4_technical_evidence_v1",
+  "accepted_dice_evidence_sha256": null,
+  "accepted_chat_authority_sha256": null,
+  "integration_enabled": false,
+  "traffic_enabled": false,
+  "normal_chat_route_connected": false,
+  "provider_client_constructible": false,
+  "provider_secrets": "server_only",
+  "raw_logging": false,
+  "non_success_effects": {
+    "persistence": "not_committed",
+    "units_charged": 0
+  },
+  "atomic_success": [
+    "user_message",
+    "assistant_message",
+    "unit_ledger",
+    "idempotency_outcome"
+  ],
+  "authority_status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "protected_chat_sources": {
+    "apps/mobile/App.tsx": "8af09a8ec4a1d5dc71670790a0f97dd993fe3fee55cc94614b9b73b8439bed63",
+    "apps/mobile/src/components/ChatThinkingIndicator.tsx": "f5eaf0febeb1317f5df3a5c5658a1880c1bd0d2b5da2457edd4694a4514eadaa",
+    "apps/mobile/src/services/chat.ts": "4a0b70e514c160dc55541e2909d45748347a76fe0561fb72de6a3d371a242392",
+    "apps/mobile/src/features/chat/ChatConfirmationCards.tsx": "669cf97c450d02662d572b92686d70af1f8c00810ac440f42221f982e3fdef70"
+  }
+}
