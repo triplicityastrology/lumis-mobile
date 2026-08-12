@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t326_chat_synthetic_traffic_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "scope", "package_sha256", "accepted_dice_evidence_sha256", "deployment_receipt_sha256", "runtime_request_fields", "fixture_ids", "normal_chat_connected", "member_data", "persistence_writes", "units_charged", "single_use", "valid_until"],
+  "properties": {
+    "schema": { "const": "s2_t326_chat_synthetic_traffic_authorization_v1" },
+    "decision": { "const": "accepted" },
+    "scope": { "const": "SYNTHETIC_CHAT_FIXTURE_IDS_ONLY" },
+    "package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "accepted_dice_evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "deployment_receipt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "runtime_request_fields": { "const": ["schema_version", "fixture_id"] },
+    "fixture_ids": { "const": ["chat-en-reflection-01", "chat-zh-hant-reflection-01"] },
+    "normal_chat_connected": { "const": false },
+    "member_data": { "const": false },
+    "persistence_writes": { "const": 0 },
+    "units_charged": { "const": 0 },
+    "single_use": { "const": true },
+    "valid_until": { "type": "string", "format": "date-time" }
+  }
+}

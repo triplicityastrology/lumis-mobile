@@ -1,0 +1,21 @@
+{
+  "schema": "s2_t326_chat_product_path_seal_v1",
+  "source_sha256": {
+    "apps/mobile/src/services/chatPostDiceReleaseCandidate.ts": "dc93061d22516be7b16baaa9193c9895081d04db58654354fd8a232f5db9cb5c",
+    "apps/mobile/src/services/chatProductPathCandidate.ts": "14ff58a95a13c19fe618b74a2bed9938a50636b1c9466daaeafbc0ebe1558cb9",
+    "apps/mobile/src/services/chatReleaseCandidate.ts": "7cdf741b93a4ff50ef153cb1d4b240c766be9bb32bad4d9e42343aa72f11b1f2",
+    "apps/mobile/src/services/normalChatAiCandidate.ts": "8f982ad91a0e754f5e3dac03a6c2ef15ba48723eedb4b503699e1f7ede982980",
+    "apps/mobile/src/dev/FounderPolishedChatExperience.tsx": "15298ecc60997611600d884aa566268e3cc93134d8d5aa0da2d864a2ecdac8b4",
+    "supabase/functions/_shared/chat-product-path-candidate-v1.ts": "c380132c126232d79c6fd5e512e93f6bb74a96f886920719784228726d5d360d",
+    "supabase/functions/_shared/chat-post-dice-release-candidate-v1.ts": "48c64273b0a936b107f6e706fa1ccd8a08a8b94d37331bdd5887c32e0dbf0aa6",
+    "supabase/functions/_shared/normal-chat-release-candidate-v1.ts": "b0641ec653182627a08a297f1a6de045cbb1ff5f2fecf4f3d0bfcee2b972aec5",
+    "supabase/functions/_shared/normal-chat-ai-candidate-v1.ts": "4868bf4849c677363bc1bc6916472545a2be3d14b0cacb39811af55a86c485ed",
+    "supabase/functions/chat-synthetic/index.ts": "ac80fce61afd209173cc113c8316b4fe1ff116c418601be02b3c72cdfbf13c02",
+    "supabase/functions/chat-synthetic/edge-handler-v1.ts": "e48c4fca604cbf08f62b34f392992fddc3c8bcea0668a1de384f95b2d6141128",
+    "supabase/functions/_shared/chat-synthetic-gateway-port-v1.ts": "4ff3466eb9f6e7234842dc8ed59807b2aa34a269be60484c3fa8f8b3ba7dbee1",
+    "supabase/tests/s2-t326-chat-default-off-deployment.schema.json": "c11fd368cd8897fa8215a1d18e28e15e6ab2fc1633bc3c6f143efc43094cce05",
+    "supabase/tests/s2-t326-chat-synthetic-traffic.schema.json": "bf1c176c7657d8b014749fb8caf2e7abcd098c0f09b69edbd8430f07275783fb",
+    "config/s2-t326-chat-product-path.json": "a8449334bd3fd3dd3437504ec01862b85c8a71d4dfd3eac9a19068e82ca91933"
+  },
+  "package_sha256": "68683b5270292f6a9450ff94a66fc1c79b3d5d12c5828bb6a4ee58cc1977e1ae"
+}

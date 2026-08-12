@@ -1,0 +1,45 @@
+{
+  "schema": "s2_t326_chat_product_path_control_v1",
+  "source_parent": "582185d6fbb380cf6777f970afcd5bbc56983b68",
+  "dice_evidence": {
+    "schema": "s2_t317_dice_technical_80_accepted_evidence_v1",
+    "source_commit": "8706db6cadbbf4ae0a58d10a194479a0c7aca465",
+    "source_tree": "edf01652aa245cc1bc202f3e3cee677b074a2565",
+    "release_package_sha256": "690879d6df3ecfd33a0a62ee0833f3bc278cfa11a2ab4062b8eba9eb659c1075",
+    "release_manifest_sha256": "1ef44fd42677e98fc3edd49e2e7ba6abf1257dbbfe9cdf597b68c0ae9239ef84",
+    "accepted_evidence_sha256": null
+  },
+  "mobile": {
+    "integration_enabled": false,
+    "traffic_enabled": false,
+    "runtime_request_fields": ["schema_version", "fixture_id"],
+    "fixture_ids": ["chat-en-reflection-01", "chat-zh-hant-reflection-01"],
+    "normal_chat_imports_candidate": false
+  },
+  "server": {
+    "integration_enabled": false,
+    "traffic_enabled": false,
+    "function": "chat-synthetic",
+    "provider_client_before_gates": false,
+    "raw_logging": false
+  },
+  "dice_handoff": {
+    "trigger": "explicit_reflect_in_chat",
+    "fields": ["question", "planet", "sign", "house", "interpretation"],
+    "automatic_navigation": false
+  },
+  "effects": {
+    "atomic_success_required": true,
+    "non_success_persistence_writes": 0,
+    "non_success_units_charged": 0
+  },
+  "accepted_receipts": {
+    "chat_default_off_deployment_sha256": null,
+    "chat_synthetic_traffic_sha256": null
+  },
+  "status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "next_action": "WAITING_FOR_ACCEPTED_T317_DICE_TECHNICAL_EVIDENCE"
+}

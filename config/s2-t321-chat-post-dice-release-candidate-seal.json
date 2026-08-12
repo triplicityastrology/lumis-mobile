@@ -16,7 +16,7 @@
   "source_sha256": {
     "apps/mobile/App.tsx": "11994526c5969c7f37168d0b98715f625f225cdedf3f663d5eb775f81e881f38",
     "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "5bee413139cbfd4a762ce79a2936c7022ddd1391278cadef3d7de5af199af558",
-    "apps/mobile/src/services/chatPostDiceReleaseCandidate.ts": "a502d35d726bd72b494872efafe899910e0242b3578b72d69a05fe673651eb05",
+    "apps/mobile/src/services/chatPostDiceReleaseCandidate.ts": "dc93061d22516be7b16baaa9193c9895081d04db58654354fd8a232f5db9cb5c",
     "apps/mobile/src/services/diceFounderProductBridge.ts": "6d544498aa915906c700b7262f8767d2a47a285e4443a49300b1a5636b0744d1",
     "apps/mobile/src/services/diceLiveResultAdapter.ts": "627ba0183bd9d3842212f0aecfedc0eec9a74d5582415b4c19038947c4021eb7",
     "apps/mobile/src/services/chatReleaseCandidate.ts": "7cdf741b93a4ff50ef153cb1d4b240c766be9bb32bad4d9e42343aa72f11b1f2",
@@ -34,7 +34,7 @@
     "scripts/s2-t321-chat-post-dice-contract.mjs": "72870e1b96988da623965a40cea9244709379e758ae3ec711d98fdc2ddbd42e6",
     "scripts/s2-t321-chat-readiness.mjs": "a7cd577ebd6a92872e2bbcf9b1679db60af513224c88e4d1d1f0fbb6dd1204c4"
   },
-  "package_sha256": "88a999062953cc245d1848a955255388104f855fb69046fe09fc522c915e2322",
+  "package_sha256": "194d856c4465ffbb9a3cfbcdbd99542b4522ab3a517926083b07ee9b9ee63cd5",
   "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
   "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
 }

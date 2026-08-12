@@ -26,6 +26,11 @@ export type DiceReflectHandoff = Readonly<{
   target: "chat";
   chat_draft: string;
   provenance: "explicit_reflect_in_chat";
+  dice_context: Readonly<{
+    question: string;
+    results: readonly [string, string, string];
+    interpretation: string | null;
+  }>;
 }>;
 
 export class ChatPostDiceReleaseUnavailableError extends Error {
@@ -49,14 +54,50 @@ export function buildExplicitDiceReflectHandoff(value: unknown): DiceReflectHand
     throw new Error("DICE_REFLECT_HANDOFF_CLOSED_INPUT_REQUIRED");
   }
   const draft = value.chat_draft.normalize("NFC").replace(/\r\n?/g, "\n").trim();
-  if (
-    !draft.startsWith("Help me reflect on my astrology dice throw. My question was: “") ||
-    !draft.includes("The dice showed ") ||
-    [...draft].length > 2_400
-  ) {
+  const parsed = parseApprovedDiceDraft(draft);
+  if (!parsed || [...draft].length > 2_400) {
     throw new Error("DICE_REFLECT_HANDOFF_INVALID");
   }
-  return Object.freeze({ target: "chat", chat_draft: draft, provenance: "explicit_reflect_in_chat" });
+  return Object.freeze({
+    target: "chat",
+    chat_draft: draft,
+    provenance: "explicit_reflect_in_chat",
+    dice_context: parsed,
+  });
+}
+
+function parseApprovedDiceDraft(draft: string): DiceReflectHandoff["dice_context"] | null {
+  const prefix = "Help me reflect on my astrology dice throw. My question was: “";
+  const divider = "” The dice showed ";
+  if (!draft.startsWith(prefix)) return null;
+  const dividerAt = draft.indexOf(divider, prefix.length);
+  if (dividerAt < 0) return null;
+
+  const question = draft.slice(prefix.length, dividerAt).trim();
+  const resultAndInterpretation = draft.slice(dividerAt + divider.length);
+  const interpretationDivider = ". The Dice interpretation was: ";
+  const interpretationAt = resultAndInterpretation.indexOf(interpretationDivider);
+  const resultText = interpretationAt < 0
+    ? resultAndInterpretation
+    : resultAndInterpretation.slice(0, interpretationAt);
+  const interpretation = interpretationAt < 0
+    ? null
+    : resultAndInterpretation.slice(interpretationAt + interpretationDivider.length).trim();
+  if (!question || question.includes("”") || (interpretationAt < 0 && !resultText.endsWith("."))) return null;
+  const bareResultText = interpretationAt < 0 ? resultText.slice(0, -1) : resultText;
+  const results = bareResultText.split(", ");
+  if (
+    results.length !== 3 ||
+    results.some((entry) => !entry.trim() || [...entry].length > 80 || /[\r\n]/.test(entry)) ||
+    [...question].length > 600 ||
+    (interpretation !== null && (!interpretation || [...interpretation].length > 1_500))
+  ) return null;
+
+  return Object.freeze({
+    question,
+    results: Object.freeze([results[0], results[1], results[2]]) as readonly [string, string, string],
+    interpretation,
+  });
 }
 
 export function validateAcceptedT317DiceEvidence(value: unknown, binding: T317DiceEvidenceBinding): boolean {

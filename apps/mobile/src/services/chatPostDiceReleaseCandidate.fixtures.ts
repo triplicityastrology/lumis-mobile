@@ -51,9 +51,16 @@ assert.deepEqual(buildExplicitDiceReflectHandoff({ action: "reflect_in_chat", ch
   target: "chat",
   chat_draft: draft,
   provenance: "explicit_reflect_in_chat",
+  dice_context: {
+    question: "How did my interview go?",
+    results: ["Venus", "Leo", "6th House"],
+    interpretation: "Reading: Notice what became clearer. Watch out: Avoid overconfidence. Practical direction: Write down one reversible next step.",
+  },
 });
 assert.throws(() => buildExplicitDiceReflectHandoff({ chat_draft: draft }), /EXPLICIT_ACTION/);
 assert.throws(() => buildExplicitDiceReflectHandoff({ action: "automatic", chat_draft: draft }), /EXPLICIT_ACTION/);
+assert.throws(() => buildExplicitDiceReflectHandoff({ action: "reflect_in_chat", chat_draft: "Help me reflect on my astrology dice throw." }), /HANDOFF_INVALID/);
+assert.throws(() => buildExplicitDiceReflectHandoff({ action: "reflect_in_chat", chat_draft: draft, endpoint: "forbidden" }), /CLOSED_INPUT/);
 
 async function main() {
   let transports = 0;

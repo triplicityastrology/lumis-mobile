@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-product-path-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/chatProductPathCandidate.ts",
+    "src/services/chatProductPathCandidate.fixtures.ts",
+    "src/services/chatPostDiceReleaseCandidate.ts",
+    "src/services/chatReleaseCandidate.ts",
+    "src/services/normalChatAiCandidate.ts"
+  ]
+}

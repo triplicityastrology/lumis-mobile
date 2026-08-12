@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-product-path-server-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "_shared/chat-product-path-candidate-v1.ts",
+    "_shared/chat-product-path-candidate-v1.fixtures.ts",
+    "_shared/chat-post-dice-release-candidate-v1.ts",
+    "_shared/normal-chat-release-candidate-v1.ts",
+    "_shared/normal-chat-ai-candidate-v1.ts"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t326_chat_default_off_deployment_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "function", "package_sha256", "integration_enabled", "traffic_enabled", "provider_calls", "model_invocations", "disabled_probes", "normal_chat_unchanged", "rollback_revision"],
+  "properties": {
+    "schema": { "const": "s2_t326_chat_default_off_deployment_authorization_v1" },
+    "decision": { "const": "accepted" },
+    "function": { "const": "chat-synthetic" },
+    "package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "integration_enabled": { "const": false },
+    "traffic_enabled": { "const": false },
+    "provider_calls": { "const": 0 },
+    "model_invocations": { "const": 0 },
+    "disabled_probes": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "const": "CHAT_AI_DISABLED" } },
+    "normal_chat_unchanged": { "const": true },
+    "rollback_revision": { "type": "string", "minLength": 1 }
+  }
+}
