@@ -1,11 +1,11 @@
 {
   "schema": "s2_t317_final_dice_release_v1",
   "integration_authorities": {
-    "closed_registry": "c26aeac9642029c4b0dcca6ddfc45f11be2b542d",
-    "founder_signer": "523a4166f18ecdac66a30b03d6f59068bd5b7279",
-    "disabled_deployment": "179de7e43fd208858d18398586543028ba9d1b5f",
-    "migration_and_technical_window": "8f6d2772a664b60bd95b5942fb87844f7d613e31",
-    "on_dice_interpretation": "482ebf58cb03270acce8755b11af7a1a9360f189"
+    "closed_registry": "788cf285c6b1fc1359dce389781c49abc5fc331a1aee42f5886e064b98311a27",
+    "founder_signer": "f719c21b85393a5342a0e398f1d1a988db8a6440494d194d67f8d8bc47789646",
+    "disabled_deployment": "424d5ba52f7c8d62af388fe5e7329c587e2ffaed2aa0261291f63c6c764c70cb",
+    "migration_and_technical_window": "b4873059ddb6d651a216998e72dde36530180baef730ee5869488d4facbb71b9",
+    "on_dice_interpretation": "3106ab9102e0097001037f2279a31dc6039be12ce554e6c788dcfba20fd1594a"
   },
   "issuer": {
     "name": "Lumis Founder Deployment Approver",

@@ -14,7 +14,7 @@
   "proof_commit": "b469cb7e0824bd6b864edc983bcd352b37994894",
   "proof_receipt_sha256": "0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e",
   "candidate_commit": "179de7e43fd208858d18398586543028ba9d1b5f",
-  "candidate_package_sha256": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71",
+  "candidate_package_sha256": "424d5ba52f7c8d62af388fe5e7329c587e2ffaed2aa0261291f63c6c764c70cb",
   "authorized_action": "REPLACE_WITH_APPLY_0039_OR_ROLLBACK_0039",
   "issued_at": "REPLACE_WITH_UTC_TIMESTAMP",
   "expires_at": "REPLACE_WITH_UTC_TIMESTAMP_WITHIN_900_SECONDS",

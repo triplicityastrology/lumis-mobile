@@ -8,7 +8,7 @@ This package prepares two independent Founder-owned decisions. Neither template 
 - Trust-anchor owner: Founder
 - Technical validates signatures and scope; Technical cannot create or sign Founder approval.
 - Accepted local proof: T283 commit `b469cb7e0824bd6b864edc983bcd352b37994894`, PostgreSQL 17.6, network disabled, receipt SHA-256 `0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e`.
-- Exact T314 candidate: commit `179de7e43fd208858d18398586543028ba9d1b5f`, package `8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71`.
+- Exact T314 candidate: commit `179de7e43fd208858d18398586543028ba9d1b5f`, package `424d5ba52f7c8d62af388fe5e7329c587e2ffaed2aa0261291f63c6c764c70cb`.
 - Founder trust anchor: key ID `founder-ed25519-deployment-approver-v1`, SPKI SHA-256 `ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478`.
 
 ## A. Migration 0039 only

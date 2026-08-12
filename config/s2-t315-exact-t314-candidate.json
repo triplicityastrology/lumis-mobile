@@ -1,9 +1,9 @@
 {
   "schema": "s2_t314_final_default_off_dice_candidate_v1",
   "candidate_commit": "179de7e43fd208858d18398586543028ba9d1b5f",
-  "candidate_package_sha256": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71",
+  "candidate_package_sha256": "424d5ba52f7c8d62af388fe5e7329c587e2ffaed2aa0261291f63c6c764c70cb",
   "t307_commit": "cf8386a9176ed7fde0b6008a2628c2785bce2c64",
-  "t307_package_sha256": "5eb152dbbf4062b45b9eee78fccfa3aaaadeaa20a0c22f2e9561f1667b4b442f",
+  "t307_package_sha256": "c55b2bee2d09b6292a7bd618750e0b745088c358766c0d8ac63a691a73e82544",
   "registry_membership": "checksum_sealed_exact_registry_membership",
   "signer_schema": "lumis_founder_deployment_approver_ed25519_v1",
   "migration_0039_required": true,

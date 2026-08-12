@@ -1,6 +1,6 @@
 {
   "schema": "s2_t307_dice_release_candidate_seal_v1",
-  "package_sha256": "a79071a5379e2ed63eff79874827ce26b9bc33a7e38d1ad0f5b715960643876d",
+  "package_sha256": "c55b2bee2d09b6292a7bd618750e0b745088c358766c0d8ac63a691a73e82544",
   "source_binding": "clean_git_head_plus_exact_selected_file_hashes",
   "files": {
     "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "1d112449b31438916cd04a11bbbb7299fd87733c6556dde747194ae86488ecbe",
@@ -16,7 +16,7 @@
     "config/evidence/s2-t272-dice-runtime-proof.json": "3f44ef8c674ae70037f1e34ffde9f0efb70862ee1bc4b158cadbeae50efe1256",
     "config/evidence/s2-t307-dice-deno-check.json": "873f042c43eeff0509e48f084f62b7801dc05d03dd596c4ac35989641f2904f7",
     "config/s2-t303-dice-default-off-final-control.json": "c308e36cdc96ed9b432f87c32d58d13261752e72d5afb33f3ee916c11bfec5f7",
-    "config/s2-t303-dice-default-off-final-package-seal.json": "e1d8070feb4ba644e003cf9d8bbf27443fcbafb9afe4d62c21c8bfba2374e660",
+    "config/s2-t303-dice-default-off-final-package-seal.json": "5ade9050611f4a5652cc4aa6c4a857b72000fd1a1539ea8a9d404315b4337ca7",
     "config/s2-t304-dice-80-results.json": "4e3d899d897ebb42c690876b14154a07bc26a9cb9a88bef6b8f235d1a5b6edb7",
     "config/s2-t304-dice-80-results-manifest.json": "4111462bc5d4ae0474393b504a3268d5317e9da47f163b327dc096a3901a7ef9",
     "scripts/lib/s2-t303-dice-default-off-final.mjs": "238dd80d870b6bf53de246f9067992d4bfebd0f0fd6fbf9bd86994ecccc23675",

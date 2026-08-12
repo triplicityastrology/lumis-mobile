@@ -6,8 +6,8 @@
     "apps/mobile/src/features/dice/dicePreRollValidation.fixtures.ts": "bb6d293ce833b3112319a3efe2c554b57e23b4e03beaee3817c4f0031fa9cc12",
     "apps/mobile/src/services/diceFounderFixtureRegistry.ts": "7daad4d6d41d1a26b93128f7956e91297f68e345468802e28751f7f7fd6d5d3d",
     "packages/shared/src/config/dice-question-boundary.ts": "feb616ccc565ffaf8af9e806271902b5c582f21421f8ef763f92244ca20dda67",
-    "config/s2-t317-final-dice-release-seal.json": "755704f334f4ab38565696a273055ca12469b4660801a736fa0f87091bb5e18e",
+    "config/s2-t317-final-dice-release-seal.json": "0a27e48f6d0ad92c063375660ced74951dbed4736998145dab58d79c48280686",
     "scripts/s2-t322-real-dice-pre-roll-validation-contract.mjs": "9d6e9078d99100d87e61f80e97bb9d4b48a61e5ae46825569d9b3ef9fd2df577"
   },
-  "package_sha256": "7675005910e519cdaba9035e33285cf1bd4390ba5b2702d20c241089f3991735"
+  "package_sha256": "e8b5b8c9def96a625938e651898b6a2976db15a1aeeaef280f4e6e296f204834"
 }

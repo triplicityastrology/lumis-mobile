@@ -1,15 +1,15 @@
 {
   "schema": "s2_t314_final_disabled_deploy_package_seal_v1",
   "base_commit": "cf8386a9176ed7fde0b6008a2628c2785bce2c64",
-  "package_sha256": "d9c9fa19626229f657c436a0bbd26f4dde5136da59a366819d3aae309e75a784",
+  "package_sha256": "424d5ba52f7c8d62af388fe5e7329c587e2ffaed2aa0261291f63c6c764c70cb",
   "files": {
     "apps/mobile/src/dev/founderDiceQuestionBank.ts": "d42a881e2bb02a2dd3da0fdd93874317960f3a0ed4b0cccd2e2ff06424f0f80c",
     "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "1d112449b31438916cd04a11bbbb7299fd87733c6556dde747194ae86488ecbe",
     "apps/mobile/src/services/diceFounderFixtureRegistry.ts": "7daad4d6d41d1a26b93128f7956e91297f68e345468802e28751f7f7fd6d5d3d",
     "apps/mobile/src/services/diceLiveResultAdapter.ts": "dc2c042b079b66a8acfa4c11d2874744024ab2d7604942b713b0f4ee15289794",
     "apps/mobile/src/services/diceLiveResultAdapter.fixtures.ts": "cd6c244b6da5cf90034b35e1e513fd4069121c1cbd781cf234adf4f52a2daad1",
-    "config/s2-t307-dice-release-candidate-seal.json": "dfb84e0a9e7a434c31118b366ed651cc979ff988f582c955a2a2f8f79b9e9b65",
-    "config/s2-t314-final-disabled-deploy-control.json": "99fe32671b29cc8142d9b948ba90b04876d05dd22f4702bcaaf8f208dad87ade",
+    "config/s2-t307-dice-release-candidate-seal.json": "98baa082ec335bd3403f5996703a61d5a8c5323a7f31c4386d605437a32011ea",
+    "config/s2-t314-final-disabled-deploy-control.json": "d5452419069c2f3464d9037a2711110aef8b2af025c87193ea4e779daa628f14",
     "config/s2-t314-founder-fixture-registry.json": "84c13173460d39518daa2560af118dfc2aa19c457f7a0033bacd0a1bb7676bd6",
     "scripts/lib/s2-t314-final-disabled-deploy.mjs": "54fcaaca318e6486ef4b5802cfcffe95a3fe374a6c6ff1140c7926b6a00c1f39",
     "scripts/run-s2-t314-final-disabled-deploy.zsh": "47dafa7176cbdfd27e6458ef78dcc238970c7f003f5b3abe9c6bc1c9ef6c3e1a",

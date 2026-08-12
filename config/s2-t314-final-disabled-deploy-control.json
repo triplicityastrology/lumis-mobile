@@ -6,7 +6,7 @@
   "function_name": "dice-synthetic",
   "source_authority": {
     "t307_commit": "cf8386a9176ed7fde0b6008a2628c2785bce2c64",
-    "t307_package_sha256": "ada3406a3bb51489850a84f76d78291696eea04b638b5b061bc4cca5d769248d",
+    "t307_package_sha256": "c55b2bee2d09b6292a7bd618750e0b745088c358766c0d8ac63a691a73e82544",
     "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457"
   },
   "founder_registry": {

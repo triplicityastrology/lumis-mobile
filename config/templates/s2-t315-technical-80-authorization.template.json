@@ -12,7 +12,7 @@
   "project_ref": "bmqhwofmdgebpcihjlnb",
   "function_name": "dice-synthetic",
   "candidate_commit": "179de7e43fd208858d18398586543028ba9d1b5f",
-  "candidate_package_sha256": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71",
+  "candidate_package_sha256": "424d5ba52f7c8d62af388fe5e7329c587e2ffaed2aa0261291f63c6c764c70cb",
   "accepted_post_deploy_receipt_sha256": "REPLACE_WITH_POST_DEPLOY_RECEIPT_SHA256",
   "accepted_migration_0039_receipt_sha256": "REPLACE_WITH_MIGRATION_RECEIPT_SHA256",
   "technical_cases": 80,

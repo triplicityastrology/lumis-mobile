@@ -42,7 +42,7 @@
     "remote_calls": 0
   },
   "controlled_source_sha256": {
-    "package.json": "0654ae1e2cc70e2a9361136a00c539490a5328b011f1fe9a6abb5f30be88749d",
+    "package.json": "3ed0a412cac448afb2ffb437f75ec672ef16352c62dbb5719794b23883e5a063",
     "pnpm-lock.yaml": "8e4d7dd5ccbfdb520ae3df79341c8b82ef69b8119fe0b8566ae06a93d398a0f7",
     "supabase/functions/dice-synthetic/deno.json": "5ec28f1802aeaa4f2ce09edfc4259d855d4f89368cfe643372a9873f53e44551",
     "supabase/functions/dice-synthetic/index.ts": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b",

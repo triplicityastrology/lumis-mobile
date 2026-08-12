@@ -1,6 +1,6 @@
 {
   "schema": "s2_t312_closed_dice_registry_seal_v1",
-  "package_sha256": "3e77be699ceec15ec2928c0f4ed2f1f30bea23de63bd0da53db7af8ddb39d040",
+  "package_sha256": "788cf285c6b1fc1359dce389781c49abc5fc331a1aee42f5886e064b98311a27",
   "files": {
     "apps/mobile/src/dev/founderDiceQuestionBank.ts": "d42a881e2bb02a2dd3da0fdd93874317960f3a0ed4b0cccd2e2ff06424f0f80c",
     "apps/mobile/src/dev/FounderDiceInterpretationWorkbench.tsx": "9dbccad97fe8d408cbbbd641adfa43b5bdd852f04d33d82cd7b93ee505b7d351",
@@ -11,7 +11,7 @@
     "apps/mobile/src/services/diceLiveResultAdapter.fixtures.ts": "cd6c244b6da5cf90034b35e1e513fd4069121c1cbd781cf234adf4f52a2daad1",
     "config/s2-t302-dice-live-result-adapter.json": "d1e8e2fc8145f5419e47d3a663a448c165b4dc05867b86d28e50569fbb18e29c",
     "config/s2-t307-dice-release-candidate.json": "7ffa3507007d6d04b3e0c1b3bf27eaf20f1c6814f767939fb7dd199437767aca",
-    "config/s2-t307-dice-release-candidate-seal.json": "dfb84e0a9e7a434c31118b366ed651cc979ff988f582c955a2a2f8f79b9e9b65",
+    "config/s2-t307-dice-release-candidate-seal.json": "98baa082ec335bd3403f5996703a61d5a8c5323a7f31c4386d605437a32011ea",
     "scripts/s2-t302-dice-live-result-adapter-contract.mjs": "aa4661d5eb7d24d9345e6721e42e2bef606ffe9a55d442970a6c6044ef692f04",
     "scripts/s2-t307-dice-release-contract.mjs": "1535e6adfeda84780edc0df33043a3fe9e95d9982740fce121c7813fa5ee5b71"
   }

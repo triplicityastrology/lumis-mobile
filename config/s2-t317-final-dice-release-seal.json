@@ -7,16 +7,16 @@
     "apps/mobile/src/services/diceFounderFixtureRegistry.ts": "7daad4d6d41d1a26b93128f7956e91297f68e345468802e28751f7f7fd6d5d3d",
     "apps/mobile/src/services/diceLiveResultAdapter.ts": "dc2c042b079b66a8acfa4c11d2874744024ab2d7604942b713b0f4ee15289794",
     "apps/mobile/src/services/diceFounderProductBridge.ts": "6d544498aa915906c700b7262f8767d2a47a285e4443a49300b1a5636b0744d1",
-    "config/s2-t307-dice-release-candidate-seal.json": "dfb84e0a9e7a434c31118b366ed651cc979ff988f582c955a2a2f8f79b9e9b65",
-    "config/s2-t312-closed-dice-registry-seal.json": "d6580079dc26d7481d05047d37013f39af3ae8b6e5ffe302a5e6d471e218e6a5",
+    "config/s2-t307-dice-release-candidate-seal.json": "98baa082ec335bd3403f5996703a61d5a8c5323a7f31c4386d605437a32011ea",
+    "config/s2-t312-closed-dice-registry-seal.json": "4c2b3f5629653a0e21357a071f8d90f59487b31665edd4a6486b7aa8d35d4792",
     "config/s2-t313-founder-signer-trust-anchor.json": "f719c21b85393a5342a0e398f1d1a988db8a6440494d194d67f8d8bc47789646",
-    "config/s2-t314-final-disabled-deploy-package-seal.json": "48e4507e649225c22de0fba42ee6680b89efb5722fd42f97f36e088cd6043ce2",
-    "config/s2-t315-authorization-day-package-seal.json": "0ae980c5d61121e291e75935e06c6e44501175130bd0ebdf1e8d1bb0c3825cfd",
+    "config/s2-t314-final-disabled-deploy-package-seal.json": "e9b95dd1b40698e49c43c60d4cf673500ce6dfd3679bd56f6f879241e94e0920",
+    "config/s2-t315-authorization-day-package-seal.json": "4938bf5813e27f60577965eef7e735996d097fbb9b8cc2651306898540812fab",
     "scripts/run-s2-t314-final-disabled-deploy.zsh": "47dafa7176cbdfd27e6458ef78dcc238970c7f003f5b3abe9c6bc1c9ef6c3e1a",
     "scripts/run-s2-t315-migration-0039.sh": "fe366ae4dde000169adaa7bb72498e413be19c11cac30a842673081e70e3c466",
     "scripts/run-s2-t315-technical-80.sh": "e2719ad72e8e823c80ef33fd1329435050d621e5955e36ab4a1ce800a9a3a4df",
     "supabase/functions/dice-synthetic/index.ts": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b",
     "supabase/functions/_shared/dice-tokenizer-v1.ts": "e6661489999cd512db1772c8b38ed2f9022b781ccc790a5212b541c25739cd04"
   },
-  "package_sha256": "749c0c0910cdde915d7ab008ecb92b0471cefc795935e47b1e1a2b74451e0c69"
+  "package_sha256": "fbaf4a972384653765d82e2aa5ef4464bacde843adccada75485258f7ab06793"
 }

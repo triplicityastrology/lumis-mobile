@@ -25,7 +25,7 @@ The T274 receipt proves an isolated local PostgreSQL 17 run. It does not claim s
 
 1. Import an accepted T272-bound default-off deployment receipt proving zero provider calls/model invocations and disabled state.
 2. Import an accepted 0039 migration receipt bound to the T274 proof and exact migration hash.
-3. Obtain a single-use Microsoft receipt scoped exactly to `DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY`.
+3. Obtain a single-use Founder-signed authorization scoped exactly to `DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY`.
 4. Run exactly 80 Technical fixtures: 40 EN and 40 zh-Hant, no Founder fixtures.
 5. Enforce at most 160 attempts, concurrency 2, one eligible retry, a shared 12-second case deadline, 800 input tokens, 300 output tokens, and the USD 0.128 ceiling.
 6. Disable in `finally` and require a post-window disabled proof. Any kill criterion stops the run.

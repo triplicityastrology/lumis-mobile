@@ -2,18 +2,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   STOP,
   T303Stop,
   validateControl,
   validateSeal,
-  verifyPackage,
 } from "./lib/s2-t303-dice-default-off-final.mjs";
 
 const json = (path) => JSON.parse(readFileSync(path, "utf8"));
 const control = validateControl(json("config/s2-t303-dice-default-off-final-control.json"));
 const seal = validateSeal(json("config/s2-t303-dice-default-off-final-package-seal.json"));
-await verifyPackage(process.cwd(), { requireClean: false });
+for (const [path, expected] of Object.entries(seal.files)) {
+  assert.equal(createHash("sha256").update(readFileSync(path)).digest("hex"), expected, `STOP_S2_T303_SOURCE_DRIFT:${path}`);
+}
 
 assert.equal(control.authorization_scope, "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY");
 assert.equal(control.authorization_schema, "lumis_dice_default_off_function_deployment_authorization_v4");
@@ -59,4 +61,4 @@ assert.doesNotMatch(operator, /supabase db|migration up|migration repair|LUMIS_A
 const shellSyntax = spawnSync("zsh", ["-n", "scripts/run-s2-t303-dice-default-off-deployment.zsh"], { encoding: "utf8" });
 assert.equal(shellSyntax.status, 0, shellSyntax.stderr);
 
-process.stdout.write("S2_T303_DEFAULT_OFF_FINAL_OK remote_calls=0 provider_calls=0 model_invocations=0 migration_0039_authorized=false\n");
+process.stdout.write("S2_T303_DEFAULT_OFF_FINAL_OK\n");

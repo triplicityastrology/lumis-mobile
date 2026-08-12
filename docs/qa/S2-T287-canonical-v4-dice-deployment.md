@@ -55,7 +55,7 @@ authorizes no action. The guarded future executor is:
 ```sh
 zsh scripts/run-s2-t287-dice-deployment.zsh --execute \
   --request <reviewed-request.json> \
-  --authorization <microsoft-signed-v4-receipt.json> \
+  --authorization <founder-signed-v4-receipt.json> \
   --issuer-public-key <reviewed-public-key.pem> \
   --claim-ledger <private-local-claim-prefix> \
   --receipt-output <private-local-post-deploy-receipt.json>
