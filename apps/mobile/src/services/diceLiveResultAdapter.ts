@@ -2,6 +2,10 @@ import {
   classifyDiceQuestionRequest,
   type DiceLanguage,
 } from "../../../../packages/shared/src/config/dice-question-boundary";
+import {
+  DICE_FOUNDER_FIXTURE_REGISTRY_SHA256,
+  resolveDiceFounderFixture,
+} from "./diceFounderFixtureRegistry";
 
 export const DICE_LIVE_RESULT_ADAPTER_VERSION = "dice_live_result_adapter_v1" as const;
 export const DICE_V4_RUNTIME_PACKAGE_SHA256 = "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" as const;
@@ -22,6 +26,7 @@ export type DiceLiveAuthority = Readonly<{
   zero_call_package_sha256: typeof DICE_V4_ZERO_CALL_PACKAGE_SHA256;
   operational_receipt_status: "accepted";
   fixture_registry_status: "accepted";
+  fixture_registry_sha256: typeof DICE_FOUNDER_FIXTURE_REGISTRY_SHA256;
 }>;
 
 export type DiceLiveResultState =
@@ -60,7 +65,8 @@ export function createDiceLiveResultAdapter(config: DiceLiveResultAdapterConfig)
       if (!isAcceptedAuthority(config.authority)) {
         return emit(request, { kind: "disabled", code: "DICE_LIVE_AUTHORITY_REQUIRED", effects: NO_EFFECTS });
       }
-      if (!/^dice-founder-(?:en|zh)-\d{2}$/u.test(request.fixture_id)) {
+      const fixture = resolveDiceFounderFixture(request.fixture_id);
+      if (!fixture || fixture.exact_text !== request.question) {
         return emit(request, { kind: "validation", code: "DICE_FIXTURE_ID_INVALID", effects: NO_EFFECTS });
       }
 
@@ -84,7 +90,8 @@ function isAcceptedAuthority(authority: DiceLiveAuthority | null): authority is 
     && authority.authorization_package_sha256 === DICE_V4_AUTHORIZATION_PACKAGE_SHA256
     && authority.zero_call_package_sha256 === DICE_V4_ZERO_CALL_PACKAGE_SHA256
     && authority.operational_receipt_status === "accepted"
-    && authority.fixture_registry_status === "accepted";
+    && authority.fixture_registry_status === "accepted"
+    && authority.fixture_registry_sha256 === DICE_FOUNDER_FIXTURE_REGISTRY_SHA256;
 }
 
 function projectGatewayResult(value: unknown, expectedLanguage: DiceLanguage): DiceLiveResultState {

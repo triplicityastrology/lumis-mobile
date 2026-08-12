@@ -21,6 +21,12 @@
     }
   },
   "mobile_request_fields": ["fixture_id"],
+  "founder_fixture_registry": {
+    "version": "dice_founder_fixture_registry_v1",
+    "sha256": "0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b",
+    "membership": "exact_40_item_lookup",
+    "question_binding": "exact_text"
+  },
   "states": ["disabled", "validation", "loading", "interpretation", "safety", "fallback", "retry"],
   "provider_calls_default": 0,
   "remote_calls": 0,

@@ -1,0 +1,18 @@
+{
+  "schema": "s2_t312_closed_dice_registry_seal_v1",
+  "package_sha256": "7c5a415b97115da2826d5e012472df6f540b0201afc311caab24fdbb8049a890",
+  "files": {
+    "apps/mobile/src/dev/founderDiceQuestionBank.ts": "d42a881e2bb02a2dd3da0fdd93874317960f3a0ed4b0cccd2e2ff06424f0f80c",
+    "apps/mobile/src/dev/FounderDiceInterpretationWorkbench.tsx": "26d14f7c0572602d88935fcce3c67491667f2f910b44f437e33bd43770b91285",
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6",
+    "apps/mobile/src/screens/LumisDiceScreen.tsx": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac",
+    "apps/mobile/src/services/diceFounderFixtureRegistry.ts": "f6de870b07268eca9af71ba247e7932a79bb938425c0d7b07985dee3ce73048c",
+    "apps/mobile/src/services/diceLiveResultAdapter.ts": "dc2c042b079b66a8acfa4c11d2874744024ab2d7604942b713b0f4ee15289794",
+    "apps/mobile/src/services/diceLiveResultAdapter.fixtures.ts": "f3c7b0c35041474bc38ba815442c118f575d78796280dae360801b062831d8e0",
+    "config/s2-t302-dice-live-result-adapter.json": "d1e8e2fc8145f5419e47d3a663a448c165b4dc05867b86d28e50569fbb18e29c",
+    "config/s2-t307-dice-release-candidate.json": "5682cf0cd54a0c99b04346b6493cff9b8c14d2eb2d00d96f7b4970a7eb13d48f",
+    "config/s2-t307-dice-release-candidate-seal.json": "673ce802eacf8c896a1a61969d948abfdd300e63febcc01d14784c795d1c85bd",
+    "scripts/s2-t302-dice-live-result-adapter-contract.mjs": "183bf762f057307c38bbd7b717ad4aed83dae7a6d1035a160c7cc37fc65c156e",
+    "scripts/s2-t307-dice-release-contract.mjs": "f6dc5edad71967c29de2bd1ddd925c55dd248c31bfec4e5f8014e9664a1b0e85"
+  }
+}

@@ -21,6 +21,12 @@ assert.deepEqual(control.founder_bank, {
   zh08: "bundled_question_rejection",
   zh09: "accepted_single_question_control"
 });
+assert.deepEqual(control.founder_fixture_registry, {
+  version: "dice_founder_fixture_registry_v1",
+  sha256: "0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b",
+  fixture_total: 40,
+  transport_authority: "exact_membership_and_exact_question_binding"
+});
 assert.equal(control.effects_without_receipts.remote_calls, 0);
 assert.equal(control.effects_without_receipts.provider_calls, 0);
 assert.equal(control.normal_chat_authority, "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY");
@@ -29,6 +35,8 @@ assert.equal(control.azure_traffic_authority, "NO_AZURE_TRAFFIC_AUTHORITY");
 const adapter = readFileSync("apps/mobile/src/services/diceLiveResultAdapter.ts", "utf8");
 assert.match(adapter, /if \(!config\.ai_enabled \|\| !config\.traffic_authorized\)/);
 assert.match(adapter, /create_gateway_transport\?\./);
+assert.match(adapter, /resolveDiceFounderFixture/);
+assert.doesNotMatch(adapter, /\^dice-founder-\(\?:en\|zh\)-\\d/);
 assert.doesNotMatch(adapter, /AZURE|api[_-]?key|endpoint/iu);
 const t303 = readFileSync("scripts/run-s2-t303-dice-default-off-deployment.zsh", "utf8");
 assert.match(t303, /STOP_S2_T303_SEPARATE_OPERATIONAL_AUTHORIZATION_REQUIRED/);

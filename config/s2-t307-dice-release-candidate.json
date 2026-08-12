@@ -33,6 +33,12 @@
     "zh08": "bundled_question_rejection",
     "zh09": "accepted_single_question_control"
   },
+  "founder_fixture_registry": {
+    "version": "dice_founder_fixture_registry_v1",
+    "sha256": "0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b",
+    "fixture_total": 40,
+    "transport_authority": "exact_membership_and_exact_question_binding"
+  },
   "required_external_receipts": [
     "accepted_v4_post_deploy_disabled_receipt",
     "accepted_0039_migration_receipt",

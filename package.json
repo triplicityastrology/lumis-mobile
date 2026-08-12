@@ -48,6 +48,7 @@
     "start:s2-t295-founder-question-bank-expo": "bash scripts/start-s2-t295-founder-question-bank-expo.sh",
     "test:s2-t297-dice-polished-e2e": "tsc -p packages/shared/tsconfig.dice-question-boundary-test.json && node .tmp/dice-question-boundary-tests/shared/src/config/dice-question-boundary.fixtures.js && pnpm test:s2-t295-founder-question-bank && node scripts/s2-t297-dice-polished-e2e-contract.mjs",
     "test:s2-t302-dice-live-result-adapter": "tsc -p apps/mobile/tsconfig.dice-live-result-adapter-test.json && node .tmp/dice-live-result-adapter-tests/apps/mobile/src/services/diceLiveResultAdapter.fixtures.js && node scripts/s2-t302-dice-live-result-adapter-contract.mjs",
+    "test:s2-t312-closed-dice-registry": "pnpm test:s2-t302-dice-live-result-adapter && node scripts/s2-t307-dice-release-contract.mjs && node scripts/s2-t312-closed-dice-registry-contract.mjs",
     "start:s2-t302-dice-live-result-expo": "bash scripts/start-s2-t302-dice-live-result-expo.sh",
     "start:s2-t297-dice-polished-web": "bash scripts/start-s2-t297-dice-polished-web.sh",
     "start:s2-t297-dice-polished-simulator": "bash scripts/start-s2-t297-dice-polished-simulator.sh",

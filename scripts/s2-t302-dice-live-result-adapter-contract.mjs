@@ -10,6 +10,7 @@ const manifest = JSON.parse(read("config/s2-t302-dice-live-result-adapter.json")
 const adapter = read("apps/mobile/src/services/diceLiveResultAdapter.ts");
 const workbench = read("apps/mobile/src/dev/FounderDiceInterpretationWorkbench.tsx");
 const launcher = read("scripts/start-s2-t302-dice-live-result-expo.sh");
+const registry = read("apps/mobile/src/services/diceFounderFixtureRegistry.ts");
 
 for (const [path, expected] of Object.entries(manifest.protected_product_sources)) {
   const current = read(path);
@@ -26,11 +27,17 @@ assert.match(adapter, /isAcceptedAuthority/);
 assert.match(adapter, /create_gateway_transport\?\.\(\)/);
 assert.match(adapter, /Object\.keys\(value\)\.some/);
 assert.match(adapter, /fixture_id/);
+assert.match(adapter, /resolveDiceFounderFixture/);
+assert.doesNotMatch(adapter, /\^dice-founder-\(\?:en\|zh\)-\\d/);
+assert.match(adapter, /fixture\.exact_text !== request\.question/);
+assert.match(registry, /0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b/);
 assert.doesNotMatch(adapter, /fetch\(|supabase|azure|endpoint|bearer|api[_-]?key|provider[_-]?(?:request|response)/i);
 assert.match(workbench, /createDiceLiveResultAdapter/);
 assert.match(workbench, /ai_enabled: false, traffic_authorized: false, authority: null/);
 assert.match(workbench, /SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED/);
 assert.equal(manifest.mobile_request_fields.join(","), "fixture_id");
+assert.equal(manifest.founder_fixture_registry.membership, "exact_40_item_lookup");
+assert.equal(manifest.founder_fixture_registry.question_binding, "exact_text");
 assert.equal(manifest.provider_calls_default, 0);
 assert.equal(manifest.remote_calls, 0);
 assert.equal(manifest.normal_chat_authority, "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY");

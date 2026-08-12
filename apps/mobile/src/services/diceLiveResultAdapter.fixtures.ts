@@ -6,6 +6,11 @@ import {
   type DiceLiveAuthority,
   type DiceLiveResultState,
 } from "./diceLiveResultAdapter";
+import {
+  DICE_FOUNDER_FIXTURE_REGISTRY_SHA256,
+  DICE_FOUNDER_FIXTURES,
+  resolveDiceFounderFixtureByAuthoringId,
+} from "./diceFounderFixtureRegistry";
 
 function check(value: unknown, message: string): asserts value {
   if (!value) throw new Error(message);
@@ -19,7 +24,14 @@ const authority: DiceLiveAuthority = Object.freeze({
   zero_call_package_sha256: DICE_V4_ZERO_CALL_PACKAGE_SHA256,
   operational_receipt_status: "accepted",
   fixture_registry_status: "accepted",
+  fixture_registry_sha256: DICE_FOUNDER_FIXTURE_REGISTRY_SHA256,
 });
+
+function fixture(authoringId: string) {
+  const value = resolveDiceFounderFixtureByAuthoringId(authoringId);
+  check(value, `missing approved fixture ${authoringId}`);
+  return value;
+}
 
 let constructions = 0;
 let calls = 0;
@@ -42,28 +54,55 @@ const createTransport = () => {
 };
 
 async function main() {
+  check(DICE_FOUNDER_FIXTURES.length === 40, "sealed registry contains exactly 40 fixtures");
+  check(DICE_FOUNDER_FIXTURES.filter((fixture) => fixture.language === "en").length === 20, "registry contains 20 EN fixtures");
+  check(DICE_FOUNDER_FIXTURES.filter((fixture) => fixture.language === "zh-Hant").length === 20, "registry contains 20 zh-Hant fixtures");
+  check(!DICE_FOUNDER_FIXTURES.some((fixture) => fixture.authoring_id === "ZH04" || fixture.exact_text === "我去到澳洲應該讀書定係做嘢？"), "ZH04 is excluded exactly");
+
   for (const config of [
     { ai_enabled: false, traffic_authorized: false, authority: null },
     { ai_enabled: true, traffic_authorized: false, authority },
     { ai_enabled: false, traffic_authorized: true, authority },
     { ai_enabled: true, traffic_authorized: true, authority: null },
   ] as const) {
-    const state = await createDiceLiveResultAdapter({ ...config, create_gateway_transport: createTransport }).request({ fixture_id: "dice-founder-en-01", question: "What should I notice about this job?" });
+    const state = await createDiceLiveResultAdapter({ ...config, create_gateway_transport: createTransport }).request({ fixture_id: fixture("EN01").fixture_id, question: fixture("EN01").exact_text });
     check(state.kind === "disabled", "incomplete gates fail closed");
   }
   check(constructions === 0 && calls === 0, "gateway cannot be constructed before both switches and authority");
 
   const rejected = await createDiceLiveResultAdapter({ ai_enabled: true, traffic_authorized: true, authority, create_gateway_transport: createTransport }).request({
-    fixture_id: "dice-founder-zh-08",
-    question: "我個application 會唔會批？幾時會批？",
+    fixture_id: fixture("ZH08").fixture_id,
+    question: fixture("ZH08").exact_text,
   });
   check(rejected.kind === "validation" && rejected.code === "DICE_QUESTION_BUNDLED", "ZH08 remains bundled rejection");
   check(constructions === 0 && calls === 0, "validation stops before gateway construction");
 
+  for (const fixture_id of [
+    "dice-founder-en-00", "dice-founder-en-21", "dice-founder-en-99",
+    "dice-founder-zh-00", "dice-founder-zh-21", "dice-founder-zh-99",
+    "dice-founder-en-1", "DICE-FOUNDER-EN-01", "../dice-founder-en-01",
+  ]) {
+    const beforeConstructions: number = Number(constructions);
+    const beforeCalls: number = Number(calls);
+    const state = await createDiceLiveResultAdapter({ ai_enabled: true, traffic_authorized: true, authority, create_gateway_transport: createTransport }).request({
+      fixture_id,
+      question: fixture("EN01").exact_text,
+    });
+    check(state.kind === "validation" && state.code === "DICE_FIXTURE_ID_INVALID", `${fixture_id} must fail exact membership`);
+    check(constructions === beforeConstructions && calls === beforeCalls, `${fixture_id} must stop before transport construction`);
+  }
+
+  const excludedZh04 = await createDiceLiveResultAdapter({ ai_enabled: true, traffic_authorized: true, authority, create_gateway_transport: createTransport }).request({
+    fixture_id: "dice-founder-zh-04",
+    question: "我去到澳洲應該讀書定係做嘢？",
+  });
+  check(excludedZh04.kind === "validation" && excludedZh04.code === "DICE_FIXTURE_ID_INVALID", "excluded ZH04 text cannot use a valid slot");
+  check(constructions === 0 && calls === 0, "excluded ZH04 stops before transport construction");
+
   const states: DiceLiveResultState[] = [];
   const completed = await createDiceLiveResultAdapter({ ai_enabled: true, traffic_authorized: true, authority, create_gateway_transport: createTransport }).request({
-    fixture_id: "dice-founder-en-01",
-    question: "What should I notice about this job?",
+    fixture_id: fixture("EN01").fixture_id,
+    question: fixture("EN01").exact_text,
     on_state: (state) => states.push(state),
   });
   check(states[0]?.kind === "loading" && completed.kind === "interpretation", "accepted request projects loading then interpretation");
@@ -84,7 +123,7 @@ async function main() {
       effects: { persistence_writes: 0, units_charged: 0 },
       raw_provider_envelope: "must not project",
     }),
-  }).request({ fixture_id: "dice-founder-en-01", question: "What should I notice about this job?" });
+  }).request({ fixture_id: fixture("EN01").fixture_id, question: fixture("EN01").exact_text });
   check(hostile.kind === "retry" && hostile.code === "DICE_RESPONSE_INVALID", "unknown/raw fields fail closed");
 
   const mixed = await createDiceLiveResultAdapter({
@@ -100,7 +139,7 @@ async function main() {
       reading: "must not coexist",
       effects: { persistence_writes: 0, units_charged: 0 },
     }),
-  }).request({ fixture_id: "dice-founder-en-01", question: "What should I notice about this job?" });
+  }).request({ fixture_id: fixture("EN01").fixture_id, question: fixture("EN01").exact_text });
   check(mixed.kind === "retry" && mixed.code === "DICE_RESPONSE_INVALID", "result-specific field mixing fails closed");
 
   for (const [result, expectedKind, message] of [
@@ -119,7 +158,7 @@ async function main() {
         message,
         effects: { persistence_writes: 0, units_charged: 0 },
       }),
-    }).request({ fixture_id: "dice-founder-en-02", question: "What should I notice about this situation?" });
+    }).request({ fixture_id: fixture("EN02").fixture_id, question: fixture("EN02").exact_text });
     check(state.kind === expectedKind, `${result} projects ${expectedKind}`);
   }
 
@@ -134,12 +173,12 @@ async function main() {
       code: "DICE_PROVIDER_TIMEOUT",
       effects: { persistence_writes: 0, units_charged: 0 },
     }),
-  }).request({ fixture_id: "dice-founder-en-03", question: "What should I notice about this situation?" });
+  }).request({ fixture_id: fixture("EN03").fixture_id, question: fixture("EN03").exact_text });
   check(retry.kind === "retry" && retry.code === "DICE_PROVIDER_TIMEOUT", "technical error projects retry without raw diagnostics");
 
   const zh09 = await createDiceLiveResultAdapter({ ai_enabled: false, traffic_authorized: false, authority: null }).request({
-    fixture_id: "dice-founder-zh-09",
-    question: "我個application幾時會批？",
+    fixture_id: fixture("ZH09").fixture_id,
+    question: fixture("ZH09").exact_text,
   });
   check(zh09.kind === "disabled", "ZH09 remains an accepted single question and reaches the disabled live gate");
 

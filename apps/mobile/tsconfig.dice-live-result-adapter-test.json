@@ -11,6 +11,8 @@
   "include": [
     "src/services/diceLiveResultAdapter.ts",
     "src/services/diceLiveResultAdapter.fixtures.ts",
+    "src/services/diceFounderFixtureRegistry.ts",
+    "src/dev/founderDiceQuestionBank.ts",
     "../../packages/shared/src/config/dice-question-boundary.ts"
   ]
 }
