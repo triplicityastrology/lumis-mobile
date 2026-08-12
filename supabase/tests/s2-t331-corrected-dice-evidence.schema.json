@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T331 corrected Dice root acceptance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "t317_source", "t322_source", "t317_independent_review_sha256", "t322_reseal_and_review_sha256", "normal_chat_unchanged", "reflect_handoff", "post_validation_disabled"],
+  "properties": {
+    "schema": { "const": "s2_t331_corrected_dice_evidence_acceptance_v1" },
+    "decision": { "const": "accepted" },
+    "t317_source": { "$ref": "#/$defs/t317" },
+    "t322_source": { "$ref": "#/$defs/t322" },
+    "t317_independent_review_sha256": { "$ref": "#/$defs/sha256" },
+    "t322_reseal_and_review_sha256": { "$ref": "#/$defs/sha256" },
+    "normal_chat_unchanged": { "const": true },
+    "reflect_handoff": { "const": "explicit_reflect_in_chat" },
+    "post_validation_disabled": { "const": true }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "t317": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "commit", "tree", "control_sha256", "seal_sha256", "package_sha256"],
+      "properties": {
+        "status": { "const": "source_complete_awaiting_independent_review" },
+        "commit": { "const": "8706db6cadbbf4ae0a58d10a194479a0c7aca465" },
+        "tree": { "const": "edf01652aa245cc1bc202f3e3cee677b074a2565" },
+        "control_sha256": { "const": "323fb6e46b9a7ddf36bd360ab4c38bd2e87591ef5bd896a3e4e4035d944508c4" },
+        "seal_sha256": { "const": "755704f334f4ab38565696a273055ca12469b4660801a736fa0f87091bb5e18e" },
+        "package_sha256": { "const": "749c0c0910cdde915d7ab008ecb92b0471cefc795935e47b1e1a2b74451e0c69" }
+      }
+    },
+    "t322": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "commit", "tree", "control_sha256", "seal_sha256", "package_sha256"],
+      "properties": {
+        "status": { "const": "source_complete_awaiting_reseal_and_independent_review" },
+        "commit": { "const": "cd67316df0b9788886945527f9a51443591e432a" },
+        "tree": { "const": "4759dd413023afe507b14cccc109256d4befa5f2" },
+        "control_sha256": { "const": "94a340875b8d155f4ac8955dacc3563e30d9bf6a38cabe145616802446b226b6" },
+        "seal_sha256": { "const": "c93163c784450cde43db4b6ce13da1ea6675cfd69792761ba199473717723640" },
+        "package_sha256": { "const": "7675005910e519cdaba9035e33285cf1bd4390ba5b2702d20c241089f3991735" }
+      }
+    }
+  }
+}

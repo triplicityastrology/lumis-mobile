@@ -1,0 +1,56 @@
+{
+  "schema": "s2_t331_chat_after_dice_root_control_v1",
+  "base_commit": "451ff5a89dab07c9c61ec50489459b09974bb7e7",
+  "source_roots": {
+    "t317_final_release": {
+      "status": "source_complete_awaiting_independent_review",
+      "commit": "8706db6cadbbf4ae0a58d10a194479a0c7aca465",
+      "tree": "edf01652aa245cc1bc202f3e3cee677b074a2565",
+      "control_sha256": "323fb6e46b9a7ddf36bd360ab4c38bd2e87591ef5bd896a3e4e4035d944508c4",
+      "seal_sha256": "755704f334f4ab38565696a273055ca12469b4660801a736fa0f87091bb5e18e",
+      "package_sha256": "749c0c0910cdde915d7ab008ecb92b0471cefc795935e47b1e1a2b74451e0c69"
+    },
+    "t322_actual_product_pre_roll": {
+      "status": "source_complete_awaiting_reseal_and_independent_review",
+      "commit": "cd67316df0b9788886945527f9a51443591e432a",
+      "tree": "4759dd413023afe507b14cccc109256d4befa5f2",
+      "control_sha256": "94a340875b8d155f4ac8955dacc3563e30d9bf6a38cabe145616802446b226b6",
+      "seal_sha256": "c93163c784450cde43db4b6ce13da1ea6675cfd69792761ba199473717723640",
+      "package_sha256": "7675005910e519cdaba9035e33285cf1bd4390ba5b2702d20c241089f3991735"
+    }
+  },
+  "rebinds": {
+    "t326": "existing_disabled_chat_product_presentation_and_fixture_boundary",
+    "t321": "explicit_reflect_in_chat_handoff_only",
+    "t240": "atomic_success_and_zero_effect_non_success_contract"
+  },
+  "founder_disabled_matrix": {
+    "languages": ["en", "zh-Hant"],
+    "states": ["loading", "result", "safety", "fallback", "retry"],
+    "offline_only": true
+  },
+  "gates": {
+    "chat_deployment_enabled": false,
+    "chat_synthetic_traffic_enabled": false,
+    "accepted_corrected_dice_evidence_sha256": null,
+    "accepted_default_off_deployment_receipt_sha256": null,
+    "accepted_synthetic_traffic_receipt_sha256": null
+  },
+  "effects": {
+    "future_success_requires_atomic_outcome": true,
+    "failure_persistence_writes": 0,
+    "failure_units_charged": 0,
+    "disabled_provider_calls": 0
+  },
+  "independence": {
+    "normal_chat_unchanged": true,
+    "chat_ui_unchanged": true,
+    "automatic_dice_navigation": false,
+    "member_context": false
+  },
+  "status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "next_action": "WAITING_FOR_T317_INDEPENDENT_REVIEW_AND_T322_RESEAL_INDEPENDENT_REVIEW"
+}

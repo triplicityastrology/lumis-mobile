@@ -1,0 +1,23 @@
+{
+  "schema": "s2_t331_chat_after_dice_root_seal_v1",
+  "source_sha256": {
+    "apps/mobile/src/services/chatAfterDiceRoot.ts": "2e4de200c63818b58436e3e4705deb91de1e380595d119a872bc76a9f678c18a",
+    "apps/mobile/src/services/chatAfterDiceRoot.fixtures.ts": "5684ac120bdbd4d58b2683ed8fef0cbf4b23a3d90131cfae74873dd9ed477498",
+    "apps/mobile/tsconfig.chat-after-dice-root-test.json": "6a88973a00356573265c77adec416e40306e996c180c4a1290069dcd99204711",
+    "config/s2-t331-chat-after-dice-root.json": "c32c854925125855d4708d357a7bc184cf0ad5ccaeca5b75a1874fb0ad2eb10c",
+    "docs/architecture/S2-T331-chat-after-dice-root.md": "ad26a5c2a707b0b7534ab969789e54e2cf7404085b937f1e3ec3dd867704752b",
+    "docs/qa/S2-T331-founder-chat-runbook.md": "79de5ffc3ab1d81d5a9cd6f5f0b9425e31e5e5efb18f67f6bd7ec6793cfb4091",
+    "scripts/run-s2-t331-chat-after-dice-tests.sh": "5f239133bfe0db575ad07259cced8abdd8e7e00cd11e0bcfb11cac8876a732ae",
+    "scripts/s2-t331-chat-after-dice-contract.mjs": "0641bb99c5561b4188a25445e00e3add8a45938f9eb1aa220ff8532082c117df",
+    "scripts/s2-t331-chat-after-dice-emulator.mjs": "573ea4cd24cd24e5b2242bd1b5c6b1e6812bc42dae43e767f0ba59223d46e964",
+    "scripts/s2-t331-chat-readiness.mjs": "1f67ce9d68866d012c50da24e4c4cb19856e0ac908a51c83cfddb525af31d119",
+    "scripts/start-s2-t331-founder-chat-expo.sh": "5dd8d792cd5102cb341256ff99712b2fa9c87fe8946a15b224f41ce5e9734686",
+    "supabase/functions/_shared/chat-after-dice-root-v1.ts": "fabc7def0f11e9a766064835a1df1b44ce8e21a353c1f12739b936c31cee1cda",
+    "supabase/functions/_shared/chat-after-dice-root-v1.fixtures.ts": "84ef62bb526d6c55285ccd7f1d1449f2630a649d5748f5e7eb6bdd5bc6b363fa",
+    "supabase/functions/tsconfig.chat-after-dice-root-test.json": "babcfcd1735f01476774fa0c7155569ec9f3b1786ab6a300445f545892ba6222",
+    "supabase/tests/s2-t331-corrected-dice-evidence.schema.json": "7ebaf3e0c1944e6717296b6c737de65a0d8111b66ee0e6e71e689402c81824e7",
+    "supabase/tests/s2-t331-chat-default-off-deployment.schema.json": "14fd0bfce68d2470eb48731d6ff13dfc9c9874e427582f3344dfc8828c5ccdc4",
+    "supabase/tests/s2-t331-chat-synthetic-traffic.schema.json": "87296fa79694275243a8332b2a5b455bc09a9d19581b883acef4dc39b9d983a4"
+  },
+  "package_sha256": "4d9d77a517446a4d37c932e5de03e75d3e5c00c731672ae2e18f253baa1d4459"
+}

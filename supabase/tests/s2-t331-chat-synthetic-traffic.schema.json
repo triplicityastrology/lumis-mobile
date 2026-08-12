@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T331 single-use synthetic Chat traffic authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "package_sha256", "accepted_corrected_dice_evidence_sha256", "scope", "fixture_count", "language_counts", "single_use", "valid_until"],
+  "properties": {
+    "schema": { "const": "s2_t331_chat_synthetic_traffic_authorization_v1" },
+    "decision": { "const": "accepted" },
+    "package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "accepted_corrected_dice_evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "scope": { "const": "SYNTHETIC_CHAT_FIXTURE_IDS_ONLY" },
+    "fixture_count": { "const": 2 },
+    "language_counts": { "type": "object", "additionalProperties": false, "required": ["en", "zh_hant"], "properties": { "en": { "const": 1 }, "zh_hant": { "const": 1 } } },
+    "single_use": { "const": true },
+    "valid_until": { "type": "string", "format": "date-time" }
+  }
+}

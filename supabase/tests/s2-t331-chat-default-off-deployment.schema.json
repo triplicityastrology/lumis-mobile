@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T331 default-off Chat deployment receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "package_sha256", "function", "provider_enabled", "normal_chat_unchanged", "disabled_probes", "provider_calls", "model_invocations", "rollback_revision"],
+  "properties": {
+    "schema": { "const": "s2_t331_chat_default_off_deployment_receipt_v1" },
+    "decision": { "const": "accepted" },
+    "package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "function": { "const": "chat-synthetic" },
+    "provider_enabled": { "const": false },
+    "normal_chat_unchanged": { "const": true },
+    "disabled_probes": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "const": "CHAT_AI_DISABLED" } },
+    "provider_calls": { "const": 0 },
+    "model_invocations": { "const": 0 },
+    "rollback_revision": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,100}$" }
+  }
+}
