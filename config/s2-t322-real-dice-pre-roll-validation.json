@@ -1,0 +1,40 @@
+{
+  "schema": "s2_t322_real_dice_pre_roll_validation_v1",
+  "base_commit": "8706db6cadbbf4ae0a58d10a194479a0c7aca465",
+  "product_boundary": "actual_dice_begin_ready_before_roll",
+  "registry": {
+    "version": "dice_founder_fixture_registry_v1",
+    "sha256": "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211",
+    "membership": "exact_40_item_lookup",
+    "question_binding": "exact_text",
+    "english": 20,
+    "zh_hant": 20,
+    "excluded_authoring_id": "ZH04",
+    "zh08": "bundled_question_rejection",
+    "zh09": "accepted_single_question_control"
+  },
+  "rejection_effects": {
+    "animation_starts": 0,
+    "random_results_generated": 0,
+    "ai_clients_constructed": 0,
+    "transport_calls": 0,
+    "history_writes": 0,
+    "session_writes": 0,
+    "persistence_writes": 0,
+    "units_charged": 0,
+    "navigation_actions": 0
+  },
+  "visual_invariants": [
+    "celestial_dice_stage",
+    "existing_question_card",
+    "existing_ready_action",
+    "existing_roll_animation",
+    "three_result_cells",
+    "on_dice_interpretation_card",
+    "roll_again",
+    "explicit_reflect_in_chat"
+  ],
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY",
+  "remote_calls": 0
+}

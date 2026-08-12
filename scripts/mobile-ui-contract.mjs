@@ -399,7 +399,8 @@ for (const [name, source] of [
     `${name} cannot silently substitute a question`
   );
 }
-assert.match(diceRitualSource, /activeQuestionRef\.current = normalizedQuestion/);
+assert.match(diceRitualSource, /activeQuestionRef\.current = decision\.normalized_question/);
+assert.match(diceRitualSource, /validateDicePreRollQuestion\(questionRef\.current, founderFixture\)/);
 assert.match(diceSource, /const normalizedQuestion = normalizeDiceQuestion\(question\)/);
 assert.match(
   diceRitualSource,

@@ -1,7 +1,7 @@
 {
   "schema": "s2_t315_authorization_day_package_seal_v1",
   "base_commit": "519cd6c7cbfe6131f9f35d75d3a0300bc0c676ca",
-  "package_sha256": "9f319d735079f4b96ece04c415ec206ad5402e7f3403c5fd9216427652f70c18",
+  "package_sha256": "91f4357e9b3438ddcd553af7aca724b4359955f129f61c468145d1c676b7a66d",
   "files": {
     "config/evidence/s2-t315-accepted-t283-pg17-proof.json": "1fbb08da0fbe30623081c1d8563f3a1a2bde17b2d65ba4f8c6a8d849765f9778",
     "config/s2-t315-authorization-day-control.json": "057b19ab3dd0446506bcd58b90d49cd33556b1231034ea18b7a9c11b1f233402",
@@ -9,7 +9,7 @@
     "config/templates/s2-t315-migration-0039-authorization.template.json": "7efc25609bd8399f460ef52d053411501008eb49bb071c54771729bb898a37b4",
     "config/templates/s2-t315-technical-80-authorization.template.json": "073eb49a95526086e9522eba6a273d34c3243814008149b099d8311f5c91a277",
     "docs/qa/S2-T315-migration-traffic-authorization-day.md": "40dce4de05d53111288f6e109ccccb741c0934405e9fe5a3119db4a00e9df8f6",
-    "package.json": "a235aa14bf2cd08a6d40645e8b265d4c37708c80d52836850d4f546387589ab3",
+    "package.json": "537d51ec223bf7b25935578473b957b575a94acb6564952aa73790241e0acbe8",
     "scripts/lib/s2-t315-authorization-day.mjs": "fc0717e39b44e9422a4ea5de4fb9de04ad4edf0b624dbc53235df853d0625a13",
     "scripts/run-s2-t315-migration-0039.sh": "fe366ae4dde000169adaa7bb72498e413be19c11cac30a842673081e70e3c466",
     "scripts/run-s2-t315-technical-80.sh": "e2719ad72e8e823c80ef33fd1329435050d621e5955e36ab4a1ce800a9a3a4df",

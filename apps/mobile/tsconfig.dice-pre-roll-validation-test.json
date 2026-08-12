@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-pre-roll-validation-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/features/dice/dicePreRollValidation.ts",
+    "src/features/dice/dicePreRollValidation.fixtures.ts",
+    "src/services/diceFounderFixtureRegistry.ts",
+    "../../packages/shared/src/config/dice-question-boundary.ts"
+  ]
+}

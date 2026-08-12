@@ -13,6 +13,7 @@ import {
   isCurrentDiceInterpretationRequest,
 } from "../services/diceFounderProductBridge";
 import { resolveDiceFounderFixtureByAuthoringId } from "../services/diceFounderFixtureRegistry";
+import { DICE_FOUNDER_FIXTURE_REGISTRY_SHA256 } from "../services/diceFounderFixtureRegistry";
 import type { DiceLiveResultState } from "../services/diceLiveResultAdapter";
 import { colors, radii, spacing } from "../theme/tokens";
 import { FOUNDER_ENGLISH_DRAFTS, FOUNDER_EXCLUDED_ZH_AUTHORING_ID, FOUNDER_ZH_HANT_DRAFTS } from "./founderDiceQuestionBank";
@@ -53,6 +54,13 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
   const [interpretationState, setInterpretationState] = useState<DiceInterpretationEnvelope | undefined>();
   const latestRequestRef = useRef<string | null>(null);
   const selected = CASES[caseIndex];
+  const selectedFixture = selected.id === "zh08"
+    ? resolveDiceFounderFixtureByAuthoringId("ZH08")
+    : selected.id === "zh09"
+      ? resolveDiceFounderFixtureByAuthoringId("ZH09")
+      : selected.id === "en01"
+        ? resolveDiceFounderFixtureByAuthoringId("EN01")
+        : null;
   const build = process.env.EXPO_PUBLIC_FOUNDER_DICE_E2E_HEAD ?? "unavailable";
 
   const changeCase = (next: number) => {
@@ -115,6 +123,7 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
           onNotifications={() => undefined}
           onReflect={() => setExternalState((current) => ({ ...current, title: "Reflect in Chat tapped", detail: "Only this explicit action may navigate to Chat in the normal app." }))}
           interpretationState={interpretationState}
+          founderFixture={selectedFixture ? { fixture_id: selectedFixture.fixture_id, registry_sha256: DICE_FOUNDER_FIXTURE_REGISTRY_SHA256 } : undefined}
           onInterpretationRequested={requestInterpretation}
           onRetryInterpretation={(requestKey) => void requestInterpretation({ request_key: requestKey, question: selected.question || "What should I notice about this situation?" })}
           onSelectTab={() => undefined}

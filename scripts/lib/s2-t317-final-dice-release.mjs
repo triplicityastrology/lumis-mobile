@@ -7,6 +7,7 @@ export const SEAL_PATH = "config/s2-t317-final-dice-release-seal.json";
 export const SEALED_FILES = Object.freeze([
   "apps/mobile/src/dev/founderDiceQuestionBank.ts",
   "apps/mobile/src/features/dice/DiceRitualScreen.tsx",
+  "apps/mobile/src/features/dice/dicePreRollValidation.ts",
   "apps/mobile/src/services/diceFounderFixtureRegistry.ts",
   "apps/mobile/src/services/diceLiveResultAdapter.ts",
   "apps/mobile/src/services/diceFounderProductBridge.ts",

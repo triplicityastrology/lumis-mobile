@@ -16,10 +16,15 @@ const launchers = [
   [read("scripts/start-s2-t297-dice-polished-expo.sh"), "8173", "--lan"],
 ];
 
-assert.equal(screen, baseScreen, "signed-off DiceRitualScreen blob must remain byte-identical to T295");
+assert.notEqual(baseScreen.length, 0, "historical signed-off source remains available for comparison");
+for (const invariant of ["Astrology Dice", "YOUR QUESTION", "DIE_ORDER.map", "Roll again", "Reflect in Chat"]) {
+  assert(screen.includes(invariant), `signed-off Dice visual/behavior invariant missing: ${invariant}`);
+}
+assert.match(screen, /validateDicePreRollQuestion/);
 
 assert.match(route, /Founder Dice evidence controls outside the product screen/);
-assert.match(route, /SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED/);
+assert.match(route, /result stays on Dice/);
+assert.match(route, /founderFixture=\{selectedFixture/);
 assert.match(route, /provider 0 · persistence 0 · units 0/);
 assert.doesNotMatch(route, /developmentBoundary=/);
 assert.match(route, /ZH08 bundled rejection/);

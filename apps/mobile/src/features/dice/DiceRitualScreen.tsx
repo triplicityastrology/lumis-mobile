@@ -27,6 +27,8 @@ import {
 import { configureSecureRandom, secureRandom, seededRandom } from "./rng";
 import { cradleTick, landingThump, mixTick, releaseImpact, resultTap } from "./haptics";
 import { saveDiceThrow } from "../../services/diceThrows";
+import type { DiceFounderFixtureBinding } from "./dicePreRollValidation";
+import { validateDicePreRollQuestion } from "./dicePreRollValidation";
 import { DiceHistorySheet, type SessionRoll } from "./DiceHistorySheet";
 import { beginNewDiceQuestion, normalizeDiceQuestion } from "./question";
 import { useDiceResultActionLayout } from "./useDiceResultActionLayout";
@@ -132,6 +134,7 @@ export function DiceRitualScreen({
   interpretationState,
   onInterpretationRequested,
   onRetryInterpretation,
+  founderFixture,
 }: {
   onNotifications: () => void;
   onReflect: (chatDraft: string) => void;
@@ -140,6 +143,7 @@ export function DiceRitualScreen({
   interpretationState?: DiceInterpretationEnvelope;
   onInterpretationRequested?: (input: Readonly<{ request_key: string; question: string; planet: string; sign: string; house: string }>) => void;
   onRetryInterpretation?: (requestKey: string) => void;
+  founderFixture?: DiceFounderFixtureBinding;
 }) {
   const { stackResultActions } = useDiceResultActionLayout();
   const [question, setQuestion] = useState("");
@@ -151,6 +155,7 @@ export function DiceRitualScreen({
   const [reduceMotion, setReduceMotion] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [validationFeedback, setValidationFeedback] = useState<Readonly<{ revision: number; message: string }> | null>(null);
   // DICE-009 help sheet + DICE-010 unavailable-outcome preview (dev only; the
   // release trigger for DICE-010 is a backend "no throw available" result).
   const [helpOpen, setHelpOpen] = useState(false);
@@ -160,6 +165,7 @@ export function DiceRitualScreen({
 
   const phaseRef = useRef<Phase>("IDLE");
   const questionRef = useRef("");
+  const questionRevisionRef = useRef(0);
   const activeQuestionRef = useRef<string | null>(null);
   const worldRef = useRef<DiceWorld>(createWorld());
   const palmOrientations = useRef([randomOrientation(), randomOrientation(), randomOrientation()]);
@@ -291,14 +297,19 @@ export function DiceRitualScreen({
 
   const beginReady = useCallback(() => {
     if (phaseRef.current !== "IDLE") return;
-    const normalizedQuestion = normalizeDiceQuestion(questionRef.current);
-    if (!normalizedQuestion) {
-      AccessibilityInfo.announceForAccessibility("Enter a question to begin your throw.");
+    const validationRevision = questionRevisionRef.current;
+    const decision = validateDicePreRollQuestion(questionRef.current, founderFixture);
+    if (!decision.accepted) {
+      if (validationRevision === questionRevisionRef.current) {
+        setValidationFeedback({ revision: validationRevision, message: decision.message });
+        AccessibilityInfo.announceForAccessibility(decision.message);
+      }
       return;
     }
-    questionRef.current = normalizedQuestion;
-    activeQuestionRef.current = normalizedQuestion;
-    setQuestion(normalizedQuestion);
+    setValidationFeedback(null);
+    questionRef.current = decision.normalized_question;
+    activeQuestionRef.current = decision.normalized_question;
+    setQuestion(decision.normalized_question);
     transition("READY");
     handPoseRef.current = 1;
     cradleTick();
@@ -324,7 +335,7 @@ export function DiceRitualScreen({
         setShowTapThrow(true);
       }
     })();
-  }, [transition]);
+  }, [founderFixture, transition]);
 
   const performThrow = useCallback(
     (strength: number) => {
@@ -357,6 +368,7 @@ export function DiceRitualScreen({
   const rethrow = useCallback(() => {
     const nextQuestion = beginNewDiceQuestion();
     setSaveError(false);
+    setValidationFeedback(null);
     dimAnim.setValue(0);
     cardAnim.setValue(0);
     worldRef.current = createWorld();
@@ -370,6 +382,7 @@ export function DiceRitualScreen({
     activeInterpretationRequestRef.current = null;
     setShowTapThrow(false);
     questionRef.current = nextQuestion.draft;
+    questionRevisionRef.current += 1;
     activeQuestionRef.current = nextQuestion.activeQuestion;
     setQuestion(nextQuestion.draft);
     transition("IDLE");
@@ -587,8 +600,10 @@ export function DiceRitualScreen({
                 accessibilityLabel="Dice question"
                 editable={phase === "IDLE"}
                 onChangeText={(text) => {
+                  questionRevisionRef.current += 1;
                   questionRef.current = text;
                   setQuestion(text);
+                  setValidationFeedback(null);
                 }}
                 placeholder="What is your question?"
                 placeholderTextColor={colors.muted}
@@ -614,6 +629,15 @@ export function DiceRitualScreen({
                     style={styles.readyHint}
                   >
                     Enter a question to begin your throw
+                  </Text>
+                ) : null}
+                {validationFeedback?.revision === questionRevisionRef.current ? (
+                  <Text
+                    accessibilityLiveRegion="assertive"
+                    accessibilityRole="alert"
+                    style={styles.validationError}
+                  >
+                    {validationFeedback.message}
                   </Text>
                 ) : null}
               </View>
@@ -1163,6 +1187,7 @@ const styles = StyleSheet.create({
   hint: { color: colors.ice, fontSize: 15, marginBottom: 12, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 8 },
   readyBlock: { alignItems: "center", marginTop: 16, width: "100%" },
   readyHint: { color: "#A2B0C6", fontSize: 12.5, marginTop: 10, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6 },
+  validationError: { color: "#E9B083", fontSize: 12.5, lineHeight: 18, marginTop: 10, maxWidth: 420, paddingHorizontal: 20, textAlign: "center", textShadowColor: "rgba(0,0,0,0.6)", textShadowRadius: 6 },
   brandButtonWrap: { borderRadius: 15, elevation: 6, shadowColor: "#E9B083", shadowOffset: { height: 10, width: 0 }, shadowOpacity: 0.45, shadowRadius: 18 },
   brandButtonDisabled: { opacity: 0.42, shadowOpacity: 0 },
   brandButtonGrad: { alignItems: "center", borderRadius: 15, justifyContent: "center", minHeight: 54, paddingHorizontal: 32 },
