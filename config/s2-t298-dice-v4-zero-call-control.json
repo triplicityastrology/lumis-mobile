@@ -1,6 +1,6 @@
 {
   "schema": "s2_t298_dice_v4_zero_call_control_v1",
-  "status": "WAITING_FOR_SEPARATE_MICROSOFT_V4_DEPLOYMENT_AUTHORIZATION",
+  "status": "WAITING_FOR_SEPARATE_LUMIS_FOUNDER_V4_DEPLOYMENT_AUTHORIZATION",
   "next_decision": "AUTHORIZE_DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
   "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
   "project_ref": "bmqhwofmdgebpcihjlnb",
@@ -8,14 +8,14 @@
   "base_commit": "f1288d6159d23317f6f4db05bcf194bc93af65d6",
   "canonical_deployment_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
   "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
-  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  "authorization_package_sha256": "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2",
   "authorization_schema": "lumis_dice_default_off_function_deployment_authorization_v4",
   "authorization_window_seconds": 900,
   "clock_policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
   "signature_algorithm": "Ed25519",
   "single_use": true,
   "protected_dice_product_sources": {
-    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6",
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "a480481e6a03308c934efd22d15667adc5c4829c4471eb4faa73f27f68a9af31",
     "apps/mobile/src/screens/LumisDiceScreen.tsx": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac"
   },
   "configuration_names": [

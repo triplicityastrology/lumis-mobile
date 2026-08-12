@@ -1,14 +1,19 @@
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import { classifyDiceQuestionRequest } from "@lumis/shared";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CelestialBackground } from "../components/CelestialBackground";
 import { DiceRitualScreen } from "../features/dice/DiceRitualScreen";
-import { createDiceLiveResultAdapter } from "../services/diceLiveResultAdapter";
+import type { DiceInterpretationEnvelope } from "../features/dice/DiceRitualScreen";
+import {
+  createDiceFounderProductBridge,
+  isCurrentDiceInterpretationRequest,
+} from "../services/diceFounderProductBridge";
 import { resolveDiceFounderFixtureByAuthoringId } from "../services/diceFounderFixtureRegistry";
+import type { DiceLiveResultState } from "../services/diceLiveResultAdapter";
 import { colors, radii, spacing } from "../theme/tokens";
 import { FOUNDER_ENGLISH_DRAFTS, FOUNDER_EXCLUDED_ZH_AUTHORING_ID, FOUNDER_ZH_HANT_DRAFTS } from "./founderDiceQuestionBank";
 
@@ -24,9 +29,9 @@ const ZH09 = FOUNDER_ZH_HANT_DRAFTS.find((item) => item.authoring_id === "ZH09")
 const CASES: readonly ReviewCase[] = Object.freeze([
   { id: "open", label: "Try your own question", question: "", expected: "A clear single question can proceed to the existing roll." },
   { id: "en01", label: "EN accepted control", question: FOUNDER_ENGLISH_DRAFTS[0].exact_text, expected: "Accepted before roll; classification remains outside product pixels." },
-  { id: "zh08", label: "ZH08 bundled rejection", question: ZH08.exact_text, expected: "External classifier rejects it as bundled; product enforcement awaits an authorized interface hook." },
+  { id: "zh08", label: "ZH08 bundled rejection", question: ZH08.exact_text, expected: "External classifier rejects it as bundled before the transport boundary." },
   { id: "zh09", label: "ZH09 accepted control", question: ZH09.exact_text, expected: "Accepted as one timing question." },
-  { id: "fallback", label: "Safe fallback boundary", question: "What should I notice about this situation?", expected: "The current signed-off Dice screen has no authorized AI-result slot; fallback remains external and zero-effect." },
+  { id: "fallback", label: "Safe fallback boundary", question: "What should I notice about this situation?", expected: "Fallback renders in the established result card and remains zero-effect." },
 ]);
 
 type ExternalState = Readonly<{
@@ -45,6 +50,8 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
   const [caseIndex, setCaseIndex] = useState(0);
   const [externalState, setExternalState] = useState<ExternalState>(INITIAL_STATE);
   const [interpretation, setInterpretation] = useState<string | null>(null);
+  const [interpretationState, setInterpretationState] = useState<DiceInterpretationEnvelope | undefined>();
+  const latestRequestRef = useRef<string | null>(null);
   const selected = CASES[caseIndex];
   const build = process.env.EXPO_PUBLIC_FOUNDER_DICE_E2E_HEAD ?? "unavailable";
 
@@ -54,17 +61,28 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
     setCaseIndex(nextIndex);
     setExternalState(classifyExternalCase(nextCase));
     setInterpretation(null);
+    setInterpretationState(undefined);
+    latestRequestRef.current = null;
   };
 
-  const handleInterpretationBoundary = async () => {
-    setExternalState((current) => ({ ...current, title: "Preparing interpretation", detail: "Zero-network local boundary check. The product screen remains unchanged." }));
-    const registryFixture = resolveDiceFounderFixtureByAuthoringId(selected.id === "zh09" ? "ZH09" : "EN01");
-    const state = await createDiceLiveResultAdapter({ ai_enabled: false, traffic_authorized: false, authority: null }).request({
-      fixture_id: registryFixture?.fixture_id ?? "registry-fixture-unavailable",
-      question: selected.question || "What should I notice about this situation?",
+  const requestInterpretation = async (input: Readonly<{ request_key: string; question: string }>) => {
+    const authoringId = selected.id === "zh09" ? "ZH09" : "EN01";
+    const registryFixture = resolveDiceFounderFixtureByAuthoringId(authoringId);
+    if (!registryFixture) {
+      setInterpretation("DICE_FOUNDER_FIXTURE_NOT_APPROVED");
+      return;
+    }
+    latestRequestRef.current = input.request_key;
+    setInterpretationState({ request_key: input.request_key, state: { kind: "loading", language: selected.id === "zh09" ? "zh-Hant" : "en", effects: { provider_calls: 0, persistence_writes: 0, units_charged: 0 } } });
+    setExternalState((current) => ({ ...current, title: "Offline interpretation preview", detail: "The result remains on the Dice page. Provider, persistence, and units stay disabled." }));
+    const state = await createDiceFounderProductBridge({ ai_enabled: false, traffic_authorized: false, authority: null }).request({
+      fixture_id: registryFixture.fixture_id,
+      question: input.question,
     });
-    setExternalState((current) => ({ ...current, title: "Interpretation interface not authorized", detail: "The signed-off Dice screen has no approved AI-response slot. The adapter remains disabled outside customer pixels." }));
-    setInterpretation(state.kind === "disabled" ? `${state.code} · SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED` : "SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED");
+    const offlineState = offlinePreviewFor(selected.id);
+    if (!isCurrentDiceInterpretationRequest(latestRequestRef.current, input.request_key)) return;
+    setInterpretationState({ request_key: input.request_key, state: offlineState });
+    setInterpretation(`${state.kind === "result" && state.result.kind === "disabled" ? state.result.code : "DICE_GATE_UNEXPECTED"} · offline_preview · result stays on Dice`);
   };
 
   return (
@@ -95,7 +113,10 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
           key={selected.id}
           onBack={onBack}
           onNotifications={() => undefined}
-          onReflect={handleInterpretationBoundary}
+          onReflect={() => setExternalState((current) => ({ ...current, title: "Reflect in Chat tapped", detail: "Only this explicit action may navigate to Chat in the normal app." }))}
+          interpretationState={interpretationState}
+          onInterpretationRequested={requestInterpretation}
+          onRetryInterpretation={(requestKey) => void requestInterpretation({ request_key: requestKey, question: selected.question || "What should I notice about this situation?" })}
           onSelectTab={() => undefined}
         />
       </View>
@@ -103,12 +124,20 @@ export function FounderDiceInterpretationWorkbench({ onBack }: { onBack: () => v
   );
 }
 
+function offlinePreviewFor(id: ReviewCase["id"]): DiceLiveResultState {
+  const effects = { provider_calls: 0, persistence_writes: 0, units_charged: 0 } as const;
+  if (id === "fallback") return { kind: "fallback", language: "en", message: "Lumis couldn’t complete that reflection just now. Please try again.", effects };
+  if (id === "zh08") return { kind: "safety", language: "zh-Hant", message: "請每次只問一個問題，再試一次。", effects };
+  if (id === "zh09") return { kind: "interpretation", language: "zh-Hant", reading: "呢個結果提醒你留意事情推進嘅節奏。", watch_out: "避免將時間推測當成保證。", practical_direction: "先確認一個你今日可以跟進嘅步驟。", effects };
+  return { kind: "interpretation", language: "en", reading: "This combination invites a closer look at what is already taking shape.", watch_out: "Avoid treating the symbols as a fixed verdict.", practical_direction: "Choose one small, reversible step to test what you noticed.", effects };
+}
+
 function classifyExternalCase(reviewCase: ReviewCase): ExternalState {
   if (!reviewCase.question) return INITIAL_STATE;
   const result = classifyDiceQuestionRequest({ question: reviewCase.question });
   return result.accepted
-    ? { title: "External preflight accepted", detail: "Type the exact question in the unchanged product field. The current product interface does not expose an injectable validation hook.", classification: `${result.route} · ${result.shape} · ${result.language}` }
-    : { title: validationTitle(result.code), detail: `${validationGuidance(result.code)} The signed-off product interface cannot yet enforce this result without an approved boundary.`, classification: `rejected · ${result.code}` };
+    ? { title: "External preflight accepted", detail: "Type the exact question in the product field. Interpretation remains on Dice after the established roll.", classification: `${result.route} · ${result.shape} · ${result.language}` }
+    : { title: validationTitle(result.code), detail: validationGuidance(result.code), classification: `rejected · ${result.code}` };
 }
 
 function validationTitle(code: string): string {

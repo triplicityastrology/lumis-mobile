@@ -14,7 +14,7 @@ const files = [
   "scripts/s2-t287-dice-v4-deployment-contract.mjs",
   "scripts/s2-t287-refresh-v4-deployment-seal.mjs",
   "supabase/tests/s2-t287-default-off-deployment-authorization-request-v4.schema.json",
-  "supabase/tests/s2-t287-microsoft-default-off-deployment-authorization-v4.schema.json",
+  "supabase/tests/s2-t287-founder-default-off-deployment-authorization-v4.schema.json",
   "supabase/tests/s2-t287-dice-deployment-receipt.schema.json",
   "supabase/tests/s2-t287-dice-rollback-receipt.schema.json"
 ];

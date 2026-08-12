@@ -1,6 +1,6 @@
 # S2-T287 Canonical v4 Dice default-off deployment release
 
-Status: `WAITING_FOR_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION`
+Status: `WAITING_FOR_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION`
 
 This package authorizes no remote action. It preserves the accepted T277/T272
 runtime package `be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457`
@@ -18,7 +18,7 @@ Every operational action still requires its own reviewed authorization.
 - Project classification: exact staging project
 - Function: `dice-synthetic`
 - Receipt: `lumis_dice_default_off_function_deployment_authorization_v4`
-- Clock: 900 seconds from the Microsoft-signed `issued_at`
+- Clock: 900 seconds from the Lumis-Founder-signed `issued_at`
 - Claim: durable, single-use, replay rejecting
 - Provider and model calls: zero
 - Migration 0039: excluded; separate authorization is mandatory
@@ -37,10 +37,10 @@ pnpm dice:v4-deployment-readiness
 ```
 
 The readiness command is inert and prints the next gate. A future controlled
-execution additionally requires a Microsoft-signed, unexpired, single-use
+execution additionally requires a Lumis-Founder-signed, unexpired, single-use
 receipt and an explicit remote execution flag. Migration commands are absent.
 
-Generate the exact clean-HEAD request after Microsoft supplies the approved
+Generate the exact clean-HEAD request after the Founder supplies the approved
 Ed25519 public-key checksum:
 
 ```sh
@@ -56,7 +56,7 @@ authorizes no action. The guarded future executor is:
 zsh scripts/run-s2-t287-dice-deployment.zsh --execute \
   --request <reviewed-request.json> \
   --authorization <microsoft-signed-v4-receipt.json> \
-  --microsoft-public-key <reviewed-public-key.pem> \
+  --issuer-public-key <reviewed-public-key.pem> \
   --claim-ledger <private-local-claim-prefix> \
   --receipt-output <private-local-post-deploy-receipt.json>
 ```

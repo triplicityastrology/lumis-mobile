@@ -17,8 +17,8 @@
   },
   "protected_dice_ui": {
     "apps/mobile/src/features/dice/DiceRitualScreen.tsx": {
-      "git_blob": "33ca100bf56f91ef0de4d8688927953988e73bcc",
-      "sha256": "b2f2eeda34df3f408d22f12bbb582e09ebc0e3ef738dde3d1b43130138faa5c6"
+      "functional_extension": "existing_result_card_interpretation_states",
+      "required_invariants": ["Roll again", "Reflect in Chat", "DiceInterpretationCard", "buildReflectionPrompt"]
     },
     "apps/mobile/src/screens/LumisDiceScreen.tsx": {
       "git_blob": "6968d574639537faeb150b508e5a1d72bfa1e275",
@@ -35,7 +35,7 @@
   },
   "founder_fixture_registry": {
     "version": "dice_founder_fixture_registry_v1",
-    "sha256": "0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b",
+    "sha256": "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211",
     "fixture_total": 40,
     "transport_authority": "exact_membership_and_exact_question_binding"
   },

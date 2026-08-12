@@ -1,0 +1,25 @@
+{
+  "schema": "s2_t314_final_disabled_deploy_package_seal_v1",
+  "base_commit": "cf8386a9176ed7fde0b6008a2628c2785bce2c64",
+  "package_sha256": "fbc724f93f99fcfbb79ec21eec787664c0db2540edcafbfc9a540a16e09fb16d",
+  "files": {
+    "apps/mobile/src/dev/founderDiceQuestionBank.ts": "d42a881e2bb02a2dd3da0fdd93874317960f3a0ed4b0cccd2e2ff06424f0f80c",
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "5bee413139cbfd4a762ce79a2936c7022ddd1391278cadef3d7de5af199af558",
+    "apps/mobile/src/services/diceFounderFixtureRegistry.ts": "7daad4d6d41d1a26b93128f7956e91297f68e345468802e28751f7f7fd6d5d3d",
+    "apps/mobile/src/services/diceLiveResultAdapter.ts": "dc2c042b079b66a8acfa4c11d2874744024ab2d7604942b713b0f4ee15289794",
+    "apps/mobile/src/services/diceLiveResultAdapter.fixtures.ts": "cd6c244b6da5cf90034b35e1e513fd4069121c1cbd781cf234adf4f52a2daad1",
+    "config/s2-t307-dice-release-candidate-seal.json": "6c15a77abef03e55c8b4158d35951a3d72285dc56286b3fc8e2812632bbf0b91",
+    "config/s2-t314-final-disabled-deploy-control.json": "99fe32671b29cc8142d9b948ba90b04876d05dd22f4702bcaaf8f208dad87ade",
+    "config/s2-t314-founder-fixture-registry.json": "84c13173460d39518daa2560af118dfc2aa19c457f7a0033bacd0a1bb7676bd6",
+    "scripts/lib/s2-t314-final-disabled-deploy.mjs": "54fcaaca318e6486ef4b5802cfcffe95a3fe374a6c6ff1140c7926b6a00c1f39",
+    "scripts/run-s2-t314-final-disabled-deploy.zsh": "47dafa7176cbdfd27e6458ef78dcc238970c7f003f5b3abe9c6bc1c9ef6c3e1a",
+    "scripts/s2-t314-final-disabled-deploy.mjs": "37bd5656dcf97e14970f542804a6931e6ef1b12eb97138b67a2c2890e0a6bd30",
+    "scripts/s2-t314-generate-founder-registry.mjs": "bbc3bd58469ae050790507006b550412bb8858a18f53ea3c21bba83b858bb8c2",
+    "supabase/functions/_shared/dice-tokenizer-v1.ts": "e6661489999cd512db1772c8b38ed2f9022b781ccc790a5212b541c25739cd04",
+    "supabase/functions/dice-synthetic/deno.json": "5ec28f1802aeaa4f2ce09edfc4259d855d4f89368cfe643372a9873f53e44551",
+    "supabase/functions/dice-synthetic/index.ts": "81f99ffc57590418a512421712ea0c1fa167f7be1b853728fddff20f15676a2b",
+    "supabase/tests/s2-t314-founder-deployment-authorization.schema.json": "4a01a8a52bc88102ed152ab932ad47368a9d22506764b52bd59ae752b684cfd8",
+    "supabase/tests/s2-t314-founder-deployment-request.schema.json": "3d9b6891c554599a69d6cc04840a9a992288f67cb5d4ca8baba51deda7cc26cb",
+    "supabase/tests/s2-t314-zero-call-post-deploy-receipt.schema.json": "62d8ea3b4d4d38ee81808c12420789e05ff94454727f72842e8c41b8ed6c23cc"
+  }
+}

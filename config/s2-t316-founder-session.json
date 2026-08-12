@@ -1,0 +1,19 @@
+{
+  "schema_version": "s2_t316_founder_dice_chat_session_control_v1",
+  "base_commit": "4f1dedc4937f7a7be91d19e38f2e3220d3f6d7b9",
+  "chat_interface_authority": "eff1a5872198e9cef766515954dd60f0f1630575",
+  "previous_dice_product_blob": "33ca100bf56f91ef0de4d8688927953988e73bcc",
+  "authorized_dice_change": "bounded_interpretation_region_inside_existing_result_card",
+  "founder_fixture_total": 40,
+  "language_totals": { "en": 20, "zh-Hant": 20 },
+  "excluded_authoring_id": "ZH04",
+  "dice_interpretation_surface": "existing_dice_result_card",
+  "chat_navigation": "explicit_reflect_in_chat_only",
+  "technical_evidence_status": "WAITING_FOR_ACCEPTED_TECHNICAL_80_EVIDENCE",
+  "normal_chat_status": "WAITING_FOR_ACCEPTED_DICE_EVIDENCE_AND_CHAT_AUTHORITY",
+  "effects": { "provider_calls": 0, "persistence_writes": 0, "units_charged": 0 },
+  "authority_status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  }
+}

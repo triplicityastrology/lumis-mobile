@@ -1,6 +1,6 @@
 {
   "schema": "s2_t287_dice_default_off_deployment_control_v1",
-  "status": "WAITING_FOR_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION",
+  "status": "WAITING_FOR_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION",
   "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
   "project_ref": "bmqhwofmdgebpcihjlnb",
   "function_name": "dice-synthetic",
@@ -78,7 +78,10 @@
     "clock_policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
     "single_use_claim_schema": "s2_t287_dice_deployment_claim_v1",
     "signature_algorithm": "Ed25519",
-    "signing_key_sha256_required": true
+    "issuer": "Lumis Founder Deployment Approver",
+    "trust_anchor_owner": "Founder",
+    "issuer_public_key_spki_sha256_required": true,
+    "issuer_key_id_required": true
   },
   "rollback": {
     "target": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED",

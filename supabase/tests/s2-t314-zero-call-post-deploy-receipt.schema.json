@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2-t314-zero-call-post-deploy-receipt.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_ref", "function_name", "deployment_id", "authorization_sha256", "request_sha256", "issuer_key_id", "issuer_public_key_spki_sha256", "source_commit", "source_tree", "package_sha256", "runtime_package_sha256", "founder_registry_sha256", "kill_switch_disabled", "traffic_switch_disabled", "function_version", "rollback_revision", "disabled_probes", "provider_calls", "model_invocations", "normal_chat_unchanged", "migration_0039_applied", "rollback_target", "deployed_at", "credentials_unset"],
+  "properties": {
+    "schema": { "const": "s2_t314_zero_call_post_deploy_receipt_v1" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "function_name": { "const": "dice-synthetic" },
+    "deployment_id": { "type": "string" },
+    "authorization_sha256": { "$ref": "#/$defs/sha256" },
+    "request_sha256": { "$ref": "#/$defs/sha256" },
+    "issuer_key_id": { "const": "founder-ed25519-deployment-approver-v1" },
+    "issuer_public_key_spki_sha256": { "const": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478" },
+    "source_commit": { "$ref": "#/$defs/git" },
+    "source_tree": { "$ref": "#/$defs/git" },
+    "package_sha256": { "$ref": "#/$defs/sha256" },
+    "runtime_package_sha256": { "$ref": "#/$defs/sha256" },
+    "founder_registry_sha256": { "$ref": "#/$defs/sha256" },
+    "kill_switch_disabled": { "const": true },
+    "traffic_switch_disabled": { "const": true },
+    "function_version": { "type": "integer", "minimum": 1 },
+    "rollback_revision": { "type": "string", "pattern": "^(absent|version-[0-9]+)$" },
+    "disabled_probes": { "type": "object", "additionalProperties": false, "required": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"], "properties": { "unknown_fixture": { "const": "DICE_AI_DISABLED" }, "free_form_body": { "const": "DICE_AI_DISABLED" }, "normal_mobile_body": { "const": "DICE_AI_DISABLED" }, "allow_listed_fixture": { "const": "DICE_AI_DISABLED" } } },
+    "provider_calls": { "const": 0 },
+    "model_invocations": { "const": 0 },
+    "normal_chat_unchanged": { "const": true },
+    "migration_0039_applied": { "const": false },
+    "rollback_target": { "const": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED" },
+    "deployed_at": { "type": "string", "format": "date-time" },
+    "credentials_unset": { "const": true }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "git": { "type": "string", "pattern": "^[a-f0-9]{40}$" }
+  }
+}

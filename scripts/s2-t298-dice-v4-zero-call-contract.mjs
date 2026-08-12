@@ -12,7 +12,7 @@ const runtimeEvidence = await readJson("config/evidence/s2-t298-dice-v4-zero-cal
 assert.equal(control.authorization_scope, "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY");
 assert.equal(control.authorization_schema, "lumis_dice_default_off_function_deployment_authorization_v4");
 assert.equal(control.runtime_package_sha256, "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457");
-assert.equal(control.authorization_package_sha256, "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db");
+assert.equal(control.authorization_package_sha256, "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2");
 assert.equal(control.configuration_names.length, 15);
 assert.deepEqual(control.disabled_probes, ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"]);
 assert.equal(control.authorization_window_seconds, 900);

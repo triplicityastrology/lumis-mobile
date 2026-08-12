@@ -1,0 +1,53 @@
+{
+  "schema": "s2_t315_dice_authorization_day_control_v1",
+  "task": "S2-T315",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "candidate_interface": {
+    "schema": "s2_t314_final_default_off_dice_candidate_v1",
+    "candidate_path": "config/s2-t315-exact-t314-candidate.json",
+    "candidate_commit": "179de7e43fd208858d18398586543028ba9d1b5f",
+    "candidate_package_sha256": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71",
+    "required_t307_commit": "cf8386a9176ed7fde0b6008a2628c2785bce2c64",
+    "required_t307_package_sha256": "5eb152dbbf4062b45b9eee78fccfa3aaaadeaa20a0c22f2e9561f1667b4b442f",
+    "required_registry_membership": "checksum_sealed_exact_registry_membership",
+    "required_signer_schema": "lumis_founder_deployment_approver_ed25519_v1"
+  },
+  "founder_authority": {
+    "issuer": "Lumis Founder Deployment Approver",
+    "issuer_key_id": "founder-ed25519-deployment-approver-v1",
+    "issuer_public_key_spki_sha256": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478",
+    "trust_anchor_owner": "Founder",
+    "signature_algorithm": "Ed25519",
+    "maximum_validity_seconds": 900,
+    "private_key_committed": false
+  },
+  "migration": {
+    "scope": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY",
+    "version": "0039",
+    "sha256": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610",
+    "proof_commit": "b469cb7e0824bd6b864edc983bcd352b37994894",
+    "proof_receipt_schema": "s2_t283_dice_migration_0039_proof_receipt_v1",
+    "proof_receipt_sha256": "0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e",
+    "postgres_major": 17,
+    "network": "none"
+  },
+  "traffic": {
+    "scope": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+    "technical_cases": 80,
+    "language": { "en": 40, "zh-Hant": 40 },
+    "founder_cases": 0,
+    "attempt_cap": 160,
+    "concurrency": 2,
+    "eligible_retries": 1,
+    "shared_deadline_ms": 12000,
+    "input_token_cap": 800,
+    "output_token_cap": 300,
+    "tokenizer": "js-tiktoken@1.0.21/o200k_base",
+    "cost_ceiling_usd": 0.128
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

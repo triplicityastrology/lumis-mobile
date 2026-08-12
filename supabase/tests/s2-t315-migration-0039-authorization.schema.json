@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_dice_authority_ledger_0039_migration_authorization_v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema","issuer","issuer_key_id","issuer_public_key_spki_sha256","trust_anchor_owner","issuer_signature_base64","decision","scope","authorization_id","project_ref","migration_version","migration_sha256","proof_commit","proof_receipt_sha256","candidate_commit","candidate_package_sha256","authorized_action","issued_at","expires_at","function_deployment_authorized","provider_traffic_authorized","normal_chat_integration_authorized"],
+  "properties": {
+    "schema": { "const": "lumis_dice_authority_ledger_0039_migration_authorization_v3" },
+    "issuer": { "const": "Lumis Founder Deployment Approver" },
+    "issuer_key_id": { "const": "founder-ed25519-deployment-approver-v1" },
+    "issuer_public_key_spki_sha256": { "const": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478" },
+    "trust_anchor_owner": { "const": "Founder" },
+    "issuer_signature_base64": { "type": "string" },
+    "decision": { "const": "AUTHORIZED" },
+    "scope": { "const": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY" },
+    "authorization_id": { "type": "string", "pattern": "^dice-0039-[a-z0-9]{16,48}$" },
+    "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+    "migration_version": { "const": "0039" },
+    "migration_sha256": { "const": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610" },
+    "proof_commit": { "const": "b469cb7e0824bd6b864edc983bcd352b37994894" },
+    "proof_receipt_sha256": { "const": "0e4fcfafddf9f1bf9fb02868d895fa4c4f8164980613908bc97d08cf2ecb9b9e" },
+    "candidate_commit": { "const": "179de7e43fd208858d18398586543028ba9d1b5f" },
+    "candidate_package_sha256": { "const": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71" },
+    "authorized_action": { "enum": ["APPLY_0039", "ROLLBACK_0039"] },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "function_deployment_authorized": { "const": false },
+    "provider_traffic_authorized": { "const": false },
+    "normal_chat_integration_authorized": { "const": false }
+  }
+}

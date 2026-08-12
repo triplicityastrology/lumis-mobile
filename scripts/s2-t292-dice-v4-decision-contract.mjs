@@ -37,10 +37,13 @@ assert.equal(preflight.stderr, "");
 
 const { publicKey } = generateKeyPairSync("ed25519");
 const signingKeySha256 = sha256(publicKey.export({ type: "spki", format: "der" }));
-const packet = await createReviewPacket({ requestId: "dice-auth-request-t292reviewpacket", signingKeySha256 });
+const issuerKeyId = "founder-ed25519-primary-2026";
+const packet = await createReviewPacket({ requestId: "dice-auth-request-t292reviewpacket", issuerPublicKeySpkiSha256: signingKeySha256, issuerKeyId });
 assert.equal(packet.authorization_request.schema, "lumis_dice_default_off_function_deployment_authorization_request_v4");
 assert.equal(packet.authorization_request.request_sha256.length, 64);
-assert.equal(packet.authorization_request.microsoft_signing_key_sha256, signingKeySha256);
+assert.equal(packet.authorization_request.issuer_public_key_spki_sha256, signingKeySha256);
+assert.equal(packet.authorization_request.issuer_key_id, issuerKeyId);
+assert.equal(packet.authorization_request.trust_anchor_owner, "Founder");
 assert.equal(packet.configuration_names.length, 15);
 assert.deepEqual(Object.values(packet.disabled_probe_expectations), Array(4).fill("DICE_AI_DISABLED"));
 assert.equal(packet.migration_0039_authorized, false);

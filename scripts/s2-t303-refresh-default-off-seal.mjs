@@ -18,7 +18,7 @@ const seal = {
   schema: "s2_t303_dice_default_off_final_package_seal_v1",
   base_commit: "69c3de399acf3fa9ec746deaeb7a1880128955ca",
   runtime_package_sha256: "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
-  authorization_package_sha256: "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  authorization_package_sha256: "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2",
   package_sha256: sha256(`${canonical}\n`),
   files: hashes
 };

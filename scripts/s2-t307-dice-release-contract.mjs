@@ -23,7 +23,7 @@ assert.deepEqual(control.founder_bank, {
 });
 assert.deepEqual(control.founder_fixture_registry, {
   version: "dice_founder_fixture_registry_v1",
-  sha256: "0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b",
+  sha256: "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211",
   fixture_total: 40,
   transport_authority: "exact_membership_and_exact_question_binding"
 });

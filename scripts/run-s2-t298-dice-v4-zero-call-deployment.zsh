@@ -3,7 +3,7 @@ set -euo pipefail
 
 readonly ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 MODE="preflight"
-typeset AUTHORIZATION="" REQUEST="" CLAIM_LEDGER="" PUBLIC_KEY="" RECEIPT_OUTPUT=""
+typeset AUTHORIZATION="" REQUEST="" CLAIM_LEDGER="" ISSUER_PUBLIC_KEY="" RECEIPT_OUTPUT=""
 
 while (( $# > 0 )); do
   case "$1" in
@@ -11,7 +11,7 @@ while (( $# > 0 )); do
     --authorization) AUTHORIZATION="${2:-}"; shift 2 ;;
     --request) REQUEST="${2:-}"; shift 2 ;;
     --claim-ledger) CLAIM_LEDGER="${2:-}"; shift 2 ;;
-    --microsoft-public-key) PUBLIC_KEY="${2:-}"; shift 2 ;;
+    --issuer-public-key) ISSUER_PUBLIC_KEY="${2:-}"; shift 2 ;;
     --receipt-output) RECEIPT_OUTPUT="${2:-}"; shift 2 ;;
     *) print -u2 -- "STOP_S2_T298_ARGUMENTS_INVALID"; exit 1 ;;
   esac
@@ -23,8 +23,8 @@ node scripts/s2-t298-dice-v4-zero-call-preflight.mjs
 
 # No CLI, environment credential, network, claim, or output file is touched
 # until the complete signed v4 envelope has passed the canonical validator.
-[[ -n "$AUTHORIZATION" && -n "$REQUEST" && -n "$CLAIM_LEDGER" && -n "$PUBLIC_KEY" && -n "$RECEIPT_OUTPUT" ]] || { print -u2 -- "STOP_S2_T298_SEPARATE_AUTHORIZATION_REQUIRED"; exit 1; }
-node --input-type=module - "$REQUEST" "$AUTHORIZATION" "$PUBLIC_KEY" <<'NODE'
+[[ -n "$AUTHORIZATION" && -n "$REQUEST" && -n "$CLAIM_LEDGER" && -n "$ISSUER_PUBLIC_KEY" && -n "$RECEIPT_OUTPUT" ]] || { print -u2 -- "STOP_S2_T298_SEPARATE_AUTHORIZATION_REQUIRED"; exit 1; }
+node --input-type=module - "$REQUEST" "$AUTHORIZATION" "$ISSUER_PUBLIC_KEY" <<'NODE'
 import { readFile } from "node:fs/promises";
 import { validateExecutionAuthorization } from "./scripts/lib/s2-t298-dice-v4-zero-call.mjs";
 const [requestPath, authorizationPath, keyPath] = process.argv.slice(2);
@@ -42,9 +42,9 @@ trap 'unset LUMIS_T298_RUN_REMOTE_DEPLOYMENT LUMIS_T287_RUN_REMOTE_DEPLOYMENT SU
 LUMIS_T287_RUN_REMOTE_DEPLOYMENT="DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY" \
   zsh scripts/run-s2-t287-dice-deployment.zsh --execute \
     --authorization "$AUTHORIZATION" --request "$REQUEST" --claim-ledger "$CLAIM_LEDGER" \
-    --microsoft-public-key "$PUBLIC_KEY" --receipt-output "$LEGACY_RECEIPT"
+    --issuer-public-key "$ISSUER_PUBLIC_KEY" --receipt-output "$LEGACY_RECEIPT"
 
 node scripts/s2-t298-post-deploy-receipt.mjs \
-  --request="$REQUEST" --authorization="$AUTHORIZATION" --microsoft-public-key="$PUBLIC_KEY" \
+  --request="$REQUEST" --authorization="$AUTHORIZATION" --issuer-public-key="$ISSUER_PUBLIC_KEY" \
   --legacy-receipt="$LEGACY_RECEIPT" --output="$RECEIPT_OUTPUT"
 print -- "S2_T298_DEFAULT_OFF_DEPLOYMENT_RECORDED provider_calls=0 model_invocations=0 migration_applied=false"

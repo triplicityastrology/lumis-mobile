@@ -10,7 +10,7 @@ import {
   verifyPinnedSources,
 } from "../lib/s2-t287-dice-v4-deployment-authorization.mjs";
 
-export const NEXT_DECISION = "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION";
+export const NEXT_DECISION = "OBTAIN_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION";
 export const STOP = Object.freeze({
   control: "STOP_S2_T292_DECISION_CONTROL_INVALID",
   packet: "STOP_S2_T292_DECISION_PACKET_INVALID",
@@ -44,10 +44,10 @@ const probeNames = ["unknown_fixture", "free_form_body", "normal_mobile_body", "
 
 export function validateDecisionControl(control) {
   exact(control, ["schema", "status", "next_decision", "authorization_scope", "project_ref", "function_name", "source_authority_commit", "source_authority_tree", "runtime_package_sha256", "authorization_package_sha256", "authorization_schema", "request_schema", "signature_algorithm", "authorization_window_seconds", "clock_policy", "single_use", "replay_rejected", "configuration_names", "disabled_probes", "expected_disabled_result", "rollback", "post_deploy", "migration_0039_authorized", "remote_calls_in_preflight", "normal_chat_authority", "azure_traffic_authority"], STOP.control);
-  if (control.schema !== "s2_t292_dice_v4_microsoft_decision_control_v1" || control.status !== "WAITING_FOR_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION" || control.next_decision !== NEXT_DECISION) stop(STOP.control);
+  if (control.schema !== "s2_t292_dice_v4_microsoft_decision_control_v1" || control.status !== "WAITING_FOR_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION" || control.next_decision !== NEXT_DECISION) stop(STOP.control);
   if (control.authorization_scope !== "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY" || control.project_ref !== "bmqhwofmdgebpcihjlnb" || control.function_name !== "dice-synthetic") stop(STOP.control);
   if (control.source_authority_commit !== "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432" || control.source_authority_tree !== "2baaaa57268edb211223e44056429924067908f6") stop(STOP.control);
-  if (control.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || control.authorization_package_sha256 !== "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db") stop(STOP.control);
+  if (control.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || control.authorization_package_sha256 !== "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2") stop(STOP.control);
   if (control.authorization_schema !== "lumis_dice_default_off_function_deployment_authorization_v4" || control.request_schema !== "lumis_dice_default_off_function_deployment_authorization_request_v4" || control.signature_algorithm !== "Ed25519") stop(STOP.control);
   if (control.authorization_window_seconds !== 900 || control.clock_policy !== "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW" || control.single_use !== true || control.replay_rejected !== true) stop(STOP.control);
   if (!sameArray(control.configuration_names, configurationNames) || !sameArray(control.disabled_probes, probeNames) || control.expected_disabled_result !== "DICE_AI_DISABLED") stop(STOP.control);
@@ -61,7 +61,7 @@ export function validateDecisionControl(control) {
 
 export function validateDecisionSeal(seal) {
   exact(seal, ["schema", "source_authority_commit", "runtime_package_sha256", "authorization_package_sha256", "decision_packet_sha256", "files"], STOP.package);
-  if (seal.schema !== "s2_t292_dice_v4_microsoft_decision_package_seal_v1" || seal.source_authority_commit !== "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432" || seal.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || seal.authorization_package_sha256 !== "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db" || !SHA256.test(seal.decision_packet_sha256)) stop(STOP.package);
+  if (seal.schema !== "s2_t292_dice_v4_microsoft_decision_package_seal_v1" || seal.source_authority_commit !== "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432" || seal.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || seal.authorization_package_sha256 !== "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2" || !SHA256.test(seal.decision_packet_sha256)) stop(STOP.package);
   if (!isRecord(seal.files) || Object.keys(seal.files).length < 6 || Object.values(seal.files).some((digest) => !SHA256.test(digest))) stop(STOP.package);
   const canonical = Object.entries(seal.files).sort(([left], [right]) => left.localeCompare(right)).map(([path, digest]) => `${path}:${digest}`).join("\n");
   if (sha256(`${canonical}\n`) !== seal.decision_packet_sha256) stop(STOP.package);
@@ -99,10 +99,10 @@ export async function verifyReady(root = process.cwd()) {
   return { decision, decisionSeal, control, seal };
 }
 
-export async function createReviewPacket({ requestId, signingKeySha256, root = process.cwd() }) {
+export async function createReviewPacket({ requestId, issuerPublicKeySpkiSha256, issuerKeyId, root = process.cwd() }) {
   const { decision, decisionSeal, control, seal } = await verifyReady(root);
   const identity = gitIdentity(root);
-  const request = createAuthorizationRequest(control, seal, identity, requestId, signingKeySha256);
+  const request = createAuthorizationRequest(control, seal, identity, requestId, issuerPublicKeySpkiSha256, issuerKeyId);
   validateAuthorizationRequest(request, control, seal, identity);
   const packet = {
     schema: "s2_t292_dice_v4_microsoft_decision_packet_v1",

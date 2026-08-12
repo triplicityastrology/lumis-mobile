@@ -1,6 +1,6 @@
 # S2-T303 final default-off Dice deployment packet
 
-Status: `WAITING_FOR_SEPARATE_MICROSOFT_V4_DEPLOYMENT_AUTHORIZATION`
+Status: `WAITING_FOR_SEPARATE_LUMIS_FOUNDER_V4_DEPLOYMENT_AUTHORIZATION`
 
 This source-only package reconciles T298 with the accepted T292 decision packet
 and canonical T287 v4 receipt design. It changes no function, mobile, or Dice
@@ -29,7 +29,7 @@ AUTHORIZE_DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY
 ```
 
 The future operator remains unreachable without a separately issued,
-Microsoft-signed Ed25519 v4 receipt. Its validity is calculated from signed
+Lumis-Founder-signed Ed25519 v4 receipt. Its validity is calculated from signed
 `issued_at` plus 900 seconds; no static wall-clock expiry is committed. The
 deployment ID is consumed once through the accepted durable claim boundary.
 

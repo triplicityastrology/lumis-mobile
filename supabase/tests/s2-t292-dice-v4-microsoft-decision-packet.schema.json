@@ -6,7 +6,7 @@
   "required": ["schema", "decision_requested", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "decision_packet_sha256", "authorization_request", "configuration_names", "disabled_probe_expectations", "rollback", "post_deploy", "migration_0039_authorized", "normal_chat_authority", "azure_traffic_authority", "packet_sha256"],
   "properties": {
     "schema": { "const": "s2_t292_dice_v4_microsoft_decision_packet_v1" },
-    "decision_requested": { "const": "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION" },
+    "decision_requested": { "const": "OBTAIN_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION" },
     "source_commit": { "$ref": "#/$defs/commit" },
     "source_tree": { "$ref": "#/$defs/commit" },
     "runtime_package_sha256": { "const": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" },

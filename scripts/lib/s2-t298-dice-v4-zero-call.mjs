@@ -13,7 +13,7 @@ import {
 import { validateDecisionControl, validateDecisionSeal, verifyDecisionSeal } from "./s2-t292-dice-v4-decision-packet.mjs";
 
 export const NEXT_DECISION = "AUTHORIZE_DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY";
-export const WAITING = "WAITING_FOR_SEPARATE_MICROSOFT_V4_DEPLOYMENT_AUTHORIZATION";
+export const WAITING = "WAITING_FOR_SEPARATE_LUMIS_FOUNDER_V4_DEPLOYMENT_AUTHORIZATION";
 export const STOP = Object.freeze({
   control: "STOP_S2_T298_CONTROL_INVALID",
   seal: "STOP_S2_T298_PACKAGE_DRIFT",
@@ -51,7 +51,7 @@ export function validateControl(control) {
   if (control.schema !== "s2_t298_dice_v4_zero_call_control_v1" || control.status !== WAITING || control.next_decision !== NEXT_DECISION) stop(STOP.control);
   if (control.authorization_scope !== "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY" || control.project_ref !== "bmqhwofmdgebpcihjlnb" || control.function_name !== "dice-synthetic") stop(STOP.control);
   if (control.base_commit !== "f1288d6159d23317f6f4db05bcf194bc93af65d6" || control.canonical_deployment_commit !== "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432") stop(STOP.control);
-  if (control.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || control.authorization_package_sha256 !== "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db") stop(STOP.control);
+  if (control.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || control.authorization_package_sha256 !== "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2") stop(STOP.control);
   if (control.authorization_schema !== "lumis_dice_default_off_function_deployment_authorization_v4" || control.authorization_window_seconds !== 900 || control.clock_policy !== "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW" || control.signature_algorithm !== "Ed25519" || control.single_use !== true) stop(STOP.control);
   exact(control.protected_dice_product_sources, ["apps/mobile/src/features/dice/DiceRitualScreen.tsx", "apps/mobile/src/screens/LumisDiceScreen.tsx"], STOP.control);
   if (Object.values(control.protected_dice_product_sources).some((digest) => !SHA256.test(digest))) stop(STOP.control);
@@ -64,7 +64,7 @@ export function validateControl(control) {
 
 export function validateSeal(seal) {
   exact(seal, ["schema", "base_commit", "runtime_package_sha256", "authorization_package_sha256", "package_sha256", "files"], STOP.seal);
-  if (seal.schema !== "s2_t298_dice_v4_zero_call_package_seal_v1" || seal.base_commit !== "f1288d6159d23317f6f4db05bcf194bc93af65d6" || seal.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || seal.authorization_package_sha256 !== "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db" || !SHA256.test(seal.package_sha256)) stop(STOP.seal);
+  if (seal.schema !== "s2_t298_dice_v4_zero_call_package_seal_v1" || seal.base_commit !== "f1288d6159d23317f6f4db05bcf194bc93af65d6" || seal.runtime_package_sha256 !== "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457" || seal.authorization_package_sha256 !== "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2" || !SHA256.test(seal.package_sha256)) stop(STOP.seal);
   if (!isRecord(seal.files) || Object.keys(seal.files).length < 8 || Object.values(seal.files).some((digest) => !SHA256.test(digest))) stop(STOP.seal);
   const canonical = Object.entries(seal.files).sort(([left], [right]) => left.localeCompare(right)).map(([path, digest]) => `${path}:${digest}`).join("\n");
   if (sha256(`${canonical}\n`) !== seal.package_sha256) stop(STOP.seal);

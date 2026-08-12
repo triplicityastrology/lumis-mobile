@@ -1,0 +1,298 @@
+{
+  "schema": "s2_t314_closed_founder_fixture_registry_v1",
+  "source_path": "apps/mobile/src/dev/founderDiceQuestionBank.ts",
+  "source_sha256": "d42a881e2bb02a2dd3da0fdd93874317960f3a0ed4b0cccd2e2ff06424f0f80c",
+  "excluded_authoring_id": "ZH04",
+  "excluded_exact_text_sha256": "f23b76ae483b9b5c2bf9b5b2552fe9068cf361bb38c813191db1c2576a22ac32",
+  "fixture_total": 40,
+  "language_totals": {
+    "en": 20,
+    "zh-Hant": 20
+  },
+  "runtime_request_fields": [
+    "fixture_id"
+  ],
+  "fixtures": [
+    {
+      "authoring_id": "EN01",
+      "language": "en",
+      "exact_text": "How’s the condition in my current job like?",
+      "exact_text_sha256": "8ffd150a4da9460202c0d6b86abfaea2a842bf87f7f54dc38037a5165a7d69a7",
+      "fixture_id": "dice-founder-en-01"
+    },
+    {
+      "authoring_id": "EN02",
+      "language": "en",
+      "exact_text": "Will I be promoted in the coming review?",
+      "exact_text_sha256": "8ce4a4b96adacb02c3c95714b535db1a0d518af2d5f2a9f1caf9179102c74e3c",
+      "fixture_id": "dice-founder-en-02"
+    },
+    {
+      "authoring_id": "EN03",
+      "language": "en",
+      "exact_text": "If I change my job, how soon will I be able to get a new job?",
+      "exact_text_sha256": "e1f6ac435c4d032c6cd7dbe30f7c0342827cb16caf33af074e026109e1268632",
+      "fixture_id": "dice-founder-en-03"
+    },
+    {
+      "authoring_id": "EN04",
+      "language": "en",
+      "exact_text": "What should I do next weekend?",
+      "exact_text_sha256": "2e779ea17ee186c5b2f80ee0a6e9a81fc494e73fe440146b75aaa91967fc3423",
+      "fixture_id": "dice-founder-en-04"
+    },
+    {
+      "authoring_id": "EN05",
+      "language": "en",
+      "exact_text": "Shall I bring my dog to this new vet?",
+      "exact_text_sha256": "522be98b1fcbae833c2d0cd341ed3b8d38957bc3701dfdf60ec0eea266722318",
+      "fixture_id": "dice-founder-en-05"
+    },
+    {
+      "authoring_id": "EN06",
+      "language": "en",
+      "exact_text": "Why is the relationship between me and my girlfriend not good?",
+      "exact_text_sha256": "b1a48c8c0f3370880b0225afecbc467c81e6b29fac413f2437170cd68ad7b7c5",
+      "fixture_id": "dice-founder-en-06"
+    },
+    {
+      "authoring_id": "EN07",
+      "language": "en",
+      "exact_text": "Does my boyfriend have an affair?",
+      "exact_text_sha256": "db5fcec898022bd944af81961b3162619212d550c2324ec890d4e4376d25e604",
+      "fixture_id": "dice-founder-en-07"
+    },
+    {
+      "authoring_id": "EN08",
+      "language": "en",
+      "exact_text": "How can me and my girlfriend improve our relationship?",
+      "exact_text_sha256": "b772ce9dd3b46d90b317c582750615560fc016bc9f97f496083abff663e79db8",
+      "fixture_id": "dice-founder-en-08"
+    },
+    {
+      "authoring_id": "EN09",
+      "language": "en",
+      "exact_text": "Will we get married? If so, when?",
+      "exact_text_sha256": "157bd1f8cdea8dd0426379b6a067c137a25441f362380069cc26056b54e46d97",
+      "fixture_id": "dice-founder-en-09"
+    },
+    {
+      "authoring_id": "EN10",
+      "language": "en",
+      "exact_text": "How did my interview go?",
+      "exact_text_sha256": "1b2641c640d471203e408e17a176f94ba62a86772b1c2f51211649b463eb5acc",
+      "fixture_id": "dice-founder-en-10"
+    },
+    {
+      "authoring_id": "EN11",
+      "language": "en",
+      "exact_text": "Where can I find my next love?",
+      "exact_text_sha256": "efcfc7353f31147cb990987e96ac4bcf1c8320feadc498cd990eeffd43dc0df2",
+      "fixture_id": "dice-founder-en-11"
+    },
+    {
+      "authoring_id": "EN12",
+      "language": "en",
+      "exact_text": "What should I be aware of in my next trip to Japan?",
+      "exact_text_sha256": "3b5ea117524b5deef123c680e1cb7cdcd5e8198a8a36b76d86949c2a2d8691a3",
+      "fixture_id": "dice-founder-en-12"
+    },
+    {
+      "authoring_id": "EN13",
+      "language": "en",
+      "exact_text": "Why did I not get the promotion?",
+      "exact_text_sha256": "c2ba6366f2606bc8d21f49ff9f21e864521ddefd6816655e68f9156cc823ea5f",
+      "fixture_id": "dice-founder-en-13"
+    },
+    {
+      "authoring_id": "EN14",
+      "language": "en",
+      "exact_text": "I am looking to do a side business, what should I do?",
+      "exact_text_sha256": "6bf6e4f3deba150e35ef76a47e9900b3a6a8c181054d04f0d972904025c02bd6",
+      "fixture_id": "dice-founder-en-14"
+    },
+    {
+      "authoring_id": "EN15",
+      "language": "en",
+      "exact_text": "Where can I find my pair of glasses?",
+      "exact_text_sha256": "d382ef3eb3e0d3e712c58c40d32f2f04af01a6dc8eee1a3e465b5d752bf37259",
+      "fixture_id": "dice-founder-en-15"
+    },
+    {
+      "authoring_id": "EN16",
+      "language": "en",
+      "exact_text": "I am looking to start some new courses, what should I apply for?",
+      "exact_text_sha256": "f50fca4c956ad0741c7803f086f88696e4243dc8398835660df203eeb7ecdd84",
+      "fixture_id": "dice-founder-en-16"
+    },
+    {
+      "authoring_id": "EN17",
+      "language": "en",
+      "exact_text": "When will I be pregnant?",
+      "exact_text_sha256": "1235263b0ce3f41a12e891d7d15e1a0f0423eb4fc17ba467d599161431f038ca",
+      "fixture_id": "dice-founder-en-17"
+    },
+    {
+      "authoring_id": "EN18",
+      "language": "en",
+      "exact_text": "Is this doctor reliable?",
+      "exact_text_sha256": "2bfbd5cc6816bae1723d971057809cd54918e5d380894c23bd51ff20a1470bf3",
+      "fixture_id": "dice-founder-en-18"
+    },
+    {
+      "authoring_id": "EN19",
+      "language": "en",
+      "exact_text": "How well will the exhibition go next week?",
+      "exact_text_sha256": "2759e24f3f0a7b265eac61642fa515d6a778b59ddabee9583acc8f796d2a098a",
+      "fixture_id": "dice-founder-en-19"
+    },
+    {
+      "authoring_id": "EN20",
+      "language": "en",
+      "exact_text": "What type of people is my next manager?",
+      "exact_text_sha256": "53b5be4d55d5dab108788722abb8f59f07b7898d67250d0639aa21c6d411c58a",
+      "fixture_id": "dice-founder-en-20"
+    },
+    {
+      "authoring_id": "ZH01",
+      "language": "zh-Hant",
+      "exact_text": "我應唔應該去Working holiday？",
+      "exact_text_sha256": "234649894ec08ad79777e009df03d96ca779a4adbfa393cf6963a073d2fddd30",
+      "fixture_id": "dice-founder-zh-01"
+    },
+    {
+      "authoring_id": "ZH02",
+      "language": "zh-Hant",
+      "exact_text": "Working holiday去澳洲好唔好？",
+      "exact_text_sha256": "fd7a6e556da674f11fee67a216c00cc6e1058a0d7709bfbb3da541af4acb716d",
+      "fixture_id": "dice-founder-zh-02"
+    },
+    {
+      "authoring_id": "ZH03",
+      "language": "zh-Hant",
+      "exact_text": "Working holiday去美國好唔好？",
+      "exact_text_sha256": "216dfd0ed4028fc551436eab80ac6156cb726d1c21358e181740a60a4b3e44af",
+      "fixture_id": "dice-founder-zh-03"
+    },
+    {
+      "authoring_id": "ZH05",
+      "language": "zh-Hant",
+      "exact_text": "我去到澳洲如果讀書嘅，應該讀乜嘢？",
+      "exact_text_sha256": "42ad483b7d6aacd7bcdc969e37a13421ae46c495ddbf849f27637b6e7dcfb667",
+      "fixture_id": "dice-founder-zh-04"
+    },
+    {
+      "authoring_id": "ZH06",
+      "language": "zh-Hant",
+      "exact_text": "我去到澳洲做嘢嘅話，係咪應該做返我而家呢行？",
+      "exact_text_sha256": "aa0607800e37226f375668c6622e5d1cffed9f73cc614f617c92225241328e07",
+      "fixture_id": "dice-founder-zh-05"
+    },
+    {
+      "authoring_id": "ZH07",
+      "language": "zh-Hant",
+      "exact_text": "我去到澳洲應該有乜嘢需要注意？",
+      "exact_text_sha256": "4fe2821f33fa6215c0722d60042b27057323044332c971b5797dd98a4dcc9d41",
+      "fixture_id": "dice-founder-zh-06"
+    },
+    {
+      "authoring_id": "ZH08",
+      "language": "zh-Hant",
+      "exact_text": "我個application 會唔會批？幾時會批？",
+      "exact_text_sha256": "8e6b0357eb52e1a0c63e1be6f8b4f5c08c62ef036d42c312625568a6c1ab8350",
+      "fixture_id": "dice-founder-zh-07"
+    },
+    {
+      "authoring_id": "ZH09",
+      "language": "zh-Hant",
+      "exact_text": "我個application幾時會批？",
+      "exact_text_sha256": "78fcc9dc150ba7670687b7d9fc2574e2562773680e5985b6f1750d61ddb74b49",
+      "fixture_id": "dice-founder-zh-08"
+    },
+    {
+      "authoring_id": "ZH10",
+      "language": "zh-Hant",
+      "exact_text": "我同個男朋友應唔應該繼續呢段關係？",
+      "exact_text_sha256": "e14cb0374db07d3f633504ecaccf635dea2c52c721fb3e96bf8e292311765d12",
+      "fixture_id": "dice-founder-zh-09"
+    },
+    {
+      "authoring_id": "ZH11",
+      "language": "zh-Hant",
+      "exact_text": "我同我男朋友究竟而家發生咩問題？",
+      "exact_text_sha256": "1b22b067586348b61462aa7e9ed0a5a7e1b4812a737d51b206ff9e031c79f4e3",
+      "fixture_id": "dice-founder-zh-10"
+    },
+    {
+      "authoring_id": "ZH12",
+      "language": "zh-Hant",
+      "exact_text": "我如果搬去佢屋企附近會唔會改善到我哋嘅關係？",
+      "exact_text_sha256": "a6a788afd84c8e1173d8e5f92157028346ab3542589b4472b9ecce14fa2a0c45",
+      "fixture_id": "dice-founder-zh-11"
+    },
+    {
+      "authoring_id": "ZH13",
+      "language": "zh-Hant",
+      "exact_text": "我可以做乜嘢去改善我哋嘅關係？",
+      "exact_text_sha256": "3467d236a6eb4b4b7286fc96af61438f621eee75d101727eb008a31a97699162",
+      "fixture_id": "dice-founder-zh-12"
+    },
+    {
+      "authoring_id": "ZH14",
+      "language": "zh-Hant",
+      "exact_text": "我九月嘅運程係點？",
+      "exact_text_sha256": "49c7b626e7ae162c837c7fdce675c413dde644643bb13c1ff2ff89e1690a3483",
+      "fixture_id": "dice-founder-zh-13"
+    },
+    {
+      "authoring_id": "ZH15",
+      "language": "zh-Hant",
+      "exact_text": "如果我讀呢個占星course會點？",
+      "exact_text_sha256": "9a1798626de04ebdf2526a413139ef38e6cbbd59df003b16ebd9f54552a07e2e",
+      "fixture_id": "dice-founder-zh-14"
+    },
+    {
+      "authoring_id": "ZH16",
+      "language": "zh-Hant",
+      "exact_text": "我下個星期去台灣擺展覽，個情況會係點？",
+      "exact_text_sha256": "ce7e0c8c840efb8bd3a7c1138022821af31e3accdfdc92afbd0fb4b056aa9012",
+      "fixture_id": "dice-founder-zh-15"
+    },
+    {
+      "authoring_id": "ZH17",
+      "language": "zh-Hant",
+      "exact_text": "我應該做乜嘢副業會賺多啲錢？",
+      "exact_text_sha256": "caca8c25ffc0eee168cd4f8f569de3907eb5fc9aadafe4aae02f974f5cba0ba9",
+      "fixture_id": "dice-founder-zh-16"
+    },
+    {
+      "authoring_id": "ZH18",
+      "language": "zh-Hant",
+      "exact_text": "我嚟緊有個空降嘅上司，佢係一個咩人？",
+      "exact_text_sha256": "e9a7f6ba51c8c0bd5a2cc596b448cb1a5b05909abc7bc60bba2db9072b0187b7",
+      "fixture_id": "dice-founder-zh-17"
+    },
+    {
+      "authoring_id": "ZH19",
+      "language": "zh-Hant",
+      "exact_text": "我今個月月會唔會到數？",
+      "exact_text_sha256": "25dcdcd3da61446ab16d20f777778c7fae767fdba0320a238daa3c54705e07ad",
+      "fixture_id": "dice-founder-zh-18"
+    },
+    {
+      "authoring_id": "ZH20",
+      "language": "zh-Hant",
+      "exact_text": "我點樣先至可以到數？",
+      "exact_text_sha256": "ad718ccc7f0fc118e049ba620e266b64c40ae973ee47f66afc40512a37c30285",
+      "fixture_id": "dice-founder-zh-19"
+    },
+    {
+      "authoring_id": "ZH21",
+      "language": "zh-Hant",
+      "exact_text": "我幾時先至可以搵到份新工？",
+      "exact_text_sha256": "00df0705949d361f7132af9877b7e5a15c3f216a40a9cac262794a61b6376878",
+      "fixture_id": "dice-founder-zh-20"
+    }
+  ],
+  "registry_payload_sha256": "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211"
+}

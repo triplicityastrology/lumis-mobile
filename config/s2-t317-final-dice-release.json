@@ -1,0 +1,50 @@
+{
+  "schema": "s2_t317_final_dice_release_v1",
+  "integration_authorities": {
+    "closed_registry": "c26aeac9642029c4b0dcca6ddfc45f11be2b542d",
+    "founder_signer": "523a4166f18ecdac66a30b03d6f59068bd5b7279",
+    "disabled_deployment": "179de7e43fd208858d18398586543028ba9d1b5f",
+    "migration_and_technical_window": "8f6d2772a664b60bd95b5942fb87844f7d613e31",
+    "on_dice_interpretation": "482ebf58cb03270acce8755b11af7a1a9360f189"
+  },
+  "issuer": {
+    "name": "Lumis Founder Deployment Approver",
+    "trust_anchor_owner": "Founder",
+    "issuer_key_id": "founder-ed25519-deployment-approver-v1",
+    "issuer_public_key_spki_sha256": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478",
+    "private_material_committed": false
+  },
+  "registry": {
+    "schema": "s2_t314_closed_founder_fixture_registry_v1",
+    "payload_sha256": "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211",
+    "total": 40,
+    "en": 20,
+    "zh_hant": 20,
+    "excluded_authoring_id": "ZH04",
+    "zh08": "bundled_question_rejection",
+    "zh09": "accepted_single_question_control",
+    "authority": "exact_membership_and_exact_question_text"
+  },
+  "product_path": {
+    "interpretation_target": "existing_dice_result_card",
+    "stays_on_dice": true,
+    "chat_requires_explicit_reflect_action": true,
+    "stale_result_suppression": true,
+    "states": ["loading", "interpretation", "safety", "fallback", "retry"]
+  },
+  "operations": {
+    "deployment_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+    "migration_scope": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY",
+    "traffic_scope": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY",
+    "remote_calls_default": 0,
+    "provider_calls_default": 0,
+    "migration_applied": false
+  },
+  "required_external_operational_receipts": [
+    "founder_signed_default_off_deployment_receipt",
+    "founder_signed_migration_0039_receipt",
+    "founder_signed_technical_80_traffic_receipt"
+  ],
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}

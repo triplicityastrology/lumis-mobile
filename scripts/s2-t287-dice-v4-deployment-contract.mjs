@@ -39,15 +39,16 @@ assert.equal(control.configuration_names.length, 15);
 assert.equal(control.migration_boundary.application_authorized, false);
 
 const identity = { source_commit: "a".repeat(40), source_tree: "b".repeat(40), clean: true };
+const issuerKeyId = "founder-ed25519-primary-2026";
 assert.throws(
-  () => createAuthorizationRequest(control, seal, { ...identity, clean: false }, "dice-auth-request-abcdefghijklmnop", "c".repeat(64)),
+  () => createAuthorizationRequest(control, seal, { ...identity, clean: false }, "dice-auth-request-abcdefghijklmnop", "c".repeat(64), issuerKeyId),
   (error) => error instanceof DeploymentStop && error.code === STOP.dirty,
 );
 
 const { publicKey, privateKey } = generateKeyPairSync("ed25519");
 const publicPem = publicKey.export({ type: "spki", format: "pem" });
 const signingKeySha256 = sha256(publicKey.export({ type: "spki", format: "der" }));
-const request = createAuthorizationRequest(control, seal, identity, "dice-auth-request-abcdefghijklmnop", signingKeySha256);
+const request = createAuthorizationRequest(control, seal, identity, "dice-auth-request-abcdefghijklmnop", signingKeySha256, issuerKeyId);
 assert.equal(request.authorization_package_sha256, seal.authorization_package_sha256);
 assert.equal(Object.hasOwn(request, "issued_at"), false);
 assert.equal(Object.hasOwn(request, "valid_until"), false);
@@ -56,7 +57,7 @@ assert.equal(request.request_sha256, sha256(`${JSON.stringify({ ...request, requ
 const issuedAt = "2026-08-11T12:00:00.000Z";
 const unsigned = {
   schema: "lumis_dice_default_off_function_deployment_authorization_v4",
-  issuer: "Microsoft",
+  issuer: "Lumis Founder Deployment Approver",
   decision: "AUTHORIZED",
   authorization_scope: control.authorization_scope,
   request_id: request.request_id,
@@ -72,7 +73,9 @@ const unsigned = {
   runtime_package_sha256: control.runtime_package_sha256,
   authorization_package_sha256: seal.authorization_package_sha256,
   bindings: request.bindings,
-  microsoft_signing_key_sha256: signingKeySha256,
+  issuer_public_key_spki_sha256: signingKeySha256,
+  issuer_key_id: issuerKeyId,
+  trust_anchor_owner: "Founder",
   configuration_names: control.configuration_names,
   kill_switch_required: false,
   traffic_switch_required: false,
@@ -86,7 +89,7 @@ const unsigned = {
   rollback_revision: "version-41",
   signature_algorithm: "Ed25519",
 };
-const signed = (value) => ({ ...value, microsoft_signature_base64: sign(null, Buffer.from(`${JSON.stringify(value)}\n`), privateKey).toString("base64") });
+const signed = (value) => ({ ...value, issuer_signature_base64: sign(null, Buffer.from(`${JSON.stringify(value)}\n`), privateKey).toString("base64") });
 const receipt = signed(unsigned);
 const issuedMs = Date.parse(issuedAt);
 const authorization = validateAuthorizationReceipt(receipt, control, seal, request, identity, publicPem, issuedMs + 899_999);
@@ -161,10 +164,10 @@ try {
   rmSync(temporary, { recursive: true, force: true });
 }
 
-assert.equal(nextGate(), "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION");
+assert.equal(nextGate(), "OBTAIN_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION");
 const inert = spawnSync(process.execPath, ["scripts/s2-t287-dice-v4-deployment-authorization.mjs"], { encoding: "utf8" });
 assert.equal(inert.status, 0, inert.stderr);
-assert.equal(JSON.parse(inert.stdout).next_action, "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION");
+assert.equal(JSON.parse(inert.stdout).next_action, "OBTAIN_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION");
 
 const shellSource = readFileSync("scripts/run-s2-t287-dice-deployment.zsh", "utf8");
 const claimIndex = shellSource.indexOf("--consume-claim >/dev/null");
@@ -177,7 +180,7 @@ assert.doesNotMatch(shellSource, /supabase db|migration up|migration repair|AZUR
 
 for (const path of [
   "supabase/tests/s2-t287-default-off-deployment-authorization-request-v4.schema.json",
-  "supabase/tests/s2-t287-microsoft-default-off-deployment-authorization-v4.schema.json",
+  "supabase/tests/s2-t287-founder-default-off-deployment-authorization-v4.schema.json",
   "supabase/tests/s2-t287-dice-deployment-receipt.schema.json",
   "supabase/tests/s2-t287-dice-rollback-receipt.schema.json",
 ]) assert.equal(json(path).additionalProperties, false, `${path}:closed`);
@@ -189,7 +192,7 @@ const t287Text = [
   "scripts/run-s2-t287-dice-deployment.zsh",
   "scripts/s2-t287-remote-deploy-proof.mjs",
   "supabase/tests/s2-t287-default-off-deployment-authorization-request-v4.schema.json",
-  "supabase/tests/s2-t287-microsoft-default-off-deployment-authorization-v4.schema.json",
+  "supabase/tests/s2-t287-founder-default-off-deployment-authorization-v4.schema.json",
 ].map((path) => readFileSync(path, "utf8")).join("\n");
 assert.doesNotMatch(t287Text, /authorization_v3|request_v3|f47b7a82[0-9a-f]{56}|3ccc7551fd945b4ca4c3aaeaa7b8f9efd61f29b56e8ebe3c69ea9f5c5aaae8ba|adbc3b887f85f8d2b615aa1fd6f4ffec7bafeff3204a4f1e309b1102b8b04f71|S2-T254/u);
 

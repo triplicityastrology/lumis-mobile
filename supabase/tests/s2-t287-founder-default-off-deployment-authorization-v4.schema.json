@@ -3,10 +3,10 @@
   "$id": "lumis_dice_default_off_function_deployment_authorization_v4",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "issuer", "decision", "authorization_scope", "request_id", "request_sha256", "project_ref", "function_name", "single_use_deployment_id", "issued_at", "authorization_window_seconds", "clock_policy", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "bindings", "microsoft_signing_key_sha256", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision", "signature_algorithm", "microsoft_signature_base64"],
+  "required": ["schema", "issuer", "decision", "authorization_scope", "request_id", "request_sha256", "project_ref", "function_name", "single_use_deployment_id", "issued_at", "authorization_window_seconds", "clock_policy", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "bindings", "issuer_public_key_spki_sha256", "issuer_key_id", "trust_anchor_owner", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision", "signature_algorithm", "issuer_signature_base64"],
   "properties": {
     "schema": { "const": "lumis_dice_default_off_function_deployment_authorization_v4" },
-    "issuer": { "const": "Microsoft" }, "decision": { "const": "AUTHORIZED" },
+    "issuer": { "const": "Lumis Founder Deployment Approver" }, "decision": { "const": "AUTHORIZED" },
     "authorization_scope": { "const": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY" },
     "request_id": { "type": "string", "pattern": "^dice-auth-request-[a-z0-9]{16,40}$" },
     "request_sha256": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json#/$defs/sha256" },
@@ -20,7 +20,9 @@
     "runtime_package_sha256": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json#/$defs/sha256" },
     "authorization_package_sha256": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json#/$defs/sha256" },
     "bindings": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json#/$defs/bindings" },
-    "microsoft_signing_key_sha256": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json#/$defs/sha256" },
+    "issuer_public_key_spki_sha256": { "$ref": "s2-t287-default-off-deployment-authorization-request-v4.schema.json#/$defs/sha256" },
+    "issuer_key_id": { "type": "string", "pattern": "^founder-ed25519-[a-z0-9-]{8,48}$" },
+    "trust_anchor_owner": { "const": "Founder" },
     "configuration_names": { "type": "array", "minItems": 15, "maxItems": 15, "uniqueItems": true, "items": { "type": "string", "pattern": "^LUMIS_DICE_[A-Z0-9_]+$" } },
     "kill_switch_required": { "const": false }, "traffic_switch_required": { "const": false },
     "provider_calls_authorized": { "const": 0 }, "model_invocations_authorized": { "const": 0 },
@@ -31,6 +33,6 @@
     "rollback_target": { "const": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED" },
     "rollback_revision": { "type": "string", "pattern": "^(absent|version-[0-9]+)$" },
     "signature_algorithm": { "const": "Ed25519" },
-    "microsoft_signature_base64": { "type": "string", "pattern": "^[A-Za-z0-9+/]{86}==$" }
+    "issuer_signature_base64": { "type": "string", "pattern": "^[A-Za-z0-9+/]{86}==$" }
   }
 }

@@ -2,7 +2,7 @@
   "schema": "s2_t287_dice_v4_deployment_package_seal_v1",
   "base_commit": "fc0e516835b2a693344a4e86e558898ee1cf4237",
   "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
-  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
+  "authorization_package_sha256": "c88ae4ae2f348b8b400d0c2c43914c9238376d120f1195e4a4c360a6c6768a47",
   "authorization_clock": {
     "policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
     "window_seconds": 900
@@ -11,18 +11,18 @@
   "provider_calls_authorized": 0,
   "model_invocations_authorized": 0,
   "files": {
-    "package.json": "561888268fff5abe9fcfbefd59cc253ab76cd256fb4744fe1ed1955ea5d05318",
-    "config/s2-t287-dice-v4-deployment-control.json": "3993200efca4d751a41e77cd1f9783738f400f350d0e2b8a2ff2a53ffa0f5dc5",
+    "package.json": "e2435d1fe4b5093fa97318305d1b6b6ea54f60c83b4f226069192c4c78e8f2d6",
+    "config/s2-t287-dice-v4-deployment-control.json": "e5182d093aabcf7da895b299fe936cc4d9d9091b6cc52f0ea7ac4789cfc22063",
     "config/evidence/s2-t287-dice-runtime-recheck.json": "f9b592ecc6781ff0ec566034c9a707796516464b1f23d4ca349634bfaf505d09",
-    "docs/qa/S2-T287-canonical-v4-dice-deployment.md": "6c741374be6861917d54d375e4c3298ecf6282f4e974b460ece7f2c1e04e1d2f",
-    "scripts/lib/s2-t287-dice-v4-deployment-authorization.mjs": "b9d7cc4ee2d25cc4bdc146015b645855e81c1b39569889d231085f54c5834d85",
-    "scripts/s2-t287-dice-v4-deployment-authorization.mjs": "cad632d66e63114e969891cb1222dc45bd4b8647a2b3671618ec0374b9bdbc4f",
-    "scripts/s2-t287-remote-deploy-proof.mjs": "581f7a7a43f5a4e839e75fc3711f09d5b54e17bc256ac6f4d5c47e80024ee768",
-    "scripts/run-s2-t287-dice-deployment.zsh": "3d62c9e2f0960790910cd799e9a7701e5e72b35aba7f551e73907b776d6be480",
-    "scripts/s2-t287-dice-v4-deployment-contract.mjs": "471173412d415a7d9e843f2ce3981e4307d05d17d18771517f8a4870698b5099",
-    "scripts/s2-t287-refresh-v4-deployment-seal.mjs": "4bcc934544563752bafbc58a182984ab3c5ffb56a3781fb52a8462ba72cbecf5",
-    "supabase/tests/s2-t287-default-off-deployment-authorization-request-v4.schema.json": "9d8a283a2bfd8a9c19cbe5ba65f8ae6953b5adca5c47432c7391b3063c89f1dc",
-    "supabase/tests/s2-t287-microsoft-default-off-deployment-authorization-v4.schema.json": "c521c7d2d89e5bcd37977d29b6c7dd522fafddca89931cd8aa0db90ee80bd8e2",
+    "docs/qa/S2-T287-canonical-v4-dice-deployment.md": "a0e3ed59fba866691ffa5a3fc4b90d48e050b4da7c1391625d53dab74559eda2",
+    "scripts/lib/s2-t287-dice-v4-deployment-authorization.mjs": "ea08fa77df82815ab56305a227a9deb979ce2c5accd0a6846a0eeb299c6e4480",
+    "scripts/s2-t287-dice-v4-deployment-authorization.mjs": "474aa8b05b733592480aa1e5637d6db38e0000dea36b01f9bef8172bacc96a4f",
+    "scripts/s2-t287-remote-deploy-proof.mjs": "e1bdc5cccbfcc4465a9b19111fe054a44c1996c6fa4348ef6072fa90475996d7",
+    "scripts/run-s2-t287-dice-deployment.zsh": "2a51c67717944d8690d16f229a16088f4349ae52a14ceb2612e5399f747aba8d",
+    "scripts/s2-t287-dice-v4-deployment-contract.mjs": "c6fe2ae5c0be0f8ff10f38dcdaaef9e18fd43a69a75fde4caa39a3ec6e522603",
+    "scripts/s2-t287-refresh-v4-deployment-seal.mjs": "085c2cbd8fc61dde79e9a02fb7b6790240343811bade6d192378f8fd27da313e",
+    "supabase/tests/s2-t287-default-off-deployment-authorization-request-v4.schema.json": "58666c9c7bc39bc36ed2667ffc078a8107f0121aaac187ca56856120b15cf31a",
+    "supabase/tests/s2-t287-founder-default-off-deployment-authorization-v4.schema.json": "b4ab66331bc93cde10d9f6176c32b8bdca1d46ea4ccb2379747f7598ef22e3b9",
     "supabase/tests/s2-t287-dice-deployment-receipt.schema.json": "cb14716815f967cbe3b5f65a40986fbd1b44446c91daca776b901d5f54624ea7",
     "supabase/tests/s2-t287-dice-rollback-receipt.schema.json": "dbbbaa00a56251a2c35dbb070d4731fd14f9a5b791aff7f77775fb81fe09759a"
   }

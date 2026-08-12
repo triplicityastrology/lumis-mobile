@@ -1,0 +1,17 @@
+{
+  "schema": "s2_t308_v4_receipt_deployment_day_package_seal_v1",
+  "base_commit": "85f6e308a752393105eac99216f79df5e18c8a20",
+  "package_sha256": "f80f55a6bea06f8468abb39fdbbdfa3f4dd6b130cd60c3011d5147d55948668e",
+  "files": {
+    "config/s2-t308-v4-receipt-deployment-day-control.json": "6a237b58ca0fb3556745f9cbc4600a006210f8b135b5cdbac3c6e48910b0995b",
+    "config/s2-t313-founder-signer-trust-anchor.json": "f719c21b85393a5342a0e398f1d1a988db8a6440494d194d67f8d8bc47789646",
+    "config/evidence/s2-t313-founder-key-generation-receipt.json": "e54af130520f97c02480a260270216559c704e7cd5814d4ec3123b7c2bcf3813",
+    "docs/qa/S2-T308-v4-receipt-deployment-day.md": "f34c430731a93a9414137e3c2dc029f01ca4be10150a9585e3b66a8a6eb634ca",
+    "scripts/lib/s2-t308-v4-receipt-deployment-day.mjs": "7cc667ac2a09b6345bdc0a74274199a6370cd1dc202f590f3e41adf6524b2173",
+    "scripts/lib/s2-t313-founder-trust-anchor.mjs": "3115095b31f2e3f24ecd62c045c43ab07453134820a18c9afa3bd122e087f423",
+    "scripts/s2-t308-v4-receipt-intake.mjs": "5c533426a8689f0b2869700b806bcd6f2e818d72b0ee153c122be000e144a601",
+    "scripts/run-s2-t308-v4-deployment-day.zsh": "a3d1953566a392661367a44a08ca8ae5de1fa96ad4435f7d2eefa7bebc8a1fc2",
+    "scripts/s2-t308-v4-receipt-deployment-day-contract.mjs": "6fcc11df1ee8722d4c9946b6908f3858ddd04ab551886e5f2e93cb080085d2ec",
+    "scripts/s2-t308-refresh-package-seal.mjs": "b7cbe6851c4cb14710abd390b2dbc1a3a380516d02c5f5ed676fd9cedcb475bd"
+  }
+}

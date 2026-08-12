@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2_t315_post_action_receipts_v1",
+  "oneOf": [
+    { "$ref": "#/$defs/deployment" },
+    { "$ref": "#/$defs/migration" },
+    { "$ref": "#/$defs/traffic" }
+  ],
+  "$defs": {
+    "deployment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema","project_ref","function_name","candidate_commit","candidate_package_sha256","deployment_id","disabled_probes","both_switches_false","provider_calls","model_invocations","migration_applied","normal_chat_unchanged","recorded_at"],
+      "properties": {
+        "schema": { "const": "s2_t314_post_deploy_disabled_receipt_v1" }, "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "function_name": { "const": "dice-synthetic" },
+        "candidate_commit": { "const": "179de7e43fd208858d18398586543028ba9d1b5f" }, "candidate_package_sha256": { "const": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71" },
+        "deployment_id": { "type": "string", "pattern": "^dice-deploy-[a-z0-9]{16,40}$" },
+        "disabled_probes": { "const": { "unknown_fixture": "DICE_AI_DISABLED", "free_form_body": "DICE_AI_DISABLED", "normal_mobile_body": "DICE_AI_DISABLED", "allow_listed_fixture": "DICE_AI_DISABLED" } },
+        "both_switches_false": { "const": true }, "provider_calls": { "const": 0 }, "model_invocations": { "const": 0 }, "migration_applied": { "const": false }, "normal_chat_unchanged": { "const": true }, "recorded_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema","scope","project_ref","migration_version","migration_sha256","candidate_commit","candidate_package_sha256","action","applied","zero_residue_verified","parity_verified","rpc_rls_verified","cleanup_verified","provider_calls","function_deployments","normal_chat_integrations","recorded_at"],
+      "properties": {
+        "schema": { "const": "s2_t315_migration_0039_post_action_receipt_v1" },
+        "scope": { "const": "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY" },
+        "project_ref": { "const": "bmqhwofmdgebpcihjlnb" },
+        "migration_version": { "const": "0039" },
+        "migration_sha256": { "const": "7269c821d01b9819eb5d413401cd4afdc23340ca0aba953f1c33d9f9f891a610" },
+        "candidate_commit": { "const": "179de7e43fd208858d18398586543028ba9d1b5f" },
+        "candidate_package_sha256": { "const": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71" },
+        "action": { "enum": ["APPLY_0039", "ROLLBACK_0039"] }, "applied": { "type": "boolean" }, "zero_residue_verified": { "type": "boolean" }, "parity_verified": { "const": true }, "rpc_rls_verified": { "const": true }, "cleanup_verified": { "const": true },
+        "provider_calls": { "const": 0 }, "function_deployments": { "const": 0 }, "normal_chat_integrations": { "const": 0 },
+        "recorded_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "traffic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema","scope","project_ref","function_name","candidate_commit","candidate_package_sha256","run_id","cases","language","attempts","concurrency_peak","cost_usd","cost_ceiling_usd","provider_disabled_verified","founder_cases","units_charged","persistence_writes","recorded_at"],
+      "properties": {
+        "schema": { "const": "s2_t315_technical_80_post_action_receipt_v1" },
+        "scope": { "const": "DICE_TECHNICAL_SYNTHETIC_WINDOW_80_ONLY" },
+        "project_ref": { "const": "bmqhwofmdgebpcihjlnb" }, "function_name": { "const": "dice-synthetic" },
+        "candidate_commit": { "const": "179de7e43fd208858d18398586543028ba9d1b5f" }, "candidate_package_sha256": { "const": "8b8a545986c756403338a93b3b832762a0918e061d044e27710d27146fc33a71" },
+        "run_id": { "type": "string", "pattern": "^dice-tech80-[a-z0-9]{16,48}$" }, "cases": { "const": 80 }, "language": { "const": { "en": 40, "zh-Hant": 40 } },
+        "attempts": { "type": "integer", "minimum": 0, "maximum": 160 }, "concurrency_peak": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "cost_usd": { "type": "number", "minimum": 0, "maximum": 0.128 }, "cost_ceiling_usd": { "const": 0.128 }, "provider_disabled_verified": { "const": true },
+        "founder_cases": { "const": 0 }, "units_charged": { "const": 0 }, "persistence_writes": { "const": 0 }, "recorded_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

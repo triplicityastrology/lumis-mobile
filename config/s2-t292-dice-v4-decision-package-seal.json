@@ -2,15 +2,15 @@
   "schema": "s2_t292_dice_v4_microsoft_decision_package_seal_v1",
   "source_authority_commit": "dcbf25b8813ff3f1bcbc0262831ee0f5fb5d4432",
   "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
-  "authorization_package_sha256": "275d08c3d04f1408b93d4bcc32f90412d2567a7edd9b3eeb0654fad4393138db",
-  "decision_packet_sha256": "c6e72c5917e671d0822d28184a55e211108e92680d1219ef2f9c4c7cadd6c64c",
+  "authorization_package_sha256": "ecd7244dbfdce4b31d0df8c5669e3d39eb548a1ffaa47184a1033b28011e61a2",
+  "decision_packet_sha256": "834f1ed3d6ff22c889acbbc2b1a54462cca9b079c67f1da6e1294f2a55ebfd26",
   "files": {
-    "config/s2-t292-dice-v4-decision-control.json": "b8beaa278dcbeb3dd8fcb4497a5d17de597569dbe2fa399a80c4c491bcbfbf2b",
-    "docs/qa/S2-T292-dice-v4-microsoft-decision-packet.md": "392abde6ae810b1f10239b666ff0cb1b65004b041898224adcd4a5e94f966851",
-    "scripts/lib/s2-t292-dice-v4-decision-packet.mjs": "b587d500ace13602372bacd26971719e3c1d612b5fbed8f09ba4ccc685564d52",
-    "scripts/s2-t292-dice-v4-decision-preflight.mjs": "4e0e6fb5eb07f334b0d655a6430eca9c0bcb637d1a47a1f0a47d60bf40768841",
-    "scripts/s2-t292-dice-v4-decision-contract.mjs": "fbf6e726f5cfbdb68c93449a2dfbcb77c7ef4b3368a473d7e5c804574782aac0",
-    "scripts/s2-t292-refresh-decision-seal.mjs": "9f2f69f3d34d7db1c9554b39b7ece686d76cd22d277cb4af8cd8dd3b2fcf64c9",
-    "supabase/tests/s2-t292-dice-v4-microsoft-decision-packet.schema.json": "5f605ef177af0c263d474d90fbe94fd2d3292c4711238130a2ca5828d66c8411"
+    "config/s2-t292-dice-v4-decision-control.json": "caf478366f7aa728f728c2e04c85d82a8d91e4fa17d510df37086796406c0462",
+    "docs/qa/S2-T292-dice-v4-microsoft-decision-packet.md": "4dfae9632b04c54942c860068ba7272e54eb6e5d4bcbf1de5f750ee3b3c33f87",
+    "scripts/lib/s2-t292-dice-v4-decision-packet.mjs": "bf5b06cb80a809d740b602c4aae3777f6404cbf433e01db4f25531a6cccfe592",
+    "scripts/s2-t292-dice-v4-decision-preflight.mjs": "e63fdd31ac637add238cb9cbcf53acd9b2cfef5562d2cf527fbd39e997854040",
+    "scripts/s2-t292-dice-v4-decision-contract.mjs": "720c01bb854adb367e43028b280b864c55136b20fea6d2503921dff1af04296d",
+    "scripts/s2-t292-refresh-decision-seal.mjs": "a026dcd077610bb153463cd07eb03cfecd27ac8e02495fa93a1ebaf1fdae3c62",
+    "supabase/tests/s2-t292-dice-v4-microsoft-decision-packet.schema.json": "0ace3b18b269b4be05a458c0b798df516d13257d16a25005ca37e2799e41ccc0"
   }
 }

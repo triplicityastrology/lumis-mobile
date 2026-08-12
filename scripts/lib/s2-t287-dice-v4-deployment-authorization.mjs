@@ -5,7 +5,9 @@ import { dirname } from "node:path";
 export const PROJECT_REF = "bmqhwofmdgebpcihjlnb";
 export const FUNCTION_NAME = "dice-synthetic";
 export const SCOPE = "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY";
-export const WAITING = "WAITING_FOR_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION";
+export const WAITING = "WAITING_FOR_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION";
+export const AUTHORIZATION_ISSUER = "Lumis Founder Deployment Approver";
+export const TRUST_ANCHOR_OWNER = "Founder";
 export const DISABLED = "DICE_AI_DISABLED";
 export const RELEASE_PARENT_COMMIT = "fc0e516835b2a693344a4e86e558898ee1cf4237";
 export const RUNTIME_AUTHORITY_COMMIT = "f5f9e9da238633d84eb8695307c573eef8f1bc96";
@@ -22,7 +24,7 @@ export const STOP = Object.freeze({
   authorizationShape: "STOP_S2_T287_AUTHORIZATION_INVALID",
   authorizationClock: "STOP_S2_T287_AUTHORIZATION_CLOCK_INVALID",
   authorizationExpired: "STOP_S2_T287_AUTHORIZATION_EXPIRED",
-  signature: "STOP_S2_T287_MICROSOFT_SIGNATURE_INVALID",
+  signature: "STOP_S2_T287_FOUNDER_ISSUER_SIGNATURE_INVALID",
   project: "STOP_S2_T287_WRONG_PROJECT",
   function: "STOP_S2_T287_WRONG_FUNCTION",
   package: "STOP_S2_T287_WRONG_PACKAGE",
@@ -50,7 +52,7 @@ const exact = (value, keys, code) => {
 const sameArray = (left, right) => Array.isArray(left) && left.length === right.length && left.every((item, index) => item === right[index]);
 export const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const unsignedReceiptBytes = (receipt) => {
-  const { microsoft_signature_base64: _signature, ...unsigned } = receipt;
+  const { issuer_signature_base64: _signature, ...unsigned } = receipt;
   return Buffer.from(`${JSON.stringify(unsigned)}\n`, "utf8");
 };
 
@@ -82,8 +84,8 @@ export function validateControl(control) {
   if (!SHA256.test(control.migration_boundary.sha256) || control.migration_boundary.application_authorized !== false || control.migration_boundary.required_authorization_scope !== "DICE_AUTHORITY_LEDGER_0039_MIGRATION_ONLY") stop(STOP.migration);
   exact(control.normal_chat_binding, ["base_commit", "entry_path", "entry_blob", "current_sha256"], STOP.control);
   if (control.normal_chat_binding.entry_path !== "supabase/functions/chat-message/index.ts" || !SHA256.test(control.normal_chat_binding.current_sha256)) stop(STOP.control);
-  exact(control.authorization, ["schema", "request_schema", "window_seconds", "clock_policy", "single_use_claim_schema", "signature_algorithm", "signing_key_sha256_required"], STOP.control);
-  if (control.authorization.schema !== "lumis_dice_default_off_function_deployment_authorization_v4" || control.authorization.request_schema !== "lumis_dice_default_off_function_deployment_authorization_request_v4" || control.authorization.window_seconds !== AUTHORIZATION_WINDOW_SECONDS || control.authorization.clock_policy !== CLOCK_POLICY || control.authorization.single_use_claim_schema !== "s2_t287_dice_deployment_claim_v1" || control.authorization.signature_algorithm !== "Ed25519" || control.authorization.signing_key_sha256_required !== true) stop(STOP.control);
+  exact(control.authorization, ["schema", "request_schema", "window_seconds", "clock_policy", "single_use_claim_schema", "signature_algorithm", "issuer", "trust_anchor_owner", "issuer_public_key_spki_sha256_required", "issuer_key_id_required"], STOP.control);
+  if (control.authorization.schema !== "lumis_dice_default_off_function_deployment_authorization_v4" || control.authorization.request_schema !== "lumis_dice_default_off_function_deployment_authorization_request_v4" || control.authorization.window_seconds !== AUTHORIZATION_WINDOW_SECONDS || control.authorization.clock_policy !== CLOCK_POLICY || control.authorization.single_use_claim_schema !== "s2_t287_dice_deployment_claim_v1" || control.authorization.signature_algorithm !== "Ed25519" || control.authorization.issuer !== AUTHORIZATION_ISSUER || control.authorization.trust_anchor_owner !== TRUST_ANCHOR_OWNER || control.authorization.issuer_public_key_spki_sha256_required !== true || control.authorization.issuer_key_id_required !== true) stop(STOP.control);
   exact(control.rollback, ["target", "previous_revision_required"], STOP.control);
   if (control.rollback.target !== "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED" || control.rollback.previous_revision_required !== true) stop(STOP.control);
   if (control.remote_calls_in_default_mode !== 0 || control.normal_chat_authority !== "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY" || control.azure_traffic_authority !== "NO_AZURE_TRAFFIC_AUTHORITY") stop(STOP.control);
@@ -130,12 +132,12 @@ export async function verifyAuthorizationPackage(seal, root = process.cwd()) {
   return true;
 }
 
-export function createAuthorizationRequest(control, seal, identity, requestId, signingKeySha256) {
+export function createAuthorizationRequest(control, seal, identity, requestId, issuerPublicKeySpkiSha256, issuerKeyId) {
   validateControl(control);
   validatePackageSeal(seal);
   validateGitIdentity(identity);
   if (seal.runtime_package_sha256 !== control.runtime_package_sha256) stop(STOP.package);
-  if (!/^dice-auth-request-[a-z0-9]{16,40}$/u.test(requestId) || !SHA256.test(signingKeySha256)) stop(STOP.authorizationShape);
+  if (!/^dice-auth-request-[a-z0-9]{16,40}$/u.test(requestId) || !SHA256.test(issuerPublicKeySpkiSha256) || !/^founder-ed25519-[a-z0-9-]{8,48}$/u.test(issuerKeyId)) stop(STOP.authorizationShape);
   const request = {
     schema: control.authorization.request_schema,
     authorization_scope: SCOPE,
@@ -147,7 +149,9 @@ export function createAuthorizationRequest(control, seal, identity, requestId, s
     runtime_package_sha256: control.runtime_package_sha256,
     authorization_package_sha256: seal.authorization_package_sha256,
     bindings: Object.fromEntries(Object.entries(control.bindings).map(([name, binding]) => [name, binding.sha256])),
-    microsoft_signing_key_sha256: signingKeySha256,
+    issuer_public_key_spki_sha256: issuerPublicKeySpkiSha256,
+    issuer_key_id: issuerKeyId,
+    trust_anchor_owner: TRUST_ANCHOR_OWNER,
     authorization_window_seconds: control.authorization.window_seconds,
     clock_policy: control.authorization.clock_policy,
     configuration_names: control.configuration_names,
@@ -166,16 +170,16 @@ export function createAuthorizationRequest(control, seal, identity, requestId, s
 }
 
 export function validateAuthorizationRequest(request, control, seal, identity) {
-  exact(request, ["schema", "authorization_scope", "request_id", "project_ref", "function_name", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "bindings", "microsoft_signing_key_sha256", "authorization_window_seconds", "clock_policy", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision_required", "request_sha256"], STOP.authorizationShape);
-  const rebuilt = createAuthorizationRequest(control, seal, identity, request.request_id, request.microsoft_signing_key_sha256);
+  exact(request, ["schema", "authorization_scope", "request_id", "project_ref", "function_name", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "bindings", "issuer_public_key_spki_sha256", "issuer_key_id", "trust_anchor_owner", "authorization_window_seconds", "clock_policy", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision_required", "request_sha256"], STOP.authorizationShape);
+  const rebuilt = createAuthorizationRequest(control, seal, identity, request.request_id, request.issuer_public_key_spki_sha256, request.issuer_key_id);
   if (JSON.stringify(request) !== JSON.stringify(rebuilt)) stop(STOP.authorizationShape);
   return request;
 }
 
-export function validateAuthorizationReceipt(receipt, control, seal, request, identity, microsoftPublicKeyPem, now = Date.now()) {
+export function validateAuthorizationReceipt(receipt, control, seal, request, identity, issuerPublicKeyPem, now = Date.now()) {
   validateAuthorizationRequest(request, control, seal, identity);
-  exact(receipt, ["schema", "issuer", "decision", "authorization_scope", "request_id", "request_sha256", "project_ref", "function_name", "single_use_deployment_id", "issued_at", "authorization_window_seconds", "clock_policy", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "bindings", "microsoft_signing_key_sha256", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision", "signature_algorithm", "microsoft_signature_base64"], STOP.authorizationShape);
-  if (receipt.schema !== control.authorization.schema || receipt.issuer !== "Microsoft" || receipt.decision !== "AUTHORIZED" || receipt.authorization_scope !== SCOPE) stop(STOP.authorizationShape);
+  exact(receipt, ["schema", "issuer", "decision", "authorization_scope", "request_id", "request_sha256", "project_ref", "function_name", "single_use_deployment_id", "issued_at", "authorization_window_seconds", "clock_policy", "source_commit", "source_tree", "runtime_package_sha256", "authorization_package_sha256", "bindings", "issuer_public_key_spki_sha256", "issuer_key_id", "trust_anchor_owner", "configuration_names", "kill_switch_required", "traffic_switch_required", "provider_calls_authorized", "model_invocations_authorized", "disabled_probes", "migration_application_authorized", "migration_required_authorization_scope", "normal_chat_binding", "rollback_target", "rollback_revision", "signature_algorithm", "issuer_signature_base64"], STOP.authorizationShape);
+  if (receipt.schema !== control.authorization.schema || receipt.issuer !== AUTHORIZATION_ISSUER || receipt.trust_anchor_owner !== TRUST_ANCHOR_OWNER || receipt.decision !== "AUTHORIZED" || receipt.authorization_scope !== SCOPE) stop(STOP.authorizationShape);
   if (receipt.project_ref !== PROJECT_REF) stop(STOP.project);
   if (receipt.function_name !== FUNCTION_NAME) stop(STOP.function);
   if (!DEPLOYMENT_ID.test(receipt.single_use_deployment_id) || receipt.request_id !== request.request_id || receipt.request_sha256 !== request.request_sha256) stop(STOP.authorizationShape);
@@ -187,18 +191,19 @@ export function validateAuthorizationReceipt(receipt, control, seal, request, id
   const issued = Date.parse(receipt.issued_at);
   if (!Number.isFinite(issued) || issued > now + 300_000) stop(STOP.authorizationClock);
   if (now - issued >= receipt.authorization_window_seconds * 1000) stop(STOP.authorizationExpired);
-  if (receipt.signature_algorithm !== "Ed25519" || typeof microsoftPublicKeyPem !== "string" || typeof receipt.microsoft_signature_base64 !== "string") stop(STOP.signature);
+  if (receipt.signature_algorithm !== "Ed25519" || typeof issuerPublicKeyPem !== "string" || typeof receipt.issuer_signature_base64 !== "string" || receipt.issuer_key_id !== request.issuer_key_id) stop(STOP.signature);
   let publicKey;
-  try { publicKey = createPublicKey(microsoftPublicKeyPem); } catch { stop(STOP.signature); }
+  try { publicKey = createPublicKey(issuerPublicKeyPem); } catch { stop(STOP.signature); }
   const publicKeyDigest = sha256(publicKey.export({ type: "spki", format: "der" }));
-  if (publicKeyDigest !== request.microsoft_signing_key_sha256 || receipt.microsoft_signing_key_sha256 !== publicKeyDigest) stop(STOP.signature);
-  const signature = Buffer.from(receipt.microsoft_signature_base64, "base64");
+  if (publicKeyDigest !== request.issuer_public_key_spki_sha256 || receipt.issuer_public_key_spki_sha256 !== publicKeyDigest) stop(STOP.signature);
+  const signature = Buffer.from(receipt.issuer_signature_base64, "base64");
   if (signature.length !== 64 || !verify(null, unsignedReceiptBytes(receipt), publicKey, signature)) stop(STOP.signature);
   return Object.freeze({
     deploymentId: receipt.single_use_deployment_id,
     authorizationSha256: sha256(`${JSON.stringify(receipt)}\n`),
     requestSha256: request.request_sha256,
-    signingKeySha256: request.microsoft_signing_key_sha256,
+    signingKeySha256: request.issuer_public_key_spki_sha256,
+    issuerKeyId: request.issuer_key_id,
     rollbackRevision: receipt.rollback_revision,
     sourceCommit: identity.source_commit,
     sourceTree: identity.source_tree,
@@ -236,7 +241,7 @@ export function validateRollbackReceipt(receipt, authorization, control) {
 }
 
 export function nextGate({ authorization, claim, deployed, rollback } = {}) {
-  if (!authorization) return "OBTAIN_MICROSOFT_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION";
+  if (!authorization) return "OBTAIN_LUMIS_FOUNDER_V4_DEFAULT_OFF_DEPLOYMENT_AUTHORIZATION";
   if (!claim) return "CONSUME_SINGLE_USE_DEPLOYMENT_CLAIM";
   if (!deployed) return "DEPLOY_DICE_SYNTHETIC_DEFAULT_OFF_ONLY";
   if (!rollback) return "RECORD_POST_DEPLOY_OR_ROLLBACK_RECEIPT";

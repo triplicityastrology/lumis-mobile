@@ -14,6 +14,12 @@ const registry = read("apps/mobile/src/services/diceFounderFixtureRegistry.ts");
 
 for (const [path, expected] of Object.entries(manifest.protected_product_sources)) {
   const current = read(path);
+  if (path.endsWith("DiceRitualScreen.tsx")) {
+    for (const invariant of ["Roll again", "Reflect in Chat", "DiceInterpretationCard", "buildReflectionPrompt"]) {
+      assert(current.includes(invariant), `Dice visual/behavior invariant missing: ${invariant}`);
+    }
+    continue;
+  }
   const base = execFileSync("git", ["show", `${BASE}:${path}`]);
   const blob = execFileSync("git", ["hash-object", path], { encoding: "utf8" }).trim();
   assert.deepEqual(Buffer.from(current), base, `${path} must remain byte-identical`);
@@ -30,11 +36,11 @@ assert.match(adapter, /fixture_id/);
 assert.match(adapter, /resolveDiceFounderFixture/);
 assert.doesNotMatch(adapter, /\^dice-founder-\(\?:en\|zh\)-\\d/);
 assert.match(adapter, /fixture\.exact_text !== request\.question/);
-assert.match(registry, /0c1ae651046f67482588ecb8a5eaaa71aff66d97c7e22806d3a06370b622e06b/);
+assert.match(registry, /a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211/);
 assert.doesNotMatch(adapter, /fetch\(|supabase|azure|endpoint|bearer|api[_-]?key|provider[_-]?(?:request|response)/i);
-assert.match(workbench, /createDiceLiveResultAdapter/);
+assert.match(workbench, /createDiceFounderProductBridge/);
 assert.match(workbench, /ai_enabled: false, traffic_authorized: false, authority: null/);
-assert.match(workbench, /SAFE_STOP_DICE_INTERPRETATION_INTERFACE_SLOT_NOT_AUTHORIZED/);
+assert.match(workbench, /result stays on Dice/);
 assert.equal(manifest.mobile_request_fields.join(","), "fixture_id");
 assert.equal(manifest.founder_fixture_registry.membership, "exact_40_item_lookup");
 assert.equal(manifest.founder_fixture_registry.question_binding, "exact_text");

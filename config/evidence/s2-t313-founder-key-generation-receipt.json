@@ -1,0 +1,24 @@
+{
+  "schema": "s2_t313_founder_key_generation_receipt_v1",
+  "issuer": "Lumis Founder Deployment Approver",
+  "trust_anchor_owner": "Founder",
+  "issuer_key_id": "founder-ed25519-deployment-approver-v1",
+  "issuer_public_key_spki_sha256": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478",
+  "algorithm": "Ed25519",
+  "generated_at": "2026-08-12T02:35:05.633Z",
+  "custody_classification": "LOCAL_NON_CLOUD_OWNER_ONLY",
+  "permissions": {
+    "directory": "0700",
+    "private_key": "0600",
+    "public_key": "0600"
+  },
+  "cloud_sync_excluded": true,
+  "git_repository_excluded": true,
+  "private_key_material_recorded": false,
+  "private_path_recorded": false,
+  "operational_signatures_created": 0,
+  "deployment_calls": 0,
+  "migration_calls": 0,
+  "provider_calls": 0,
+  "remote_calls": 0
+}

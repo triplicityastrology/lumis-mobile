@@ -9,11 +9,11 @@ const args = Object.fromEntries(process.argv.slice(2).map((arg) => {
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 
 try {
-  for (const name of ["request", "authorization", "microsoft-public-key", "legacy-receipt", "output"]) if (!args[name]) throw new T298Stop("STOP_S2_T298_POST_DEPLOY_RECEIPT_INVALID");
+  for (const name of ["request", "authorization", "issuer-public-key", "legacy-receipt", "output"]) if (!args[name]) throw new T298Stop("STOP_S2_T298_POST_DEPLOY_RECEIPT_INVALID");
   const request = await readJson(args.request);
   const receipt = await readJson(args.authorization);
   const legacy = await readJson(args["legacy-receipt"]);
-  const ready = await validateExecutionAuthorization({ request, receipt, publicKeyPem: await readFile(args["microsoft-public-key"], "utf8") });
+  const ready = await validateExecutionAuthorization({ request, receipt, publicKeyPem: await readFile(args["issuer-public-key"], "utf8") });
   const output = {
     schema: ready.control.post_deploy.schema,
     project_ref: ready.control.project_ref,

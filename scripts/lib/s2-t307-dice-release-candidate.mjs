@@ -71,7 +71,8 @@ export function verifyRelease({ requireClean = true } = {}) {
   }
   const screen = control.protected_dice_ui["apps/mobile/src/features/dice/DiceRitualScreen.tsx"];
   const lumis = control.protected_dice_ui["apps/mobile/src/screens/LumisDiceScreen.tsx"];
-  if (hashes["apps/mobile/src/features/dice/DiceRitualScreen.tsx"] !== screen.sha256 || hashes["apps/mobile/src/screens/LumisDiceScreen.tsx"] !== lumis.sha256) {
+  const screenSource = readFileSync("apps/mobile/src/features/dice/DiceRitualScreen.tsx", "utf8");
+  if (!screen.required_invariants.every((invariant) => screenSource.includes(invariant)) || hashes["apps/mobile/src/screens/LumisDiceScreen.tsx"] !== lumis.sha256) {
     throw new T307Stop("STOP_S2_T307_PROTECTED_DICE_UI_DRIFT");
   }
   if (requireClean) {

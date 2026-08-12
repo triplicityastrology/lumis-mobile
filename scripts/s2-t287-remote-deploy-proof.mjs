@@ -48,7 +48,7 @@ if (command === "configuration") {
     deployment_id: authorization.single_use_deployment_id,
     authorization_sha256: sha256(`${JSON.stringify(authorization)}\n`),
     request_sha256: request.request_sha256,
-    signing_key_sha256: request.microsoft_signing_key_sha256,
+    signing_key_sha256: request.issuer_public_key_spki_sha256,
     source_commit: authorization.source_commit,
     source_tree: authorization.source_tree,
     runtime_package_sha256: control.runtime_package_sha256,

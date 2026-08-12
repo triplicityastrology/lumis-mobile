@@ -1,0 +1,29 @@
+{
+  "schema": "s2_t310_dice_founder_product_bridge_control_v2",
+  "status": "DICE_RESULT_CARD_BRIDGE_READY_DEFAULT_OFF",
+  "base_commit": "a4aa42f90cbbf36cfeec32015e255dec24b7d604",
+  "approved_route": {
+    "interpretation_destination": "existing_dice_result_card",
+    "loading_surface": "bounded_dice_interpretation_region",
+    "result_surface": "bounded_dice_interpretation_region",
+    "retry_surface": "bounded_dice_interpretation_region",
+    "chat_navigation": "existing_onReflect_explicit_tap_only"
+  },
+  "authorized_dice_surface": {
+    "path": "apps/mobile/src/features/dice/DiceRitualScreen.tsx",
+    "previous_git_blob": "33ca100bf56f91ef0de4d8688927953988e73bcc",
+    "scope": "optional interpretation state region between three symbols and existing actions"
+  },
+  "protected_product_sources": {
+    "apps/mobile/src/screens/LumisDiceScreen.tsx": {
+      "git_blob": "6968d574639537faeb150b508e5a1d72bfa1e275",
+      "sha256": "31cf1c70544d2f5fc89c111051f6ac3059250d185539d1084ff25677a67ac9ac"
+    }
+  },
+  "mobile_gateway_request_fields": ["fixture_id"],
+  "provider_calls_default": 0,
+  "persistence_writes_default": 0,
+  "units_charged_default": 0,
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "s2_t315_authorization_day_package_seal_v1",
+  "base_commit": "519cd6c7cbfe6131f9f35d75d3a0300bc0c676ca",
+  "package_sha256": "9f319d735079f4b96ece04c415ec206ad5402e7f3403c5fd9216427652f70c18",
+  "files": {
+    "config/evidence/s2-t315-accepted-t283-pg17-proof.json": "1fbb08da0fbe30623081c1d8563f3a1a2bde17b2d65ba4f8c6a8d849765f9778",
+    "config/s2-t315-authorization-day-control.json": "057b19ab3dd0446506bcd58b90d49cd33556b1231034ea18b7a9c11b1f233402",
+    "config/s2-t315-exact-t314-candidate.json": "07e00790280b9e1e3f0d8836e13694f03274af18b56cfe378fd5b0874c6efc6a",
+    "config/templates/s2-t315-migration-0039-authorization.template.json": "7efc25609bd8399f460ef52d053411501008eb49bb071c54771729bb898a37b4",
+    "config/templates/s2-t315-technical-80-authorization.template.json": "073eb49a95526086e9522eba6a273d34c3243814008149b099d8311f5c91a277",
+    "docs/qa/S2-T315-migration-traffic-authorization-day.md": "40dce4de05d53111288f6e109ccccb741c0934405e9fe5a3119db4a00e9df8f6",
+    "package.json": "a235aa14bf2cd08a6d40645e8b265d4c37708c80d52836850d4f546387589ab3",
+    "scripts/lib/s2-t315-authorization-day.mjs": "fc0717e39b44e9422a4ea5de4fb9de04ad4edf0b624dbc53235df853d0625a13",
+    "scripts/run-s2-t315-migration-0039.sh": "fe366ae4dde000169adaa7bb72498e413be19c11cac30a842673081e70e3c466",
+    "scripts/run-s2-t315-technical-80.sh": "e2719ad72e8e823c80ef33fd1329435050d621e5955e36ab4a1ce800a9a3a4df",
+    "scripts/s2-t315-authorization-day-contract.mjs": "20d0ae8770d8cc5413da533e5ad5847ee257bb5c6873e87a62bad1e9c5a8d160",
+    "scripts/s2-t315-migration-0039-operator.mjs": "ddb851362256dfd8d0f5cd3b22be2201dd6f4f93e31b46019b5c64fa3ed8e2fe",
+    "scripts/s2-t315-refresh-package-seal.mjs": "53002bf2d1551e1aa3055bb3f34fde0e5dc40e003e45170befaaf96e93563cff",
+    "scripts/s2-t315-technical-80-operator.mjs": "744dea69f13a06891ba1a5b3a95922ef68ea4011559da5094b2756f70ca8c888",
+    "scripts/s2-t315-zero-network-rehearsal.mjs": "8ad03ef1a41fb1a43584ce74b25a888f252acfff49ef8d732b6791311dd799cd",
+    "supabase/tests/s2-t315-migration-0039-authorization.schema.json": "96511a112f14f231068a6ea1a9e3c920c02426c2beeb29bf106a8899d9d6d490",
+    "supabase/tests/s2-t315-post-action-receipts.schema.json": "f3b4536152a3c57d27eb7b219b2ef1a6814c6ef8d511796ab379b735977d6ca7",
+    "supabase/tests/s2-t315-technical-80-authorization.schema.json": "a23deb3a2abfd49d3dfc2a559b3a9946e1428a9bc9dca470a87ae28c14ca648b"
+  },
+  "authority_status": [
+    "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "NO_AZURE_TRAFFIC_AUTHORITY"
+  ]
+}

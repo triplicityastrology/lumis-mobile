@@ -1,0 +1,13 @@
+{
+  "schema": "s2_t313_founder_signer_trust_anchor_v1",
+  "issuer": "Lumis Founder Deployment Approver",
+  "trust_anchor_owner": "Founder",
+  "algorithm": "Ed25519",
+  "issuer_key_id": "founder-ed25519-deployment-approver-v1",
+  "issuer_public_key_spki_sha256": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478",
+  "custody_classification": "LOCAL_NON_CLOUD_OWNER_ONLY",
+  "operational_signing_authorized": false,
+  "deployment_authorized": false,
+  "migration_authorized": false,
+  "provider_traffic_authorized": false
+}

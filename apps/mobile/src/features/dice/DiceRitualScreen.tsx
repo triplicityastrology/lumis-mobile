@@ -6,7 +6,7 @@ import { getRandomValues } from "expo-crypto";
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AccessibilityInfo, Animated, AppState, BackHandler, Pressable, StyleSheet, Text, TextInput, View
+  AccessibilityInfo, Animated, AppState, BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View
 } from "react-native";
 import Svg, {
   Circle, Defs, Ellipse, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText
@@ -32,6 +32,8 @@ import { beginNewDiceQuestion, normalizeDiceQuestion } from "./question";
 import { useDiceResultActionLayout } from "./useDiceResultActionLayout";
 import { useMotionGestures } from "./useMotionGestures";
 import { DiceHelpSheet, DiceUnavailableView } from "./DiceHelpAndUnavailable";
+import type { DiceLiveResultState } from "../../services/diceLiveResultAdapter";
+import { isCurrentDiceInterpretationRequest } from "../../services/diceFounderProductBridge";
 
 configureSecureRandom(getRandomValues);
 
@@ -51,6 +53,11 @@ configureSecureRandom(getRandomValues);
 type Phase = "IDLE" | "READY" | "MIXING" | "THROW" | "TUMBLE" | "SETTLE" | "RESULT" | "INTERPRET";
 
 type StageSymbols = { planet: DiceFace; sign: DiceFace; house: DiceFace };
+
+export type DiceInterpretationEnvelope = Readonly<{
+  request_key: string;
+  state: DiceLiveResultState;
+}>;
 
 /** U+FE0E forces text presentation — without it iOS renders ♋/☉/♒… as emoji badges. */
 const TEXT_STYLE = "\uFE0E";
@@ -121,12 +128,18 @@ export function DiceRitualScreen({
   onNotifications,
   onReflect,
   onSelectTab,
-  onBack
+  onBack,
+  interpretationState,
+  onInterpretationRequested,
+  onRetryInterpretation,
 }: {
   onNotifications: () => void;
   onReflect: (chatDraft: string) => void;
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
+  interpretationState?: DiceInterpretationEnvelope;
+  onInterpretationRequested?: (input: Readonly<{ request_key: string; question: string; planet: string; sign: string; house: string }>) => void;
+  onRetryInterpretation?: (requestKey: string) => void;
 }) {
   const { stackResultActions } = useDiceResultActionLayout();
   const [question, setQuestion] = useState("");
@@ -165,6 +178,11 @@ export function DiceRitualScreen({
   const landedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
   const completeSettleRef = useRef<() => void>(() => undefined);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const interpretationRequestedRef = useRef(false);
+  const rollSequenceRef = useRef(0);
+  const activeInterpretationRequestRef = useRef<string | null>(null);
+  const onInterpretationRequestedRef = useRef(onInterpretationRequested);
+  onInterpretationRequestedRef.current = onInterpretationRequested;
 
   const dimAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
@@ -243,6 +261,7 @@ export function DiceRitualScreen({
       house: FACE_SETS.house[houseReading.faceIndex]
     };
     setSymbols(nextSymbols);
+    activeInterpretationRequestRef.current = `dice-roll-${++rollSequenceRef.current}`;
     settleAtRef.current = Date.now();
     transition("SETTLE");
     AccessibilityInfo.announceForAccessibility(
@@ -347,6 +366,8 @@ export function DiceRitualScreen({
     cameraZoomRef.current = 0;
     glowRef.current = 0;
     setSymbols(null);
+    interpretationRequestedRef.current = false;
+    activeInterpretationRequestRef.current = null;
     setShowTapThrow(false);
     questionRef.current = nextQuestion.draft;
     activeQuestionRef.current = nextQuestion.activeQuestion;
@@ -436,7 +457,20 @@ export function DiceRitualScreen({
           Animated.timing(cardAnim, {
             toValue: 1, duration: DICE_TIMINGS.cardSlide, useNativeDriver: true
           }).start(() => {
-            if (phaseRef.current === "RESULT") transition("INTERPRET");
+            if (phaseRef.current === "RESULT") {
+              transition("INTERPRET");
+              const requestKey = activeInterpretationRequestRef.current;
+              if (!interpretationRequestedRef.current && requestKey && activeQuestionRef.current && lastThrowRef.current) {
+                interpretationRequestedRef.current = true;
+                onInterpretationRequestedRef.current?.({
+                  request_key: requestKey,
+                  question: activeQuestionRef.current,
+                  planet: FACE_SETS.planet.find((face) => face.key === lastThrowRef.current?.planetKey)?.en ?? "",
+                  sign: FACE_SETS.sign.find((face) => face.key === lastThrowRef.current?.signKey)?.en ?? "",
+                  house: FACE_SETS.house.find((face) => face.key === lastThrowRef.current?.houseKey)?.en ?? "",
+                });
+              }
+            }
           });
         }
       }
@@ -459,9 +493,12 @@ export function DiceRitualScreen({
   const showTable = !showPalm;
   const normalizedQuestion = normalizeDiceQuestion(question);
   const activeQuestion = activeQuestionRef.current;
+  const currentInterpretation = interpretationState && isCurrentDiceInterpretationRequest(activeInterpretationRequestRef.current, interpretationState.request_key)
+    ? interpretationState.state
+    : undefined;
   const reflectionPrompt = symbols
     && activeQuestion
-    ? `Help me reflect on my astrology dice throw. My question was: “${activeQuestion}” The dice showed ${symbols.planet.en}, ${symbols.sign.en}, ${symbols.house.en}.`
+    ? buildReflectionPrompt(activeQuestion, symbols, currentInterpretation)
     : "";
 
   // DICE-010 — full-screen "unavailable" outcome. Dev-only preview here; the
@@ -655,6 +692,14 @@ export function DiceRitualScreen({
             ) : null}
             {phase === "INTERPRET" ? (
               <>
+                {currentInterpretation ? (
+                  <DiceInterpretationCard
+                    state={currentInterpretation}
+                    onRetry={activeInterpretationRequestRef.current && onRetryInterpretation
+                      ? () => onRetryInterpretation(activeInterpretationRequestRef.current!)
+                      : undefined}
+                  />
+                ) : null}
                 <View style={[styles.sheetActions, stackResultActions && styles.sheetActionsStacked]}>
                   <SoftButton
                     label="Roll again"
@@ -669,9 +714,7 @@ export function DiceRitualScreen({
                     style={[styles.sheetActionReflect, stackResultActions && styles.sheetActionStacked]}
                   />
                 </View>
-                <View style={styles.interpretPreviewRow}>
-                  <Text style={styles.interpretPreviewText}>Dice reading preview.</Text>
-                </View>
+                {!currentInterpretation ? <View style={styles.interpretPreviewRow}><Text style={styles.interpretPreviewText}>Dice reading preview.</Text></View> : null}
               </>
             ) : null}
             </BlurView>
@@ -686,6 +729,43 @@ export function DiceRitualScreen({
       </View>
     </View>
   );
+}
+
+function buildReflectionPrompt(question: string, symbols: StageSymbols, interpretation?: DiceLiveResultState): string {
+  const base = `Help me reflect on my astrology dice throw. My question was: “${question}” The dice showed ${symbols.planet.en}, ${symbols.sign.en}, ${symbols.house.en}.`;
+  if (interpretation?.kind === "interpretation") {
+    return `${base} The Dice interpretation was: Reading: ${interpretation.reading} Watch out: ${interpretation.watch_out} Practical direction: ${interpretation.practical_direction}`;
+  }
+  if (interpretation?.kind === "safety" || interpretation?.kind === "fallback") {
+    return `${base} The Dice interpretation was: ${interpretation.message}`;
+  }
+  return base;
+}
+
+function DiceInterpretationCard({ state, onRetry }: { state: DiceLiveResultState; onRetry?: () => void }) {
+  if (state.kind === "loading") {
+    return <View accessibilityLiveRegion="polite" style={styles.interpretationPanel}><Text style={styles.interpretationStatus}>Lumis is reading your throw...</Text></View>;
+  }
+  if (state.kind === "interpretation") {
+    return (
+      <ScrollView accessibilityLabel="Dice interpretation" nestedScrollEnabled showsVerticalScrollIndicator style={styles.interpretationScroll} contentContainerStyle={styles.interpretationPanel}>
+        <InterpretationSection label="READING" text={state.reading} />
+        <InterpretationSection label="WATCH OUT" text={state.watch_out} />
+        <InterpretationSection label="PRACTICAL DIRECTION" text={state.practical_direction} />
+      </ScrollView>
+    );
+  }
+  if (state.kind === "safety" || state.kind === "fallback") {
+    return <ScrollView nestedScrollEnabled style={styles.interpretationScroll} contentContainerStyle={styles.interpretationPanel}><Text style={styles.interpretationBody}>{state.message}</Text></ScrollView>;
+  }
+  if (state.kind === "retry") {
+    return <View accessibilityLiveRegion="polite" style={styles.interpretationPanel}><Text style={styles.interpretationBody}>The interpretation is not available just now.</Text>{onRetry ? <SoftButton label="Retry interpretation" onPress={onRetry} style={styles.interpretationRetry} /> : null}</View>;
+  }
+  return <View style={styles.interpretationPanel}><Text style={styles.interpretationBody}>Interpretation is unavailable.</Text></View>;
+}
+
+function InterpretationSection({ label, text }: { label: string; text: string }) {
+  return <View style={styles.interpretationSection}><Text style={styles.interpretationLabel}>{label}</Text><Text style={styles.interpretationBody}>{text}</Text></View>;
 }
 
 /* ---------- stage painters (ported from the validated motion prototype) ---------- */
@@ -1113,6 +1193,13 @@ const styles = StyleSheet.create({
   saveErrorContinue: { marginTop: 10 },
   interpretPreviewRow: { alignItems: "center", marginTop: 10 },
   interpretPreviewText: { color: colors.muted, fontSize: 10.5, fontWeight: "600", letterSpacing: 0.3 },
+  interpretationScroll: { marginTop: 12, maxHeight: 176 },
+  interpretationPanel: { backgroundColor: "rgba(11,25,43,0.5)", borderColor: "rgba(206,216,255,0.16)", borderRadius: 14, borderWidth: 1, gap: 10, marginTop: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  interpretationSection: { gap: 3 },
+  interpretationLabel: { color: colors.goldLight, fontSize: 9.5, fontWeight: "800", letterSpacing: 1 },
+  interpretationBody: { color: colors.ice, fontSize: 13, lineHeight: 19 },
+  interpretationStatus: { color: colors.textSoft, fontSize: 13, fontWeight: "600", lineHeight: 19, textAlign: "center" },
+  interpretationRetry: { marginTop: 2, minHeight: 44 },
   sheetActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 14 },
   sheetActionsStacked: { flexDirection: "column" },
   sheetActionRoll: { flex: 1 },

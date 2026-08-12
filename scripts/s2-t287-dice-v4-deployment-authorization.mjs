@@ -34,7 +34,7 @@ try {
   await verifyAuthorizationPackage(seal);
   const identity = gitIdentity();
   if (typeof args["request-id"] === "string") {
-    const request = createAuthorizationRequest(control, seal, identity, args["request-id"], args["signing-key-sha256"]);
+    const request = createAuthorizationRequest(control, seal, identity, args["request-id"], args["issuer-public-key-spki-sha256"], args["issuer-key-id"]);
     process.stdout.write(`${JSON.stringify(request, null, 2)}\n`);
     process.exit(0);
   }
@@ -44,8 +44,8 @@ try {
   if (typeof args.authorization === "string" || typeof args.request === "string") {
     if (typeof args.authorization !== "string" || typeof args.request !== "string") throw new DeploymentStop("STOP_S2_T287_AUTHORIZATION_REQUIRED");
     const request = validateAuthorizationRequest(await readJson(args.request), control, seal, identity);
-    if (typeof args["microsoft-public-key"] !== "string") throw new DeploymentStop("STOP_S2_T287_AUTHORIZATION_REQUIRED");
-    authorization = validateAuthorizationReceipt(await readJson(args.authorization), control, seal, request, identity, await readFile(args["microsoft-public-key"], "utf8"));
+    if (typeof args["issuer-public-key"] !== "string") throw new DeploymentStop("STOP_S2_T287_AUTHORIZATION_REQUIRED");
+    authorization = validateAuthorizationReceipt(await readJson(args.authorization), control, seal, request, identity, await readFile(args["issuer-public-key"], "utf8"));
     state.authorization = true;
   }
   if (args["consume-claim"] === true) {

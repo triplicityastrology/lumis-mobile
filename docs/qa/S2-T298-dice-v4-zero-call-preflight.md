@@ -29,7 +29,7 @@ It performs no credential read, client construction, network call, claim mutatio
 AUTHORIZE_DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY
 ```
 
-Generate the checksum-bound request only after receiving the reviewed Microsoft Ed25519 signing-key checksum:
+Generate the checksum-bound request only after receiving the reviewed Lumis Founder Deployment Approver Ed25519 signing-key checksum:
 
 ```sh
 node scripts/s2-t298-dice-v4-review-request.mjs \
@@ -46,7 +46,7 @@ LUMIS_T298_RUN_REMOTE_DEPLOYMENT=DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_
 zsh scripts/run-s2-t298-dice-v4-zero-call-deployment.zsh --execute \
   --request /closed/request.json \
   --authorization /closed/signed-v4-receipt.json \
-  --microsoft-public-key /closed/microsoft-public-key.pem \
+  --issuer-public-key /closed/founder-public-key.pem \
   --claim-ledger /closed/single-use-claim \
   --receipt-output /closed/post-deploy.json
 ```

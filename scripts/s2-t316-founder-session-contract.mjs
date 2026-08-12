@@ -1,0 +1,50 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+
+const root = path.resolve(import.meta.dirname, "..");
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const dice = "apps/mobile/src/features/dice/DiceRitualScreen.tsx";
+const chatFiles = ["apps/mobile/src/components/ChatThinkingIndicator.tsx", "apps/mobile/src/features/chat/ChatConfirmationCards.tsx"];
+const session = read("apps/mobile/src/dev/founderTomorrowSession.ts");
+const screen = read("apps/mobile/src/dev/FounderTomorrowDiceChatSession.tsx");
+const index = read("apps/mobile/index.ts");
+const control = JSON.parse(read("config/s2-t316-founder-session.json"));
+
+assert.equal(execFileSync("git", ["rev-parse", `4f1dedc4937f7a7be91d19e38f2e3220d3f6d7b9:${dice}`], { cwd: root, encoding: "utf8" }).trim(), control.previous_dice_product_blob);
+const diceSource = read(dice);
+for (const marker of ["DIE_ORDER.map", "Dice are a mirror for reflection, not a verdict.", "label=\"Roll again\"", "label=\"Reflect in Chat\"", "DiceInterpretationCard", "maxHeight: 176", "request_key", "buildReflectionPrompt", "The Dice interpretation was: Reading:"]) assert.match(diceSource, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+const cardStart = diceSource.indexOf("<DiceInterpretationCard");
+const actionsStart = diceSource.indexOf("<View style={[styles.sheetActions", cardStart);
+assert.ok(cardStart > diceSource.indexOf("DIE_ORDER.map"), "interpretation follows the three Dice results");
+assert.ok(actionsStart > cardStart, "Roll again and Reflect in Chat remain after the bounded interpretation region");
+assert.match(diceSource, /interpretationScroll: \{ marginTop: 12, maxHeight: 176 \}/);
+assert.match(diceSource, /nestedScrollEnabled/);
+assert.match(diceSource, /stackResultActions && styles\.sheetActionsStacked/);
+assert.match(diceSource, /isCurrentDiceInterpretationRequest/);
+assert.match(diceSource, /onPress=\{\(\) => onReflect\(reflectionPrompt\)\}/);
+assert.equal((diceSource.match(/onReflect\(reflectionPrompt\)/g) ?? []).length, 1, "Chat navigation occurs only in the explicit button handler");
+for (const file of chatFiles) {
+  const base = execFileSync("git", ["rev-parse", `4f1dedc4937f7a7be91d19e38f2e3220d3f6d7b9:${file}`], { cwd: root, encoding: "utf8" }).trim();
+  assert.equal(execFileSync("git", ["hash-object", file], { cwd: root, encoding: "utf8" }).trim(), base);
+}
+assert.match(session, /T316_ACCEPTED_TECHNICAL_EVIDENCE_SHA256: string \| null = null/);
+assert.match(session, /T316_ACCEPTED_FOUNDER_WINDOW_RECEIPT_SHA256: string \| null = null/);
+assert.doesNotMatch(session, /CHAT_PRESENTATION_AUTHORITY/);
+assert.match(session, /WAITING_FOR_ACCEPTED_DICE_EVIDENCE_AND_CHAT_AUTHORITY/);
+assert.match(session, /createFounderFixtureInvocation/);
+assert.match(screen, /Founder session evidence controls outside product pixels/);
+assert.match(screen, /No accepted Technical evidence imported/);
+assert.match(screen, /Dice interpretations remain on the Dice result card/);
+assert.match(index, /__DEV__ && process\.env\.EXPO_PUBLIC_FOUNDER_TOMORROW_SESSION === "1"/);
+assert.equal(control.founder_fixture_total, 40);
+assert.deepEqual(control.language_totals, { en: 20, "zh-Hant": 20 });
+assert.equal(control.excluded_authoring_id, "ZH04");
+assert.equal(control.dice_interpretation_surface, "existing_dice_result_card");
+assert.equal(control.chat_navigation, "explicit_reflect_in_chat_only");
+assert.equal(control.authorized_dice_change, "bounded_interpretation_region_inside_existing_result_card");
+assert.deepEqual(control.effects, { provider_calls: 0, persistence_writes: 0, units_charged: 0 });
+assert.equal(control.authority_status.normal_chat, "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY");
+assert.equal(control.authority_status.azure_traffic, "NO_AZURE_TRAFFIC_AUTHORITY");
+console.log("S2-T316 Founder session contract passed");

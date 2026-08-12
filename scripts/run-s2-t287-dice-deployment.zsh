@@ -9,7 +9,7 @@ MODE="preflight"
 AUTHORIZATION=""
 REQUEST=""
 CLAIM_LEDGER=""
-MICROSOFT_PUBLIC_KEY=""
+ISSUER_ISSUER_PUBLIC_KEY=""
 RECEIPT_OUTPUT=""
 
 while (( $# > 0 )); do
@@ -18,7 +18,7 @@ while (( $# > 0 )); do
     --authorization) AUTHORIZATION="${2:-}"; shift 2 ;;
     --request) REQUEST="${2:-}"; shift 2 ;;
     --claim-ledger) CLAIM_LEDGER="${2:-}"; shift 2 ;;
-    --microsoft-public-key) MICROSOFT_PUBLIC_KEY="${2:-}"; shift 2 ;;
+    --issuer-public-key) ISSUER_ISSUER_PUBLIC_KEY="${2:-}"; shift 2 ;;
     --receipt-output) RECEIPT_OUTPUT="${2:-}"; shift 2 ;;
     *) print -u2 -- "STOP_S2_T287_ARGUMENTS_INVALID"; exit 1 ;;
   esac
@@ -28,13 +28,13 @@ cd "$ROOT"
 node scripts/s2-t287-dice-v4-deployment-authorization.mjs
 if [[ "$MODE" != "execute" ]]; then exit 0; fi
 
-# Exact Microsoft authorization is validated and consumed before any future
+# Exact Lumis Founder authorization is validated and consumed before any future
 # credential prompt, CLI construction, network call, or receipt mutation.
-[[ -n "$AUTHORIZATION" && -n "$REQUEST" && -n "$CLAIM_LEDGER" && -n "$MICROSOFT_PUBLIC_KEY" && -n "$RECEIPT_OUTPUT" ]] || { print -u2 -- "STOP_S2_T287_AUTHORIZATION_REQUIRED"; exit 1; }
+[[ -n "$AUTHORIZATION" && -n "$REQUEST" && -n "$CLAIM_LEDGER" && -n "$ISSUER_ISSUER_PUBLIC_KEY" && -n "$RECEIPT_OUTPUT" ]] || { print -u2 -- "STOP_S2_T287_AUTHORIZATION_REQUIRED"; exit 1; }
 node scripts/s2-t287-dice-v4-deployment-authorization.mjs \
   --authorization="$AUTHORIZATION" \
   --request="$REQUEST" \
-  --microsoft-public-key="$MICROSOFT_PUBLIC_KEY" \
+  --issuer-public-key="$ISSUER_ISSUER_PUBLIC_KEY" \
   --ledger="$CLAIM_LEDGER" \
   --consume-claim >/dev/null
 
@@ -84,6 +84,6 @@ node scripts/s2-t287-remote-deploy-proof.mjs receipt \
 node scripts/s2-t287-dice-v4-deployment-authorization.mjs \
   --authorization="$AUTHORIZATION" \
   --request="$REQUEST" \
-  --microsoft-public-key="$MICROSOFT_PUBLIC_KEY" \
+  --issuer-public-key="$ISSUER_ISSUER_PUBLIC_KEY" \
   --deployed="$RECEIPT_OUTPUT" >/dev/null
 print -- "S2_T287_DEFAULT_OFF_DEPLOYMENT_RECORDED project=exact_staging function=$FUNCTION_NAME provider_calls=0 model_invocations=0 migration_authorized=false"

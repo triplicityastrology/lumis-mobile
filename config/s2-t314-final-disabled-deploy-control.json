@@ -1,0 +1,78 @@
+{
+  "schema": "s2_t314_final_disabled_deploy_control_v1",
+  "status": "WAITING_FOR_LUMIS_FOUNDER_SIGNED_DEFAULT_OFF_RECEIPT",
+  "authorization_scope": "DEFAULT_OFF_DICE_SYNTHETIC_FUNCTION_DEPLOYMENT_ONLY",
+  "project_ref": "bmqhwofmdgebpcihjlnb",
+  "function_name": "dice-synthetic",
+  "source_authority": {
+    "t307_commit": "cf8386a9176ed7fde0b6008a2628c2785bce2c64",
+    "t307_package_sha256": "ada3406a3bb51489850a84f76d78291696eea04b638b5b061bc4cca5d769248d",
+    "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457"
+  },
+  "founder_registry": {
+    "path": "config/s2-t314-founder-fixture-registry.json",
+    "registry_payload_sha256": "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211",
+    "fixture_total": 40,
+    "english": 20,
+    "zh_hant": 20,
+    "excluded_authoring_id": "ZH04"
+  },
+  "issuer": {
+    "name": "Lumis Founder Deployment Approver",
+    "trust_anchor_owner": "Founder",
+    "signature_algorithm": "Ed25519",
+    "trust_anchor_authority_commit": "523a4166f18ecdac66a30b03d6f59068bd5b7279",
+    "issuer_key_id": "founder-ed25519-deployment-approver-v1",
+    "issuer_public_key_spki_sha256": "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478",
+    "custody_classification": "LOCAL_NON_CLOUD_OWNER_ONLY",
+    "private_key_committed": false
+  },
+  "authorization": {
+    "request_schema": "lumis_founder_dice_default_off_deployment_request_v1",
+    "receipt_schema": "lumis_founder_dice_default_off_deployment_authorization_v1",
+    "window_seconds": 900,
+    "clock_policy": "SIGNED_RECEIPT_ISSUED_AT_PLUS_RELATIVE_WINDOW",
+    "single_use": true,
+    "durable_claim_before_remote": true
+  },
+  "configuration_names": [
+    "LUMIS_DICE_AI_ENABLED",
+    "LUMIS_DICE_TRAFFIC_AUTHORIZED",
+    "LUMIS_DICE_AZURE_API_KEY",
+    "LUMIS_DICE_AUTHORITY_HMAC_SECRET",
+    "LUMIS_DICE_DEPLOYMENT_ALIAS",
+    "LUMIS_DICE_MODEL",
+    "LUMIS_DICE_MODEL_VERSION",
+    "LUMIS_DICE_DEPLOYMENT_TYPE",
+    "LUMIS_DICE_UPGRADE_POLICY",
+    "LUMIS_DICE_GUARDRAIL",
+    "LUMIS_DICE_TPM_LIMIT",
+    "LUMIS_DICE_RPM_LIMIT",
+    "LUMIS_DICE_FOUNDRY_HOSTNAME",
+    "LUMIS_DICE_FOUNDRY_PROTOCOL",
+    "LUMIS_DICE_API_ROUTE_FAMILY"
+  ],
+  "required_disabled_values": {
+    "LUMIS_DICE_AI_ENABLED": false,
+    "LUMIS_DICE_TRAFFIC_AUTHORIZED": false
+  },
+  "disabled_probes": ["unknown_fixture", "free_form_body", "normal_mobile_body", "allow_listed_fixture"],
+  "expected_disabled_result": "DICE_AI_DISABLED",
+  "provider_calls_authorized": 0,
+  "model_invocations_authorized": 0,
+  "migration_0039_authorized": false,
+  "rollback": {
+    "target": "REMOVE_OR_RESTORE_DICE_SYNTHETIC_ONLY_KEEP_PROVIDER_DISABLED",
+    "previous_revision_required": true,
+    "automatic_on_failure": true
+  },
+  "pre_receipt_boundary": {
+    "cli_construction": 0,
+    "client_construction": 0,
+    "credential_reads": 0,
+    "remote_calls": 0,
+    "receipt_writes": 0
+  },
+  "normal_chat_authority": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic_authority": "NO_AZURE_TRAFFIC_AUTHORITY"
+}
