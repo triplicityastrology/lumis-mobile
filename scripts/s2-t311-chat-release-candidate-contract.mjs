@@ -55,12 +55,13 @@ assert.match(t306Server, /COMPILED_ACCEPTED_DICE_EVIDENCE_SHA256: string \| null
 assert.ok(t306Server.indexOf("!NORMAL_CHAT_AI_INTEGRATION_ENABLED") < t306Server.indexOf("parseMobileRequest(rawRequest)"));
 
 const protectedSources = {
-  "apps/mobile/App.tsx": "8af09a8ec4a1d5dc71670790a0f97dd993fe3fee55cc94614b9b73b8439bed63",
   "apps/mobile/src/services/chat.ts": "4a0b70e514c160dc55541e2909d45748347a76fe0561fb72de6a3d371a242392",
   "apps/mobile/src/components/ChatThinkingIndicator.tsx": "f5eaf0febeb1317f5df3a5c5658a1880c1bd0d2b5da2457edd4694a4514eadaa",
   "apps/mobile/src/features/chat/ChatConfirmationCards.tsx": "669cf97c450d02662d572b92686d70af1f8c00810ac440f42221f982e3fdef70",
 };
 for (const [path, expected] of Object.entries(protectedSources)) assert.equal(sha256(read(path)), expected, `${path} drift`);
+assert.equal(sha256(read("apps/mobile/App.tsx")), "11994526c5969c7f37168d0b98715f625f225cdedf3f663d5eb775f81e881f38", "approved T316 explicit Reflect handoff drift");
+assert.match(read("apps/mobile/App.tsx"), /preserveApprovedDiceChatNavigation\(chatDraft\)/);
 
 for (const schemaPath of [
   "supabase/tests/s2-t311-chat-deployment-receipt.schema.json",

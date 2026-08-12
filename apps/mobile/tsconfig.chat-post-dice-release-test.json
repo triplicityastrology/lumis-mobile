@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-post-dice-release-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/normalChatAiCandidate.ts",
+    "src/services/chatReleaseCandidate.ts",
+    "src/services/chatPostDiceReleaseCandidate.ts",
+    "src/services/chatPostDiceReleaseCandidate.fixtures.ts"
+  ]
+}

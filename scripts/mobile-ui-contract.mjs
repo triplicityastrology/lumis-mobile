@@ -529,7 +529,15 @@ assert.match(
   /resendState === "error" \|\| errorMessage[\s\S]{0,240}accessibilityRole="alert"/,
   "callback errors must settle accessibly inside the existing inbox shell"
 );
-assert.match(appSource, /setPendingChatDraft\(chatDraft\)/);
+assert.ok(
+  /setPendingChatDraft\(chatDraft\)/.test(appSource)
+    || (
+      /preserveApprovedDiceChatNavigation\(chatDraft\)/.test(appSource)
+      && /setPendingChatDraft\(handoff\.chat_draft\)/.test(appSource)
+      && /setScreen\(handoff\.target\)/.test(appSource)
+    ),
+  "Dice reflection must preserve the approved Chat draft and destination",
+);
 const personaAvatarSource = await readFile(
   path.join(root, "apps/mobile/src/components/LumisPersonaAvatar.tsx"),
   "utf8"

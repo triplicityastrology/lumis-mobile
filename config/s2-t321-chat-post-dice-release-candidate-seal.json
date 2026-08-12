@@ -1,0 +1,40 @@
+{
+  "schema": "s2_t321_chat_post_dice_release_candidate_seal_v1",
+  "authorities": {
+    "t240": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+    "t306": "78c0ce93f211c9ded4d2e65cb789b5dfbfeb9df3",
+    "t311": "eff1a5872198e9cef766515954dd60f0f1630575",
+    "t316": "482ebf58cb03270acce8755b11af7a1a9360f189"
+  },
+  "final_t317_binding": {
+    "source_commit": "8706db6cadbbf4ae0a58d10a194479a0c7aca465",
+    "source_tree": "edf01652aa245cc1bc202f3e3cee677b074a2565",
+    "release_package_sha256": "690879d6df3ecfd33a0a62ee0833f3bc278cfa11a2ab4062b8eba9eb659c1075",
+    "release_manifest_sha256": "1ef44fd42677e98fc3edd49e2e7ba6abf1257dbbfe9cdf597b68c0ae9239ef84",
+    "accepted_evidence_sha256": null
+  },
+  "source_sha256": {
+    "apps/mobile/App.tsx": "11994526c5969c7f37168d0b98715f625f225cdedf3f663d5eb775f81e881f38",
+    "apps/mobile/src/features/dice/DiceRitualScreen.tsx": "5bee413139cbfd4a762ce79a2936c7022ddd1391278cadef3d7de5af199af558",
+    "apps/mobile/src/services/chatPostDiceReleaseCandidate.ts": "a502d35d726bd72b494872efafe899910e0242b3578b72d69a05fe673651eb05",
+    "apps/mobile/src/services/diceFounderProductBridge.ts": "6d544498aa915906c700b7262f8767d2a47a285e4443a49300b1a5636b0744d1",
+    "apps/mobile/src/services/diceLiveResultAdapter.ts": "627ba0183bd9d3842212f0aecfedc0eec9a74d5582415b4c19038947c4021eb7",
+    "apps/mobile/src/services/chatReleaseCandidate.ts": "7cdf741b93a4ff50ef153cb1d4b240c766be9bb32bad4d9e42343aa72f11b1f2",
+    "apps/mobile/src/services/normalChatAiCandidate.ts": "8f982ad91a0e754f5e3dac03a6c2ef15ba48723eedb4b503699e1f7ede982980",
+    "packages/shared/src/config/dice-question-boundary.ts": "feb616ccc565ffaf8af9e806271902b5c582f21421f8ef763f92244ca20dda67",
+    "config/s2-t321-chat-post-dice-release-candidate.json": "c7a4b5df85006a374859d4d1ed82af938a3fde465c06e074d8ffdf0e506a0146",
+    "supabase/functions/_shared/chat-post-dice-release-candidate-v1.ts": "48c64273b0a936b107f6e706fa1ccd8a08a8b94d37331bdd5887c32e0dbf0aa6",
+    "supabase/functions/_shared/normal-chat-release-candidate-v1.ts": "b0641ec653182627a08a297f1a6de045cbb1ff5f2fecf4f3d0bfcee2b972aec5",
+    "supabase/functions/_shared/normal-chat-ai-candidate-v1.ts": "4868bf4849c677363bc1bc6916472545a2be3d14b0cacb39811af55a86c485ed",
+    "supabase/tests/s2-t321-accepted-dice-evidence.schema.json": "4917793530193414ded8a81c6513a93e35296a34e9661dd71acd3149095e3c4e",
+    "supabase/tests/s2-t321-chat-default-off-deployment-authorization.schema.json": "268f9dc1944f1ed230977d22281f2693fa255901fa47d687d7c147a709eb27a3",
+    "supabase/tests/s2-t321-chat-traffic-authorization.schema.json": "86dc2916c0e151c6124c9b65f78447cf5cc88d902a23516931fa4eda663a0bf5",
+    "scripts/s2-t311-chat-release-candidate-contract.mjs": "e025ef541aba5e0e9fc4789a0a315ef81235a5f4060d5e1ec346e5b73f3401c8",
+    "scripts/mobile-ui-contract.mjs": "55a1e1951b6ae01433c431395b462f7d464158263f829f6796989b50f6cd0aea",
+    "scripts/s2-t321-chat-post-dice-contract.mjs": "72870e1b96988da623965a40cea9244709379e758ae3ec711d98fdc2ddbd42e6",
+    "scripts/s2-t321-chat-readiness.mjs": "a7cd577ebd6a92872e2bbcf9b1679db60af513224c88e4d1d1f0fbb6dd1204c4"
+  },
+  "package_sha256": "88a999062953cc245d1848a955255388104f855fb69046fe09fc522c915e2322",
+  "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+  "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Accepted final T317 Dice Technical evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "source_commit", "source_tree", "release_package_sha256", "release_manifest_sha256", "registry_sha256", "technical_case_count", "language_counts", "post_window_disabled", "provider_enabled_after", "raw_content_retained", "member_data_used", "persistence_writes", "units_charged"],
+  "properties": {
+    "schema": { "const": "s2_t317_dice_technical_80_accepted_evidence_v1" },
+    "decision": { "const": "accepted" },
+    "source_commit": { "const": "8706db6cadbbf4ae0a58d10a194479a0c7aca465" },
+    "source_tree": { "const": "edf01652aa245cc1bc202f3e3cee677b074a2565" },
+    "release_package_sha256": { "const": "690879d6df3ecfd33a0a62ee0833f3bc278cfa11a2ab4062b8eba9eb659c1075" },
+    "release_manifest_sha256": { "const": "1ef44fd42677e98fc3edd49e2e7ba6abf1257dbbfe9cdf597b68c0ae9239ef84" },
+    "registry_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "technical_case_count": { "const": 80 },
+    "language_counts": { "type": "object", "additionalProperties": false, "required": ["en", "zh_hant"], "properties": { "en": { "const": 40 }, "zh_hant": { "const": 40 } } },
+    "post_window_disabled": { "const": true },
+    "provider_enabled_after": { "const": false },
+    "raw_content_retained": { "const": false },
+    "member_data_used": { "const": false },
+    "persistence_writes": { "const": 0 },
+    "units_charged": { "const": 0 }
+  }
+}

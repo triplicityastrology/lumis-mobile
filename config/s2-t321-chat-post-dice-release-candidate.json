@@ -1,0 +1,50 @@
+{
+  "schema": "s2_t321_chat_post_dice_release_candidate_control_v1",
+  "status": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "authorities": {
+    "t240_response_contract": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+    "t306_server_boundary": "78c0ce93f211c9ded4d2e65cb789b5dfbfeb9df3",
+    "t311_chat_candidate": "eff1a5872198e9cef766515954dd60f0f1630575",
+    "t316_explicit_reflect_handoff": "482ebf58cb03270acce8755b11af7a1a9360f189"
+  },
+  "final_dice_evidence": {
+    "schema": "s2_t317_dice_technical_80_accepted_evidence_v1",
+    "accepted_source_commit": "8706db6cadbbf4ae0a58d10a194479a0c7aca465",
+    "accepted_source_tree": "edf01652aa245cc1bc202f3e3cee677b074a2565",
+    "accepted_release_package_sha256": "690879d6df3ecfd33a0a62ee0833f3bc278cfa11a2ab4062b8eba9eb659c1075",
+    "accepted_release_manifest_sha256": "1ef44fd42677e98fc3edd49e2e7ba6abf1257dbbfe9cdf597b68c0ae9239ef84",
+    "accepted_evidence_sha256": null,
+    "required_cases": 80,
+    "required_languages": { "en": 40, "zh_hant": 40 },
+    "must_be_disabled_after": true
+  },
+  "chat_runtime": {
+    "function": "chat-synthetic",
+    "integration_enabled": false,
+    "traffic_enabled": false,
+    "normal_chat_connected": false,
+    "request_fields": ["schema_version", "fixture_id"],
+    "fixture_ids": ["chat-en-reflection-01", "chat-zh-hant-reflection-01"],
+    "disabled_probe_code": "CHAT_AI_DISABLED",
+    "disabled_probe_count": 4,
+    "provider_calls": 0,
+    "model_invocations": 0,
+    "member_context": false,
+    "persistence_writes_on_non_success": 0,
+    "units_charged_on_non_success": 0
+  },
+  "dice_handoff": {
+    "trigger": "explicit_reflect_in_chat",
+    "automatic_navigation": false,
+    "fields": ["question", "planet", "sign", "house", "current_interpretation"],
+    "stale_interpretation_allowed": false
+  },
+  "accepted_digests": {
+    "chat_deployment_receipt_sha256": null,
+    "chat_traffic_receipt_sha256": null
+  },
+  "next_action": "WAITING_FOR_ACCEPTED_T317_DICE_TECHNICAL_EVIDENCE"
+}

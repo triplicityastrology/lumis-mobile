@@ -87,6 +87,7 @@ import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
 import { DiceRitualScreen } from "./src/features/dice/DiceRitualScreen";
+import { preserveApprovedDiceChatNavigation } from "./src/services/diceFounderProductBridge";
 import { NotificationCenterScreen } from "./src/features/notifications/NotificationCenterScreen";
 import { CareCirclePreviewScreen } from "./src/features/careCircle/CareCircleScreen";
 import { BirthDetailsChangeScreen } from "./src/features/birthDetails/BirthDetailsChangeScreen";
@@ -1063,8 +1064,9 @@ export default function App() {
       <DiceScreenComponent
         onNotifications={openNotifications}
         onReflect={(chatDraft) => {
-          setPendingChatDraft(chatDraft);
-          setScreen("chat");
+          const handoff = preserveApprovedDiceChatNavigation(chatDraft);
+          setPendingChatDraft(handoff.chat_draft);
+          setScreen(handoff.target);
         }}
         onSelectTab={openMainTab}
         onBack={() => setScreen("home")}

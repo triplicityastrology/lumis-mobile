@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "../../.tmp/dice-founder-product-bridge-tests",
+    "rootDir": "../..",
+    "noEmit": false
+  },
+  "include": [
+    "src/services/diceLiveResultAdapter.ts",
+    "src/services/diceFounderProductBridge.ts",
+    "src/services/diceFounderProductBridge.fixtures.ts",
+    "../../packages/shared/src/config/dice-question-boundary.ts"
+  ]
+}
