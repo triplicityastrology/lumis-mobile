@@ -533,7 +533,13 @@ assert.ok(
   /setPendingChatDraft\(chatDraft\)/.test(appSource)
     || (
       /preserveApprovedDiceChatNavigation\(chatDraft\)/.test(appSource)
-      && /setPendingChatDraft\(handoff\.chat_draft\)/.test(appSource)
+      && (
+        /setPendingChatDraft\(handoff\.chat_draft\)/.test(appSource)
+        || (
+          /buildExplicitDiceReflectProductPayload\(handoff\.chat_draft\)/.test(appSource)
+          && /setPendingChatDraft\(productPayload\.chat_draft\)/.test(appSource)
+        )
+      )
       && /setScreen\(handoff\.target\)/.test(appSource)
     ),
   "Dice reflection must preserve the approved Chat draft and destination",

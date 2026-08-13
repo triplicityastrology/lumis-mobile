@@ -55,7 +55,16 @@ import {
   signOut,
   type AuthStatus
 } from "./src/services/auth";
-import { sendChatMessage, type SendChatMessageResult } from "./src/services/chat";
+import type { SendChatMessageResult } from "./src/services/chat";
+import {
+  buildExplicitDiceReflectProductPayload,
+  parseChatProductFixtureState,
+  sendChatProductIntegrationMessage,
+} from "./src/services/chatProductIntegrationRc";
+import {
+  T341_CHAT_FIXTURE_CHART,
+  T341_CHAT_FIXTURE_PROFILE,
+} from "./src/services/chatProductIntegrationFixture";
 import { deleteOwnedReflection } from "./src/services/reflections";
 import { applyConfirmedReflectionDeletion } from "./src/services/reflectionDeletionState";
 import { safeUserErrorMessage } from "./src/services/userFacingErrors";
@@ -145,6 +154,11 @@ type CareCircleItem = {
 };
 
 const STARTER_CREDITS = 50;
+const T341_CHAT_LOCAL_FIXTURE =
+  __DEV__ && process.env.EXPO_PUBLIC_T341_CHAT_LOCAL_FIXTURE === "1";
+const T341_CHAT_FIXTURE_STATE = parseChatProductFixtureState(
+  process.env.EXPO_PUBLIC_T341_CHAT_FIXTURE_STATE,
+);
 const BIRTH_DETAIL_CHANGE_LIMIT = 3;
 const QUICK_CHAT_PROMPTS = [
   "What should I pay attention to this week?",
@@ -187,7 +201,7 @@ const LOCAL_CARE_CIRCLE: CareCircleItem[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart" | "support" | "appLanguage">("splash");
+  const [screen, setScreen] = useState<"splash" | "home" | "auth" | "profile" | "preview" | "persona" | "chat" | "reflections" | "notifications" | "care" | "birthDetails" | "chartUpdated" | "insights" | "dice" | "profileTab" | "restoringSpace" | "noChart" | "support" | "appLanguage">(T341_CHAT_LOCAL_FIXTURE ? "chat" : "splash");
   // Load the bundled Newsreader / Hanken Grotesk / Noto Serif TC weights without
   // making navigation depend on asset completion. The splash is a bounded brand
   // moment, not a loading lock: slow or failed font loading must never trap the
@@ -195,8 +209,12 @@ export default function App() {
   useFonts(FONT_ASSETS);
   const stableSafeAreaInsets = useSafeAreaInsets();
   const [restoreResult, setRestoreResult] = useState<"loading" | "foundChart" | "noChart" | "failed">("loading");
-  const [profileData, setProfileData] = useState<ProfileData | null>(null);
-  const [chartProfile, setChartProfile] = useState<ChartV2 | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData | null>(
+    T341_CHAT_LOCAL_FIXTURE ? T341_CHAT_FIXTURE_PROFILE : null,
+  );
+  const [chartProfile, setChartProfile] = useState<ChartV2 | null>(
+    T341_CHAT_LOCAL_FIXTURE ? T341_CHAT_FIXTURE_CHART : null,
+  );
   const [personaStyle, setPersonaStyle] = useState<PersonaStyleKey>("acceptance");
   const [personaName, setPersonaName] = useState("Lumis");
   const [personaAvatarKey, setPersonaAvatarKey] = useState("psyche");
@@ -208,7 +226,7 @@ export default function App() {
   // user with no saved preference. The choice persists locally (expo-secure-store),
   // so the gate is genuinely one-time and never reappears on cold start.
   // `languageBootstrapped` holds the gate until the persisted value has loaded.
-  const [languageBootstrapped, setLanguageBootstrapped] = useState(false);
+  const [languageBootstrapped, setLanguageBootstrapped] = useState(T341_CHAT_LOCAL_FIXTURE);
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [reflectionThreads, setReflectionThreads] = useState<RestoredReflectionThread[]>([]);
   const [mainFocus, setMainFocus] = useState<string | null>(null);
@@ -604,6 +622,7 @@ export default function App() {
       mainFocus
     }
   ) {
+    if (T341_CHAT_LOCAL_FIXTURE) return;
     if (authStatus?.isConfigured && authStatus.user) {
       return;
     }
@@ -696,6 +715,7 @@ export default function App() {
   }, [accountReturn, notificationsReturn, personaReturn, reflectionsReturn]);
 
   useEffect(() => {
+    if (T341_CHAT_LOCAL_FIXTURE) return;
     let isMounted = true;
 
     async function restoreExistingAuthSession() {
@@ -960,16 +980,6 @@ export default function App() {
         onChatStateChange={async (nextChatTurns, nextRemainingCredits) => {
           setChatTurns(nextChatTurns);
           setRemainingCredits(nextRemainingCredits);
-
-          if (chartProfile) {
-            await saveDemoSession(
-              profileData,
-              chartProfile,
-              personaStyle,
-              nextChatTurns,
-              nextRemainingCredits
-            );
-          }
         }}
         onInitialDraftConsumed={() => setPendingChatDraft(null)}
         onSupabaseThreadStarted={(threadId) => {
@@ -1065,7 +1075,8 @@ export default function App() {
         onNotifications={openNotifications}
         onReflect={(chatDraft) => {
           const handoff = preserveApprovedDiceChatNavigation(chatDraft);
-          setPendingChatDraft(handoff.chat_draft);
+          const productPayload = buildExplicitDiceReflectProductPayload(handoff.chat_draft);
+          setPendingChatDraft(productPayload.chat_draft);
           setScreen(handoff.target);
         }}
         onSelectTab={openMainTab}
@@ -2416,14 +2427,20 @@ function ChatShellScreen({
     await onChatStateChange(nextPendingTurns, remainingCredits);
 
     try {
-      const result = await sendChatMessage({
-        message: nextMessage,
-        clientMessageId,
-        personaStyle: selectedStyle,
-        appLanguagePreference,
-        chart,
-        forceNewThread: forceNewSupabaseThread,
-        threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId
+      const result = await sendChatProductIntegrationMessage({
+        message: {
+          message: nextMessage,
+          clientMessageId,
+          personaStyle: selectedStyle,
+          appLanguagePreference,
+          chart,
+          forceNewThread: forceNewSupabaseThread,
+          threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId,
+        },
+        mode: {
+          development_local_fixture: T341_CHAT_LOCAL_FIXTURE,
+          fixture_state: T341_CHAT_FIXTURE_STATE,
+        },
       });
       if (result.mode === "supabase" && result.persistenceMode === "not_persisted") {
         throw new Error(getChatPersistenceMessage(result.persistenceError));

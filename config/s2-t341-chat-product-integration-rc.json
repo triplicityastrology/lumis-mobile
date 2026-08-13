@@ -1,0 +1,37 @@
+{
+  "schema": "s2_t341_chat_product_integration_rc_v1",
+  "base_commit": "b31dcd54b96aada1bc9bf422ddcf7df79328c52d",
+  "accepted_t240_commit": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "source_switches": {
+    "integration_enabled": false,
+    "traffic_enabled": false
+  },
+  "product_path": {
+    "screen": "App.tsx ChatShellScreen",
+    "signed_pixels_changed": false,
+    "local_fixture_is_development_only": true,
+    "normal_member_transport_constructed": false,
+    "normal_chat_message_route_used": false
+  },
+  "effects": {
+    "provider_calls": 0,
+    "persistence_writes_non_completed": 0,
+    "units_charged_non_completed": 0
+  },
+  "dice_handoff": {
+    "explicit_action_required": "reflect_in_chat",
+    "automatic_navigation": false,
+    "automatic_ai_invocation": false,
+    "duplicate_dice_call": false
+  },
+  "later_activation_requires": [
+    "independently accepted final Dice Technical evidence",
+    "separate Chat source-integration authority",
+    "separate Chat deployment authority",
+    "separate Chat synthetic-traffic authority"
+  ]
+}

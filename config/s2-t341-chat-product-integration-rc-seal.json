@@ -1,0 +1,16 @@
+{
+  "schema": "s2_t341_chat_product_integration_rc_seal_v1",
+  "base_commit": "b31dcd54b96aada1bc9bf422ddcf7df79328c52d",
+  "t240_commit": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+  "source": {
+    "apps/mobile/App.tsx": "22281b9fcec0f561a4379c9517f82711d06990db59ff8ef6caa5e181582b4a4c",
+    "apps/mobile/src/services/chatProductIntegrationRc.ts": "8fecea0bbe519c3be67ae8b4474be788aba55c3e2054702444f51a4e8ceda2b7",
+    "apps/mobile/src/services/chatProductIntegrationFixture.ts": "1ac27ccf480a368cef531d955e6706b0cc149f21bfa1376b3c2f655c75f32d59",
+    "apps/mobile/src/services/normalChatAiCandidate.ts": "8f982ad91a0e754f5e3dac03a6c2ef15ba48723eedb4b503699e1f7ede982980",
+    "supabase/functions/_shared/normal-chat-ai-candidate-v1.ts": "4868bf4849c677363bc1bc6916472545a2be3d14b0cacb39811af55a86c485ed",
+    "supabase/tests/s2-t193-normal-chat-contract-v1.schema.json": "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
+    "config/s2-t341-chat-product-integration-rc.json": "0660eceec4bb92b919efd824e6912bb0aa0383e0acbae736dc93a43708e2a736",
+    "scripts/start-s2-t341-chat-product.sh": "35e0ea6a77433258562f78206dd1def5e4c6e724c739d92b103369b2b86dc199"
+  },
+  "package_sha256": "3ff48a495ca4b9e1d357339ced1bebb6d58e6f18b03719ec99d11fa3ee7f1d09"
+}
