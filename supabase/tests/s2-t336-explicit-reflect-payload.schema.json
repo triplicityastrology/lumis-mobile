@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2-t336-explicit-reflect-payload.schema.json",
+  "title": "S2 T336 explicit Reflect in Chat payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "question", "results", "interpretation"],
+  "properties": {
+    "action": { "const": "reflect_in_chat" },
+    "question": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "results": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+    },
+    "interpretation": { "type": "string", "minLength": 1, "maxLength": 1500 }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/chat-after-dice-product-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/chatAfterDiceProductCandidate.ts",
+    "src/services/chatAfterDiceProductCandidate.fixtures.ts",
+    "src/services/chatAfterDiceRoot.ts",
+    "src/services/chatProductPathCandidate.ts",
+    "src/services/chatPostDiceReleaseCandidate.ts",
+    "src/services/chatReleaseCandidate.ts",
+    "src/services/normalChatAiCandidate.ts"
+  ]
+}

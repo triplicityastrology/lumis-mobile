@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "s2-t336-final-dice-evidence-binding.schema.json",
+  "title": "S2 T336 independently accepted final Dice evidence binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision", "accepted_evidence_sha256", "independently_computed_evidence_sha256", "normal_chat_unchanged"],
+  "properties": {
+    "schema": { "const": "s2_t336_final_dice_evidence_binding_v1" },
+    "decision": { "const": "accepted" },
+    "accepted_evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "independently_computed_evidence_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "normal_chat_unchanged": { "const": true }
+  }
+}

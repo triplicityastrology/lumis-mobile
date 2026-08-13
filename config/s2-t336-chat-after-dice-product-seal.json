@@ -1,0 +1,20 @@
+{
+  "schema": "s2_t336_chat_after_dice_product_seal_v1",
+  "source_sha256": {
+    "apps/mobile/src/services/chatAfterDiceProductCandidate.ts": "a94fcc7d4968241f350b0eca29c4aa35c116d4d5f08a559b5607cccf52163771",
+    "apps/mobile/src/services/chatAfterDiceProductCandidate.fixtures.ts": "7d0aac4e379156ca1e07811b02f5a5db7e68c438090f19e6e6023ca6f827762c",
+    "apps/mobile/tsconfig.chat-after-dice-product-test.json": "b9e5690270db241b60e9852639ef0f193af47feb64606d93b7065552cf4a8945",
+    "config/s2-t336-chat-after-dice-product.json": "ed7c881e9c6eb54f286bf0adbbb0d8d143733ca2dc1b3fcf614c61d8b1d091d0",
+    "docs/architecture/S2-T336-chat-after-dice-product-candidate.md": "686ff8d21065d6c0e761bb43ab1e2574106d26236c75bd4f1cd7d6212ae82af2",
+    "docs/qa/S2-T336-founder-ssd-chat-runbook.md": "f7ecc8990ba4aa059c28c475acfdc26e4819cb6bc6f19ca1741df178d0eaef2e",
+    "scripts/run-s2-t336-chat-after-dice-product-tests.sh": "e81c510f7d773b897d68c1cf97cddd94343a64c1e4afd43411280de7037f0aaa",
+    "scripts/s2-t336-chat-after-dice-product-contract.mjs": "4b1996e40c2d42cc0edd8dbc46922454b21df6a2fa06c3344fa3c04f4f62f7af",
+    "scripts/s2-t336-chat-after-dice-emulator.mjs": "b4403d87fefcea01422a725ca0fab75a317d94a3ba4ad030f40f04226b956ac6",
+    "scripts/s2-t336-chat-readiness.mjs": "d745ef5c4c7a8cc887ff229d91dc05dd5bd7a53ea9d4e6e8c3de3b5c31cc4501",
+    "scripts/start-s2-t336-founder-chat-expo.sh": "591e2cd22f97a1566a813403285acf429c49912b80ceada4503825197650eb81",
+    "scripts/start-s2-t336-founder-chat-simulator.sh": "fa0255be3728ae78f0104cfe549f8d7c67d91ea8efe1d4abfb458565128599a6",
+    "supabase/tests/s2-t336-explicit-reflect-payload.schema.json": "9b41095eb20d4470a99195925bbd7d5705497c16cf061b6338d2e9a646e84a90",
+    "supabase/tests/s2-t336-final-dice-evidence-binding.schema.json": "7db35f3932537a24d3577b436ced6fa2827c861404b9cdb84f4ca43ccd574355"
+  },
+  "package_sha256": "2fb4c61eba30d8c516ed6d953a5cabcc2c57fcd50a73203a43faa5e20c5598da"
+}

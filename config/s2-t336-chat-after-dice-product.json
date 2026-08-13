@@ -1,0 +1,48 @@
+{
+  "schema": "s2_t336_chat_after_dice_product_control_v1",
+  "base_commit": "8fd00bcfcd110c07d7ef83d6adc0b061282da29b",
+  "candidate": {
+    "integration_enabled": false,
+    "traffic_enabled": false,
+    "product_surface": "unchanged_founder_polished_chat_pixels",
+    "normal_chat_connected": false
+  },
+  "final_dice_evidence": {
+    "required_schema": "s2_t331_corrected_dice_evidence_acceptance_v1",
+    "required_decision": "accepted",
+    "independently_computed_sha256_must_match_compiled_acceptance": true,
+    "accepted_evidence_sha256": null,
+    "accepted_t317_independent_review_sha256": null,
+    "accepted_t322_reseal_and_review_sha256": null
+  },
+  "reflect_payload": {
+    "trigger": "explicit_reflect_in_chat",
+    "fields": ["action", "question", "results", "interpretation"],
+    "result_count": 3,
+    "automatic_navigation": false,
+    "duplicate_ai_call_blocked": true
+  },
+  "truthful_states": {
+    "languages": ["en", "zh-Hant"],
+    "phases": ["loading", "completed", "fallback", "safety", "technical_error"],
+    "technical_assistant_message": null,
+    "fallback_mapping": "T240_FIXED_FALLBACK",
+    "safety_mapping": "T240_SAFETY_REDIRECT"
+  },
+  "effects": {
+    "disabled_provider_calls": 0,
+    "disabled_persistence_writes": 0,
+    "disabled_units_charged": 0,
+    "member_context": false
+  },
+  "authority": {
+    "normal_member_activation": false,
+    "provider": false,
+    "persistence": false,
+    "charging": false,
+    "deployment": false,
+    "public_route": false,
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY"
+  },
+  "next_action": "WAIT_FOR_SEPARATE_NORMAL_CHAT_AND_PROVIDER_AUTHORITY"
+}
