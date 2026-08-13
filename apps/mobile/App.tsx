@@ -86,7 +86,7 @@ import { NatalWheel } from "./src/components/NatalWheel";
 import { LumisAuthScreen } from "./src/screens/LumisAuthScreen";
 import { LumisBirthProfileScreen } from "./src/screens/LumisBirthProfileScreen";
 import { LumisDiceScreen } from "./src/screens/LumisDiceScreen";
-import { DiceRitualScreen } from "./src/features/dice/DiceRitualScreen";
+import { CustomerDiceRitualRoute } from "./src/features/dice/CustomerDiceRitualRoute";
 import { preserveApprovedDiceChatNavigation } from "./src/services/diceFounderProductBridge";
 import { NotificationCenterScreen } from "./src/features/notifications/NotificationCenterScreen";
 import { CareCirclePreviewScreen } from "./src/features/careCircle/CareCircleScreen";
@@ -1059,7 +1059,7 @@ export default function App() {
   if (screen === "dice" && profileData && chartProfile) {
     // Feature-flagged physics ritual (AC-DICE-01/04); LumisDiceScreen stays as
     // the identical-flow fallback path until the device spike passes.
-    const DiceScreenComponent = DICE_RITUAL_ENABLED ? DiceRitualScreen : LumisDiceScreen;
+    const DiceScreenComponent = DICE_RITUAL_ENABLED ? CustomerDiceRitualRoute : LumisDiceScreen;
     return (
       <DiceScreenComponent
         onNotifications={openNotifications}

@@ -1,0 +1,39 @@
+{
+  "schema": "lumis_s2_t337_customer_dice_release_candidate_seal_v1",
+  "base_commit": "7767b69bef7e33f6aa898ca9a0c14ca2ce3b7c12",
+  "package_sha256": "28cee8c74e07b63c90e44abb9ca0a37d05eecb1b3385dd62b0f3f4282f69e956",
+  "files": [
+    {
+      "path": "apps/mobile/App.tsx",
+      "sha256": "1776fe51d02d21945ba820e9861868b22f0514e8320223f0e4ff9ceb56ec508f"
+    },
+    {
+      "path": "apps/mobile/src/features/dice/CustomerDiceRitualRoute.tsx",
+      "sha256": "8472d6a7628180f27bacd71e63859dd72e791856423f46f7ea98a0ad2d10940d"
+    },
+    {
+      "path": "apps/mobile/src/features/dice/DiceRitualScreen.tsx",
+      "sha256": "d3338e0c032b3a9d45995c074796486183a4655ee18056bf3f6cfcbc78ae1f00"
+    },
+    {
+      "path": "apps/mobile/src/features/dice/dicePreRollValidation.ts",
+      "sha256": "97ac2cae5ba17b5338f5f674bfd769dbcafb88e824d31fba09909147672af2a7"
+    },
+    {
+      "path": "apps/mobile/src/services/diceCustomerInterpretationController.ts",
+      "sha256": "ff5ebcca78a24fdc5fb93b649d312a5d34b879b3f8df70b8fdc0bc93e9accb9c"
+    },
+    {
+      "path": "apps/mobile/src/services/diceFounderFixtureRegistry.ts",
+      "sha256": "8ebc19d45f431ad6daa8dcc671f21aa3ac97ca45cb27a7253eeceb923f0743a8"
+    },
+    {
+      "path": "config/s2-t337-customer-dice-rc.json",
+      "sha256": "0b57f3a44da17b5b2ceeb82bdb09c78cc04a44dbe820f72956ecafd4af0ad7cc"
+    },
+    {
+      "path": "scripts/start-s2-t337-customer-dice-ssd.sh",
+      "sha256": "6aaca1467366deeae986fe8a792cdb2cd7cc1d81df839a40556163ae011fbaaa"
+    }
+  ]
+}

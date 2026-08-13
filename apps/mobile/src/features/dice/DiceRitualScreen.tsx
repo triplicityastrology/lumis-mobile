@@ -135,6 +135,8 @@ export function DiceRitualScreen({
   onInterpretationRequested,
   onRetryInterpretation,
   founderFixture,
+  requireClosedFixtureRegistry = false,
+  effectsAuthorized = false,
 }: {
   onNotifications: () => void;
   onReflect: (chatDraft: string) => void;
@@ -144,6 +146,8 @@ export function DiceRitualScreen({
   onInterpretationRequested?: (input: Readonly<{ request_key: string; question: string; planet: string; sign: string; house: string }>) => void;
   onRetryInterpretation?: (requestKey: string) => void;
   founderFixture?: DiceFounderFixtureBinding;
+  requireClosedFixtureRegistry?: boolean;
+  effectsAuthorized?: boolean;
 }) {
   const { stackResultActions } = useDiceResultActionLayout();
   const [question, setQuestion] = useState("");
@@ -273,32 +277,34 @@ export function DiceRitualScreen({
     AccessibilityInfo.announceForAccessibility(
       `Dice settled: ${nextSymbols.planet.en}, ${nextSymbols.sign.en}, ${nextSymbols.house.en}`
     );
-    // Persist the throw (no-op in local demo mode); interpretation stays unlinked
-    // until the user asks Lumis to read it.
-    sessionRollsRef.current = [
-      {
-        question: activeQuestion,
-        planetKey: nextSymbols.planet.key,
-        signKey: nextSymbols.sign.key,
-        houseKey: nextSymbols.house.key,
-        at: Date.now()
-      },
-      ...sessionRollsRef.current
-    ];
     lastThrowRef.current = {
       question: activeQuestion,
       planetKey: nextSymbols.planet.key,
       signKey: nextSymbols.sign.key,
       houseKey: nextSymbols.house.key
     };
-    void persistThrow(lastThrowRef.current);
-  }, [transition, persistThrow]);
+    if (effectsAuthorized) {
+      sessionRollsRef.current = [
+        {
+          question: activeQuestion,
+          planetKey: nextSymbols.planet.key,
+          signKey: nextSymbols.sign.key,
+          houseKey: nextSymbols.house.key,
+          at: Date.now()
+        },
+        ...sessionRollsRef.current
+      ];
+      void persistThrow(lastThrowRef.current);
+    }
+  }, [effectsAuthorized, transition, persistThrow]);
   completeSettleRef.current = completeSettle;
 
   const beginReady = useCallback(() => {
     if (phaseRef.current !== "IDLE") return;
     const validationRevision = questionRevisionRef.current;
-    const decision = validateDicePreRollQuestion(questionRef.current, founderFixture);
+    const decision = validateDicePreRollQuestion(questionRef.current, founderFixture, {
+      require_closed_fixture_registry: requireClosedFixtureRegistry,
+    });
     if (!decision.accepted) {
       if (validationRevision === questionRevisionRef.current) {
         setValidationFeedback({ revision: validationRevision, message: decision.message });
@@ -335,7 +341,7 @@ export function DiceRitualScreen({
         setShowTapThrow(true);
       }
     })();
-  }, [founderFixture, transition]);
+  }, [founderFixture, requireClosedFixtureRegistry, transition]);
 
   const performThrow = useCallback(
     (strength: number) => {

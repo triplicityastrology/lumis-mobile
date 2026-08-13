@@ -1,0 +1,20 @@
+{
+  "schema": "lumis_s2_t337_customer_dice_release_candidate_v1",
+  "base_commit": "7767b69bef7e33f6aa898ca9a0c14ca2ce3b7c12",
+  "base_authority": "S2-T327 canonical Dice release root containing S2-T322",
+  "t332_interface_reviewed": "2efbb79ae445579d605090451513265d112a7404",
+  "t332_source_dependency": false,
+  "path_compatibility_source": "f6347d5cf6f215146d157164e8fe8692938a2645",
+  "fixture_registry_sha256": "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211",
+  "runtime_package_sha256": "be911dd5f335217b4d00bbce34f0bd27cd9fcdc7c50152b4406b3b3058528457",
+  "product_route": "App -> CustomerDiceRitualRoute -> DiceRitualScreen",
+  "fixture_mode": {
+    "scope": "development_only",
+    "provider_calls": 0,
+    "persistence_writes": 0,
+    "units_charged": 0
+  },
+  "live_authority": "NO_AZURE_TRAFFIC_AUTHORITY",
+  "deployment": false,
+  "remote_operations": false
+}

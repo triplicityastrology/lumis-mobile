@@ -5,12 +5,13 @@
     "moduleResolution": "Node",
     "rewriteRelativeImportExtensions": true,
     "noEmit": false,
-    "outDir": "../../.tmp/dice-pre-roll-validation-tests",
+    "outDir": "../../.tmp/dice-customer-rc-tests",
     "rootDir": "../.."
   },
   "include": [
-    "src/features/dice/dicePreRollValidation.ts",
-    "src/features/dice/dicePreRollValidation.fixtures.ts",
+    "src/services/diceCustomerInterpretationController.ts",
+    "src/services/diceCustomerInterpretationController.fixtures.ts",
+    "src/services/diceLiveResultAdapter.ts",
     "src/services/diceFounderFixtureRegistry.ts",
     "src/types/node-assert-strict-test.d.ts",
     "../../packages/shared/src/config/dice-question-boundary.ts"

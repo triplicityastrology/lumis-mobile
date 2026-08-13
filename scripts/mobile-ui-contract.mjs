@@ -400,7 +400,11 @@ for (const [name, source] of [
   );
 }
 assert.match(diceRitualSource, /activeQuestionRef\.current = decision\.normalized_question/);
-assert.match(diceRitualSource, /validateDicePreRollQuestion\(questionRef\.current, founderFixture\)/);
+assert.match(
+  diceRitualSource,
+  /validateDicePreRollQuestion\(questionRef\.current, founderFixture, \{[\s\S]{0,160}require_closed_fixture_registry: requireClosedFixtureRegistry/,
+  "Physics Dice must pass the customer-route closed-registry authority into pre-roll validation"
+);
 assert.match(diceSource, /const normalizedQuestion = normalizeDiceQuestion\(question\)/);
 assert.match(
   diceRitualSource,

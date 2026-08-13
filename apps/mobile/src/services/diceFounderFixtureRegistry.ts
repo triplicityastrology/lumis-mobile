@@ -48,6 +48,7 @@ export const DICE_FOUNDER_FIXTURES = Object.freeze([
 
 const DICE_FOUNDER_FIXTURES_BY_ID: ReadonlyMap<string, (typeof DICE_FOUNDER_FIXTURES)[number]> = new Map(DICE_FOUNDER_FIXTURES.map((fixture) => [fixture.fixture_id, fixture]));
 const DICE_FOUNDER_FIXTURES_BY_AUTHORING_ID: ReadonlyMap<string, (typeof DICE_FOUNDER_FIXTURES)[number]> = new Map(DICE_FOUNDER_FIXTURES.map((fixture) => [fixture.authoring_id, fixture]));
+const DICE_FOUNDER_FIXTURES_BY_EXACT_TEXT: ReadonlyMap<string, (typeof DICE_FOUNDER_FIXTURES)[number]> = new Map(DICE_FOUNDER_FIXTURES.map((fixture) => [fixture.exact_text, fixture]));
 
 export type ApprovedDiceFounderFixtureId = (typeof DICE_FOUNDER_FIXTURES)[number]["fixture_id"];
 
@@ -61,4 +62,8 @@ export function resolveDiceFounderFixture(fixtureId: string) {
 
 export function resolveDiceFounderFixtureByAuthoringId(authoringId: string) {
   return DICE_FOUNDER_FIXTURES_BY_AUTHORING_ID.get(authoringId) ?? null;
+}
+
+export function resolveDiceFounderFixtureByExactText(exactText: string) {
+  return DICE_FOUNDER_FIXTURES_BY_EXACT_TEXT.get(exactText) ?? null;
 }

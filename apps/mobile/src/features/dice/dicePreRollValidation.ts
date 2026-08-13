@@ -9,6 +9,7 @@ import {
 import {
   DICE_FOUNDER_FIXTURE_REGISTRY_SHA256,
   resolveDiceFounderFixture,
+  resolveDiceFounderFixtureByExactText,
   type ApprovedDiceFounderFixtureId,
 } from "../../services/diceFounderFixtureRegistry";
 
@@ -45,6 +46,10 @@ export type DiceFounderFixtureBinding = Readonly<{
 
 export type DicePreRollStopCode = DiceQuestionStopCode | "DICE_FOUNDER_FIXTURE_MISMATCH";
 
+export type DicePreRollOptions = Readonly<{
+  require_closed_fixture_registry?: boolean;
+}>;
+
 export type DicePreRollDecision =
   | Readonly<{
       accepted: true;
@@ -67,6 +72,7 @@ export type DicePreRollDecision =
 export function validateDicePreRollQuestion(
   question: string,
   founderFixture?: DiceFounderFixtureBinding,
+  options: DicePreRollOptions = {},
 ): DicePreRollDecision {
   const decision = classifyDiceQuestionRequest({ question });
   if (!decision.accepted) return stopped(decision.code);
@@ -80,6 +86,11 @@ export function validateDicePreRollQuestion(
     }
   }
 
+  const closedFixture = resolveDiceFounderFixtureByExactText(decision.normalized_question);
+  if (options.require_closed_fixture_registry && !closedFixture) {
+    return stopped("DICE_FOUNDER_FIXTURE_MISMATCH");
+  }
+
   return Object.freeze({
     accepted: true,
     version: DICE_PRE_ROLL_VALIDATION_VERSION,
@@ -87,7 +98,11 @@ export function validateDicePreRollQuestion(
     language: decision.language,
     route: decision.route,
     shape: decision.shape,
-    ...(founderFixture ? { fixture_id: founderFixture.fixture_id } : {}),
+    ...(founderFixture
+      ? { fixture_id: founderFixture.fixture_id }
+      : closedFixture
+        ? { fixture_id: closedFixture.fixture_id }
+        : {}),
     effects: DICE_PRE_ROLL_NO_EFFECTS,
   });
 }
