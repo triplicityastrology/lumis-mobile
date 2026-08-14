@@ -1,0 +1,46 @@
+{
+  "schema": "founder_live_chat_candidate_v1",
+  "base_commit": "0bc9ababb5aac2a88573a617e3732ace227acd6d",
+  "accepted_t240_commit": "beab3bc47d3d32fd0e76673f538f47f368f95347",
+  "accepted_dice_technical_80_receipt_sha256": "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612",
+  "authority": {
+    "normal_chat": "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY",
+    "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
+  },
+  "source_switches": {
+    "mobile_integration_enabled": false,
+    "mobile_traffic_enabled": false,
+    "server_route_unchanged": true
+  },
+  "window": {
+    "scope": "FOUNDER_CHAT_SYNTHETIC_WINDOW_12_ONLY",
+    "logical": 12,
+    "en": 6,
+    "zh_hant": 6,
+    "attempts": 24,
+    "concurrency": 1,
+    "deadline_ms": 12000,
+    "retries": 1,
+    "input_tokens": 1200,
+    "output_tokens": 300,
+    "persistence": false,
+    "units": false,
+    "member_traffic": false
+  },
+  "source": {
+    "apps/mobile/src/services/founderLiveChat.ts": "c81b25650f8106fd110dac115b750fb378a8bc4237a4de9898f3b576ff5fce80",
+    "apps/mobile/src/services/founderLiveChat.fixtures.ts": "533cfce47b73932453024759b00ba7d5db05e7d6bb7e72db0ce5938c8982959a",
+    "apps/mobile/tsconfig.founder-live-chat-test.json": "a7493716cf65a9daf3500b81f992a171df9474ca70f8fd6962b37f106cc63b40",
+    "supabase/functions/_shared/founder-chat-window-v1.ts": "5c80e266e0971c35b4303d6155ae38f9981a55cfd0834582a13049d850a6f835",
+    "supabase/functions/_shared/founder-chat-window-v1.fixtures.ts": "717b56565ad4b75f6c88cfca1c898474e5f78aec38684e6b1a63c9e9c8f87ceb",
+    "supabase/functions/tsconfig.founder-chat-window-test.json": "40b605155e46c84bb3b4ca7908fb5dc097bc64659fc65e5b6d189f0cfd8196cc",
+    "supabase/tests/founder-chat-synthetic-window-authorization-v1.schema.json": "a71f6204af01328c3fab84b19f14a80d71dd2ebdc65b46d8dcbd0e9d7f765e21",
+    "scripts/start-founder-live-chat.sh": "2121e47bd2bced953c14e3cea02b64009ea13c8565cc48dca90e955a93179563",
+    "scripts/run-founder-live-chat-tests.sh": "0fdd6727d04b115fcfad1587fd66bfce67ca175943e41ec70da5786fac981f7c",
+    "scripts/founder-live-chat-contract.mjs": "d24e2f000dafe14af8a509f53946b9b46c82de5c325cc2c6a86453d4a639c5d2",
+    "scripts/refresh-founder-live-chat-seal.mjs": "d663b41ef53c43e196d516dfd3300a08e2622acc40d3dd475793a32d852cde97",
+    "docs/architecture/Founder-live-normal-chat-candidate.md": "9e9ef423a4982f50403adc9ae78d6ff482a1236cfe54ab74c6db330a9db391a8",
+    "package.json": "0a56bd00727d633d6ccd76fc9745266e9bb0a024ba0ad0b051fbd10679b0c052"
+  },
+  "package_sha256": "b24a3d9ebec1baed0eb6a42694986cdb9cee7d1cacacc8c13e38d5a8c8566298"
+}

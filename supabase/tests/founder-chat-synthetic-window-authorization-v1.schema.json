@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lumis_founder_chat_synthetic_window_authorization_v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "decision", "scope", "accepted_dice_evidence_sha256", "review_package_sha256",
+    "fixture_ids", "caps", "issued_at", "valid_until", "normal_chat_integration_authorized",
+    "member_traffic_authorized", "persistence_authorized", "units_authorized"
+  ],
+  "properties": {
+    "schema": { "const": "lumis_founder_chat_synthetic_window_authorization_v1" },
+    "decision": { "const": "AUTHORIZED" },
+    "scope": { "const": "FOUNDER_CHAT_SYNTHETIC_WINDOW_12_ONLY" },
+    "accepted_dice_evidence_sha256": { "const": "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612" },
+    "review_package_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "fixture_ids": { "type": "array", "minItems": 12, "maxItems": 12, "uniqueItems": true, "items": { "type": "string" } },
+    "caps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logical", "en", "zh_hant", "attempts", "concurrency", "deadline_ms", "retries", "input_tokens", "output_tokens"],
+      "properties": {
+        "logical": { "const": 12 }, "en": { "const": 6 }, "zh_hant": { "const": 6 },
+        "attempts": { "const": 24 }, "concurrency": { "const": 1 }, "deadline_ms": { "const": 12000 },
+        "retries": { "const": 1 }, "input_tokens": { "const": 1200 }, "output_tokens": { "const": 300 }
+      }
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "normal_chat_integration_authorized": { "const": false },
+    "member_traffic_authorized": { "const": false },
+    "persistence_authorized": { "const": false },
+    "units_authorized": { "const": false }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/founder-chat-window-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "_shared/founder-chat-window-v1.ts",
+    "_shared/founder-chat-window-v1.fixtures.ts",
+    "_shared/chat-synthetic-registry-v1.ts"
+  ]
+}

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+# shellcheck source=lib/lumis-worktree-root.sh
+source "$SCRIPT_DIR/lib/lumis-worktree-root.sh"
+ROOT="$(lumis_resolve_worktree_root)" || { printf 'STOP_FOUNDER_LIVE_CHAT_INVALID_WORKTREE\n' >&2; exit 1; }
+PORT="${FOUNDER_CHAT_EXPO_PORT:-8228}"
+MODE="${1:---lan}"
+stop() { printf 'STOP_FOUNDER_LIVE_CHAT_%s\n' "$1" >&2; exit 1; }
+
+[[ "$ROOT" == /Volumes/LumisDevSSD/Development/Worktrees/* ]] || stop SSD_WORKTREE_REQUIRED
+[[ "$(git -C "$ROOT" branch --show-current)" == "codex/founder-live-normal-chat" ]] || stop WRONG_BRANCH
+[[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]] || stop TRACKED_TREE_DIRTY
+[[ -z "$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -n 1 || true)" ]] || stop PORT_OCCUPIED_NO_PROCESS_KILLED
+case "$MODE" in --lan|--tunnel) ;; *) stop INVALID_MODE ;; esac
+
+DEV_ROOT="${LUMIS_DEV_ROOT:-$(cd "$ROOT/../../.." && pwd -P)}"
+PNPM_STORE_PATH="${LUMIS_PNPM_STORE_PATH:-$DEV_ROOT/Dependencies/pnpm-store}"
+NPM_CACHE_PATH="${LUMIS_NPM_CACHE_PATH:-$DEV_ROOT/Dependencies/npm-cache}"
+TMP_PATH="${LUMIS_BUILD_TMP:-$DEV_ROOT/BuildCaches/Founder-Live-Chat-tmp}"
+[[ -d "$PNPM_STORE_PATH" ]] || stop PNPM_STORE_MISSING
+mkdir -p "$NPM_CACHE_PATH" "$TMP_PATH"
+
+HEAD="$(git -C "$ROOT" rev-parse HEAD)"
+printf 'FOUNDER_LIVE_CHAT_READY source_sha=%s route=product_chat mode=local_fixture port=%s live_authority=false persistence=false units=false\n' "$HEAD" "$PORT"
+cd "$ROOT"
+EXPO_PUBLIC_T341_CHAT_LOCAL_FIXTURE=1 \
+EXPO_PUBLIC_T341_CHAT_FIXTURE_STATE="${FOUNDER_CHAT_FIXTURE_STATE:-completed}" \
+EXPO_PUBLIC_SUPABASE_URL= \
+EXPO_PUBLIC_SUPABASE_KEY= \
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY= \
+EXPO_PUBLIC_SUPABASE_ANON_KEY= \
+npm_config_cache="$NPM_CACHE_PATH" \
+TMPDIR="$TMP_PATH" \
+exec pnpm --dir apps/mobile exec expo start "$MODE" --clear --port "$PORT"

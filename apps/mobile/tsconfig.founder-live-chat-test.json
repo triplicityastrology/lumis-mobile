@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/founder-live-chat-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/founderLiveChat.ts",
+    "src/services/founderLiveChat.fixtures.ts",
+    "src/services/chatProductIntegrationRc.ts",
+    "src/services/normalChatAiCandidate.ts"
+  ]
+}
