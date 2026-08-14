@@ -36,20 +36,22 @@
     "apps/mobile/tsconfig.founder-live-chat-test.json": "39412ac6e7e61939fdcf40f28c9c4e687094297dd9babf9b7de5f3f27945caaf",
     "supabase/functions/_shared/founder-chat-window-v1.ts": "5c80e266e0971c35b4303d6155ae38f9981a55cfd0834582a13049d850a6f835",
     "supabase/functions/_shared/founder-chat-window-v1.fixtures.ts": "717b56565ad4b75f6c88cfca1c898474e5f78aec38684e6b1a63c9e9c8f87ceb",
+    "supabase/functions/_shared/chat-synthetic-gateway-port-v1.ts": "164a35d815ba01a6b2757fdd7382b0596907ec688a4bea8afc7400ce5439b614",
     "supabase/functions/tsconfig.founder-chat-window-test.json": "40b605155e46c84bb3b4ca7908fb5dc097bc64659fc65e5b6d189f0cfd8196cc",
-    "supabase/functions/chat-synthetic/index.ts": "0df549e76992302aaa42bbd5eb32da0c08f5ebb3bf554eaa52c2a9fd41f61493",
-    "supabase/functions/chat-synthetic/edge-handler-v1.ts": "76165f1c8e2711ebe854f8bce9e3003b819b3aa2d5b26a983ec4cd516da20008",
-    "supabase/functions/chat-synthetic/edge-handler-v1.fixtures.ts": "6a6dcf9e13dc80a1a3701dececcdf2703c1982dbdcf7166bbc62bb32b944d89b",
+    "supabase/functions/chat-synthetic/index.ts": "009c8ad0e3f4bd5027b1ea6006a3dc0d08c4b0c680b277185325d98ef983efce",
+    "supabase/functions/chat-synthetic/edge-handler-v1.ts": "9ccbae6eda47b8194ae60168991b35f3732d007413781cd1f0096884d817e9ba",
+    "supabase/functions/chat-synthetic/edge-handler-v1.fixtures.ts": "70e37d4b4d6959331931e4c72c68e766cd82f32a1c68a679f3539195376eed0c",
     "supabase/functions/chat-synthetic/deno.json": "1afebddc8272c101bacc7e0873b059f211cce9c02dc2f1508abbf91152e91295",
     "supabase/functions/chat-synthetic/node-test.d.ts": "5073c2af27752eb22f541dfb9b35ace61a1b305c85d5bc70d419b83d41c7edff",
     "supabase/functions/tsconfig.chat-synthetic-edge-v1-test.json": "2acb0c330e7b2125910210266c2ffc1a4cdda82a7b50734948ba16425314a3ed",
     "supabase/tests/founder-chat-synthetic-window-authorization-v1.schema.json": "a71f6204af01328c3fab84b19f14a80d71dd2ebdc65b46d8dcbd0e9d7f765e21",
-    "scripts/start-founder-live-chat.sh": "fbe624f8d12199ed4fcfceccd055070b45d786275bd67aceb6180190e3732daf",
+    "scripts/start-founder-live-chat.sh": "bac2f23680af17b9f788601c70eae471714726919b00f1593010af15fe8fe978",
+    "scripts/t350-chat-readiness.mjs": "e066cf7c6f9210f2183dd6cf5b215ede60303841418c6397f7b0657b208e53f2",
     "scripts/run-founder-live-chat-tests.sh": "0fdd6727d04b115fcfad1587fd66bfce67ca175943e41ec70da5786fac981f7c",
     "scripts/founder-live-chat-contract.mjs": "8f17adb203ab5447944c8291911e7c42d9dd44796c6496645dbb5d3fa23b2695",
-    "scripts/refresh-founder-live-chat-seal.mjs": "335577a6635fbb2a828cae6655a8de9d1ddb80c4daf45ab2c56a5b92fa0b74db",
-    "docs/architecture/Founder-live-normal-chat-candidate.md": "3a45c1cb7adc765d16c876d6ef9476f7026f199e4483ffcd2b40c2a10dc60bc2",
-    "package.json": "0a56bd00727d633d6ccd76fc9745266e9bb0a024ba0ad0b051fbd10679b0c052"
+    "scripts/refresh-founder-live-chat-seal.mjs": "fac7e9b9f959edbc809f2ab66954149e9301ffdcb5a6dbbb2a483f7461008d57",
+    "docs/architecture/Founder-live-normal-chat-candidate.md": "4199e3089abca0458ef49df6799bcbe5a0f779325098cdf04b428ea29c3d7606",
+    "package.json": "cb3751bb016efb1c1c2cfdeb01d8c0fd13118aa84637f876d387730a158643cb"
   },
-  "package_sha256": "f0008cb28da30c6a27976d49bd9cee02a403275569538353677cff13c39e2bf7"
+  "package_sha256": "0b685c9fdf1aedb9df2b0c2ce03c0694eb565317a649a0676f1b84e997140b67"
 }

@@ -78,7 +78,7 @@ function authority(overrides: Record<string, unknown> = {}) {
     gateway_source_sha256: SHA_A,
     fixture_registry_sha256: SHA_B,
     canonical_t240_schema_sha256: "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07",
-    dice_evidence_sha256: SHA_C,
+    dice_evidence_sha256: "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612",
     run_id: "chat-syn-0123456789ab",
     caps: { logical: 60, en: 30, zh_hant: 30, attempts: 120, input_tokens: 1200, output_tokens: 300, concurrency: 1, deadline_ms: 12000, retries: 1 },
     issued_at: "2026-08-11T03:00:00.000Z",
@@ -100,15 +100,13 @@ const enabledEnvironment = {
   LUMIS_CHAT_AI_ENABLED: "true",
   LUMIS_CHAT_TRAFFIC_AUTHORIZED: "true",
   LUMIS_CHAT_AZURE_API_KEY: "fixture-only-key",
-  LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_SHA256: SHA_C,
+  LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_SHA256: "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612",
   LUMIS_CHAT_ACCEPTED_AUTHORITY_SHA256: SHA_A,
-  LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(evidence()),
+  LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(founderDiceReceipt),
   LUMIS_CHAT_ACCEPTED_AUTHORITY_JSON: JSON.stringify(authority()),
   LUMIS_CHAT_REVIEW_PACKAGE_SHA256: SHA_D,
   LUMIS_CHAT_GATEWAY_SOURCE_SHA256: SHA_A,
   LUMIS_CHAT_FIXTURE_REGISTRY_SHA256: SHA_B,
-  LUMIS_CHAT_FOUNDER_DICE_RECEIPT_JSON: JSON.stringify(founderDiceReceipt),
-  LUMIS_CHAT_FOUNDER_DICE_RECEIPT_SHA256: "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612",
   LUMIS_CHAT_FOUNDER_WINDOW_AUTHORITY_JSON: JSON.stringify(founderWindowAuthority),
   LUMIS_CHAT_FOUNDER_WINDOW_PACKAGE_SHA256: FOUNDER_PACKAGE_SHA,
   SUPABASE_URL: "https://bmqhwofmdgebpcihjlnb.supabase.co",
@@ -216,7 +214,7 @@ async function main() {
   assert.equal(JSON.stringify(rpcCalls).includes("edge-fixture-key-0001"), false);
 
   const wrongPackageHandler = createChatSyntheticEdgeHandler({
-    environment: { ...enabledEnvironment, LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify(evidence({ deployment_receipt: { ...evidence().deployment_receipt, source_commit: "0".repeat(40) } })) },
+    environment: { ...enabledEnvironment, LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON: JSON.stringify({ ...founderDiceReceipt, founder_cases: 1 }) },
     nowMs: () => NOW,
     createAuthorityClient() { return { async rpc() { return { data: "consumed", error: null }; } }; },
     async fetchImpl() { providerCalls += 1; throw new Error("must not fetch"); },
@@ -226,8 +224,8 @@ async function main() {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body()),
   }));
-  assert.equal(wrongPackage.status, 403);
-  assert.deepEqual(await wrongPackage.json(), { error: { code: "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID" } });
+  assert.equal(wrongPackage.status, 503);
+  assert.deepEqual(await wrongPackage.json(), { error: { code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" } });
   assert.equal(providerCalls, 1);
 
   const unknownField = await handler(new Request("http://local.invalid", {

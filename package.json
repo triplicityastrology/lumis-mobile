@@ -71,6 +71,7 @@
     "start:s2-t341-chat-product": "bash scripts/start-s2-t341-chat-product.sh",
     "start:founder-live-chat": "bash scripts/start-founder-live-chat.sh",
     "test:founder-live-chat": "bash scripts/run-founder-live-chat-tests.sh",
+    "chat:t350:readiness": "node scripts/t350-chat-readiness.mjs",
     "preflight:s2-t255-chat-candidate": "node scripts/s2-t255-chat-default-off-preflight.mjs",
     "preflight:s2-t250-chat-synthetic": "node scripts/s2-t250-chat-synthetic-deployment-preflight.mjs",
     "start:normal-expo": "bash scripts/start-normal-expo.sh",

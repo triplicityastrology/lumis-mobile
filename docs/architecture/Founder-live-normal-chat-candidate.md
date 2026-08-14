@@ -16,6 +16,11 @@ This candidate preserves the signed Chat product pixels and the existing `chat-s
 
 One 15-minute, single-use `FOUNDER_CHAT_SYNTHETIC_WINDOW_12_ONLY` receipt must name the sealed review package and the 12 ordered fixture IDs. The server must be deployed default-off with the accepted Dice evidence and authority envelopes, then both Chat switches may be enabled only for that reviewed window. Normal `chat-message`, member sessions, threads, persistence, and units remain out of scope.
 
+The exact accepted T345 metadata receipt is the single Dice prerequisite for both
+the Founder window and gateway port. No older `lumis_dice_technical_window_80_accepted_evidence_v4`
+wrapper is required. Run `pnpm chat:t350:readiness` for names-only readiness and
+the next separately authorized action.
+
 ## Local product route
 
 ```bash

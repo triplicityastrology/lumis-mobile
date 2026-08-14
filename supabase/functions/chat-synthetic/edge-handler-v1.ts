@@ -99,20 +99,17 @@ function readRuntimeConfig(environment: EdgeEnvironment, nowMs: number):
   const reviewPackageSha256 = environment.LUMIS_CHAT_REVIEW_PACKAGE_SHA256?.trim();
   const gatewaySourceSha256 = environment.LUMIS_CHAT_GATEWAY_SOURCE_SHA256?.trim();
   const fixtureRegistrySha256 = environment.LUMIS_CHAT_FIXTURE_REGISTRY_SHA256?.trim();
-  const founderDiceReceiptSha256 = environment.LUMIS_CHAT_FOUNDER_DICE_RECEIPT_SHA256?.trim();
   const founderWindowPackageSha256 = environment.LUMIS_CHAT_FOUNDER_WINDOW_PACKAGE_SHA256?.trim();
   const diceEvidence = parseServerJson(environment.LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON);
   const authority = parseServerJson(environment.LUMIS_CHAT_ACCEPTED_AUTHORITY_JSON);
-  const founderDiceReceipt = parseServerJson(environment.LUMIS_CHAT_FOUNDER_DICE_RECEIPT_JSON);
   const founderWindowAuthority = parseServerJson(environment.LUMIS_CHAT_FOUNDER_WINDOW_AUTHORITY_JSON);
   if (!supabaseUrl || !serviceRoleKey || !acceptedDiceEvidenceSha256 || !acceptedAuthoritySha256 ||
-      !reviewPackageSha256 || !gatewaySourceSha256 || !fixtureRegistrySha256 || !founderDiceReceiptSha256 ||
-      !founderWindowPackageSha256 || diceEvidence === null || authority === null ||
-      founderDiceReceipt === null || founderWindowAuthority === null) {
+      !reviewPackageSha256 || !gatewaySourceSha256 || !fixtureRegistrySha256 ||
+      !founderWindowPackageSha256 || diceEvidence === null || authority === null || founderWindowAuthority === null) {
     return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
   }
   try {
-    validateAcceptedTechnical80Evidence(founderDiceReceipt, founderDiceReceiptSha256);
+    validateAcceptedTechnical80Evidence(diceEvidence, acceptedDiceEvidenceSha256);
     validateFounderChatWindowAuthority(founderWindowAuthority, nowMs, founderWindowPackageSha256);
   } catch {
     return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };

@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 source "$SCRIPT_DIR/lib/lumis-worktree-root.sh"
 ROOT="$(lumis_resolve_worktree_root)" || { printf 'STOP_FOUNDER_LIVE_CHAT_INVALID_WORKTREE\n' >&2; exit 1; }
 PORT="${FOUNDER_CHAT_EXPO_PORT:-8228}"
+if [[ "${1:-}" == "--" ]]; then shift; fi
 MODE="${1:---lan}"
 stop() { printf 'STOP_FOUNDER_LIVE_CHAT_%s\n' "$1" >&2; exit 1; }
 

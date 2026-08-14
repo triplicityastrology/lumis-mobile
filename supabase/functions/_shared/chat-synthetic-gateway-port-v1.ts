@@ -6,6 +6,10 @@ import {
   type ChatSyntheticResponse
 } from "./chat-synthetic-gateway-v1.ts";
 import { CHAT_TOKENIZER_VERSION } from "./chat-tokenizer-v1.ts";
+import {
+  ACCEPTED_DICE_TECHNICAL_80_RECEIPT_SHA256,
+  validateAcceptedTechnical80Evidence,
+} from "./founder-chat-window-v1.ts";
 
 export const CHAT_SYNTHETIC_GATEWAY_PORT_VERSION = "chat_synthetic_gateway_port_v1" as const;
 export const CHAT_CANONICAL_T240_SCHEMA_SHA256 = "0cd1fc47147beeb7a47df89952a7743ef4ab8c6e7ecd5a875f4a724154bcfa07" as const;
@@ -233,6 +237,18 @@ export class ChatSyntheticGatewayPortV1 {
 }
 
 export function validateAcceptedDiceEvidence(value: unknown, checksum: string, control: ChatSyntheticReviewControl): DiceEvidencePrerequisite {
+  if (isRecord(value) && value.schema === "s2_t345_technical_80_metadata_receipt_v1") {
+    if (control.acceptedDiceEvidenceSha256 !== ACCEPTED_DICE_TECHNICAL_80_RECEIPT_SHA256 ||
+        checksum !== ACCEPTED_DICE_TECHNICAL_80_RECEIPT_SHA256) {
+      fail("CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
+    }
+    try {
+      validateAcceptedTechnical80Evidence(value, checksum);
+    } catch {
+      fail("CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
+    }
+    return value as unknown as DiceEvidencePrerequisite;
+  }
   exactRecord(value, EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
   const evidence = value as DiceEvidencePrerequisite;
   exactRecord(evidence.deployment_receipt, DEPLOYMENT_EVIDENCE_KEYS, "CHAT_SYNTHETIC_DICE_EVIDENCE_INVALID");
@@ -302,6 +318,10 @@ function exactRecord(value: unknown, keys: readonly string[], code: string): ass
   if (!value || typeof value !== "object" || Array.isArray(value)) fail(code);
   const actual = Object.keys(value as Record<string, unknown>);
   if (actual.length !== keys.length || actual.some((key) => !keys.includes(key))) fail(code);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function fail(code: string): never {
