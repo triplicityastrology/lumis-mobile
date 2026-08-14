@@ -13,6 +13,7 @@ import {
   type DiceMobileLiveEvidence,
 } from "./diceMobileLiveGateway";
 import type { DiceCustomerInterpretationEnvelope, DiceCustomerInterpretationInput } from "./diceCustomerInterpretationController";
+import { createDiceMobileSupabaseTransport } from "./diceMobileSupabaseTransport";
 
 const FOUNDER_RECEIPT = "a".repeat(64);
 const evidence: DiceMobileLiveEvidence = Object.freeze({
@@ -99,6 +100,29 @@ async function main() {
     create_transport: () => async () => ({ ...await transport()({ fixture_id: "dice-founder-en-10", planet_id: "venus", sign_id: "leo", house_id: "house_6" }), raw_provider_response: "forbidden" }),
   });
   assert.equal(hostile.at(-1)?.state.kind, "retry");
+
+  const previousFetch = globalThis.fetch;
+  process.env.EXPO_PUBLIC_DICE_MOBILE_RELAY_URL = "http://192.168.1.20:8223/dice";
+  process.env.EXPO_PUBLIC_DICE_MOBILE_RELAY_SESSION = "A".repeat(43);
+  let relayCalls = 0;
+  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    relayCalls += 1;
+    assert.equal(String(url), "http://192.168.1.20:8223/dice");
+    assert.equal((init?.headers as Record<string, string>)["x-lumis-mobile-dice-session"], "A".repeat(43));
+    assert.deepEqual(JSON.parse(String(init?.body)), { fixture_id: "dice-founder-en-10", planet_id: "venus", sign_id: "leo", house_id: "house_6" });
+    return new Response(JSON.stringify({ schema: DICE_RESULT_SCHEMA, language: "en" }), { status: 200 });
+  }) as typeof fetch;
+  await createDiceMobileSupabaseTransport()({ fixture_id: "dice-founder-en-10", planet_id: "venus", sign_id: "leo", house_id: "house_6" });
+  assert.equal(relayCalls, 1);
+  process.env.EXPO_PUBLIC_DICE_MOBILE_RELAY_URL = "https://attacker.invalid/dice";
+  let unsafeRelayRejected = false;
+  try {
+    createDiceMobileSupabaseTransport();
+  } catch (error) {
+    unsafeRelayRejected = error instanceof Error && error.message === "DICE_GATEWAY_UNAVAILABLE";
+  }
+  assert.equal(unsafeRelayRejected, true);
+  globalThis.fetch = previousFetch;
 
   console.log("Mobile Dice live gateway fixtures passed");
 }

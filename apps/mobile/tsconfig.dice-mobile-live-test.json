@@ -11,6 +11,7 @@
   "include": [
     "src/services/diceMobileLiveGateway.ts",
     "src/services/diceMobileLiveGateway.fixtures.ts",
+    "src/services/diceMobileSupabaseTransport.ts",
     "src/services/diceCustomerInterpretationController.ts",
     "src/services/diceFounderFixtureRegistry.ts",
     "src/services/diceLiveResultAdapter.ts",

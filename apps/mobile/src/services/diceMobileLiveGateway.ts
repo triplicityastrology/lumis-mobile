@@ -16,9 +16,10 @@ export const DICE_MICROSOFT_CONTRACT_SEAL_SHA256 = "d0f0c631aa40cf076d86d0a661fe
 export const DICE_PROMPT_VERSION = "lumis_dice_v0_3_prompt_v2" as const;
 export const DICE_RESULT_SCHEMA = "lumis_dice_v0_3_result_v2" as const;
 
-// Technical-80 is accepted, but no separate Founder live-window receipt is.
-// A reviewed follow-up must pin that exact evidence digest before transport can exist.
-export const ACCEPTED_FOUNDER_WINDOW_EVIDENCE_SHA256: string | null = null;
+// The launcher supplies the accepted receipt digest twice from its protected
+// server-side intake. The mobile build never receives the receipt itself.
+export const ACCEPTED_FOUNDER_WINDOW_EVIDENCE_SHA256: string | null =
+  process.env.EXPO_PUBLIC_DICE_ACCEPTED_FOUNDER_WINDOW_EVIDENCE_SHA256 ?? null;
 
 const NO_EFFECTS = Object.freeze({ provider_calls: 0, persistence_writes: 0, units_charged: 0 });
 const PLANETS = new Set(["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "north_node", "south_node"]);

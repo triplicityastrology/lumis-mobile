@@ -56,7 +56,7 @@
     "test:s2-t322-real-dice-preroll": "tsc -p apps/mobile/tsconfig.dice-pre-roll-validation-test.json && node .tmp/dice-pre-roll-validation-tests/apps/mobile/src/features/dice/dicePreRollValidation.fixtures.js && node scripts/s2-t322-real-dice-pre-roll-validation-contract.mjs",
     "test:s2-t327-canonical-dice-release-root": "pnpm test:s2-t322-real-dice-preroll && node scripts/s2-t327-canonical-dice-release-root-contract.mjs",
     "test:s2-t337-customer-dice-rc": "tsc -p apps/mobile/tsconfig.dice-pre-roll-validation-test.json && node .tmp/dice-pre-roll-validation-tests/apps/mobile/src/features/dice/dicePreRollValidation.fixtures.js && tsc -p apps/mobile/tsconfig.dice-customer-rc-test.json && node .tmp/dice-customer-rc-tests/apps/mobile/src/services/diceCustomerInterpretationController.fixtures.js && node scripts/s2-t337-customer-dice-rc-contract.mjs",
-    "test:founder-live-mobile-dice": "tsc -p apps/mobile/tsconfig.dice-mobile-live-test.json && node .tmp/dice-mobile-live-tests/apps/mobile/src/services/diceMobileLiveGateway.fixtures.js && node scripts/founder-live-mobile-dice-contract.mjs",
+    "test:founder-live-mobile-dice": "tsc -p apps/mobile/tsconfig.dice-mobile-live-test.json && node .tmp/dice-mobile-live-tests/apps/mobile/src/services/diceMobileLiveGateway.fixtures.js && node scripts/founder-mobile-dice-relay-contract.mjs && node scripts/founder-live-mobile-dice-contract.mjs",
     "start:founder-live-mobile-dice": "bash scripts/start-founder-live-mobile-dice-ssd.sh",
     "seal:s2-t337-customer-dice-rc": "node scripts/s2-t337-refresh-customer-dice-rc-seal.mjs",
     "start:s2-t337-customer-dice": "bash scripts/start-s2-t337-customer-dice-ssd.sh",
