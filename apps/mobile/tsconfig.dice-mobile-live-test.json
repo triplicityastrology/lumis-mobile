@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "noEmit": false,
+    "outDir": "../../.tmp/dice-mobile-live-tests",
+    "rootDir": "../.."
+  },
+  "include": [
+    "src/services/diceMobileLiveGateway.ts",
+    "src/services/diceMobileLiveGateway.fixtures.ts",
+    "src/services/diceCustomerInterpretationController.ts",
+    "src/services/diceFounderFixtureRegistry.ts",
+    "src/services/diceLiveResultAdapter.ts",
+    "src/types/env.d.ts",
+    "src/types/node-assert-strict-test.d.ts",
+    "../../packages/shared/src/config/dice-question-boundary.ts"
+  ]
+}

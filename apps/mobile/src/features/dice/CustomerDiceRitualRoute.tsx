@@ -8,6 +8,11 @@ import {
   type DiceCustomerInterpretationEnvelope,
   type DiceCustomerInterpretationInput,
 } from "../../services/diceCustomerInterpretationController";
+import {
+  createDiceMobileLiveController,
+  readDiceMobileLiveConfig,
+} from "../../services/diceMobileLiveGateway";
+import { createDiceMobileSupabaseTransport } from "../../services/diceMobileSupabaseTransport";
 import { DiceRitualScreen } from "./DiceRitualScreen";
 
 type Props = Readonly<{
@@ -19,7 +24,9 @@ type Props = Readonly<{
 
 export function CustomerDiceRitualRoute(props: Props) {
   const mode = parseDiceCustomerFixtureMode(process.env.EXPO_PUBLIC_DICE_CUSTOMER_LOCAL_FIXTURE, __DEV__);
-  const controller = useMemo(() => createDiceCustomerInterpretationController(mode), [mode]);
+  const controller = useMemo(() => mode === "disabled"
+    ? createDiceMobileLiveController({ ...readDiceMobileLiveConfig(), create_transport: createDiceMobileSupabaseTransport })
+    : createDiceCustomerInterpretationController(mode), [mode]);
   const [interpretationState, setInterpretationState] = useState<DiceCustomerInterpretationEnvelope>();
   const latestRequestRef = useRef<DiceCustomerInterpretationInput | null>(null);
   const activeRequestKeyRef = useRef<string | null>(null);

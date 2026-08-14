@@ -1,7 +1,7 @@
 {
   "schema": "lumis_s2_t337_customer_dice_release_candidate_seal_v1",
   "base_commit": "7767b69bef7e33f6aa898ca9a0c14ca2ce3b7c12",
-  "package_sha256": "28cee8c74e07b63c90e44abb9ca0a37d05eecb1b3385dd62b0f3f4282f69e956",
+  "package_sha256": "3a55329f4854622860358ed5fa74c0413f50fe8a749a7975b85d9509b434a028",
   "files": [
     {
       "path": "apps/mobile/App.tsx",
@@ -9,11 +9,11 @@
     },
     {
       "path": "apps/mobile/src/features/dice/CustomerDiceRitualRoute.tsx",
-      "sha256": "8472d6a7628180f27bacd71e63859dd72e791856423f46f7ea98a0ad2d10940d"
+      "sha256": "34b2a8a890ca1fae9f7d7648c12bffe4d8866fc5a6de4265763530e317ff65f4"
     },
     {
       "path": "apps/mobile/src/features/dice/DiceRitualScreen.tsx",
-      "sha256": "d3338e0c032b3a9d45995c074796486183a4655ee18056bf3f6cfcbc78ae1f00"
+      "sha256": "bbf1f6ccc9ca18a550904acb10a642fc15d78bd920e6777438aa87e446df816a"
     },
     {
       "path": "apps/mobile/src/features/dice/dicePreRollValidation.ts",
@@ -21,7 +21,7 @@
     },
     {
       "path": "apps/mobile/src/services/diceCustomerInterpretationController.ts",
-      "sha256": "ff5ebcca78a24fdc5fb93b649d312a5d34b879b3f8df70b8fdc0bc93e9accb9c"
+      "sha256": "5ff7a7ac31f956efa0d276e87081e037e02dc953b540ef1b790c17cec430c459"
     },
     {
       "path": "apps/mobile/src/services/diceFounderFixtureRegistry.ts",

@@ -24,7 +24,8 @@ assert.match(route, /requireClosedFixtureRegistry/);
 assert.match(route, /effectsAuthorized=\{false\}/);
 assert.match(route, /isCurrentDiceCustomerEnvelope/);
 assert.match(route, /latest\?\.request_key === requestKey/);
-assert.doesNotMatch(route, /setScreen|fetch\(|supabase|azure/i);
+assert.doesNotMatch(route, /setScreen|fetch\(|azure/i);
+assert.match(route, /createDiceMobileSupabaseTransport/);
 assert.doesNotMatch(route, /onReflect\s*\(/, "route must not navigate to Chat automatically");
 
 const ready = screen.slice(screen.indexOf("const beginReady"), screen.indexOf("const performThrow"));

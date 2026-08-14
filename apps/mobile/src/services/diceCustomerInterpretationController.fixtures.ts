@@ -13,6 +13,9 @@ const EN = Object.freeze({
   planet: "Venus",
   sign: "Leo",
   house: "6th House",
+  planet_id: "venus",
+  sign_id: "leo",
+  house_id: "house_6",
 });
 
 async function collect(mode: "disabled" | "completed" | "safety" | "fallback" | "technical_error") {

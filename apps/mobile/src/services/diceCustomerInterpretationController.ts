@@ -16,6 +16,9 @@ export type DiceCustomerInterpretationInput = Readonly<{
   planet: string;
   sign: string;
   house: string;
+  planet_id: string;
+  sign_id: string;
+  house_id: string;
 }>;
 
 export type DiceCustomerInterpretationEnvelope = Readonly<{

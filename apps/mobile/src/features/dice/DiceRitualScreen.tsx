@@ -143,7 +143,16 @@ export function DiceRitualScreen({
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
   interpretationState?: DiceInterpretationEnvelope;
-  onInterpretationRequested?: (input: Readonly<{ request_key: string; question: string; planet: string; sign: string; house: string }>) => void;
+  onInterpretationRequested?: (input: Readonly<{
+    request_key: string;
+    question: string;
+    planet: string;
+    sign: string;
+    house: string;
+    planet_id: string;
+    sign_id: string;
+    house_id: string;
+  }>) => void;
   onRetryInterpretation?: (requestKey: string) => void;
   founderFixture?: DiceFounderFixtureBinding;
   requireClosedFixtureRegistry?: boolean;
@@ -487,6 +496,9 @@ export function DiceRitualScreen({
                   planet: FACE_SETS.planet.find((face) => face.key === lastThrowRef.current?.planetKey)?.en ?? "",
                   sign: FACE_SETS.sign.find((face) => face.key === lastThrowRef.current?.signKey)?.en ?? "",
                   house: FACE_SETS.house.find((face) => face.key === lastThrowRef.current?.houseKey)?.en ?? "",
+                  planet_id: lastThrowRef.current.planetKey,
+                  sign_id: lastThrowRef.current.signKey,
+                  house_id: lastThrowRef.current.houseKey,
                 });
               }
             }
