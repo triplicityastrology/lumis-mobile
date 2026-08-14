@@ -10,7 +10,7 @@ MODE="${1:---lan}"
 stop() { printf 'STOP_FOUNDER_LIVE_CHAT_%s\n' "$1" >&2; exit 1; }
 
 [[ "$ROOT" == /Volumes/LumisDevSSD/Development/Worktrees/* ]] || stop SSD_WORKTREE_REQUIRED
-[[ "$(git -C "$ROOT" branch --show-current)" == "codex/founder-live-normal-chat" ]] || stop WRONG_BRANCH
+[[ "$(git -C "$ROOT" branch --show-current)" == "codex/s2-t350-normal-chat-mobile-live" ]] || stop WRONG_BRANCH
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]] || stop TRACKED_TREE_DIRTY
 [[ -z "$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | head -n 1 || true)" ]] || stop PORT_OCCUPIED_NO_PROCESS_KILLED
 case "$MODE" in --lan|--tunnel) ;; *) stop INVALID_MODE ;; esac
@@ -23,14 +23,18 @@ TMP_PATH="${LUMIS_BUILD_TMP:-$DEV_ROOT/BuildCaches/Founder-Live-Chat-tmp}"
 mkdir -p "$NPM_CACHE_PATH" "$TMP_PATH"
 
 HEAD="$(git -C "$ROOT" rev-parse HEAD)"
-printf 'FOUNDER_LIVE_CHAT_READY source_sha=%s route=product_chat mode=local_fixture port=%s live_authority=false persistence=false units=false\n' "$HEAD" "$PORT"
+PUBLIC_ENV_FILE="$ROOT/apps/mobile/.env"
+HAS_URL=0
+HAS_KEY=0
+if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]] || { [[ -f "$PUBLIC_ENV_FILE" ]] && grep -Eq '^EXPO_PUBLIC_SUPABASE_URL=.+$' "$PUBLIC_ENV_FILE"; }; then HAS_URL=1; fi
+if [[ -n "${EXPO_PUBLIC_SUPABASE_KEY:-}${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]] || { [[ -f "$PUBLIC_ENV_FILE" ]] && grep -Eq '^EXPO_PUBLIC_SUPABASE_(KEY|PUBLISHABLE_KEY|ANON_KEY)=.+$' "$PUBLIC_ENV_FILE"; }; then HAS_KEY=1; fi
+[[ "$HAS_URL" == 1 && "$HAS_KEY" == 1 ]] || stop PUBLIC_SUPABASE_CONFIG_REQUIRED
+printf 'FOUNDER_LIVE_CHAT_READY source_sha=%s route=product_chat mode=closed_fixture_live_candidate port=%s persistence=false units=false\n' "$HEAD" "$PORT"
 cd "$ROOT"
 EXPO_PUBLIC_T341_CHAT_LOCAL_FIXTURE=1 \
 EXPO_PUBLIC_T341_CHAT_FIXTURE_STATE="${FOUNDER_CHAT_FIXTURE_STATE:-completed}" \
-EXPO_PUBLIC_SUPABASE_URL= \
-EXPO_PUBLIC_SUPABASE_KEY= \
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY= \
-EXPO_PUBLIC_SUPABASE_ANON_KEY= \
+EXPO_PUBLIC_FOUNDER_CHAT_LIVE_MODE=1 \
+EXPO_PUBLIC_FOUNDER_CHAT_DICE_EVIDENCE_SHA256=f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612 \
 npm_config_cache="$NPM_CACHE_PATH" \
 TMPDIR="$TMP_PATH" \
 exec pnpm --dir apps/mobile exec expo start "$MODE" --clear --port "$PORT"

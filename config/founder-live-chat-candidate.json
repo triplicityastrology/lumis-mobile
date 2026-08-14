@@ -8,9 +8,10 @@
     "azure_traffic": "NO_AZURE_TRAFFIC_AUTHORITY"
   },
   "source_switches": {
-    "mobile_integration_enabled": false,
-    "mobile_traffic_enabled": false,
-    "server_route_unchanged": true
+    "mobile_integration_default": false,
+    "mobile_traffic_default": false,
+    "server_ai_default": false,
+    "server_traffic_default": false
   },
   "window": {
     "scope": "FOUNDER_CHAT_SYNTHETIC_WINDOW_12_ONLY",
@@ -28,19 +29,27 @@
     "member_traffic": false
   },
   "source": {
-    "apps/mobile/src/services/founderLiveChat.ts": "c81b25650f8106fd110dac115b750fb378a8bc4237a4de9898f3b576ff5fce80",
+    "apps/mobile/App.tsx": "813fb8a88d4f8cd90f909774cf4a6b217371e1916b4333fa050a4f14ae0f2493",
+    "apps/mobile/src/services/founderLiveChat.ts": "65a7406372b94b2e75a174166e658618af0b7c6c51b728e76ce2e1290259fd19",
     "apps/mobile/src/services/founderLiveChat.fixtures.ts": "533cfce47b73932453024759b00ba7d5db05e7d6bb7e72db0ce5938c8982959a",
-    "apps/mobile/tsconfig.founder-live-chat-test.json": "a7493716cf65a9daf3500b81f992a171df9474ca70f8fd6962b37f106cc63b40",
+    "apps/mobile/src/types/env.d.ts": "c7f4a3a2ce75f42fc9829d46f5d3f7f23afd2f6b8af4c5071daea2de554c9c59",
+    "apps/mobile/tsconfig.founder-live-chat-test.json": "39412ac6e7e61939fdcf40f28c9c4e687094297dd9babf9b7de5f3f27945caaf",
     "supabase/functions/_shared/founder-chat-window-v1.ts": "5c80e266e0971c35b4303d6155ae38f9981a55cfd0834582a13049d850a6f835",
     "supabase/functions/_shared/founder-chat-window-v1.fixtures.ts": "717b56565ad4b75f6c88cfca1c898474e5f78aec38684e6b1a63c9e9c8f87ceb",
     "supabase/functions/tsconfig.founder-chat-window-test.json": "40b605155e46c84bb3b4ca7908fb5dc097bc64659fc65e5b6d189f0cfd8196cc",
+    "supabase/functions/chat-synthetic/index.ts": "0df549e76992302aaa42bbd5eb32da0c08f5ebb3bf554eaa52c2a9fd41f61493",
+    "supabase/functions/chat-synthetic/edge-handler-v1.ts": "76165f1c8e2711ebe854f8bce9e3003b819b3aa2d5b26a983ec4cd516da20008",
+    "supabase/functions/chat-synthetic/edge-handler-v1.fixtures.ts": "6a6dcf9e13dc80a1a3701dececcdf2703c1982dbdcf7166bbc62bb32b944d89b",
+    "supabase/functions/chat-synthetic/deno.json": "1afebddc8272c101bacc7e0873b059f211cce9c02dc2f1508abbf91152e91295",
+    "supabase/functions/chat-synthetic/node-test.d.ts": "5073c2af27752eb22f541dfb9b35ace61a1b305c85d5bc70d419b83d41c7edff",
+    "supabase/functions/tsconfig.chat-synthetic-edge-v1-test.json": "2acb0c330e7b2125910210266c2ffc1a4cdda82a7b50734948ba16425314a3ed",
     "supabase/tests/founder-chat-synthetic-window-authorization-v1.schema.json": "a71f6204af01328c3fab84b19f14a80d71dd2ebdc65b46d8dcbd0e9d7f765e21",
-    "scripts/start-founder-live-chat.sh": "2121e47bd2bced953c14e3cea02b64009ea13c8565cc48dca90e955a93179563",
+    "scripts/start-founder-live-chat.sh": "fbe624f8d12199ed4fcfceccd055070b45d786275bd67aceb6180190e3732daf",
     "scripts/run-founder-live-chat-tests.sh": "0fdd6727d04b115fcfad1587fd66bfce67ca175943e41ec70da5786fac981f7c",
-    "scripts/founder-live-chat-contract.mjs": "d24e2f000dafe14af8a509f53946b9b46c82de5c325cc2c6a86453d4a639c5d2",
-    "scripts/refresh-founder-live-chat-seal.mjs": "d663b41ef53c43e196d516dfd3300a08e2622acc40d3dd475793a32d852cde97",
-    "docs/architecture/Founder-live-normal-chat-candidate.md": "9e9ef423a4982f50403adc9ae78d6ff482a1236cfe54ab74c6db330a9db391a8",
+    "scripts/founder-live-chat-contract.mjs": "8f17adb203ab5447944c8291911e7c42d9dd44796c6496645dbb5d3fa23b2695",
+    "scripts/refresh-founder-live-chat-seal.mjs": "335577a6635fbb2a828cae6655a8de9d1ddb80c4daf45ab2c56a5b92fa0b74db",
+    "docs/architecture/Founder-live-normal-chat-candidate.md": "3a45c1cb7adc765d16c876d6ef9476f7026f199e4483ffcd2b40c2a10dc60bc2",
     "package.json": "0a56bd00727d633d6ccd76fc9745266e9bb0a024ba0ad0b051fbd10679b0c052"
   },
-  "package_sha256": "b24a3d9ebec1baed0eb6a42694986cdb9cee7d1cacacc8c13e38d5a8c8566298"
+  "package_sha256": "f0008cb28da30c6a27976d49bd9cee02a403275569538353677cff13c39e2bf7"
 }

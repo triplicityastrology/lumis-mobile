@@ -10,6 +10,11 @@ import {
   type ChatAuthorityRpcClient,
 } from "../_shared/chat-synthetic-postgres-authority-store-v1.ts";
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
+import {
+  FOUNDER_CHAT_FIXTURE_IDS,
+  validateAcceptedTechnical80Evidence,
+  validateFounderChatWindowAuthority,
+} from "../_shared/founder-chat-window-v1.ts";
 
 export const CHAT_EDGE_ROUTE = "chat-synthetic" as const;
 
@@ -38,14 +43,21 @@ export function createChatSyntheticEdgeHandler(dependencies: ChatEdgeDependencie
     if (dependencies.environment.LUMIS_CHAT_AI_ENABLED !== "true") {
       return errorResponse("CHAT_AI_DISABLED", 503);
     }
+    if (dependencies.environment.LUMIS_CHAT_TRAFFIC_AUTHORIZED !== "true") {
+      return errorResponse("CHAT_TRAFFIC_NOT_AUTHORIZED", 503);
+    }
 
     const providerConfig = readChatAzureServerConfig(dependencies.environment);
     if (!providerConfig.ok) return errorResponse(providerConfig.code, 503);
-    const runtime = readRuntimeConfig(dependencies.environment);
+    const nowMs = (dependencies.nowMs ?? Date.now)();
+    const runtime = readRuntimeConfig(dependencies.environment, nowMs);
     if (!runtime.ok) return errorResponse(runtime.code, 503);
 
     const body = await request.json().catch(() => null);
     if (!isClosedEdgeRequest(body)) return errorResponse("CHAT_SYNTHETIC_INVALID_REQUEST", 400);
+    if (!FOUNDER_CHAT_FIXTURE_IDS.includes(body.fixture_id as typeof FOUNDER_CHAT_FIXTURE_IDS[number])) {
+      return errorResponse("CHAT_SYNTHETIC_FIXTURE_NOT_ALLOWED", 400);
+    }
 
     const authorityClient = dependencies.createAuthorityClient(runtime.supabaseUrl, runtime.serviceRoleKey);
     const gateway = new ChatSyntheticRun({
@@ -77,7 +89,7 @@ export function createChatSyntheticEdgeHandler(dependencies: ChatEdgeDependencie
   };
 }
 
-function readRuntimeConfig(environment: EdgeEnvironment):
+function readRuntimeConfig(environment: EdgeEnvironment, nowMs: number):
   | { ok: true; supabaseUrl: string; serviceRoleKey: string; diceEvidence: unknown; authority: unknown; control: ChatSyntheticReviewControl }
   | { ok: false; code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" } {
   const supabaseUrl = environment.SUPABASE_URL?.trim();
@@ -87,10 +99,22 @@ function readRuntimeConfig(environment: EdgeEnvironment):
   const reviewPackageSha256 = environment.LUMIS_CHAT_REVIEW_PACKAGE_SHA256?.trim();
   const gatewaySourceSha256 = environment.LUMIS_CHAT_GATEWAY_SOURCE_SHA256?.trim();
   const fixtureRegistrySha256 = environment.LUMIS_CHAT_FIXTURE_REGISTRY_SHA256?.trim();
+  const founderDiceReceiptSha256 = environment.LUMIS_CHAT_FOUNDER_DICE_RECEIPT_SHA256?.trim();
+  const founderWindowPackageSha256 = environment.LUMIS_CHAT_FOUNDER_WINDOW_PACKAGE_SHA256?.trim();
   const diceEvidence = parseServerJson(environment.LUMIS_CHAT_ACCEPTED_DICE_EVIDENCE_JSON);
   const authority = parseServerJson(environment.LUMIS_CHAT_ACCEPTED_AUTHORITY_JSON);
+  const founderDiceReceipt = parseServerJson(environment.LUMIS_CHAT_FOUNDER_DICE_RECEIPT_JSON);
+  const founderWindowAuthority = parseServerJson(environment.LUMIS_CHAT_FOUNDER_WINDOW_AUTHORITY_JSON);
   if (!supabaseUrl || !serviceRoleKey || !acceptedDiceEvidenceSha256 || !acceptedAuthoritySha256 ||
-      !reviewPackageSha256 || !gatewaySourceSha256 || !fixtureRegistrySha256 || diceEvidence === null || authority === null) {
+      !reviewPackageSha256 || !gatewaySourceSha256 || !fixtureRegistrySha256 || !founderDiceReceiptSha256 ||
+      !founderWindowPackageSha256 || diceEvidence === null || authority === null ||
+      founderDiceReceipt === null || founderWindowAuthority === null) {
+    return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
+  }
+  try {
+    validateAcceptedTechnical80Evidence(founderDiceReceipt, founderDiceReceiptSha256);
+    validateFounderChatWindowAuthority(founderWindowAuthority, nowMs, founderWindowPackageSha256);
+  } catch {
     return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
   }
   return {

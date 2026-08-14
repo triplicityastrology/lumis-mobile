@@ -9,8 +9,10 @@
     "rootDir": "../.."
   },
   "include": [
+    "chat-synthetic/node-test.d.ts",
     "chat-synthetic/js-tiktoken-test.d.ts",
     "_shared/cors.ts",
+    "_shared/founder-chat-window-v1.ts",
     "_shared/chat-synthetic-registry-v1.ts",
     "_shared/chat-tokenizer-v1.ts",
     "_shared/companion-synthetic-prompt-v1.ts",

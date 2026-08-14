@@ -4,12 +4,20 @@ import { readFileSync, writeFileSync } from "node:fs";
 const path = "config/founder-live-chat-candidate.json";
 const control = JSON.parse(readFileSync(path, "utf8"));
 const sourcePaths = [
+  "apps/mobile/App.tsx",
   "apps/mobile/src/services/founderLiveChat.ts",
   "apps/mobile/src/services/founderLiveChat.fixtures.ts",
+  "apps/mobile/src/types/env.d.ts",
   "apps/mobile/tsconfig.founder-live-chat-test.json",
   "supabase/functions/_shared/founder-chat-window-v1.ts",
   "supabase/functions/_shared/founder-chat-window-v1.fixtures.ts",
   "supabase/functions/tsconfig.founder-chat-window-test.json",
+  "supabase/functions/chat-synthetic/index.ts",
+  "supabase/functions/chat-synthetic/edge-handler-v1.ts",
+  "supabase/functions/chat-synthetic/edge-handler-v1.fixtures.ts",
+  "supabase/functions/chat-synthetic/deno.json",
+  "supabase/functions/chat-synthetic/node-test.d.ts",
+  "supabase/functions/tsconfig.chat-synthetic-edge-v1-test.json",
   "supabase/tests/founder-chat-synthetic-window-authorization-v1.schema.json",
   "scripts/start-founder-live-chat.sh",
   "scripts/run-founder-live-chat-tests.sh",

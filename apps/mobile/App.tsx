@@ -62,6 +62,10 @@ import {
   sendChatProductIntegrationMessage,
 } from "./src/services/chatProductIntegrationRc";
 import {
+  FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED,
+  sendFounderLiveChatProductMessage,
+} from "./src/services/founderLiveChat";
+import {
   T341_CHAT_FIXTURE_CHART,
   T341_CHAT_FIXTURE_PROFILE,
 } from "./src/services/chatProductIntegrationFixture";
@@ -2427,21 +2431,27 @@ function ChatShellScreen({
     await onChatStateChange(nextPendingTurns, remainingCredits);
 
     try {
-      const result = await sendChatProductIntegrationMessage({
-        message: {
-          message: nextMessage,
-          clientMessageId,
-          personaStyle: selectedStyle,
-          appLanguagePreference,
-          chart,
-          forceNewThread: forceNewSupabaseThread,
-          threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId,
-        },
-        mode: {
-          development_local_fixture: T341_CHAT_LOCAL_FIXTURE,
-          fixture_state: T341_CHAT_FIXTURE_STATE,
-        },
-      });
+      const productMessage = {
+        message: nextMessage,
+        clientMessageId,
+        personaStyle: selectedStyle,
+        appLanguagePreference,
+        chart,
+        forceNewThread: forceNewSupabaseThread,
+        threadId: forceNewSupabaseThread ? null : activeSupabaseThreadId,
+      };
+      const result = FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED
+        ? await sendFounderLiveChatProductMessage({
+            message: productMessage,
+            runId: `chat-founder-${clientMessageId.replace(/-/g, "").slice(0, 16).toLowerCase()}`,
+          })
+        : await sendChatProductIntegrationMessage({
+            message: productMessage,
+            mode: {
+              development_local_fixture: T341_CHAT_LOCAL_FIXTURE,
+              fixture_state: T341_CHAT_FIXTURE_STATE,
+            },
+          });
       if (result.mode === "supabase" && result.persistenceMode === "not_persisted") {
         throw new Error(getChatPersistenceMessage(result.persistenceError));
       }

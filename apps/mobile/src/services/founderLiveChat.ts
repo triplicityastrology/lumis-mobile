@@ -13,8 +13,14 @@ export const FOUNDER_LIVE_CHAT_VERSION = "founder_live_chat_v1" as const;
 export const FOUNDER_LIVE_CHAT_ROUTE = "chat-synthetic" as const;
 export const FOUNDER_LIVE_CHAT_AUTHORITY = "NO_NORMAL_CHAT_INTEGRATION_AUTHORITY" as const;
 export const FOUNDER_LIVE_CHAT_TRAFFIC_AUTHORITY = "NO_AZURE_TRAFFIC_AUTHORITY" as const;
-export const FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED = false as const;
-export const FOUNDER_LIVE_CHAT_TRAFFIC_ENABLED = false as const;
+export const FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED =
+  typeof __DEV__ !== "undefined" &&
+  __DEV__ === true &&
+  process.env.EXPO_PUBLIC_FOUNDER_CHAT_LIVE_MODE === "1";
+export const FOUNDER_LIVE_CHAT_TRAFFIC_ENABLED =
+  FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED &&
+  process.env.EXPO_PUBLIC_FOUNDER_CHAT_DICE_EVIDENCE_SHA256 ===
+    "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612";
 
 export type FounderLiveChatRequest = Readonly<{
   fixture_id: string;
@@ -68,7 +74,7 @@ export type SyntheticResponse = Readonly<{
 export async function sendFounderLiveChatProductMessage(input: Readonly<{
   message: ChatProductMessageInput;
   runId: string;
-  createTransport: () => FounderLiveChatTransport;
+  createTransport?: () => FounderLiveChatTransport;
 }>): Promise<ChatProductSendResult> {
   if (!input.message.clientMessageId) throw new Error("CHAT_PRODUCT_CLIENT_TURN_ID_REQUIRED");
   const response = await invokeFounderLiveChat({
@@ -76,7 +82,7 @@ export async function sendFounderLiveChatProductMessage(input: Readonly<{
     language: input.message.appLanguagePreference,
     clientTurnId: input.message.clientMessageId,
     runId: input.runId,
-    createTransport: input.createTransport,
+    createTransport: input.createTransport ?? createSupabaseFounderLiveChatTransport,
   });
   if (response.result === "technical_error") throw new Error(response.error_code);
   return Object.freeze({
@@ -88,6 +94,21 @@ export async function sendFounderLiveChatProductMessage(input: Readonly<{
     reply: response.assistant_message ?? T240_FIXED_FALLBACK,
     persistenceMode: "not_persisted",
     persistenceError: response.error_code ?? null,
+  });
+}
+
+export function createSupabaseFounderLiveChatTransport(): FounderLiveChatTransport {
+  return Object.freeze({
+    async invoke(request: FounderLiveChatRequest): Promise<unknown> {
+      const { getSupabaseClient } = await import("./supabase");
+      const client = getSupabaseClient();
+      if (!client) throw new Error("FOUNDER_CHAT_PUBLIC_CONFIG_UNAVAILABLE");
+      const { data, error } = await client.functions.invoke(FOUNDER_LIVE_CHAT_ROUTE, {
+        body: request,
+      });
+      if (error) throw new Error("FOUNDER_CHAT_REQUEST_FAILED");
+      return data;
+    },
   });
 }
 

@@ -9,6 +9,7 @@
     "rootDir": "../.."
   },
   "include": [
+    "src/types/env.d.ts",
     "src/services/founderLiveChat.ts",
     "src/services/founderLiveChat.fixtures.ts",
     "src/services/chatProductIntegrationRc.ts",
