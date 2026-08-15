@@ -27,6 +27,20 @@ declare module "node:fs/promises" {
   export function readFile(path: string): Promise<Buffer>;
 }
 
+declare module "node:fs" {
+  export function readFileSync(path: string, encoding: "utf8"): string;
+  export function writeFileSync(path: string, data: string): void;
+  export function existsSync(path: string): boolean;
+  export function mkdirSync(path: string, options?: { recursive?: boolean }): void;
+  export function rmSync(path: string, options?: { force?: boolean; recursive?: boolean }): void;
+}
+
+declare module "node:crypto" {
+  export function createHash(algorithm: "sha256"): {
+    update(value: string): { digest(encoding: "hex"): string };
+  };
+}
+
 declare module "node:path" {
   export function resolve(...parts: string[]): string;
   export function join(...parts: string[]): string;
@@ -43,6 +57,7 @@ declare module "node:assert" {
     deepEqual(actual: unknown, expected: unknown, message?: string): void;
     ok(value: unknown, message?: string): void;
     throws(fn: () => unknown, message?: string): void;
+    doesNotThrow(fn: () => unknown, message?: string): void;
   };
   export { strict };
 }

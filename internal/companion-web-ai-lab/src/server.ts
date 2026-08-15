@@ -25,6 +25,8 @@ import {
   CHAT_AZURE_MODEL_VERSION,
 } from "./lab-constants.ts";
 import { FIXED_TEMPLATE_REGISTRY_VERSION } from "../../../supabase/functions/_shared/fixed-template-registry.ts";
+import { handleLiveFixtureTurn, liveWindowStatus, LIVE_WINDOW_SCOPE, LIVE_WINDOW_AUTHORIZED_COMMIT, LIVE_WINDOW_PACKET_SHA } from "./lab-live-window.ts";
+import { listLiveFixturesForUi } from "./lab-live-registry.ts";
 
 const PORT = Number(process.env.LAB_PORT ?? "8410");
 const PUBLIC_DIR = process.env.LAB_PUBLIC_DIR
@@ -57,6 +59,11 @@ function configPayload() {
     ],
     ai_enabled: aiEnabledFromEnv(),
     fixed_template_registry_version: FIXED_TEMPLATE_REGISTRY_VERSION,
+    // Live 12-case window (fixture-gated). Browser submits ONLY fixture_id in live mode.
+    live_window: liveWindowStatus(Date.now()),
+    live_fixtures: listLiveFixturesForUi(),
+    live_request_schema: "companion_web_ai_lab_live_request_v1",
+    free_text_is_offline_only: true,
     model_identity: {
       provider_alias: CHAT_SYNTHETIC_PROVIDER_ALIAS,
       deployment: CHAT_AZURE_DEPLOYMENT,
@@ -97,6 +104,29 @@ const server = http.createServer((req, res) => {
 
   if (req.method === "GET" && route === "/api/lab/config") {
     return sendJson(res, 200, configPayload());
+  }
+
+  if (req.method === "GET" && route === "/api/lab/live/status") {
+    return sendJson(res, 200, liveWindowStatus(Date.now()));
+  }
+
+  if (req.method === "POST" && route === "/api/lab/live") {
+    const chunks: Buffer[] = [];
+    let size = 0; let aborted = false;
+    req.on("data", (c: Buffer) => { size += c.length; if (size > MAX_BODY_BYTES) { aborted = true; sendJson(res, 413, { error_code: "LAB_REQUEST_TOO_LARGE" }); req.destroy(); return; } chunks.push(c); });
+    req.on("end", async () => {
+      if (aborted) return;
+      let parsed: unknown;
+      try { parsed = JSON.parse(Buffer.concat(chunks).toString("utf8") || "null"); }
+      catch { return sendJson(res, 400, { canonical_state: "route_unavailable", result: "route_unavailable", error_code: "LAB_LIVE_REQUEST_NOT_JSON", persistence: "not_committed", units_charged: 0, provider_attempts: 0 }); }
+      try {
+        const out = await handleLiveFixtureTurn(parsed, { environment: process.env, recordTelemetry });
+        return sendJson(res, out.status, out.body);
+      } catch {
+        return sendJson(res, 500, { canonical_state: "technical_error", result: "technical_error", error_code: "LAB_LIVE_INTERNAL_ERROR", persistence: "not_committed", units_charged: 0, provider_attempts: 0 });
+      }
+    });
+    return;
   }
 
   if (req.method === "POST" && route === "/api/lab/message") {

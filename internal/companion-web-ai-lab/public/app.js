@@ -5,6 +5,7 @@
 
 const $ = (id) => document.getElementById(id);
 const REQUEST_SCHEMA = "companion_web_ai_lab_request_v1";
+let CONFIG = null;
 
 const FIXTURES = {
   knowledge: { message: "Can you explain what Venus in Sagittarius means?", language: "auto" },
@@ -57,6 +58,44 @@ async function loadConfig() {
   aiPill.className = "pill " + (cfg.ai_enabled ? "pill-on" : "pill-off");
   $("model-pill").textContent = `model: ${cfg.model_identity.model} @ ${cfg.model_identity.deployment}`;
   $("registry-pill").textContent = `templates: ${cfg.fixed_template_registry_version}`;
+
+  CONFIG = cfg;
+  const lf = $("live-fixture"); lf.innerHTML = "";
+  for (const f of cfg.live_fixtures) lf.append(el("option", { value: f.id, text: `${f.language} · ${f.slug} — ${f.preview.slice(0, 40)}${f.preview.length > 40 ? "…" : ""}` }));
+  $("run-live").disabled = !cfg.ai_enabled;
+  renderLiveStatus(cfg.live_window);
+}
+
+function renderLiveStatus(w) {
+  if (!w) return;
+  const s = $("live-status");
+  if (!CONFIG || !CONFIG.ai_enabled) { s.textContent = "provider default-off — live disabled (0 calls)"; return; }
+  s.textContent = w.disabled
+    ? `window DISABLED (${w.disable_reason})`
+    : `remaining: ${w.remaining.logical}/12 cases · EN ${w.remaining.en}/6 · 中 ${w.remaining.zhHant}/6 · attempts ${w.remaining.attempts}/24`;
+}
+
+async function refreshLiveStatus() {
+  try { renderLiveStatus(await fetch("/api/lab/live/status").then((r) => r.json())); } catch { /* ignore */ }
+}
+
+async function runLive() {
+  if (!CONFIG || !CONFIG.ai_enabled) return;
+  const fixture_id = $("live-fixture").value;
+  $("loading").hidden = false; $("run-live").disabled = true;
+  let body;
+  try {
+    body = await fetch("/api/lab/live", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ schema_version: CONFIG.live_request_schema, fixture_id }) }).then((r) => r.json());
+  } catch (e) {
+    body = { canonical_state: "technical_error", result: "technical_error", error_code: "LAB_NETWORK_ERROR" };
+  } finally {
+    $("loading").hidden = true; $("run-live").disabled = false;
+  }
+  renderTurn(`[LIVE fixture] ${fixture_id}`, body);
+  if (body.chart_composition) renderComposition(body.chart_composition);
+  if (body.decision_trace) renderTrace(body, {});
+  if (body.live_receipt) renderLiveStatus({ disabled: body.live_receipt.disabled, disable_reason: body.live_receipt.disable_reason, remaining: body.live_receipt.remaining });
+  else refreshLiveStatus();
 }
 
 function updateRoleHint(roles) {
@@ -108,6 +147,7 @@ function renderTurn(userMessage, body) {
   if (body.fixed_template) meta.append(el("span", { class: "small", text: `template: ${body.fixed_template.template_id}${body.fixed_template.clinical_review_required ? " (clinical-review)" : ""}` }));
   if (body.handoff) meta.append(el("span", { class: "badge b-handoff", text: `handoff: ${body.handoff.kind}` }));
   if (body.error_code) meta.append(el("span", { class: "small", text: `code: ${body.error_code}` }));
+  if (body.live_receipt) meta.append(el("span", { class: "badge b-handoff", text: `live · used ${body.live_receipt.used ? body.live_receipt.used.logical : "?"}/12` }));
   turn.append(meta);
   conv.prepend(turn);
 }
@@ -179,6 +219,7 @@ function renderTrace(body, req) {
 }
 
 $("send").addEventListener("click", send);
+$("run-live").addEventListener("click", runLive);
 $("clear").addEventListener("click", () => { $("conversation").innerHTML = ""; });
 $("message").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); });
 document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => {

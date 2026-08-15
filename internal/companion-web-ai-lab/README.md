@@ -60,6 +60,41 @@ bash internal/companion-web-ai-lab/scripts/test-companion-web-ai-lab.sh
 
 Runs the compiled `test/lab-engine.fixtures.ts` (node:test) + the static `scripts/companion-web-ai-lab-contract.mjs`.
 
+## Live 12-case window (fixture-gated AI)
+
+Microsoft flagged that live AI must not accept unrestricted browser free text. Corrected:
+
+- **Free text is offline-only.** `POST /api/lab/message` never contacts a provider (routing/persona/
+  template preview only), even when a key is present. The UI labels it accordingly.
+- **Live AI runs only for the closed 12-fixture window.** `POST /api/lab/live` accepts **only**
+  `{ schema_version, fixture_id }`; the server retrieves the frozen synthetic text (and its frozen
+  role+chart) and runs it through the reused `ChatSyntheticRun` gateway. Arbitrary browser text can
+  never reach Azure.
+- **Reused authority:** the 12 fixtures are `FOUNDER_CHAT_FIXTURE_IDS` (6 EN / 6 zh-Hant) with frozen
+  text from `chat-synthetic-registry-v1.ts`; the window is validated by the repo's own
+  `validateFounderChatWindowAuthority` bound to the authorized packet.
+- **Packet enforced server-side** (scope `FOUNDER_CHAT_SYNTHETIC_WINDOW_12_ONLY`): 12 logical cases,
+  6 EN / 6 zh-Hant, ≤24 attempts, concurrency 1, one retry, shared 12s deadline, 1200 input / 300
+  output token caps, 900s window, single use.
+- **Atomic single-use ledger** (`src/lab-live-window.ts`): a promise-chain mutex (concurrency 1) plus
+  a durable, content-free ledger file so browser refresh, server restart, replay and concurrent
+  requests cannot bypass the limits. The window disables in `finally` on completion, expiry, cap
+  breach or deviation.
+- **Receipt** returned per live turn (window id, packet SHA, registry/package checksums, used/remaining).
+
+Checksums (recomputable via the config/status endpoints):
+
+| Item | SHA-256 |
+|---|---|
+| Authorized packet (carried) | `05b7a182de81f8de64d0c91475b24568d4470fd13ff716f16f372acb3e6e19b0` |
+| Registry checksum (12 bound fixtures) | `b25a0718bf8bd56fab00f3588e136fd57e2490fd15092ccd5caded0b25305a3f` |
+| Package checksum | `7e3750378bc5b05260a0fb2375d7db769023ba48469c7b83ee8ad4892a5dccfa` |
+| Window id | `a618ec71b3a2eea3400dca0f4a0a12f6` |
+
+To exercise the live window, set `LUMIS_CHAT_AI_ENABLED=true` + `LUMIS_CHAT_AZURE_API_KEY=<staging key>`
+server-side, start the Lab, pick an authorized fixture, and click **Run live fixture**. Optional
+`LAB_LIVE_LEDGER_PATH` overrides the durable ledger location (default `<worktree>/.tmp/lab-live-window-ledger.json`).
+
 ## Routing states (distinct, per AC-AI-00 §2)
 
 `crisis_imminent` · `distress_safety_check` · `illegal_boundary` · `professional_direct` ·

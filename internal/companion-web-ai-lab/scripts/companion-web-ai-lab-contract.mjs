@@ -56,5 +56,31 @@ check("CRISIS/DISTRESS marked clinical-review", registry.includes('status: "prov
 // ---- 5. Not represented as the signed-off customer UI ----
 check("UI carries the internal / not-signed-off banner", read("public/index.html").includes("not") && read("public/index.html").includes("signed-off customer Chat UI"));
 
+// ---- 6. Live 12-case window (fixture-gated) ----
+// Browser live call submits ONLY schema_version + fixture_id (no free text/role/chart).
+const liveBody = (appCode.match(/fetch\("\/api\/lab\/live"[\s\S]{0,240}?body:\s*JSON\.stringify\(\{[\s\S]*?\}\)/) || [""])[0];
+check("browser calls /api/lab/live", appCode.includes('fetch("/api/lab/live"'));
+check("live call submits only schema_version + fixture_id", /fixture_id/.test(liveBody) && /schema_version/.test(liveBody) && !/\bmessage\b/.test(liveBody) && !/\bchart\b/.test(liveBody) && !/\brole_code\b/.test(liveBody), liveBody.slice(0, 120));
+check("free text still posts to offline /api/lab/message", appCode.includes('fetch("/api/lab/message"'));
+
+const win = read("src/lab-live-window.ts");
+check("live window reuses the Founder authority validator", win.includes("validateFounderChatWindowAuthority"));
+check("live window binds the authorized packet SHA", win.includes('"05b7a182de81f8de64d0c91475b24568d4470fd13ff716f16f372acb3e6e19b0"'));
+check("live window binds the authorized commit", win.includes('"93e578fe7ba7438734c4e79c4e629bf1393b73c8"'));
+for (const cap of ["logical: 12", "en: 6", "zhHant: 6", "attempts: 24", "concurrency: 1", "deadlineMs: 12_000", "retries: 1", "inputTokens: 1200", "outputTokens: 300", "windowMs: 900_000"]) {
+  check(`live caps include "${cap}"`, win.includes(cap));
+}
+check("live window disables in finally (single-use / completion)", win.includes('finally') && win.includes('"COMPLETED"'));
+check("live window disables on expiry / cap breach / deviation", win.includes('"EXPIRED"') && win.includes('"CAP_BREACH"') && win.includes('"DEVIATION"') && win.includes("ATTEMPT_CAP_BREACH"));
+check("live window uses an atomic mutex + durable persist", win.includes("runExclusive") && win.includes("writeFileSync") && win.includes("readFileSync"));
+check("live responses disposable (0 units, not_committed)", win.includes("units_charged: 0") && win.includes('persistence: "not_committed"'));
+check("live window does not log raw prompt/response text", !/stdout[\s\S]{0,40}serverPromptInput/.test(win) && !/console\.log[\s\S]{0,40}assistant_message/.test(win));
+
+const founder = read("../../supabase/functions/_shared/founder-chat-window-v1.ts");
+const enIds = (founder.match(/"chat_en_[a-z_]+_v1"/g) || []).length;
+const zhIds = (founder.match(/"chat_zh_hant_[a-z_]+_v1"/g) || []).length;
+check("founder allowlist has exactly 12 fixtures (6 EN / 6 zh-Hant)", enIds === 6 && zhIds === 6, `en=${enIds} zh=${zhIds}`);
+check("server exposes /api/lab/live and status", read("src/server.ts").includes('"/api/lab/live"') && read("src/server.ts").includes('"/api/lab/live/status"'));
+
 console.log(failures === 0 ? "\nCONTRACT OK" : `\nCONTRACT FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

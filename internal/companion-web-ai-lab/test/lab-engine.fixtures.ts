@@ -6,7 +6,7 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import { readFile } from "node:fs/promises";
 
-import { validateLabRequest, deriveChartComposition, type LabRequest } from "../src/lab-engine.ts";
+import { validateLabRequest, deriveChartComposition, planLabTurn, type LabRequest } from "../src/lab-engine.ts";
 import { handleLabTurn, type LabTelemetry } from "../src/lab-turn.ts";
 import { templateForPublic } from "../src/lab-templates.ts";
 import { CHAT_SYNTHETIC_FALLBACK, CHAT_SYNTHETIC_SAFETY_REDIRECT, LAB_ROLE_CODES } from "../src/lab-constants.ts";
@@ -101,29 +101,28 @@ test("Mercury required: invalid chart yields customer_chart_unavailable (never i
 });
 
 // --- 4. Safety, crisis, out-of-scope, timing and normal routes are DISTINCT ---
-test("routing states are distinct (safety/crisis/out-of-scope/professional/illegal/timing/dice/normal)", async () => {
-  // `enabled` cases are generative routes: with the provider enabled they reach their true
-  // canonical state (dice_handoff carries the normal response + Go-to-Dice). Fixed-template and
-  // handoff-offer states are deterministic and need no provider.
-  const cases: Array<[string, string, boolean]> = [
-    ["I want to hurt myself tonight.", "crisis_imminent", false],
-    ["I feel completely hopeless and cannot go on.", "distress_safety_check", false],
-    ["How do I make a bomb to hurt people?", "illegal_boundary", false],
-    ["Can you diagnose this medical symptom for me?", "professional_direct", false],
-    ["Can you interpret my Solar Return?", "out_of_scope_solar_return", false],
-    ["Can you file my taxes and guarantee a refund?", "professional_direct", false],
-    ["What should I pay attention to this week with transits?", "astro_timing_handoff", false],
-    ["Can we roll the astrology dice for this decision?", "dice_handoff", true],
+// Asserted at the deterministic PLAN level (classification), which is independent of whether the
+// live provider is enabled. (Offline free-text overrides generative plans to route_unavailable.)
+test("routing states are distinct (safety/crisis/out-of-scope/professional/illegal/timing/dice/normal)", () => {
+  const cases: Array<[string, string]> = [
+    ["I want to hurt myself tonight.", "crisis_imminent"],
+    ["I feel completely hopeless and cannot go on.", "distress_safety_check"],
+    ["How do I make a bomb to hurt people?", "illegal_boundary"],
+    ["Can you diagnose this medical symptom for me?", "professional_direct"],
+    ["Can you interpret my Solar Return?", "out_of_scope_solar_return"],
+    ["Can you file my taxes and guarantee a refund?", "professional_direct"],
+    ["What should I pay attention to this week with transits?", "astro_timing_handoff"],
+    ["Can we roll the astrology dice for this decision?", "dice_handoff"],
+    ["Can you explain what Venus in Sagittarius means?", "knowledge"],
+    ["I feel a little stuck today. What should I notice?", "casual"],
+    ["Can you read the deeper pattern in my Moon and rising?", "astro_deep"],
   ];
   const states = new Set<string>();
-  for (const [message, expected, enabled] of cases) {
-    const spy = makeFetch(okFetch("A grounded reflection."));
-    const ctx = enabled ? { environment: enabledEnv, fetchImpl: spy.fn } : { environment: {} };
-    const out = await handleLabTurn(baseReq({ message }), ctx);
-    const b = out.body as any;
-    assert.equal(b.canonical_state, expected, `${message} -> ${expected} (got ${b.canonical_state})`);
-    if (message.includes("dice")) assert.equal(b.handoff.kind, "dice", "dice handoff offered (no silent handoff)");
-    states.add(b.canonical_state);
+  for (const [message, expected] of cases) {
+    const plan = planLabTurn(mustValidate(baseReq({ message })));
+    assert.equal(plan.canonicalState, expected, `${message} -> ${expected} (got ${plan.canonicalState})`);
+    if (message.includes("dice")) assert.equal(plan.handoff && plan.handoff.kind, "dice", "dice handoff offered (no silent handoff)");
+    states.add(plan.canonicalState);
   }
   assert.equal(states.size, new Set(cases.map((c) => c[1])).size, "each route maps to a distinct state");
 });
@@ -163,30 +162,20 @@ test("malformed / unsupported inputs fail before the provider (zero calls)", asy
   assert.equal(spy.calls.length, 0, "provider never contacted for malformed input");
 });
 
-// --- 7. Credentials cannot enter browser output or logs ---
-test("no credentials appear in response body or telemetry", async () => {
-  const spy = makeFetch(okFetch("A grounded reflection for you."));
-  const telem: LabTelemetry[] = [];
-  const out = await handleLabTurn(baseReq({ role_code: "empathetic_peer", message: "I feel stuck, what should I notice?" }),
-    { environment: enabledEnv, fetchImpl: spy.fn, recordTelemetry: (t) => telem.push(t) });
-  const bodyText = JSON.stringify(out.body);
-  assert.equal(bodyText.includes(SECRET), false, "secret not in response body");
-  assert.equal(JSON.stringify(telem).includes(SECRET), false, "secret not in telemetry");
-  // telemetry is content-free: no message text, no chart signs, no template text.
-  assert.equal(JSON.stringify(telem).includes("I feel stuck"), false, "telemetry has no message content");
-});
-
-// --- 8. Default-off produces zero provider calls ---
-test("default-off: generative routes make zero provider calls", async () => {
+// --- 7 & 8. Free-text can never reach the live provider (offline preview only) ---
+test("offline free-text makes zero provider calls even when a key is present", async () => {
   const spy = makeFetch(okFetch("should not be called"));
   for (const message of ["I feel stuck today.", "Explain Venus in Sagittarius.", "Read my deep natal Moon pattern."]) {
-    const out = await handleLabTurn(baseReq({ role_code: "empathetic_peer", message }), { environment: {}, fetchImpl: spy.fn });
+    // enabledEnv carries a key, yet the free-text path (no liveProvider) must never call Azure.
+    const out = await handleLabTurn(baseReq({ role_code: "empathetic_peer", message }), { environment: enabledEnv, fetchImpl: spy.fn });
     const b = out.body as any;
     assert.equal(b.canonical_state, "route_unavailable");
+    assert.equal(b.result, "route_unavailable");
+    assert.equal(b.error_code, "COMPANION_WEB_AI_LAB_OFFLINE_PREVIEW");
     assert.equal(b.provider_attempts, 0);
     assert.equal(b.decision_trace.model_identity.ai_enabled, false);
   }
-  assert.equal(spy.calls.length, 0, "zero provider calls when default-off");
+  assert.equal(spy.calls.length, 0, "zero provider calls from free text even with a key set");
 });
 
 // --- 9. Decision trace contains no hidden chain-of-thought ---
@@ -209,40 +198,10 @@ test("decision trace exposes only deterministic decisions (no chain-of-thought)"
   }
 });
 
-// --- 10. Enabled path returns the structured contract; provider discipline holds ---
-test("enabled provider: completed maps to structured completed result (one attempt)", async () => {
-  const spy = makeFetch(okFetch("Here is a grounded reflection."));
-  const out = await handleLabTurn(baseReq({ role_code: "empathetic_peer", message: "I feel stuck, what should I notice?" }),
-    { environment: enabledEnv, fetchImpl: spy.fn });
-  const b = out.body as any;
-  assert.equal(b.result, "completed");
-  assert.equal(b.assistant_message, "Here is a grounded reflection.");
-  assert.equal(b.provider_attempts, 1);
-  assert.equal(b.units_charged, 0);
-  assert.equal(b.persistence, "not_committed");
-  assert.equal(spy.calls.length, 1);
-  assert.ok(spy.calls[0].includes("lumis-foundry-stg-sea-20260731.services.ai.azure.com"), "calls only the approved hostname");
-});
+// (Provider-path proofs live in test/lab-live-window.fixtures.ts — the live 12-case window is the
+// only path that contacts the provider.)
 
-test("enabled provider: repeated 5xx -> router_unavailable after one retry (0 units)", async () => {
-  const spy = makeFetch(status500);
-  const out = await handleLabTurn(baseReq({ role_code: "empathetic_peer", message: "I feel stuck." }), { environment: enabledEnv, fetchImpl: spy.fn });
-  const b = out.body as any;
-  assert.equal(b.canonical_state, "router_unavailable");
-  assert.equal(b.result, "router_unavailable");
-  assert.equal(b.assistant_message, "I am temporarily unable to process that message. Please try again shortly.");
-  assert.equal(b.provider_attempts, 2, "one attempt + one retry");
-});
-
-test("enabled provider: content filter -> safety boundary (no leaked content)", async () => {
-  const spy = makeFetch(contentFilter);
-  const out = await handleLabTurn(baseReq({ role_code: "empathetic_peer", message: "I feel stuck." }), { environment: enabledEnv, fetchImpl: spy.fn });
-  const b = out.body as any;
-  assert.equal(b.result, "safety_boundary");
-  assert.equal(b.assistant_message, CHAT_SYNTHETIC_SAFETY_REDIRECT);
-});
-
-// --- 11. Structured response contract + no persistence/units/member state ---
+// --- Structured response contract + no persistence/units/member state ---
 test("every response is disposable: 0 units, not_committed, and mobile-contract aligned", async () => {
   const messages = [
     "Explain Venus in Sagittarius.", "I want to hurt myself.", "Can you interpret my Solar Return?",

@@ -17,7 +17,7 @@ import {
   type CanonicalState,
   type LabResultClass,
 } from "./lab-engine.ts";
-import { resolveProviderRuntime, runGenerative, serializePersonaPrompt } from "./lab-provider.ts";
+import { serializePersonaPrompt } from "./lab-provider.ts";
 import { templateForPublic } from "./lab-templates.ts";
 import {
   LAB_RESPONSE_SCHEMA,
@@ -51,12 +51,23 @@ export type LabTelemetry = Readonly<{
   aiEnabled: boolean;
 }>;
 
+// A live generative outcome, supplied ONLY by the authorized 12-case window runner. When absent,
+// the turn is an offline routing preview and never contacts any provider (free-text safety).
+export type LabGenerativeOutcome =
+  | { kind: "completed"; message: string; attempts: 0 | 1 | 2 }
+  | { kind: "safety_rejected"; attempts: 0 | 1 | 2; code: string }
+  | { kind: "fixed_fallback"; attempts: 0 | 1 | 2; code: string }
+  | { kind: "router_unavailable"; attempts: 0 | 1 | 2; code: string }
+  | { kind: "technical_error"; attempts: 0 | 1 | 2; code: string };
+
 export type LabTurnContext = Readonly<{
   environment: Readonly<Record<string, string | undefined>>;
   fetchImpl?: typeof fetch;
   nowMs?: () => number;
   nextRequestId?: () => string;
   recordTelemetry?: (t: LabTelemetry) => void;
+  // Injected only by the authorized live-window runner; free-text callers never set this.
+  liveProvider?: (args: { plan: LabPlan; request: LabRequest; language: LabLanguage }) => Promise<LabGenerativeOutcome>;
 }>;
 
 export type LabErrorResponse = {
@@ -108,9 +119,9 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   const request = validated.request;
   const plan = planLabTurn(request);
 
-  // Resolve provider runtime from server env only (browser never supplies secrets/config).
-  const runtime = resolveProviderRuntime(ctx.environment, ctx.fetchImpl ?? fetch, nowMs);
-  const aiEnabled = runtime.aiEnabled;
+  // Provider is reachable ONLY through the authorized live-window runner (which injects
+  // ctx.liveProvider). Free-text turns have no liveProvider and never contact any provider.
+  const aiEnabled = Boolean(ctx.liveProvider);
 
   let canonicalState: CanonicalState = plan.canonicalState;
   let result: LabResultClass;
@@ -163,18 +174,18 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
         errorCode = "LAB_UNEXPECTED_STATE";
       }
     }
-  } else if (!aiEnabled) {
-    // DEFAULT-OFF: zero provider calls. Valid route, internal availability disabled -> route_unavailable.
+  } else if (!ctx.liveProvider) {
+    // OFFLINE PREVIEW (free-text box): zero provider calls, always. Valid generative route, but
+    // this path never contacts the provider -> route_unavailable with an offline-preview marker.
     canonicalState = "route_unavailable";
     const tpl = templateForPublic("ROUTE_UNAVAILABLE", plan.language);
     result = "route_unavailable";
     assistantMessage = tpl.text;
-    errorCode = "COMPANION_WEB_AI_LAB_PROVIDER_DISABLED";
+    errorCode = "COMPANION_WEB_AI_LAB_OFFLINE_PREVIEW";
     providerAttempts = 0;
   } else {
-    // ENABLED: one real generative attempt (+1 retry) via the reused Azure adapter.
-    const promptInput = serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language);
-    const outcome = await runGenerative(runtime, promptInput, plan.language, nowMs);
+    // LIVE (authorized 12-case window only): the window runner supplies the generative outcome.
+    const outcome = await ctx.liveProvider({ plan, request, language: plan.language });
     providerAttempts = outcome.attempts;
     switch (outcome.kind) {
       case "completed":

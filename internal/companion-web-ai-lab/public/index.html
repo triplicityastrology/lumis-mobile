@@ -51,16 +51,28 @@
       </label>
 
       <label class="field">
-        <span>Message</span>
+        <span>Message — offline routing preview (no AI call)</span>
         <textarea id="message" rows="3" placeholder="Type a test message…">Can you explain what Venus in Sagittarius means?</textarea>
       </label>
 
       <div class="row">
-        <button id="send" class="btn-primary">Send</button>
+        <button id="send" class="btn-primary">Preview routing (offline · no AI call)</button>
         <button id="clear" class="btn-secondary" type="button">Clear conversation</button>
         <span id="loading" class="loading" hidden>Routing…</span>
       </div>
-      <p class="hint">Quick fixtures:
+      <p class="hint">Free text is offline-only: it exercises routing/persona/templates deterministically and never contacts the provider.</p>
+
+      <div class="live-window">
+        <h3>Live 12-case window <span class="muted">— fixture-gated AI</span></h3>
+        <p class="hint" id="live-note">Live AI submits only a <code>fixture_id</code>. The frozen synthetic text, role and chart are server-held; arbitrary text can never reach Azure. Enforced: 12 cases (6 EN / 6 zh-Hant), single-use, 900s, ≤24 attempts, concurrency 1.</p>
+        <label class="field"><span>Authorized fixture</span><select id="live-fixture"></select></label>
+        <div class="row">
+          <button id="run-live" class="btn-primary">Run live fixture</button>
+          <span id="live-status" class="small"></span>
+        </div>
+      </div>
+
+      <p class="hint">Offline preview fixtures:
         <button class="chip" data-fixture="knowledge">knowledge</button>
         <button class="chip" data-fixture="casual">casual</button>
         <button class="chip" data-fixture="deep">deep chart</button>
