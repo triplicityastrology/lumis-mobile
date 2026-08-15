@@ -72,7 +72,7 @@ for (const cap of ["logical: 12", "en: 6", "zhHant: 6", "attempts: 24", "concurr
 }
 check("live window disables in finally (single-use / completion)", win.includes('finally') && win.includes('"COMPLETED"'));
 check("live window disables on expiry / cap breach / deviation", win.includes('"EXPIRED"') && win.includes('"CAP_BREACH"') && win.includes('"DEVIATION"') && win.includes("ATTEMPT_CAP_BREACH"));
-check("live window uses an atomic mutex + durable persist", win.includes("runExclusive") && win.includes("writeFileSync") && win.includes("readFileSync"));
+check("live window uses cross-process exclusion + atomic durable persist", win.includes("runExclusive") && win.includes("acquireLedgerLock") && win.includes("renameSync") && win.includes("LAB_LIVE_LEDGER_INVALID"));
 check("live responses disposable (0 units, not_committed)", win.includes("units_charged: 0") && win.includes('persistence: "not_committed"'));
 check("live window does not log raw prompt/response text", !/stdout[\s\S]{0,40}serverPromptInput/.test(win) && !/console\.log[\s\S]{0,40}assistant_message/.test(win));
 

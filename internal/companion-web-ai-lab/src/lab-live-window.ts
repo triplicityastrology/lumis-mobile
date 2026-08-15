@@ -12,7 +12,7 @@
 //     one retry / units 0 / not_committed / safety-before-prompt)
 //   - createAzureChatSyntheticAdapter + readChatAzureServerConfig (server-side Azure identity/key)
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 import {
@@ -60,6 +60,7 @@ export function packageChecksum(): string {
     },
     fixture_ids: [...FOUNDER_CHAT_FIXTURE_IDS],
     registry_checksum: registryChecksum(),
+    ledger_protocol: "atomic_file_lock_v2",
   });
   return createHash("sha256").update(canonical).digest("hex");
 }
@@ -110,16 +111,48 @@ function loadLedger(): Ledger | null {
   if (!existsSync(p)) return null;
   try {
     const parsed = JSON.parse(readFileSync(p, "utf8")) as Ledger;
-    if (parsed && parsed.windowId === windowId() && parsed.scope === LIVE_WINDOW_SCOPE) return parsed;
-    return null; // different window/packet -> ignore (a fresh window will open)
-  } catch { return null; }
+    if (validLedger(parsed)) return parsed;
+  } catch { /* fail closed below */ }
+  throw new Error("LAB_LIVE_LEDGER_INVALID");
 }
 
 function persist(l: Ledger): void {
   const p = ledgerPath();
   const dir = p.slice(0, p.lastIndexOf("/"));
-  if (dir && !existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(p, JSON.stringify(l));
+  if (dir && !existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const temporary = `${p}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(temporary, JSON.stringify(l), { flag: "wx", mode: 0o600 });
+    renameSync(temporary, p);
+  } finally {
+    if (existsSync(temporary)) rmSync(temporary, { force: true });
+  }
+}
+
+function validLedger(value: unknown): value is Ledger {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const ledger = value as Record<string, unknown>;
+  const keys = ["windowId", "scope", "packageSha", "authorizedCommit", "openedAt", "disabled", "disableReason", "logical", "en", "zhHant", "attempts", "consumed"];
+  if (Object.keys(ledger).length !== keys.length || Object.keys(ledger).some((key) => !keys.includes(key))) return false;
+  if (ledger.windowId !== windowId() || ledger.scope !== LIVE_WINDOW_SCOPE || ledger.packageSha !== LIVE_WINDOW_PACKET_SHA || ledger.authorizedCommit !== LIVE_WINDOW_AUTHORIZED_COMMIT ||
+      !Number.isFinite(ledger.openedAt) || typeof ledger.disabled !== "boolean" || !(ledger.disableReason === null || typeof ledger.disableReason === "string") ||
+      !Number.isInteger(ledger.logical) || !Number.isInteger(ledger.en) || !Number.isInteger(ledger.zhHant) || !Number.isInteger(ledger.attempts) || !Array.isArray(ledger.consumed)) return false;
+  const consumed = ledger.consumed as unknown[];
+  if (consumed.some((id) => typeof id !== "string" || !FOUNDER_CHAT_FIXTURE_IDS.includes(id as typeof FOUNDER_CHAT_FIXTURE_IDS[number])) || new Set(consumed).size !== consumed.length) return false;
+  const en = consumed.filter((id) => getLiveFixture(String(id))?.language === "en").length;
+  const zhHant = consumed.filter((id) => getLiveFixture(String(id))?.language === "zh-Hant").length;
+  return ledger.logical === consumed.length && ledger.en === en && ledger.zhHant === zhHant &&
+    ledger.logical >= 0 && ledger.logical <= LIVE_CAPS.logical && ledger.en >= 0 && ledger.en <= LIVE_CAPS.en && ledger.zhHant >= 0 && ledger.zhHant <= LIVE_CAPS.zhHant &&
+    (ledger.attempts as number) >= 0 && (ledger.attempts as number) <= LIVE_CAPS.attempts;
+}
+
+function acquireLedgerLock(): () => void {
+  const lock = `${ledgerPath()}.lock`;
+  const dir = lock.slice(0, lock.lastIndexOf("/"));
+  if (dir && !existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try { mkdirSync(lock, { mode: 0o700 }); }
+  catch { throw new Error("LAB_LIVE_LEDGER_BUSY"); }
+  return () => rmSync(lock, { recursive: true, force: true });
 }
 
 function freshLedger(nowMs: number): Ledger {
@@ -143,7 +176,17 @@ function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
 
 // ---- Public status (content-free) ----
 export function liveWindowStatus(nowMs: number) {
-  const l = loadLedger();
+  let l: Ledger | null;
+  try { l = loadLedger(); }
+  catch {
+    return {
+      scope: LIVE_WINDOW_SCOPE, window_id: windowId(), authorized_commit: LIVE_WINDOW_AUTHORIZED_COMMIT,
+      authorized_packet_sha: LIVE_WINDOW_PACKET_SHA, registry_checksum: registryChecksum(), package_checksum: packageChecksum(),
+      fixture_count: LIVE_FIXTURE_COUNT, language_counts: liveLanguageCounts(), caps: LIVE_CAPS,
+      opened: true, disabled: true, disable_reason: "LEDGER_INVALID",
+      used: { logical: 0, en: 0, zhHant: 0, attempts: 0 }, remaining: { logical: 0, en: 0, zhHant: 0, attempts: 0 }, expires_in_ms: 0,
+    };
+  }
   const opened = Boolean(l);
   const expired = l ? nowMs - l.openedAt > LIVE_CAPS.windowMs : false;
   return {
@@ -230,8 +273,14 @@ export async function handleLiveFixtureTurn(raw: unknown, ctx: LiveTurnContext):
   if (!providerConfig.ok) return reject(503, `LAB_LIVE_PROVIDER_UNAVAILABLE:${providerConfig.code}`, null, nowMs());
 
   return runExclusive<LiveTurnResult>(async () => {
+    let release: (() => void) | null = null;
+    try { release = acquireLedgerLock(); }
+    catch { return reject(409, "LAB_LIVE_AUTHORITY_BUSY", null, nowMs()); }
+    try {
     const now = nowMs();
-    let ledger = loadLedger();
+    let ledger: Ledger | null;
+    try { ledger = loadLedger(); }
+    catch { return reject(409, "LAB_LIVE_LEDGER_INVALID", null, now); }
     if (!ledger) { buildAndValidateAuthorization(now); ledger = freshLedger(now); persist(ledger); }
 
     if (ledger.disabled) return reject(409, `LAB_LIVE_WINDOW_DISABLED:${ledger.disableReason}`, ledger, now);
@@ -290,5 +339,6 @@ export async function handleLiveFixtureTurn(raw: unknown, ctx: LiveTurnContext):
       if (ledger.logical >= LIVE_CAPS.logical && !ledger.disabled) disable(ledger, "COMPLETED");
       persist(ledger);
     }
+    } finally { release(); }
   });
 }

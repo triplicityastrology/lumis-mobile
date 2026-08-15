@@ -88,7 +88,7 @@ Checksums (recomputable via the config/status endpoints):
 |---|---|
 | Authorized packet (carried) | `05b7a182de81f8de64d0c91475b24568d4470fd13ff716f16f372acb3e6e19b0` |
 | Registry checksum (12 bound fixtures) | `b25a0718bf8bd56fab00f3588e136fd57e2490fd15092ccd5caded0b25305a3f` |
-| Package checksum | `7e3750378bc5b05260a0fb2375d7db769023ba48469c7b83ee8ad4892a5dccfa` |
+| Package checksum | `c13660e0feb67f50ea1bdad13c3a6448af635c59e68f46409fb607024f0d2d6a` |
 | Window id | `a618ec71b3a2eea3400dca0f4a0a12f6` |
 
 To exercise the live window, set `LUMIS_CHAT_AI_ENABLED=true` + `LUMIS_CHAT_AZURE_API_KEY=<staging key>`

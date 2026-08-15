@@ -29,9 +29,10 @@ declare module "node:fs/promises" {
 
 declare module "node:fs" {
   export function readFileSync(path: string, encoding: "utf8"): string;
-  export function writeFileSync(path: string, data: string): void;
+  export function writeFileSync(path: string, data: string, options?: { flag?: string; mode?: number }): void;
   export function existsSync(path: string): boolean;
-  export function mkdirSync(path: string, options?: { recursive?: boolean }): void;
+  export function mkdirSync(path: string, options?: { recursive?: boolean; mode?: number }): void;
+  export function renameSync(oldPath: string, newPath: string): void;
   export function rmSync(path: string, options?: { force?: boolean; recursive?: boolean }): void;
 }
 
@@ -66,6 +67,7 @@ declare var process: {
   env: Record<string, string | undefined>;
   stdout: { write(text: string): void };
   argv: string[];
+  pid: number;
   cwd(): string;
   exit(code?: number): void;
 };

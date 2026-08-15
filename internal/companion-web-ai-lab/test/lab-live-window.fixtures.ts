@@ -4,7 +4,7 @@
 
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 
 import {
   handleLiveFixtureTurn, liveWindowStatus, buildAndValidateAuthorization,
@@ -22,6 +22,7 @@ function freshLedger(): string {
   const p = `${process.cwd()}/.tmp/test-live-${Math.random().toString(36).slice(2)}.json`;
   process.env.LAB_LIVE_LEDGER_PATH = p;
   try { rmSync(p, { force: true }); } catch { /* ignore */ }
+  try { rmSync(`${p}.lock`, { force: true, recursive: true }); } catch { /* ignore */ }
   return p;
 }
 function makeFetch(factory: () => Response) {
@@ -75,6 +76,31 @@ test("live request with any extra field (e.g. free text) is rejected before the 
   assert.equal(out.status, 400);
   assert.equal((out.body as any).error_code, "LAB_LIVE_REQUEST_UNKNOWN_FIELD");
   assert.equal(spy.calls.length, 0, "arbitrary browser text never reaches the provider");
+});
+
+test("corrupt durable ledger fails closed and never calls the provider", async () => {
+  const p = freshLedger();
+  writeFileSync(p, "{torn", { mode: 0o600 });
+  const spy = makeFetch(okFetch);
+  const out = await handleLiveFixtureTurn(liveReq(EN_REFLECTION), { environment: enabledEnv, fetchImpl: spy.fn });
+  assert.equal(out.status, 409);
+  assert.equal((out.body as any).error_code, "LAB_LIVE_LEDGER_INVALID");
+  assert.equal(spy.calls.length, 0);
+  assert.equal(liveWindowStatus(Date.now()).disable_reason, "LEDGER_INVALID");
+});
+
+test("an external process ledger lock excludes a competing request with zero provider calls", async () => {
+  const p = freshLedger();
+  mkdirSync(`${p}.lock`, { mode: 0o700 });
+  const spy = makeFetch(okFetch);
+  try {
+    const out = await handleLiveFixtureTurn(liveReq(EN_REFLECTION), { environment: enabledEnv, fetchImpl: spy.fn });
+    assert.equal(out.status, 409);
+    assert.equal((out.body as any).error_code, "LAB_LIVE_AUTHORITY_BUSY");
+    assert.equal(spy.calls.length, 0);
+  } finally {
+    rmSync(`${p}.lock`, { recursive: true, force: true });
+  }
 });
 
 // --- a reflection fixture completes via the gateway; disposable; receipt identity; no secret leak ---
