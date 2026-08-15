@@ -18,7 +18,7 @@ From this worktree, run after T348 has written the protected current-receipt poi
 pnpm start:founder-live-mobile-dice -- --lan
 ```
 
-The launcher reads the staging public anon credential and Founder public-key reference from macOS Keychain, validates the accepted Technical-80 evidence and signed Founder receipt, then starts a local server-owned relay on port `8223` and Expo on port `8222`. The phone sends only `fixture_id`, `planet_id`, `sign_id`, and `house_id`; the short-lived receipt and public credential never enter the mobile bundle. For Simulator, replace `--lan` with `--ios`.
+The launcher reads the staging public anon credential and Founder public-key reference from macOS Keychain, validates the accepted Technical-80 evidence and signed Founder receipt, then starts a local server-owned relay on port `8231` and Expo on port `8230`. The receipt is pinned to accepted T348 source `be92814f6a466fdd56f0fd1e86fd10d5277dbd78` and package `420cfb312d1c6a5973584def1a912a5182bff6edf3f831feae51a20e70543d0a`. The phone sends only `fixture_id`, `planet_id`, `sign_id`, and `house_id`; the short-lived receipt and public credential never enter the mobile bundle. For Simulator, replace `--lan` with `--ios`.
 
 The pre-login route renders the real customer Dice screen. A narrow build marker sits outside product pixels. The signed Dice result-card source is checksum-protected and unchanged by T349.
 

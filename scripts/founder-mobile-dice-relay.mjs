@@ -9,6 +9,8 @@ const FUNCTION_URL = `${PROJECT_ORIGIN}/functions/v1/dice-synthetic`;
 const TRUSTED_SPKI_SHA256 = "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478";
 const TECHNICAL_EVIDENCE_SHA256 = "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612";
 const REGISTRY_SHA256 = "a6f2700b5b689bc00a130bde083e2efbce1a83ac64df8ddaee5565b2f2e9d211";
+const ACCEPTED_T348_SOURCE_COMMIT = "be92814f6a466fdd56f0fd1e86fd10d5277dbd78";
+const ACCEPTED_T348_PACKAGE_SHA256 = "420cfb312d1c6a5973584def1a912a5182bff6edf3f831feae51a20e70543d0a";
 const RECEIPT_KEYS = [
   "schema", "issuer", "decision", "authorization_scope", "request_sha256", "source_commit", "single_use_window_id", "issued_at", "valid_until",
   "technical_evidence_sha256", "founder_registry_sha256", "lab_package_sha256", "fixture_total", "language_totals", "request_fields",
@@ -53,6 +55,7 @@ const validUntil = Date.parse(receipt.valid_until);
 if (!exactKeys(receipt, RECEIPT_KEYS) || receipt.schema !== "lumis_dice_founder_web_lab_window_authorization_v1" ||
     receipt.issuer !== "Lumis Founder Deployment Approver" || receipt.decision !== "AUTHORIZED" ||
     receipt.authorization_scope !== "DICE_FOUNDER_SYNTHETIC_WINDOW_40_ONLY" || receipt.technical_evidence_sha256 !== TECHNICAL_EVIDENCE_SHA256 ||
+    receipt.source_commit !== ACCEPTED_T348_SOURCE_COMMIT || receipt.lab_package_sha256 !== ACCEPTED_T348_PACKAGE_SHA256 ||
     receipt.founder_registry_sha256 !== REGISTRY_SHA256 || receipt.fixture_total !== 40 || receipt.language_totals?.en !== 20 || receipt.language_totals?.["zh-Hant"] !== 20 ||
     JSON.stringify(receipt.request_fields) !== JSON.stringify(MOBILE_DICE_REQUEST_KEYS) || receipt.provider_attempt_cap !== 80 || receipt.concurrency_cap !== 1 ||
     receipt.shared_deadline_ms !== 12_000 || receipt.input_token_cap !== 800 || receipt.output_token_cap !== 300 || receipt.cost_ceiling_usd !== 0.064 ||
