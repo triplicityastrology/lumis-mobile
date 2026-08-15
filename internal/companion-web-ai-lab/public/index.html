@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Lumis — Internal Companion / Normal Chat Web AI Lab</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="lab-banner" role="note">
+    INTERNAL AI-TESTING INTERFACE — this is <strong>not</strong> the signed-off customer Chat UI and must not be represented as one.
+  </div>
+
+  <header class="lab-header">
+    <h1>Companion / Normal Chat — Web AI Lab</h1>
+    <div class="lab-identity" id="identity">
+      <span id="ai-state" class="pill pill-off">provider: checking…</span>
+      <span class="pill" id="model-pill">model: —</span>
+      <span class="pill" id="registry-pill">templates: —</span>
+    </div>
+  </header>
+
+  <main class="lab-grid">
+    <!-- LEFT: controlled test context -->
+    <section class="panel" aria-label="Controlled test context">
+      <h2>Controlled test context</h2>
+
+      <label class="field">
+        <span>Lumis role (exact three approved)</span>
+        <select id="role"></select>
+      </label>
+      <p class="hint" id="role-hint"></p>
+
+      <div class="grid-4">
+        <label class="field"><span>Sun</span><select id="sun"></select></label>
+        <label class="field"><span>Moon</span><select id="moon"></select></label>
+        <label class="field"><span>Mercury</span><select id="mercury"></select></label>
+        <label class="field"><span>Saturn</span><select id="saturn"></select></label>
+      </div>
+
+      <label class="checkbox">
+        <input type="checkbox" id="moon-confirmed" checked />
+        <span>Moon confirmed by birth time (uncheck = unconfirmed → role fallback rule)</span>
+      </label>
+      <p class="hint">No birth time / no houses / no ASC / no cusps (S2-T23 CI-02/CI-03). Saturn is captured as provenance; current roles derive the Saturn factor from Moon, not natal Saturn.</p>
+
+      <label class="field">
+        <span>Language</span>
+        <select id="language"></select>
+      </label>
+
+      <label class="field">
+        <span>Message</span>
+        <textarea id="message" rows="3" placeholder="Type a test message…">Can you explain what Venus in Sagittarius means?</textarea>
+      </label>
+
+      <div class="row">
+        <button id="send" class="btn-primary">Send</button>
+        <button id="clear" class="btn-secondary" type="button">Clear conversation</button>
+        <span id="loading" class="loading" hidden>Routing…</span>
+      </div>
+      <p class="hint">Quick fixtures:
+        <button class="chip" data-fixture="knowledge">knowledge</button>
+        <button class="chip" data-fixture="casual">casual</button>
+        <button class="chip" data-fixture="deep">deep chart</button>
+        <button class="chip" data-fixture="timing">timing</button>
+        <button class="chip" data-fixture="dice">dice</button>
+        <button class="chip" data-fixture="solar">solar return</button>
+        <button class="chip" data-fixture="medical">professional</button>
+        <button class="chip" data-fixture="crisis">crisis</button>
+        <button class="chip" data-fixture="distress">distress</button>
+        <button class="chip" data-fixture="illegal">illegal</button>
+        <button class="chip" data-fixture="zh">中文</button>
+      </p>
+    </section>
+
+    <!-- MIDDLE: conversation + final response -->
+    <section class="panel" aria-label="Conversation">
+      <h2>Conversation <span class="muted">(disposable, session-only — no persistence, no units)</span></h2>
+      <div id="conversation" class="conversation" aria-live="polite"></div>
+    </section>
+
+    <!-- RIGHT: chart composition + decision trace -->
+    <section class="panel" aria-label="Chart composition and decision trace">
+      <h2>Chart Composition</h2>
+      <div id="composition" class="composition muted">Send a message to derive the composition.</div>
+
+      <h2>Decision trace <span class="muted">(deterministic decisions only — no hidden chain-of-thought)</span></h2>
+      <div id="trace" class="trace muted">—</div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

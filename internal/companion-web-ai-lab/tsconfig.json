@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "skipLibCheck": true,
+    "outDir": "../../.tmp/companion-web-ai-lab",
+    "rootDir": "../.."
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}
