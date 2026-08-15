@@ -28,12 +28,18 @@ import {
 import {
   FOUNDER_CHAT_FIXTURE_IDS,
   ACCEPTED_DICE_TECHNICAL_80_RECEIPT_SHA256,
-  validateFounderChatWindowAuthority,
 } from "../../../supabase/functions/_shared/founder-chat-window-v1.ts";
 
 import { getLiveFixture, computeRegistryChecksum, liveLanguageCounts, LIVE_FIXTURE_COUNT } from "./lab-live-registry.ts";
 import { handleLabTurn, type LabGenerativeOutcome, type LabTelemetry } from "./lab-turn.ts";
 import { LAB_REQUEST_SCHEMA } from "./lab-constants.ts";
+import {
+  loadReceipt, readSeal, writeSeal, mintReceipt,
+  type ReceiptExpected, type AuthorizationReceipt, type VerifiedReceipt,
+} from "./lab-live-receipt.ts";
+
+// The continuation lineage anchor the receipt binds to (Technical's compatibility base commit).
+export const LIVE_WINDOW_CONTINUATION_COMMIT = "4862809e6946b79b5abe1dbaa870d3ed4292971a" as const;
 
 // ---- Packet (Founder-authorized; carried forward from commit 93e578f) ----
 export const LIVE_WINDOW_SCOPE = "FOUNDER_CHAT_SYNTHETIC_WINDOW_12_ONLY" as const;
@@ -61,6 +67,7 @@ export function packageChecksum(): string {
     fixture_ids: [...FOUNDER_CHAT_FIXTURE_IDS],
     registry_checksum: registryChecksum(),
     ledger_protocol: "atomic_file_lock_v2",
+    authorization: "immutable_receipt_v1",
   });
   return createHash("sha256").update(canonical).digest("hex");
 }
@@ -70,34 +77,31 @@ export function windowId(): string {
     .digest("hex").slice(0, 32);
 }
 
-// Build + validate the window authorization against the reused Founder authority contract.
-export function buildAndValidateAuthorization(nowMs: number): Record<string, unknown> {
-  const auth = {
-    schema: "lumis_founder_chat_synthetic_window_authorization_v1",
-    decision: "AUTHORIZED",
+// Expected receipt identity bindings (deterministic). The server verifies a loaded receipt against
+// these; it never mints or refreshes an authorization from the current clock.
+export function authorizationExpected(): ReceiptExpected {
+  return {
     scope: LIVE_WINDOW_SCOPE,
-    accepted_dice_evidence_sha256: ACCEPTED_DICE_TECHNICAL_80_RECEIPT_SHA256,
-    review_package_sha256: LIVE_WINDOW_PACKET_SHA,
-    fixture_ids: [...FOUNDER_CHAT_FIXTURE_IDS],
-    caps: {
-      logical: 12, en: 6, zh_hant: 6, attempts: 24, concurrency: 1,
-      deadline_ms: 12_000, retries: 1, input_tokens: 1200, output_tokens: 300,
-    },
-    issued_at: new Date(nowMs).toISOString(),
-    valid_until: new Date(nowMs + LIVE_CAPS.windowMs).toISOString(),
-    normal_chat_integration_authorized: false,
-    member_traffic_authorized: false,
-    persistence_authorized: false,
-    units_authorized: false,
+    packetSha: LIVE_WINDOW_PACKET_SHA,
+    diceSha: ACCEPTED_DICE_TECHNICAL_80_RECEIPT_SHA256,
+    registryChecksum: registryChecksum(),
+    packageChecksum: packageChecksum(),
+    continuationCommit: LIVE_WINDOW_CONTINUATION_COMMIT,
+    fixtureIds: [...FOUNDER_CHAT_FIXTURE_IDS],
+    caps: { logical: 12, en: 6, zh_hant: 6, attempts: 24, concurrency: 1, deadline_ms: 12_000, retries: 1, input_tokens: 1200, output_tokens: 300 },
   };
-  validateFounderChatWindowAuthority(auth, nowMs, LIVE_WINDOW_PACKET_SHA); // throws if non-conforming
-  return auth;
+}
+
+// OPERATOR / TEST ONLY: mint an immutable receipt for a fixed window [issuedAtMs, validUntilMs].
+// The server request path NEVER calls this — it only loads and verifies a pre-existing receipt file.
+export function mintLocalReceipt(issuedAtMs: number, validUntilMs: number): AuthorizationReceipt {
+  return mintReceipt(authorizationExpected(), issuedAtMs, validUntilMs);
 }
 
 // ---- Durable, content-free single-use ledger ----
 type Ledger = {
   windowId: string; scope: string; packageSha: string; authorizedCommit: string;
-  openedAt: number; disabled: boolean; disableReason: string | null;
+  openedAt: number; validUntil: number; disabled: boolean; disableReason: string | null;
   logical: number; en: number; zhHant: number; attempts: number; consumed: string[];
 };
 
@@ -132,10 +136,10 @@ function persist(l: Ledger): void {
 function validLedger(value: unknown): value is Ledger {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const ledger = value as Record<string, unknown>;
-  const keys = ["windowId", "scope", "packageSha", "authorizedCommit", "openedAt", "disabled", "disableReason", "logical", "en", "zhHant", "attempts", "consumed"];
+  const keys = ["windowId", "scope", "packageSha", "authorizedCommit", "openedAt", "validUntil", "disabled", "disableReason", "logical", "en", "zhHant", "attempts", "consumed"];
   if (Object.keys(ledger).length !== keys.length || Object.keys(ledger).some((key) => !keys.includes(key))) return false;
   if (ledger.windowId !== windowId() || ledger.scope !== LIVE_WINDOW_SCOPE || ledger.packageSha !== LIVE_WINDOW_PACKET_SHA || ledger.authorizedCommit !== LIVE_WINDOW_AUTHORIZED_COMMIT ||
-      !Number.isFinite(ledger.openedAt) || typeof ledger.disabled !== "boolean" || !(ledger.disableReason === null || typeof ledger.disableReason === "string") ||
+      !Number.isFinite(ledger.openedAt) || !Number.isFinite(ledger.validUntil) || typeof ledger.disabled !== "boolean" || !(ledger.disableReason === null || typeof ledger.disableReason === "string") ||
       !Number.isInteger(ledger.logical) || !Number.isInteger(ledger.en) || !Number.isInteger(ledger.zhHant) || !Number.isInteger(ledger.attempts) || !Array.isArray(ledger.consumed)) return false;
   const consumed = ledger.consumed as unknown[];
   if (consumed.some((id) => typeof id !== "string" || !FOUNDER_CHAT_FIXTURE_IDS.includes(id as typeof FOUNDER_CHAT_FIXTURE_IDS[number])) || new Set(consumed).size !== consumed.length) return false;
@@ -155,10 +159,10 @@ function acquireLedgerLock(): () => void {
   return () => rmSync(lock, { recursive: true, force: true });
 }
 
-function freshLedger(nowMs: number): Ledger {
+function freshLedger(nowMs: number, validUntilMs: number): Ledger {
   return {
     windowId: windowId(), scope: LIVE_WINDOW_SCOPE, packageSha: LIVE_WINDOW_PACKET_SHA, authorizedCommit: LIVE_WINDOW_AUTHORIZED_COMMIT,
-    openedAt: nowMs, disabled: false, disableReason: null, logical: 0, en: 0, zhHant: 0, attempts: 0, consumed: [],
+    openedAt: nowMs, validUntil: validUntilMs, disabled: false, disableReason: null, logical: 0, en: 0, zhHant: 0, attempts: 0, consumed: [],
   };
 }
 
@@ -188,14 +192,22 @@ export function liveWindowStatus(nowMs: number) {
     };
   }
   const opened = Boolean(l);
-  const expired = l ? nowMs - l.openedAt > LIVE_CAPS.windowMs : false;
+  const expired = l ? nowMs >= l.validUntil : false;
+  // Best-effort receipt authorization state (content-free) for the UI/operators.
+  let authorized = false;
+  let authorizationReason: string | null = "LAB_LIVE_RECEIPT_NOT_VERIFIED";
+  try { loadReceipt(nowMs, authorizationExpected()); authorized = true; authorizationReason = null; }
+  catch (e) { authorizationReason = (e as Error).message; }
   return {
     scope: LIVE_WINDOW_SCOPE,
     window_id: windowId(),
     authorized_commit: LIVE_WINDOW_AUTHORIZED_COMMIT,
+    continuation_commit: LIVE_WINDOW_CONTINUATION_COMMIT,
     authorized_packet_sha: LIVE_WINDOW_PACKET_SHA,
     registry_checksum: registryChecksum(),
     package_checksum: packageChecksum(),
+    receipt_authorized: authorized,
+    authorization_reason: authorizationReason,
     fixture_count: LIVE_FIXTURE_COUNT,
     language_counts: liveLanguageCounts(),
     caps: LIVE_CAPS,
@@ -204,7 +216,7 @@ export function liveWindowStatus(nowMs: number) {
     disable_reason: l ? (l.disabled ? l.disableReason : (expired ? "EXPIRED" : null)) : null,
     used: l ? { logical: l.logical, en: l.en, zhHant: l.zhHant, attempts: l.attempts } : { logical: 0, en: 0, zhHant: 0, attempts: 0 },
     remaining: l ? { logical: 12 - l.logical, en: 6 - l.en, zhHant: 6 - l.zhHant, attempts: 24 - l.attempts } : { logical: 12, en: 6, zhHant: 6, attempts: 24 },
-    expires_in_ms: l ? Math.max(0, LIVE_CAPS.windowMs - (nowMs - l.openedAt)) : LIVE_CAPS.windowMs,
+    expires_in_ms: l ? Math.max(0, l.validUntil - nowMs) : 0,
   };
 }
 
@@ -215,7 +227,7 @@ function receipt(l: Ledger, nowMs: number, outcome: string) {
     outcome, disabled: l.disabled, disable_reason: l.disableReason,
     used: { logical: l.logical, en: l.en, zhHant: l.zhHant, attempts: l.attempts },
     remaining: { logical: 12 - l.logical, en: 6 - l.en, zhHant: 6 - l.zhHant, attempts: 24 - l.attempts },
-    expires_in_ms: Math.max(0, LIVE_CAPS.windowMs - (nowMs - l.openedAt)),
+    expires_in_ms: Math.max(0, l.validUntil - nowMs),
   };
 }
 
@@ -263,12 +275,26 @@ function parseLiveRequest(raw: unknown): { ok: true; fixtureId: string } | { ok:
   return { ok: true, fixtureId: r.fixture_id };
 }
 
+function receiptRejectStatus(code: string): number {
+  if (code === "LAB_LIVE_RECEIPT_MISSING") return 503;
+  if (code === "LAB_LIVE_RECEIPT_EXPIRED") return 410;
+  return 409; // INVALID / CHECKSUM_MISMATCH / IDENTITY_MISMATCH
+}
+
 export async function handleLiveFixtureTurn(raw: unknown, ctx: LiveTurnContext): Promise<LiveTurnResult> {
   const nowMs = ctx.nowMs ?? Date.now;
   const parsed = parseLiveRequest(raw);
   if (!parsed.ok) return reject(400, parsed.code, null, nowMs());
 
-  // Provider must be configured server-side; otherwise DO NOT open/consume the window.
+  // (1) Load + verify the IMMUTABLE authorization receipt BEFORE any Azure key or client is accessed.
+  //     The server never mints or refreshes a window from the current clock; the receipt's fixed
+  //     issued_at / valid_until govern. Missing/altered/expired/identity-mismatched -> rejected here.
+  const expected = authorizationExpected();
+  let verified: VerifiedReceipt;
+  try { verified = loadReceipt(nowMs(), expected); }
+  catch (e) { const code = (e as Error).message; return reject(receiptRejectStatus(code), code, null, nowMs()); }
+
+  // (2) Provider must be configured server-side; otherwise DO NOT open/consume the window.
   const providerConfig = readChatAzureServerConfig(ctx.environment);
   if (!providerConfig.ok) return reject(503, `LAB_LIVE_PROVIDER_UNAVAILABLE:${providerConfig.code}`, null, nowMs());
 
@@ -281,10 +307,23 @@ export async function handleLiveFixtureTurn(raw: unknown, ctx: LiveTurnContext):
     let ledger: Ledger | null;
     try { ledger = loadLedger(); }
     catch { return reject(409, "LAB_LIVE_LEDGER_INVALID", null, now); }
-    if (!ledger) { buildAndValidateAuthorization(now); ledger = freshLedger(now); persist(ledger); }
+
+    // (3) Single-use activation bound to a receipt seal co-located with the immutable receipt.
+    //     Deleting the working ledger after activation fails closed (no replay); a seal that does
+    //     not match the current receipt is rejected. Restart keeps both files -> continues.
+    let seal;
+    try { seal = readSeal(); }
+    catch { return reject(409, "LAB_LIVE_SEAL_INVALID", ledger, now); }
+    if (!ledger) {
+      if (seal) return reject(409, "LAB_LIVE_LEDGER_MISSING", null, now); // activated before; ledger deleted -> no replay
+      writeSeal({ receiptChecksum: verified.receiptChecksum, windowId: windowId(), activatedAt: now });
+      ledger = freshLedger(now, verified.validUntilMs); persist(ledger);
+    } else if (!seal || seal.receiptChecksum !== verified.receiptChecksum || ledger.validUntil !== verified.validUntilMs) {
+      return reject(409, "LAB_LIVE_RECEIPT_SEAL_MISMATCH", ledger, now);
+    }
 
     if (ledger.disabled) return reject(409, `LAB_LIVE_WINDOW_DISABLED:${ledger.disableReason}`, ledger, now);
-    if (now - ledger.openedAt > LIVE_CAPS.windowMs) { disable(ledger, "EXPIRED"); persist(ledger); return reject(410, "LAB_LIVE_WINDOW_EXPIRED", ledger, now); }
+    if (now >= ledger.validUntil) { disable(ledger, "EXPIRED"); persist(ledger); return reject(410, "LAB_LIVE_WINDOW_EXPIRED", ledger, now); }
 
     const fixture = getLiveFixture(parsed.fixtureId);
     if (!fixture) return reject(400, "LAB_LIVE_FIXTURE_NOT_ALLOWED", ledger, now); // unknown fixture: before provider, no consumption

@@ -165,4 +165,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   process.stdout.write(`Companion/Normal Chat Web AI Lab (INTERNAL — not signed-off UI) listening on http://localhost:${PORT}\n`);
   process.stdout.write(`Provider AI enabled: ${aiEnabledFromEnv()} (default-off produces zero provider calls)\n`);
+  // Item 1: verify the immutable authorization receipt at startup (content-free status only).
+  const w = liveWindowStatus(Date.now());
+  process.stdout.write(`Live authorization receipt: ${w.receipt_authorized ? "VERIFIED" : `NOT verified (${w.authorization_reason})`} — live fixtures ${w.receipt_authorized ? "enabled" : "disabled until a valid receipt is present"}.\n`);
 });

@@ -82,18 +82,41 @@ Microsoft flagged that live AI must not accept unrestricted browser free text. C
   breach or deviation.
 - **Receipt** returned per live turn (window id, packet SHA, registry/package checksums, used/remaining).
 
+### Immutable authorization receipt (the server never mints its own window)
+
+The window is authorized by an **immutable receipt file** loaded before startup, not by the server
+clock. `src/lab-live-receipt.ts`:
+
+- The server **loads + verifies** one receipt (`LAB_LIVE_RECEIPT_PATH`) and its exact
+  `receipt_checksum` **before any Azure key or client is accessed**. It never constructs or refreshes
+  an authorization from `now`.
+- The receipt is bound to: the carried Founder packet `05b7a182…`, accepted Dice evidence
+  `f9503a7a…`, the registry checksum, the recomputed package checksum, the continuation lineage
+  commit `4862809…`, the exact 12 fixture IDs and caps, and **fixed** `issued_at`/`valid_until`
+  (≤ 900 s). Verification reuses the repo's `validateFounderChatWindowAuthority`.
+- A missing, altered, expired, previously-consumed, or identity-mismatched receipt is rejected
+  **before provider construction** (`LAB_LIVE_RECEIPT_MISSING/_CHECKSUM_MISMATCH/_IDENTITY_MISMATCH/_EXPIRED`).
+- A receipt-bound **seal** (`<receipt>.seal`) makes the single-use window survive ledger deletion:
+  deleting the working ledger after activation fails closed (`LAB_LIVE_LEDGER_MISSING`) — no replay,
+  no new window. Restart keeps both files and continues; expiry is the receipt's fixed `valid_until`.
+- Operators/tests mint a receipt out of band via `mintLocalReceipt(issuedAtMs, validUntilMs)`; the
+  server request path never calls it.
+
 Checksums (recomputable via the config/status endpoints):
 
 | Item | SHA-256 |
 |---|---|
 | Authorized packet (carried) | `05b7a182de81f8de64d0c91475b24568d4470fd13ff716f16f372acb3e6e19b0` |
+| Accepted Dice evidence (bound) | `f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612` |
 | Registry checksum (12 bound fixtures) | `b25a0718bf8bd56fab00f3588e136fd57e2490fd15092ccd5caded0b25305a3f` |
-| Package checksum | `c13660e0feb67f50ea1bdad13c3a6448af635c59e68f46409fb607024f0d2d6a` |
+| Package checksum (recomputed) | `c99e02ea4ba2a14fcfe21afa71f6444e7e65798cd27ee8235b1af08ddf48a5ef` |
+| Continuation commit (bound) | `4862809e6946b79b5abe1dbaa870d3ed4292971a` |
 | Window id | `a618ec71b3a2eea3400dca0f4a0a12f6` |
 
 To exercise the live window, set `LUMIS_CHAT_AI_ENABLED=true` + `LUMIS_CHAT_AZURE_API_KEY=<staging key>`
-server-side, start the Lab, pick an authorized fixture, and click **Run live fixture**. Optional
-`LAB_LIVE_LEDGER_PATH` overrides the durable ledger location (default `<worktree>/.tmp/lab-live-window-ledger.json`).
+server-side, place a valid receipt at `LAB_LIVE_RECEIPT_PATH`, start the Lab, pick an authorized
+fixture, and click **Run live fixture**. Optional `LAB_LIVE_LEDGER_PATH` overrides the working-ledger
+location (default `<worktree>/.tmp/lab-live-window-ledger.json`).
 
 ## Routing states (distinct, per AC-AI-00 §2)
 

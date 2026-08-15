@@ -82,5 +82,24 @@ const zhIds = (founder.match(/"chat_zh_hant_[a-z_]+_v1"/g) || []).length;
 check("founder allowlist has exactly 12 fixtures (6 EN / 6 zh-Hant)", enIds === 6 && zhIds === 6, `en=${enIds} zh=${zhIds}`);
 check("server exposes /api/lab/live and status", read("src/server.ts").includes('"/api/lab/live"') && read("src/server.ts").includes('"/api/lab/live/status"'));
 
+// ---- 7. Immutable authorization receipt (server must not mint its own window) ----
+const receipt = read("src/lab-live-receipt.ts");
+check("receipt module defines the receipt schema", receipt.includes('"lumis_companion_web_ai_lab_authorization_receipt_v1"'));
+for (const fn of ["verifyReceipt", "loadReceipt", "mintReceipt", "computeReceiptChecksum", "readSeal", "writeSeal"]) {
+  check(`receipt module exports ${fn}`, receipt.includes(`function ${fn}`));
+}
+check("receipt reuses the Founder authority validator", receipt.includes("validateFounderChatWindowAuthority"));
+for (const bind of ["founder_packet_sha256", "accepted_dice_evidence_sha256", "registry_checksum", "package_checksum", "continuation_commit", "fixture_ids", "caps", "issued_at", "valid_until", "receipt_checksum"]) {
+  check(`receipt binds ${bind}`, receipt.includes(bind));
+}
+check("receipt writes atomically (temp + rename)", receipt.includes('flag: "wx"') && receipt.includes("renameSync"));
+
+check("window no longer mints a window from the current clock", !win.includes("new Date(nowMs).toISOString()") && !win.includes("buildAndValidateAuthorization"));
+check("window verifies the receipt BEFORE the Azure key/client", win.indexOf("loadReceipt(") !== -1 && win.indexOf("loadReceipt(") < win.indexOf("readChatAzureServerConfig("));
+check("window binds the continuation lineage commit", win.includes('LIVE_WINDOW_CONTINUATION_COMMIT = "4862809e6946b79b5abe1dbaa870d3ed4292971a"'));
+check("window rejects missing/expired/mismatched receipts", ["LAB_LIVE_RECEIPT_MISSING", "LAB_LIVE_RECEIPT_EXPIRED", "receiptRejectStatus"].every((t) => win.includes(t)));
+check("deleting the ledger after activation fails closed (no replay)", win.includes('"LAB_LIVE_LEDGER_MISSING"') && win.includes("writeSeal(") && win.includes("readSeal("));
+check("expiry is receipt-bound (valid_until), not clock+900s", win.includes("now >= ledger.validUntil") && win.includes("verified.validUntilMs"));
+
 console.log(failures === 0 ? "\nCONTRACT OK" : `\nCONTRACT FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);
