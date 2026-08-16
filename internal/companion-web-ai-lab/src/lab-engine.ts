@@ -69,12 +69,18 @@ export type LabChartInput = {
   moon_confirmed: boolean;
 };
 
+// One prior turn of the browser-held rolling conversation context (never persisted server-side).
+export type ConversationTurn = { role: "user" | "assistant"; text: string };
+export const MAX_CONTEXT_TURNS = 12;
+const MAX_CONTEXT_TURN_LEN = 1200;
+
 export type LabRequest = {
   schema_version: typeof LAB_REQUEST_SCHEMA;
   role_code: LabRoleCode;
   chart: LabChartInput;
   message: string;
   app_language_preference: AppLanguagePreference | null;
+  context: ConversationTurn[];
 };
 
 export type CanonicalState =
@@ -213,7 +219,7 @@ export function validateLabRequest(raw: unknown): ValidationResult {
     return { ok: false, error_code: "LAB_REQUEST_INVALID", detail: "request must be a JSON object" };
   }
   const r = raw as Record<string, unknown>;
-  const allowed = new Set(["schema_version", "role_code", "chart", "message", "app_language_preference"]);
+  const allowed = new Set(["schema_version", "role_code", "chart", "message", "app_language_preference", "context"]);
   const keys = Object.keys(r);
   if (keys.some((k) => !allowed.has(k))) {
     return { ok: false, error_code: "LAB_REQUEST_UNKNOWN_FIELD", detail: `unexpected field(s): ${keys.filter((k) => !allowed.has(k)).join(", ")}` };
@@ -254,6 +260,21 @@ export function validateLabRequest(raw: unknown): ValidationResult {
   if (!(r.app_language_preference === null || isAppLanguagePreference(r.app_language_preference))) {
     return { ok: false, error_code: "LAB_LANGUAGE_INVALID", detail: "app_language_preference must be 'en', 'zh-Hant', or null" };
   }
+  // Optional bounded rolling conversation context (browser-held; never persisted server-side).
+  const context: ConversationTurn[] = [];
+  if (r.context !== undefined) {
+    if (!Array.isArray(r.context)) return { ok: false, error_code: "LAB_CONTEXT_INVALID", detail: "context must be an array" };
+    if (r.context.length > MAX_CONTEXT_TURNS) return { ok: false, error_code: "LAB_CONTEXT_TOO_LONG", detail: `context exceeds ${MAX_CONTEXT_TURNS} turns` };
+    for (const turn of r.context) {
+      if (!turn || typeof turn !== "object" || Array.isArray(turn)) return { ok: false, error_code: "LAB_CONTEXT_INVALID", detail: "each context turn must be an object" };
+      const t = turn as Record<string, unknown>;
+      const tkeys = Object.keys(t);
+      if (tkeys.length !== 2 || !tkeys.every((k) => k === "role" || k === "text")) return { ok: false, error_code: "LAB_CONTEXT_INVALID", detail: "each turn requires exactly role + text" };
+      if (t.role !== "user" && t.role !== "assistant") return { ok: false, error_code: "LAB_CONTEXT_INVALID", detail: "turn.role must be 'user' or 'assistant'" };
+      if (typeof t.text !== "string" || t.text.length === 0 || t.text.length > MAX_CONTEXT_TURN_LEN) return { ok: false, error_code: "LAB_CONTEXT_INVALID", detail: `turn.text must be 1..${MAX_CONTEXT_TURN_LEN} chars` };
+      context.push({ role: t.role, text: t.text.normalize("NFC") });
+    }
+  }
   return {
     ok: true,
     request: {
@@ -262,6 +283,7 @@ export function validateLabRequest(raw: unknown): ValidationResult {
       chart: { sun: c.sun as number, moon: c.moon as number, mercury: c.mercury as number, saturn: c.saturn as number, moon_confirmed: c.moon_confirmed as boolean },
       message,
       app_language_preference: (r.app_language_preference as AppLanguagePreference | null),
+      context,
     },
   };
 }

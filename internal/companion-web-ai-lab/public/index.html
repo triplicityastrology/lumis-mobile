@@ -4,105 +4,84 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Lumis — Internal Companion / Normal Chat Web AI Lab</title>
+  <title>Lumis — Founder Companion Web AI Lab</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <div class="lab-banner" role="note">
-    INTERNAL AI-TESTING INTERFACE — this is <strong>not</strong> the signed-off customer Chat UI and must not be represented as one.
+    FOUNDER-ONLY · STAGING · INTERNAL — natural multi-turn Companion AI testing. This is <strong>not</strong> the signed-off customer Chat UI.
   </div>
 
   <header class="lab-header">
-    <h1>Companion / Normal Chat — Web AI Lab</h1>
+    <h1>Companion — Founder Web AI Lab</h1>
     <div class="lab-identity" id="identity">
       <span id="ai-state" class="pill pill-off">provider: checking…</span>
+      <span id="identity-pill" class="pill">identity: —</span>
       <span class="pill" id="model-pill">model: —</span>
-      <span class="pill" id="registry-pill">templates: —</span>
     </div>
   </header>
 
-  <main class="lab-grid">
-    <!-- LEFT: controlled test context -->
-    <section class="panel" aria-label="Controlled test context">
-      <h2>Controlled test context</h2>
+  <nav class="tabs">
+    <button class="tab active" data-tab="companion">Companion (main)</button>
+    <button class="tab" data-tab="regression">Regression tests (optional)</button>
+  </nav>
 
-      <label class="field">
-        <span>Lumis role (exact three approved)</span>
-        <select id="role"></select>
-      </label>
+  <!-- ================= COMPANION (MAIN) ================= -->
+  <main class="lab-grid" id="tab-companion">
+    <section class="panel" aria-label="Chart selections">
+      <h2>Chart &amp; role</h2>
+      <label class="field"><span>Lumis role (three approved)</span><select id="role"></select></label>
       <p class="hint" id="role-hint"></p>
-
       <div class="grid-4">
         <label class="field"><span>Sun</span><select id="sun"></select></label>
         <label class="field"><span>Moon</span><select id="moon"></select></label>
         <label class="field"><span>Mercury</span><select id="mercury"></select></label>
         <label class="field"><span>Saturn</span><select id="saturn"></select></label>
       </div>
+      <label class="checkbox"><input type="checkbox" id="moon-confirmed" checked /><span>Moon confirmed by birth time</span></label>
+      <label class="field"><span>Language</span><select id="language"></select></label>
 
-      <label class="checkbox">
-        <input type="checkbox" id="moon-confirmed" checked />
-        <span>Moon confirmed by birth time (uncheck = unconfirmed → role fallback rule)</span>
-      </label>
-      <p class="hint">No birth time / no houses / no ASC / no cusps (S2-T23 CI-02/CI-03). Saturn is captured as provenance; current roles derive the Saturn factor from Moon, not natal Saturn.</p>
+      <h2>Chart Composition <span class="muted">(server-derived)</span></h2>
+      <div id="composition" class="composition muted">Send a message to derive the composition.</div>
+    </section>
 
-      <label class="field">
-        <span>Language</span>
-        <select id="language"></select>
-      </label>
-
-      <label class="field">
-        <span>Message — offline routing preview (no AI call)</span>
-        <textarea id="message" rows="3" placeholder="Type a test message…">Can you explain what Venus in Sagittarius means?</textarea>
-      </label>
-
-      <div class="row">
-        <button id="send" class="btn-primary">Preview routing (offline · no AI call)</button>
-        <button id="clear" class="btn-secondary" type="button">Clear conversation</button>
-        <span id="loading" class="loading" hidden>Routing…</span>
-      </div>
-      <p class="hint">Free text is offline-only: it exercises routing/persona/templates deterministically and never contacts the provider.</p>
-
-      <div class="live-window">
-        <h3>Live 12-case window <span class="muted">— fixture-gated AI</span></h3>
-        <p class="hint" id="live-note">Live AI submits only a <code>fixture_id</code>. The frozen synthetic text, role and chart are server-held; arbitrary text can never reach Azure. Enforced: 12 cases (6 EN / 6 zh-Hant), single-use, 900s, ≤24 attempts, concurrency 1.</p>
-        <label class="field"><span>Authorized fixture</span><select id="live-fixture"></select></label>
-        <div class="row">
-          <button id="run-live" class="btn-primary">Run live fixture</button>
-          <span id="live-status" class="small"></span>
+    <section class="panel conversation-panel" aria-label="Conversation">
+      <div class="conv-head">
+        <h2>Conversation <span class="muted">(session-only — not persisted)</span></h2>
+        <div class="conv-actions">
+          <button id="new-conversation" class="btn-secondary" type="button">New conversation</button>
+          <button id="clear-session" class="btn-secondary" type="button">Clear session</button>
         </div>
       </div>
-
-      <p class="hint">Offline preview fixtures:
-        <button class="chip" data-fixture="knowledge">knowledge</button>
-        <button class="chip" data-fixture="casual">casual</button>
-        <button class="chip" data-fixture="deep">deep chart</button>
-        <button class="chip" data-fixture="timing">timing</button>
-        <button class="chip" data-fixture="dice">dice</button>
-        <button class="chip" data-fixture="solar">solar return</button>
-        <button class="chip" data-fixture="medical">professional</button>
-        <button class="chip" data-fixture="crisis">crisis</button>
-        <button class="chip" data-fixture="distress">distress</button>
-        <button class="chip" data-fixture="illegal">illegal</button>
-        <button class="chip" data-fixture="zh">中文</button>
-      </p>
-    </section>
-
-    <!-- MIDDLE: conversation + final response -->
-    <section class="panel" aria-label="Conversation">
-      <h2>Conversation <span class="muted">(disposable, session-only — no persistence, no units)</span></h2>
       <div id="conversation" class="conversation" aria-live="polite"></div>
+      <div class="composer">
+        <textarea id="message" rows="2" placeholder="Say anything — a question, a statement, a feeling, a short reply…"></textarea>
+        <button id="send" class="btn-primary">Send</button>
+      </div>
+      <p class="hint" id="send-note"></p>
     </section>
 
-    <!-- RIGHT: chart composition + decision trace -->
-    <section class="panel" aria-label="Chart composition and decision trace">
-      <h2>Chart Composition</h2>
-      <div id="composition" class="composition muted">Send a message to derive the composition.</div>
-
-      <h2>Decision trace <span class="muted">(deterministic decisions only — no hidden chain-of-thought)</span></h2>
-      <div id="trace" class="trace muted">—</div>
+    <section class="panel" aria-label="Message details">
+      <h2>This message</h2>
+      <div id="message-details" class="trace muted">—</div>
     </section>
   </main>
 
+  <!-- ================= REGRESSION ================= -->
+  <main class="lab-grid-2 hidden" id="tab-regression">
+    <section class="panel" aria-label="Regression fixtures">
+      <h2>Regression tests <span class="muted">(optional — 12 frozen fixtures)</span></h2>
+      <p class="hint">Not the main experience and not a limit on free-text testing. Runs one frozen synthetic fixture through the same authorized Azure path.</p>
+      <label class="field"><span>Fixture</span><select id="reg-fixture"></select></label>
+      <div class="row"><button id="run-regression" class="btn-primary">Run fixture</button><span id="reg-note" class="small"></span></div>
+    </section>
+    <section class="panel" aria-label="Regression result">
+      <h2>Result</h2>
+      <div id="reg-result" class="trace muted">—</div>
+    </section>
+  </main>
+
+  <span id="loading" class="loading" hidden>Routing…</span>
   <script src="/app.js"></script>
 </body>
 </html>

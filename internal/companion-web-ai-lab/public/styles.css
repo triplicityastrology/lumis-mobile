@@ -15,8 +15,26 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 syste
 .pill-on { color: var(--ok); border-color: #2f5a44; }
 .pill-off { color: var(--grey); }
 
+.tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); }
+.tab { background: transparent; color: var(--muted); border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; padding: 8px 16px; cursor: pointer; font: inherit; }
+.tab.active { color: var(--ink); background: var(--panel); font-weight: 600; }
+.hidden { display: none !important; }
+
 .lab-grid { display: grid; grid-template-columns: 340px 1fr 420px; gap: 12px; padding: 12px; align-items: start; }
-@media (max-width: 1200px) { .lab-grid { grid-template-columns: 1fr; } }
+.lab-grid-2 { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; align-items: start; }
+@media (max-width: 1200px) { .lab-grid, .lab-grid-2 { grid-template-columns: 1fr; } }
+
+.conversation-panel { display: flex; flex-direction: column; }
+.conv-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conv-actions { display: flex; gap: 6px; }
+.bubble { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; white-space: pre-wrap; }
+.bubble.user { background: var(--panel-2); align-self: flex-end; max-width: 85%; }
+.bubble.user b { color: var(--gold); }
+.bubble.assistant { background: #131b2c; align-self: flex-start; max-width: 90%; }
+.bubble.assistant b { color: var(--ok); }
+.composer { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.composer textarea { flex: 1; }
+.composer .btn-primary { white-space: nowrap; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
 .panel h2 { font-size: 13px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .muted { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }

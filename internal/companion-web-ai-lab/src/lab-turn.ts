@@ -133,7 +133,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   // Deterministic persona-prompt preview for generative routes (assembled, not sent when off).
   const generativePromptPreview: string | null =
     plan.generative && plan.personaPromptAssembled
-      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language)
+      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context)
       : null;
 
   if (!plan.generative) {
@@ -307,7 +307,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
 }
 
 function serializePersonaPromptSafe(plan: LabPlan, request: LabRequest): string {
-  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage);
+  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context);
 }
 
 function safeToProceed(state: CanonicalState): DecisionTrace["safe_to_proceed"] {

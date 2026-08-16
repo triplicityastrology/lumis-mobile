@@ -42,6 +42,10 @@ declare module "node:crypto" {
   };
 }
 
+declare module "node:child_process" {
+  export function execSync(command: string, options?: { cwd?: string; encoding?: "utf8"; stdio?: string | string[] }): string;
+}
+
 declare module "node:path" {
   export function resolve(...parts: string[]): string;
   export function join(...parts: string[]): string;

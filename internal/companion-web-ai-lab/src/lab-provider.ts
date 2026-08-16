@@ -102,7 +102,12 @@ export async function runGenerative(
 // Serialize the reviewed persona prompt payload + the test message into a provider prompt string.
 // The persona payload content is authored in the controlled Persona Behaviour Mapping workbook and
 // assembled by the reused persona-prompt-pipeline; this is only a deterministic transport wrapper.
-export function serializePersonaPrompt(payload: unknown, userMessage: string, language: LabLanguage): string {
+export function serializePersonaPrompt(
+  payload: unknown,
+  userMessage: string,
+  language: LabLanguage,
+  context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
+): string {
   const p = payload as {
     roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
     situationParameters?: Record<string, string>;
@@ -126,8 +131,13 @@ export function serializePersonaPrompt(payload: unknown, userMessage: string, la
   }
   lines.push(`Language: respond only in ${language === "zh-Hant" ? "Traditional Chinese (zh-Hant)" : "English"}.`);
   lines.push(`${p.responseInstruction ?? "Respond naturally; do not mention internal calculations, mapping IDs, or sign maths."}`);
+  if (context.length) {
+    lines.push("");
+    lines.push("Conversation so far (respond to the latest user message in this ongoing conversation):");
+    for (const turn of context) lines.push(`${turn.role === "assistant" ? "Lumis" : "User"}: ${turn.text}`);
+  }
   lines.push("");
-  lines.push("User message:");
+  lines.push("Latest user message:");
   lines.push(userMessage);
   return lines.join("\n");
 }

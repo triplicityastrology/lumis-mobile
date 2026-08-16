@@ -5,8 +5,9 @@ LAB_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="$(cd "$LAB_DIR/../.." && pwd)"
 cd "$ROOT"
 "$ROOT/node_modules/.bin/tsc" -p "$LAB_DIR/tsconfig.json"
-node "$ROOT/.tmp/companion-web-ai-lab/internal/companion-web-ai-lab/test/lab-engine.fixtures.js"
-node "$ROOT/.tmp/companion-web-ai-lab/internal/companion-web-ai-lab/test/lab-live-window.fixtures.js"
+TESTDIR="$ROOT/.tmp/companion-web-ai-lab/internal/companion-web-ai-lab/test"
+node "$TESTDIR/lab-engine.fixtures.js"
+node "$TESTDIR/lab-identity.fixtures.js"
+node "$TESTDIR/lab-conversation.fixtures.js"
+node "$TESTDIR/lab-regression.fixtures.js"
 node "$LAB_DIR/scripts/companion-web-ai-lab-contract.mjs"
-# clean up transient test ledgers
-rm -f "$ROOT"/.tmp/test-live-*.json 2>/dev/null || true
