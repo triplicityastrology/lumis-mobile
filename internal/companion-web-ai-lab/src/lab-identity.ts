@@ -11,7 +11,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import {
   CHAT_AZURE_DEPLOYMENT, CHAT_AZURE_MODEL, CHAT_AZURE_MODEL_VERSION, CHAT_AZURE_APPROVED_HOSTNAME,
 } from "./lab-constants.ts";
@@ -31,15 +31,17 @@ export function worktreeRoot(): string {
   return (process.env.LAB_WORKTREE_ROOT ?? "").trim() || process.cwd();
 }
 
-function git(root: string, args: string): string {
-  try { return execSync(`git ${args}`, { cwd: root, encoding: "utf8" }).trim(); }
+// Argument-safe git: fixed argv arrays via execFileSync (no shell, no string interpolation), so a
+// crafted root/glob can never be interpreted as shell. Never logs argv or output.
+function git(root: string, argv: readonly string[]): string {
+  try { return execFileSync("git", [...argv], { cwd: root, encoding: "utf8" }).trim(); }
   catch { throw new Error("LAB_IDENTITY_GIT_UNAVAILABLE"); }
 }
 
 // Source-complete package checksum over the Lab's tracked source (excludes .tmp / node_modules /
 // the untracked identity receipt by construction, since it hashes only tracked files).
 export function computePackageChecksum(root: string = worktreeRoot()): string {
-  const listing = git(root, `ls-files -- ${LAB_SOURCE_GLOB}`);
+  const listing = git(root, ["ls-files", "--", LAB_SOURCE_GLOB]);
   const files = listing.split("\n").map((f) => f.trim()).filter(Boolean).sort();
   const manifest = files.map((rel) => ({ path: rel, sha256: createHash("sha256").update(readFileSync(`${root}/${rel}`, "utf8")).digest("hex") }));
   return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
@@ -48,9 +50,9 @@ export function computePackageChecksum(root: string = worktreeRoot()): string {
 export type RuntimeIdentity = { commit: string; tree: string; clean: boolean; packageChecksum: string };
 export function runtimeIdentity(root: string = worktreeRoot()): RuntimeIdentity {
   return {
-    commit: git(root, "rev-parse HEAD"),
-    tree: git(root, "rev-parse HEAD^{tree}"),
-    clean: git(root, "status --porcelain") === "",
+    commit: git(root, ["rev-parse", "HEAD"]),
+    tree: git(root, ["rev-parse", "HEAD^{tree}"]),
+    clean: git(root, ["status", "--porcelain"]) === "",
     packageChecksum: computePackageChecksum(root),
   };
 }

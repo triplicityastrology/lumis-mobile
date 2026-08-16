@@ -7,13 +7,13 @@
 // post-safety check) to produce one real staging response. No credentials are ever sent
 // to the browser, logged, or included in any response payload.
 //
-// Reused: readChatAzureServerConfig + createAzureChatSyntheticAdapter (server-side identity
-// and transport), COMPANION_SYNTHETIC_PROMPT_VERSION (prompt-version literal for the adapter).
+// Reused: readChatAzureServerConfig (server-side identity gate), COMPANION_SYNTHETIC_PROMPT_VERSION
+// (prompt-version literal). Transport uses the Lab-local Azure Responses adapter, which corrects the
+// request/parser boundary and reports a metadata-only provider_disposition (see
+// lab-azure-responses-adapter.ts). The shared mobile-chat adapter is left untouched.
 
-import {
-  readChatAzureServerConfig,
-  createAzureChatSyntheticAdapter,
-} from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
+import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
+import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-azure-responses-adapter.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import {
   CHAT_SYNTHETIC_PROVIDER_ALIAS,
@@ -23,9 +23,11 @@ import {
   type LabLanguage,
 } from "./lab-constants.ts";
 
+export type { ProviderDisposition };
+
 export type ProviderRuntime =
   | { aiEnabled: false; code: "CHAT_AI_DISABLED" | string }
-  | { aiEnabled: true; adapter: ReturnType<typeof createAzureChatSyntheticAdapter> };
+  | { aiEnabled: true; adapter: ReturnType<typeof createLabAzureResponsesAdapter> };
 
 // Resolve provider runtime from server environment (never from the browser request).
 export function resolveProviderRuntime(
@@ -35,16 +37,16 @@ export function resolveProviderRuntime(
 ): ProviderRuntime {
   const config = readChatAzureServerConfig(environment);
   if (!config.ok) return { aiEnabled: false, code: config.code };
-  return { aiEnabled: true, adapter: createAzureChatSyntheticAdapter(config.config, fetchImpl, nowMs) };
+  return { aiEnabled: true, adapter: createLabAzureResponsesAdapter(config.config, fetchImpl, nowMs) };
 }
 
 export type ProviderOutcome =
-  | { kind: "disabled"; code: string; attempts: 0 }
-  | { kind: "completed"; message: string; attempts: 1 | 2 }
-  | { kind: "safety_rejected"; attempts: 1 | 2; code: string }
-  | { kind: "fixed_fallback"; attempts: 1 | 2; code: string }
-  | { kind: "router_unavailable"; attempts: 1 | 2; code: string }
-  | { kind: "technical_error"; attempts: 1 | 2; code: string };
+  | { kind: "disabled"; code: string; attempts: 0; providerDisposition: null }
+  | { kind: "completed"; message: string; attempts: 1 | 2; providerDisposition: ProviderDisposition | null }
+  | { kind: "safety_rejected"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null }
+  | { kind: "fixed_fallback"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null }
+  | { kind: "router_unavailable"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null }
+  | { kind: "technical_error"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null };
 
 // Byte-exact copy of chat-synthetic-gateway-v1.ts passesDeterministicPostSafety() (verified by tests).
 function passesDeterministicPostSafety(value: string): boolean {
@@ -77,15 +79,16 @@ export async function runGenerative(
       maxOutputTokens: LAB_PROVIDER_MAX_OUTPUT_TOKENS,
       deadlineAtMs,
     });
+    const disposition = result.provider_disposition ?? null;
 
     if (result.kind === "completed") {
       const message = normalizeAssistantMessage(result.assistantMessage);
-      if (!message) return { kind: "fixed_fallback", attempts, code: "LAB_OUTPUT_INVALID" };
-      if (!passesDeterministicPostSafety(message)) return { kind: "safety_rejected", attempts, code: "LAB_POST_SAFETY" };
-      return { kind: "completed", message, attempts };
+      if (!message) return { kind: "fixed_fallback", attempts, code: "LAB_OUTPUT_INVALID", providerDisposition: disposition };
+      if (!passesDeterministicPostSafety(message)) return { kind: "safety_rejected", attempts, code: "LAB_POST_SAFETY", providerDisposition: disposition };
+      return { kind: "completed", message, attempts, providerDisposition: disposition };
     }
     if (result.kind === "content_filter_block" || result.kind === "content_filter_partial") {
-      return { kind: "safety_rejected", attempts, code: "LAB_CONTENT_FILTER" };
+      return { kind: "safety_rejected", attempts, code: "LAB_CONTENT_FILTER", providerDisposition: disposition };
     }
     const retryable = result.kind === "timeout" || result.kind === "network" || result.kind === "rate_limited" || result.kind === "server_error";
     if (retryable && attempts === 1 && nowMs() < deadlineAtMs) {
@@ -93,9 +96,9 @@ export async function runGenerative(
       continue;
     }
     // AC-AI-00 DEC-02: provider failure after one retry -> router_unavailable (0 units), fixed copy.
-    if (retryable) return { kind: "router_unavailable", attempts, code: `LAB_PROVIDER_${result.kind.toUpperCase()}` };
+    if (retryable) return { kind: "router_unavailable", attempts, code: `LAB_PROVIDER_${result.kind.toUpperCase()}`, providerDisposition: disposition };
     // unauthorized / forbidden / malformed -> content-free technical error.
-    return { kind: "technical_error", attempts, code: `LAB_PROVIDER_${result.kind.toUpperCase()}` };
+    return { kind: "technical_error", attempts, code: `LAB_PROVIDER_${result.kind.toUpperCase()}`, providerDisposition: disposition };
   }
 }
 

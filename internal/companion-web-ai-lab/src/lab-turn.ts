@@ -130,11 +130,8 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   let errorCode: string | null = null;
   let fixedTemplate: LabResponse["fixed_template"] = null;
   let outputTokenEstimate: number | null = null;
-  // Deterministic persona-prompt preview for generative routes (assembled, not sent when off).
-  const generativePromptPreview: string | null =
-    plan.generative && plan.personaPromptAssembled
-      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context)
-      : null;
+  // Note: the assembled persona prompt is NEVER returned to the browser or logged. Only a numeric
+  // token estimate is derived from it (below); the raw prompt text is not exposed anywhere.
 
   if (!plan.generative) {
     // Deterministic (no provider) states.
@@ -282,7 +279,6 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
     assistant_message: assistantMessage,
     fixed_template: fixedTemplate,
     handoff: plan.handoff,
-    generative_prompt_preview: generativePromptPreview,
     error_code: errorCode,
     persistence: "not_committed",
     units_charged: 0,

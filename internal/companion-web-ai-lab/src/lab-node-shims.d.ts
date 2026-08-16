@@ -16,6 +16,7 @@ declare module "node:http" {
     end(data?: string | Buffer): void;
   }
   export interface Server {
+    listen(port: number, hostname: string, cb?: () => void): void;
     listen(port: number, cb?: () => void): void;
   }
   export function createServer(
@@ -44,6 +45,7 @@ declare module "node:crypto" {
 
 declare module "node:child_process" {
   export function execSync(command: string, options?: { cwd?: string; encoding?: "utf8"; stdio?: string | string[] }): string;
+  export function execFileSync(file: string, args?: readonly string[], options?: { cwd?: string; encoding?: "utf8"; stdio?: string | string[] }): string;
 }
 
 declare module "node:path" {

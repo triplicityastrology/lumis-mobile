@@ -49,8 +49,11 @@ no ASC). Archive/legacy material is not used as authority.
 
 ```
 bash internal/companion-web-ai-lab/scripts/start-companion-web-ai-lab.sh
-# then open  http://localhost:8410
+# then open  http://127.0.0.1:8410
 ```
+
+The server binds to `127.0.0.1` only (loopback) and never to a LAN/public host; there is no host
+override.
 
 The provider is reachable only when **all** of the following hold; otherwise a turn still routes and
 shows its Chart Composition + classification but makes **zero provider calls**:
@@ -145,6 +148,22 @@ at the same `LAB_IDENTITY_RECEIPT_PATH` to authorize the provider path.
 - Disposable: `units_charged: 0`, `persistence: "not_committed"`, session-only conversation. No
   customer threads/accounts, billing units, or member state are touched.
 - Fixed crisis/safety/out-of-scope wording is never replaced by model output.
+- The assembled persona prompt is **never** returned to the browser or logged (no
+  `generative_prompt_preview`); only a numeric token estimate is derived from it.
+- Git identity commands run via `execFileSync("git", [...fixed argv])` (no shell string).
+
+## Azure Responses API boundary
+
+The Lab-local adapter (`src/lab-azure-responses-adapter.ts`) preserves `/openai/v1/responses`, the
+approved deployment, the server-side `api-key`, the deadline/timeout, the one-retry discipline, and
+DefaultV2 gating, and extracts **both** top-level `output_text` and `output[].content[].text`. It
+classifies each received response into one metadata-only, body-free `provider_disposition`:
+`http_or_schema_rejected` · `incomplete_or_content_filter` · `completed_empty_output` ·
+`completed_non_text_output` · `completed_text`. This corrects the earlier boundary, where an HTTP-200
+`incomplete` response (e.g. a reasoning model spending its output budget) or a completed-but-empty /
+non-text response was misreported as a hard `malformed` schema rejection (surfaced as
+`CHAT_SYNTHETIC_MALFORMED`); those now degrade to a graceful fallback. The disposition never retains
+or exposes response bodies, raw text, headers, URLs, keys, or Azure identifiers.
 
 ## Known documentation note
 

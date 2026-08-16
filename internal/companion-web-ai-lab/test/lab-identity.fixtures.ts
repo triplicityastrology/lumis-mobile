@@ -10,8 +10,9 @@ import test from "node:test";
 import { strict as assert } from "node:assert";
 import {
   mintIdentityReceipt, verifyIdentityReceipt, computeReceiptChecksum, identityBindings,
-  authorizeProvider, killSwitchEngaged, type RuntimeIdentity,
+  authorizeProvider, killSwitchEngaged, runtimeIdentity, type RuntimeIdentity,
 } from "../src/lab-identity.ts";
+import { existsSync } from "node:fs";
 
 // Local throws-with-code helper: the repo's node:assert shim types `throws` with a string matcher
 // only, so we assert the thrown Error's message directly.
@@ -115,4 +116,24 @@ test("kill switch is engaged ONLY by the exact string 'false'", () => {
 test("the receipt body never contains the Azure key", () => {
   const receipt = mintIdentityReceipt(CLEAN);
   assert.equal(JSON.stringify(receipt).includes(SECRET), false);
+});
+
+// --- Fixed-argv git execution (finding 1): execFileSync with fixed argv, never a shell string ---
+test("runtimeIdentity runs git via fixed argv and returns valid 40-hex commit/tree", () => {
+  const id = runtimeIdentity(); // real worktree; proves execFileSync('git', [..fixed..]) works
+  assert.ok(/^[0-9a-f]{40}$/.test(id.commit), `commit hex: ${id.commit}`);
+  assert.ok(/^[0-9a-f]{40}$/.test(id.tree), `tree hex: ${id.tree}`);
+  assert.ok(/^[0-9a-f]{64}$/.test(id.packageChecksum), `pkg hex: ${id.packageChecksum}`);
+});
+
+test("a shell-metacharacter worktree root is never shell-interpreted (no injection)", () => {
+  const marker = `/tmp/lab-git-injection-${process.pid}`;
+  // With execFileSync (no shell) this cwd simply does not exist -> clean GIT_UNAVAILABLE. The ';'
+  // and 'touch' are never interpreted, so the sentinel file must NOT be created.
+  const maliciousRoot = `${marker}; touch ${marker}.pwned`;
+  let threw: Error | null = null;
+  try { runtimeIdentity(maliciousRoot); } catch (e) { threw = e as Error; }
+  assert.ok(threw, "expected a thrown error for a non-existent/hostile root");
+  assert.ok(threw!.message.includes("LAB_IDENTITY_GIT_UNAVAILABLE"), threw!.message);
+  assert.equal(existsSync(`${marker}.pwned`), false, "no shell side-effect (argv is not a shell string)");
 });

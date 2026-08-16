@@ -123,7 +123,7 @@ function renderDetails(body, target) {
     box.append(group("Model / prompt",
       line("deployment", t.model_identity.deployment), line("model", `${t.model_identity.model} (${t.model_identity.model_version})`),
       line("prompt pipeline", t.prompt_system_version.persona_prompt_pipeline), line("no chain-of-thought", t.no_hidden_chain_of_thought)));
-    if (body.generative_prompt_preview) { const g = group("Assembled persona prompt (would be sent)"); g.append(el("pre", { text: body.generative_prompt_preview })); box.append(g); }
+    if (body.provider_disposition) box.append(group("Provider disposition", line("disposition", body.provider_disposition)));
   } else if (body.error_code) {
     box.append(el("div", { class: "small", text: `error: ${body.error_code}` }));
   }

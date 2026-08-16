@@ -51,12 +51,17 @@ export async function handleConversationTurn(raw: unknown, ctx: ConversationCont
   // Authorize provider access (kill switch -> executable identity -> Azure config) BEFORE any key use.
   const auth = authorizeProvider(ctx.environment, fetchImpl, nowMs, { verifyIdentity: ctx.verifyIdentity });
 
+  // Captured (metadata-only) provider disposition from the last authorized generative call. Never a
+  // response body / raw text / header / URL / key / Azure identifier — only the closed enum string.
+  let providerDisposition: string | null = null;
+
   // liveProvider is wired ONLY when fully authorized; otherwise the turn is deterministic
   // (routing/classification/Chart Composition/fixed safety copy) with zero provider calls.
   const liveProvider = auth.ok
     ? async (args: { plan: LabPlan; request: LabRequest; language: LabLanguage }): Promise<LabGenerativeOutcome> => {
         const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context);
         const outcome = await runGenerative(auth.runtime, promptInput, args.language, nowMs);
+        providerDisposition = outcome.providerDisposition;
         switch (outcome.kind) {
           case "completed": return { kind: "completed", message: outcome.message, attempts: outcome.attempts };
           case "safety_rejected": return { kind: "safety_rejected", attempts: outcome.attempts, code: outcome.code };
@@ -77,6 +82,7 @@ export async function handleConversationTurn(raw: unknown, ctx: ConversationCont
   }
   body.provider_authorized = auth.ok;
   body.provider_authorization_reason = auth.ok ? null : auth.code;
+  body.provider_disposition = providerDisposition; // metadata-only enum (or null when no provider call)
   return { status: out.status, body: body as LabTurnResult["body"] };
 }
 

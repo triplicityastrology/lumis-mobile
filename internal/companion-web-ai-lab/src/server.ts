@@ -138,8 +138,11 @@ const server = http.createServer((req, res) => {
   res.end("not found");
 });
 
-server.listen(PORT, () => {
-  process.stdout.write(`Companion Web AI Lab (FOUNDER-ONLY · STAGING · INTERNAL — not signed-off UI) on http://localhost:${PORT}\n`);
+// Bind unconditionally to loopback (127.0.0.1). Founder-only/internal: never expose the Lab on a
+// LAN/public host, and do NOT allow a host override from the environment.
+const LOOPBACK_HOST = "127.0.0.1" as const;
+server.listen(PORT, LOOPBACK_HOST, () => {
+  process.stdout.write(`Companion Web AI Lab (FOUNDER-ONLY · STAGING · INTERNAL — not signed-off UI) on http://${LOOPBACK_HOST}:${PORT}\n`);
   const id = identityStatus();
   process.stdout.write(`Executable identity (${LAB_SCOPE}): ${id.identity_verified ? "VERIFIED" : `NOT verified (${id.reason})`} · worktree ${id.runtime_clean ? "clean" : "DIRTY"}.\n`);
   process.stdout.write(`Provider ready: ${providerReady()} · kill switch (LUMIS_AI_ENABLED=false) engaged: ${killSwitchEngaged(process.env)}.\n`);

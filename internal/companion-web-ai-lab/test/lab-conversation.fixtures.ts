@@ -62,6 +62,7 @@ test("natural statements, feelings, and short replies are accepted (not only que
     assert.equal(b.provider_authorized, true, `${message} authorized`);
     assert.equal(b.result, "completed", `${message} completed (no question required)`);
     assert.equal(b.product_classification.class, "safe_to_proceed");
+    assert.equal(b.provider_disposition, "completed_text", `${message} surfaces the metadata-only disposition`);
     assert.equal(spy.calls.length, 1, `${message} reached the provider once`);
   }
 });
@@ -82,8 +83,8 @@ test("multi-turn follow-up sends the prior conversation context to the provider"
   assert.ok(sent.includes("anxious about a decision at work"), "prior user turn included");
   assert.ok(sent.includes("What's weighing on you most") || sent.includes("weighing on you"), "prior assistant turn included");
   assert.ok(sent.includes("keep second-guessing"), "latest message included");
-  // The same content is visible in the deterministic prompt preview (no hidden reasoning).
-  assert.ok(b.generative_prompt_preview.includes("Conversation so far"));
+  // The assembled prompt is NEVER returned to the browser (no preview field, no chain-of-thought).
+  assert.equal("generative_prompt_preview" in b, false, "no prompt preview in the response");
 });
 
 // --- 3. New conversation / Clear session: empty context carries nothing over (server is stateless) ---
@@ -93,9 +94,9 @@ test("empty context (new conversation / cleared session) carries no prior turns"
   await handleConversationTurn(req({ message: "I'm worried about my father's health.", context: [] }), { environment: enabledEnv, fetchImpl: spy1.fn, verifyIdentity: goodIdentity });
   // A subsequent request after "New conversation"/"Clear session" sends context: [] again.
   const spy2 = spyFetch();
-  const out = await handleConversationTurn(req({ message: "What's a good book?", context: [] }), { environment: enabledEnv, fetchImpl: spy2.fn, verifyIdentity: goodIdentity });
+  await handleConversationTurn(req({ message: "What's a good book?", context: [] }), { environment: enabledEnv, fetchImpl: spy2.fn, verifyIdentity: goodIdentity });
   const sent = spy2.calls[0].body;
-  assert.equal((out.body as any).generative_prompt_preview.includes("Conversation so far"), false, "no context block when empty");
+  assert.equal(sent.includes("Conversation so far"), false, "no context block sent when empty");
   assert.equal(sent.includes("my father's health"), false, "prior conversation never leaks server-side");
 });
 
@@ -176,8 +177,9 @@ test("the Azure key never appears in any response body", async () => {
   // The Lab never puts env secrets in the body; the response text is the model output, which in real
   // use is post-safety scrubbed. Assert no env-key material is present in structural fields.
   const b = out.body as any;
-  const structural = JSON.stringify({ ...b, assistant_message: undefined, generative_prompt_preview: undefined });
+  const structural = JSON.stringify({ ...b, assistant_message: undefined });
   assert.equal(structural.includes(SECRET), false);
+  assert.equal("generative_prompt_preview" in b, false, "no assembled-prompt preview in the response");
 });
 
 // --- 8. No 12-message limit: many sequential free-text turns all succeed ---

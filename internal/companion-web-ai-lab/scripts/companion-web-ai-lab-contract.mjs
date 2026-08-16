@@ -53,7 +53,8 @@ check("regression call submits only schema_version + fixture_id", /fixture_id/.t
 // ---- 3. No customer persistence / billing / member-state mutation anywhere in the Lab ----
 const srcFiles = [
   "src/lab-engine.ts", "src/lab-turn.ts", "src/lab-provider.ts", "src/lab-templates.ts",
-  "src/lab-constants.ts", "src/lab-conversation.ts", "src/lab-regression.ts", "src/lab-identity.ts", "src/server.ts",
+  "src/lab-constants.ts", "src/lab-conversation.ts", "src/lab-regression.ts", "src/lab-identity.ts",
+  "src/lab-azure-responses-adapter.ts", "src/server.ts",
 ];
 const src = srcFiles.map(read).join("\n");
 // Note: ".update(" is intentionally excluded — it collides with crypto createHash().update() in
@@ -85,7 +86,7 @@ check("receipt is minted post-commit and verified against runtime (no self-refer
 check("server gates providerReady through authorizeProvider (constructs, never calls, Azure)", server.includes("authorizeProvider(process.env"));
 check("server default-off: no key echoed in config payload", !/api_key|LUMIS_CHAT_AZURE_API_KEY/i.test(server));
 const provider = read("src/lab-provider.ts");
-check("provider still reuses the server-side Azure config gate", provider.includes("readChatAzureServerConfig") && provider.includes("createAzureChatSyntheticAdapter"));
+check("provider still reuses the server-side Azure config gate", provider.includes("readChatAzureServerConfig") && provider.includes("createLabAzureResponsesAdapter"));
 
 // ---- 6. Existing persona/companion prompt pipeline preserved (NOT a simplified replacement) ----
 check("conversation reuses serializePersonaPrompt + runGenerative (no bespoke prompt)", conversation.includes("serializePersonaPrompt(") && conversation.includes("runGenerative("));
@@ -109,7 +110,27 @@ check("UI carries the internal / not-signed-off banner", indexHtml.includes("FOU
 check("server exposes config + conversation + regression + identity status", ["/api/lab/config", "/api/lab/conversation", "/api/lab/regression", "/api/lab/identity/status"].every((r) => server.includes(`"${r}"`)));
 check("legacy /api/lab/message and /api/lab/live endpoints are gone", !server.includes('"/api/lab/message"') && !server.includes('"/api/lab/live"'));
 
-// ---- 9. Byte-exact founder-approved wording present in the reused registry ----
+// ---- 9. Sprint-2 correction findings (loopback bind, fixed git argv, no preview, adapter) ----
+const identitySrc = read("src/lab-identity.ts");
+// (1) Argument-safe git: fixed argv via execFileSync; never a shell string.
+check("git runs via execFileSync with fixed argv (no shell string)", identitySrc.includes("execFileSync(\"git\", [...argv]") && !identitySrc.includes("execSync(`git"));
+check("git call sites pass fixed argv arrays", identitySrc.includes('["rev-parse", "HEAD"]') && identitySrc.includes('["status", "--porcelain"]') && identitySrc.includes('["ls-files", "--", LAB_SOURCE_GLOB]'));
+// (2) Loopback-only binding; no LAN/public-host override.
+check("server binds to 127.0.0.1 only", /listen\(PORT,\s*LOOPBACK_HOST/.test(server) && server.includes('LOOPBACK_HOST = "127.0.0.1"'));
+check("server does not allow a host override or bind 0.0.0.0", !server.includes("0.0.0.0") && !/process\.env\.[A-Z_]*HOST/.test(server));
+// (3) No assembled-prompt preview in browser or server responses.
+check("server response has no generative_prompt_preview field", !read("src/lab-turn.ts").includes("generative_prompt_preview") && !read("src/lab-engine.ts").includes("generative_prompt_preview"));
+check("browser does not render the assembled persona prompt", !appJs.includes("generative_prompt_preview") && !appJs.includes("Assembled persona prompt"));
+// (4) Corrected Azure Responses adapter boundary + metadata-only disposition.
+const adapter = read("src/lab-azure-responses-adapter.ts");
+check("adapter preserves /openai/v1/responses + deployment + store:false + max_output_tokens", adapter.includes("/openai/${config.routeFamily}/responses") && adapter.includes("model: config.deployment") && adapter.includes("store: false") && adapter.includes("max_output_tokens: input.maxOutputTokens"));
+check("adapter preserves both output_text and output[].content[].text extraction", adapter.includes("value.output_text") && adapter.includes('content.type === "output_text"'));
+for (const d of ["http_or_schema_rejected", "incomplete_or_content_filter", "completed_empty_output", "completed_non_text_output", "completed_text"]) {
+  check(`adapter distinguishes disposition "${d}"`, adapter.includes(`"${d}"`));
+}
+check("provider_disposition is metadata-only (no bodies/headers/urls/keys retained)", !/response\.headers|value\.output_text\s*\)\s*;\s*\/\/\s*log|console\.log|process\.stdout/.test(adapter) && adapter.includes("never retains or exposes response bodies"));
+
+// ---- 10. Byte-exact founder-approved wording present in the reused registry ----
 const registry = read("../../supabase/functions/_shared/fixed-template-registry.ts");
 check("Solar Return EN byte-exact", registry.includes('text: "Solar Return is not part of Lumis."'));
 check("Solar Return ZH byte-exact", registry.includes("Solar Return 不屬於 Lumis 的服務範圍。"));
