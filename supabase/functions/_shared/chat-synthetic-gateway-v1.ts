@@ -64,11 +64,20 @@ export type ChatSyntheticResponse = {
   error_code?: string;
 };
 
+export type ChatProviderDisposition =
+  | "http_non_2xx"
+  | "responses_incomplete_content_filter"
+  | "responses_incomplete_max_output"
+  | "responses_incomplete_other"
+  | "responses_completed_empty_output"
+  | "responses_completed_non_text_output"
+  | "responses_completed_valid";
+
 export type ProviderResult =
-  | { kind: "completed"; assistantMessage: string }
-  | { kind: "content_filter_block" | "content_filter_partial" }
-  | { kind: "timeout" | "network" | "rate_limited" | "server_error" }
-  | { kind: "unauthorized" | "forbidden" | "malformed" };
+  | { kind: "completed"; assistantMessage: string; providerDisposition?: ChatProviderDisposition }
+  | { kind: "content_filter_block" | "content_filter_partial"; providerDisposition?: ChatProviderDisposition }
+  | { kind: "timeout" | "network" | "rate_limited" | "server_error"; providerDisposition?: ChatProviderDisposition }
+  | { kind: "unauthorized" | "forbidden" | "malformed"; providerDisposition?: ChatProviderDisposition };
 
 export type ChatSyntheticAdapter = {
   complete(input: {

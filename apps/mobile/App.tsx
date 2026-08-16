@@ -2443,7 +2443,6 @@ function ChatShellScreen({
       const result = FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED
         ? await sendFounderLiveChatProductMessage({
             message: productMessage,
-            runId: `chat-founder-${clientMessageId.replace(/-/g, "").slice(0, 16).toLowerCase()}`,
           })
         : await sendChatProductIntegrationMessage({
             message: productMessage,

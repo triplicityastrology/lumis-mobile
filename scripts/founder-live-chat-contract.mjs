@@ -23,6 +23,8 @@ assert.match(app, /FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED\s*\? await sendFounderL
 assert.match(mobile, /typeof __DEV__ !== "undefined"/);
 assert.match(mobile, /EXPO_PUBLIC_FOUNDER_CHAT_LIVE_MODE === "1"/);
 assert.match(mobile, /EXPO_PUBLIC_FOUNDER_CHAT_DICE_EVIDENCE_SHA256/);
+assert.match(mobile, /EXPO_PUBLIC_FOUNDER_CHAT_RUN_ID/);
+assert.doesNotMatch(mobile, /chat-founder-/);
 assert.match(mobile, /if \(!FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED \|\| !FOUNDER_LIVE_CHAT_TRAFFIC_ENABLED\)/);
 assert.ok(mobile.indexOf("FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED") < mobile.indexOf("input.createTransport().invoke"));
 assert.doesNotMatch(mobile, /gpt-5|services\.ai\.azure|AZURE_API_KEY|api-key/i);

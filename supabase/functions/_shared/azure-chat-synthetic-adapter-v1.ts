@@ -1,4 +1,4 @@
-import type { ChatSyntheticAdapter, ProviderResult } from "./chat-synthetic-gateway-v1.ts";
+import type { ChatProviderDisposition, ChatSyntheticAdapter, ProviderResult } from "./chat-synthetic-gateway-v1.ts";
 
 export const CHAT_AZURE_APPROVED_HOSTNAME = "lumis-foundry-stg-sea-20260731.services.ai.azure.com" as const;
 export const CHAT_AZURE_ROUTE_FAMILY = "v1" as const;
@@ -21,7 +21,7 @@ export function readChatAzureServerConfig(environment: Readonly<Record<string, s
   | { ok: true; config: ChatAzureServerConfig }
   | { ok: false; code: string } {
   if (environment.LUMIS_CHAT_AI_ENABLED !== "true") return { ok: false, code: "CHAT_AI_DISABLED" };
-  const apiKey = environment.LUMIS_CHAT_AZURE_API_KEY?.trim();
+  const apiKey = environment.LUMIS_CHAT_AZURE_API_KEY?.trim() || environment.LUMIS_AI_API_KEY?.trim();
   if (!apiKey) return { ok: false, code: "CHAT_SYNTHETIC_CONFIGURATION_UNAVAILABLE" };
   return {
     ok: true,
@@ -58,7 +58,9 @@ export function createAzureChatSyntheticAdapter(
             model: config.deployment,
             input: input.promptInput,
             max_output_tokens: input.maxOutputTokens,
+            reasoning: { effort: "minimal" },
             store: false,
+            text: { verbosity: "low" },
           }),
           signal: controller.signal,
         });
@@ -69,9 +71,19 @@ export function createAzureChatSyntheticAdapter(
         const value = await response.json().catch(() => null) as null | Record<string, unknown>;
         const filter = contentFilter(value);
         if (filter) return filter;
-        if (!response.ok) return { kind: "malformed" };
+        if (!response.ok) return { kind: "malformed", providerDisposition: "http_non_2xx" };
+        if (value?.status === "incomplete") {
+          return { kind: "server_error", providerDisposition: incompleteDisposition(value) };
+        }
         const assistantMessage = extractAssistantMessage(value);
-        return assistantMessage ? { kind: "completed", assistantMessage } : { kind: "malformed" };
+        return assistantMessage
+          ? { kind: "completed", assistantMessage, providerDisposition: "responses_completed_valid" }
+          : {
+              kind: "server_error",
+              providerDisposition: Array.isArray(value?.output) && value.output.length > 0
+                ? "responses_completed_non_text_output"
+                : "responses_completed_empty_output",
+            };
       } catch (error) {
         return error instanceof DOMException && error.name === "AbortError" ? { kind: "timeout" } : { kind: "network" };
       } finally {
@@ -83,11 +95,22 @@ export function createAzureChatSyntheticAdapter(
 
 function contentFilter(value: Record<string, unknown> | null): ProviderResult | null {
   if (!value) return null;
-  if (isRecord(value.error) && value.error.code === "content_filter") return { kind: "content_filter_block" };
+  if (isRecord(value.error) && value.error.code === "content_filter") {
+    return { kind: "content_filter_block", providerDisposition: "responses_incomplete_content_filter" };
+  }
   if (value.status === "incomplete" && isRecord(value.incomplete_details) && value.incomplete_details.reason === "content_filter") {
-    return { kind: "content_filter_partial" };
+    return { kind: "content_filter_partial", providerDisposition: "responses_incomplete_content_filter" };
   }
   return null;
+}
+
+function incompleteDisposition(value: Record<string, unknown>): ChatProviderDisposition {
+  const reason = isRecord(value.incomplete_details) && typeof value.incomplete_details.reason === "string"
+    ? value.incomplete_details.reason
+    : "";
+  if (reason === "content_filter") return "responses_incomplete_content_filter";
+  if (reason === "max_output_tokens") return "responses_incomplete_max_output";
+  return "responses_incomplete_other";
 }
 
 function extractAssistantMessage(value: Record<string, unknown> | null): string | null {

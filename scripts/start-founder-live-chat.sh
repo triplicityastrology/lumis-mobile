@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 source "$SCRIPT_DIR/lib/lumis-worktree-root.sh"
 ROOT="$(lumis_resolve_worktree_root)" || { printf 'STOP_FOUNDER_LIVE_CHAT_INVALID_WORKTREE\n' >&2; exit 1; }
 PORT="${FOUNDER_CHAT_EXPO_PORT:-8228}"
+AUTHORITY_RUN_ID="${FOUNDER_CHAT_AUTHORITY_RUN_ID:-}"
 if [[ "${1:-}" == "--" ]]; then shift; fi
 MODE="${1:---lan}"
 stop() { printf 'STOP_FOUNDER_LIVE_CHAT_%s\n' "$1" >&2; exit 1; }
@@ -30,12 +31,14 @@ HAS_KEY=0
 if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]] || { [[ -f "$PUBLIC_ENV_FILE" ]] && grep -Eq '^EXPO_PUBLIC_SUPABASE_URL=.+$' "$PUBLIC_ENV_FILE"; }; then HAS_URL=1; fi
 if [[ -n "${EXPO_PUBLIC_SUPABASE_KEY:-}${EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]] || { [[ -f "$PUBLIC_ENV_FILE" ]] && grep -Eq '^EXPO_PUBLIC_SUPABASE_(KEY|PUBLISHABLE_KEY|ANON_KEY)=.+$' "$PUBLIC_ENV_FILE"; }; then HAS_KEY=1; fi
 [[ "$HAS_URL" == 1 && "$HAS_KEY" == 1 ]] || stop PUBLIC_SUPABASE_CONFIG_REQUIRED
+[[ "$AUTHORITY_RUN_ID" =~ ^chat-syn-[a-z0-9]{12,32}$ ]] || stop AUTHORITY_RUN_ID_REQUIRED
 printf 'FOUNDER_LIVE_CHAT_READY source_sha=%s route=product_chat mode=closed_fixture_live_candidate port=%s persistence=false units=false\n' "$HEAD" "$PORT"
 cd "$ROOT"
 EXPO_PUBLIC_T341_CHAT_LOCAL_FIXTURE=1 \
 EXPO_PUBLIC_T341_CHAT_FIXTURE_STATE="${FOUNDER_CHAT_FIXTURE_STATE:-completed}" \
 EXPO_PUBLIC_FOUNDER_CHAT_LIVE_MODE=1 \
 EXPO_PUBLIC_FOUNDER_CHAT_DICE_EVIDENCE_SHA256=f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612 \
+EXPO_PUBLIC_FOUNDER_CHAT_RUN_ID="$AUTHORITY_RUN_ID" \
 npm_config_cache="$NPM_CACHE_PATH" \
 TMPDIR="$TMP_PATH" \
 exec pnpm --dir apps/mobile exec expo start "$MODE" --clear --port "$PORT"

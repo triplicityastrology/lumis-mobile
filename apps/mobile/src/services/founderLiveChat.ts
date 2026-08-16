@@ -17,10 +17,13 @@ export const FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED =
   typeof __DEV__ !== "undefined" &&
   __DEV__ === true &&
   process.env.EXPO_PUBLIC_FOUNDER_CHAT_LIVE_MODE === "1";
+export const FOUNDER_LIVE_CHAT_RUN_ID =
+  process.env.EXPO_PUBLIC_FOUNDER_CHAT_RUN_ID?.trim() ?? "";
 export const FOUNDER_LIVE_CHAT_TRAFFIC_ENABLED =
   FOUNDER_LIVE_CHAT_INTEGRATION_ENABLED &&
   process.env.EXPO_PUBLIC_FOUNDER_CHAT_DICE_EVIDENCE_SHA256 ===
-    "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612";
+    "f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612" &&
+  /^chat-syn-[a-z0-9]{12,32}$/.test(FOUNDER_LIVE_CHAT_RUN_ID);
 
 export type FounderLiveChatRequest = Readonly<{
   fixture_id: string;
@@ -44,7 +47,6 @@ export async function invokeFounderLiveChat(input: Readonly<{
   message: string;
   language: AppLanguagePreference | null | undefined;
   clientTurnId: string;
-  runId: string;
   createTransport: () => FounderLiveChatTransport;
 }>): Promise<SyntheticResponse> {
   // A mobile environment value cannot activate this path. A later reviewed
@@ -53,7 +55,7 @@ export async function invokeFounderLiveChat(input: Readonly<{
     throw new FounderLiveChatUnavailableError();
   }
   /* c8 ignore start -- unreachable until separately authorized */
-  const request = buildFounderLiveChatRequest(input);
+  const request = buildFounderLiveChatRequest(input, FOUNDER_LIVE_CHAT_RUN_ID);
   return validateFounderLiveChatResponse(await input.createTransport().invoke(request), request.fixture_id);
   /* c8 ignore stop */
 }
@@ -73,7 +75,6 @@ export type SyntheticResponse = Readonly<{
 
 export async function sendFounderLiveChatProductMessage(input: Readonly<{
   message: ChatProductMessageInput;
-  runId: string;
   createTransport?: () => FounderLiveChatTransport;
 }>): Promise<ChatProductSendResult> {
   if (!input.message.clientMessageId) throw new Error("CHAT_PRODUCT_CLIENT_TURN_ID_REQUIRED");
@@ -81,7 +82,6 @@ export async function sendFounderLiveChatProductMessage(input: Readonly<{
     message: input.message.message,
     language: input.message.appLanguagePreference,
     clientTurnId: input.message.clientMessageId,
-    runId: input.runId,
     createTransport: input.createTransport ?? createSupabaseFounderLiveChatTransport,
   });
   if (response.result === "technical_error") throw new Error(response.error_code);
@@ -144,15 +144,14 @@ export function buildFounderLiveChatRequest(input: Readonly<{
   message: string;
   language: AppLanguagePreference | null | undefined;
   clientTurnId: string;
-  runId: string;
-}>): FounderLiveChatRequest {
+}>, authorityRunId: string = FOUNDER_LIVE_CHAT_RUN_ID): FounderLiveChatRequest {
   const language = input.language === "zh-Hant" || /[\u3400-\u9fff]/u.test(input.message) ? "zh-Hant" : "en";
   const fixtureId = PROMPT_TO_FIXTURE.get(`${language}\u0000${canonicalText(input.message)}`);
   if (!fixtureId) throw new Error("FOUNDER_CHAT_FIXTURE_NOT_ALLOWED");
-  if (!/^chat-founder-[a-z0-9]{8,32}$/.test(input.runId)) throw new Error("FOUNDER_CHAT_RUN_ID_INVALID");
+  if (!/^chat-syn-[a-z0-9]{12,32}$/.test(authorityRunId)) throw new Error("FOUNDER_CHAT_RUN_ID_INVALID");
   const compactTurnId = input.clientTurnId.replace(/-/g, "");
   if (!/^[a-f0-9]{32}$/i.test(compactTurnId)) throw new Error("FOUNDER_CHAT_CLIENT_TURN_ID_INVALID");
-  return Object.freeze({ fixture_id: fixtureId, idempotency_key: `founder_${compactTurnId}`, run_id: input.runId });
+  return Object.freeze({ fixture_id: fixtureId, idempotency_key: `founder_${compactTurnId}`, run_id: authorityRunId });
 }
 
 export function validateFounderLiveChatResponse(value: unknown, expectedFixtureId: string): SyntheticResponse {

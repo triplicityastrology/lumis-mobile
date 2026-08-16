@@ -28,5 +28,6 @@ declare const process: {
     EXPO_PUBLIC_T341_CHAT_FIXTURE_STATE?: string;
     EXPO_PUBLIC_FOUNDER_CHAT_LIVE_MODE?: string;
     EXPO_PUBLIC_FOUNDER_CHAT_DICE_EVIDENCE_SHA256?: string;
+    EXPO_PUBLIC_FOUNDER_CHAT_RUN_ID?: string;
   };
 };

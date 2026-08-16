@@ -21,11 +21,13 @@ assert.equal(FOUNDER_LIVE_CHAT_TRAFFIC_ENABLED, false);
 
 const clientTurnId = "123e4567-e89b-42d3-a456-426614174000";
 for (const prompt of prompts) {
-  const request = buildFounderLiveChatRequest({ message: prompt.prompt, language: prompt.language, clientTurnId, runId: "chat-founder-12345678" });
+  const request = buildFounderLiveChatRequest({ message: prompt.prompt, language: prompt.language, clientTurnId }, "chat-syn-authority0001");
   assert.equal(request.fixture_id, prompt.fixture_id);
+  assert.equal(request.run_id, "chat-syn-authority0001");
   assert.deepEqual(Object.keys(request).sort(), ["fixture_id", "idempotency_key", "run_id"]);
 }
-assert.throws(() => buildFounderLiveChatRequest({ message: "Unlisted prompt", language: "en", clientTurnId, runId: "chat-founder-12345678" }), /FIXTURE_NOT_ALLOWED/);
+assert.throws(() => buildFounderLiveChatRequest({ message: "Unlisted prompt", language: "en", clientTurnId }, "chat-syn-authority0001"), /FIXTURE_NOT_ALLOWED/);
+assert.throws(() => buildFounderLiveChatRequest({ message: prompts[0].prompt, language: "en", clientTurnId }, "chat-founder-client0001"), /RUN_ID_INVALID/);
 
 const base = {
   schema_version: "chat_synthetic_response_v1",
@@ -47,7 +49,6 @@ async function main() {
     message: prompts[0].prompt,
     language: "en",
     clientTurnId,
-    runId: "chat-founder-12345678",
     createTransport: () => { transports += 1; return { invoke: async () => ({}) }; },
   }), /FOUNDER_CHAT_LIVE_DISABLED/);
   assert.equal(transports, 0);
@@ -59,7 +60,6 @@ async function main() {
       chart: null,
       appLanguagePreference: "en",
     },
-    runId: "chat-founder-12345678",
     createTransport: () => { transports += 1; return { invoke: async () => ({}) }; },
   }), /FOUNDER_CHAT_LIVE_DISABLED/);
   assert.equal(transports, 0);

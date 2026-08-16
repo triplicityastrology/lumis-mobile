@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
+import { createAzureChatSyntheticAdapter, readChatAzureServerConfig } from "../_shared/azure-chat-synthetic-adapter-v1.ts";
 import { createChatSyntheticEdgeHandler } from "./edge-handler-v1.ts";
 
 const SHA_A = "a".repeat(64);
@@ -127,6 +128,12 @@ async function main() {
   assert.equal(clientConstructions, 0);
   assert.equal(providerCalls, 0);
 
+  const sharedServerCredential = readChatAzureServerConfig({
+    LUMIS_CHAT_AI_ENABLED: "true",
+    LUMIS_AI_API_KEY: "fixture-only-key",
+  });
+  assert.equal(sharedServerCredential.ok, true);
+
   const invalidFounderAuthority = createChatSyntheticEdgeHandler({
     environment: {
       ...enabledEnvironment,
@@ -181,9 +188,11 @@ async function main() {
       providerCalls += 1;
       assert.equal(String(url), "https://lumis-foundry-stg-sea-20260731.services.ai.azure.com/openai/v1/responses");
       const request = JSON.parse(String(init?.body));
-      assert.deepEqual(Object.keys(request).sort(), ["input", "max_output_tokens", "model", "store"]);
+      assert.deepEqual(Object.keys(request).sort(), ["input", "max_output_tokens", "model", "reasoning", "store", "text"]);
       assert.equal(request.model, "lumis-ai-chat-stg");
       assert.equal(request.store, false);
+      assert.deepEqual(request.reasoning, { effort: "minimal" });
+      assert.deepEqual(request.text, { verbosity: "low" });
       return new Response(JSON.stringify({ output_text: "Take one small, grounded step." }), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -237,6 +246,38 @@ async function main() {
 
   const idempotencyDigest = String(rpcCalls.find(({ name }) => name === "consume_chat_synthetic_fixture_v1")?.parameters.p_idempotency_sha256);
   assert.equal(idempotencyDigest, createHash("sha256").update("edge-fixture-key-0001").digest("hex"));
+
+  const adapterInput = {
+    providerAlias: "lumis-ai-chat-stg" as const,
+    safetyProfile: "DefaultV2" as const,
+    promptVersion: "companion_synthetic_prompt_v1" as const,
+    language: "en" as const,
+    promptInput: "closed fixture",
+    maxOutputTokens: 300 as const,
+    deadlineAtMs: NOW + 12_000,
+  };
+  const adapterConfig = {
+    origin: "https://lumis-foundry-stg-sea-20260731.services.ai.azure.com" as const,
+    apiKey: "fixture-only-key",
+    deployment: "lumis-ai-chat-stg" as const,
+    routeFamily: "v1" as const,
+  };
+  const incomplete = createAzureChatSyntheticAdapter(adapterConfig, async () => new Response(JSON.stringify({
+    status: "incomplete",
+    incomplete_details: { reason: "max_output_tokens", forbidden_detail: "not retained" },
+  }), { status: 200 }), () => NOW);
+  assert.deepEqual(await incomplete.complete(adapterInput), {
+    kind: "server_error",
+    providerDisposition: "responses_incomplete_max_output",
+  });
+  const nonText = createAzureChatSyntheticAdapter(adapterConfig, async () => new Response(JSON.stringify({
+    status: "completed",
+    output: [{ type: "reasoning", content: [] }],
+  }), { status: 200 }), () => NOW);
+  assert.deepEqual(await nonText.complete(adapterInput), {
+    kind: "server_error",
+    providerDisposition: "responses_completed_non_text_output",
+  });
   console.log("S2-T270 wrapper-to-port-to-ledger emulator passed; network=disabled; provider_calls=1 fixture-only");
 }
 
