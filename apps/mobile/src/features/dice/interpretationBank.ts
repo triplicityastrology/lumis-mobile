@@ -1,11 +1,11 @@
-import { DICE_TIMINGS, type DiceFace, type DiceSymbols } from "./constants";
+import { DICE_TIMINGS, type DiceFace, type DiceSymbols } from "./constants.ts";
 import {
   combinedPace, dignityOf, readTension,
   ELEMENT_INFO, HOUSE_ATTRIBUTES, PLANET_ATTRIBUTES, SIGN_ELEMENT,
   type DignityReading, type ElementInfo, type HouseAttributes, type PlanetAttributes,
   type ReadingTension
-} from "./classicalAttributes";
-import { requireDiceQuestion } from "./question";
+} from "./classicalAttributes.ts";
+import { requireDiceQuestion } from "./question.ts";
 
 /**
  * Interpretation bank (Level 1 meanings) + Level 2 classical layer — see

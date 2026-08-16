@@ -14,13 +14,10 @@ MODE="${1:---lan}"
 EVIDENCE_ROOT="${LUMIS_TECHNICAL_80_EVIDENCE_ROOT:-$SSD_ROOT/Evidence/S2-T345-Technical-80-Live}"
 TECHNICAL_RECEIPT="$EVIDENCE_ROOT/technical-80-metadata-receipt.json"
 EXPECTED_TECHNICAL_RECEIPT_SHA="f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612"
-RECEIPT_POINTER="$SSD_ROOT/Evidence/S2-Founder-Web-Lab-Live/current-receipt-path.txt"
-CURRENT_T348_RECEIPT="$SSD_ROOT/Evidence/S2-T348-Founder-Web-Lab-Live-be92814/founder-window-receipt.json"
-RECEIPT_FILE="${FOUNDER_DICE_LIVE_WINDOW_RECEIPT_FILE:-$CURRENT_T348_RECEIPT}"
-if [[ -z "$RECEIPT_FILE" && -f "$RECEIPT_POINTER" ]]; then RECEIPT_FILE="$(<"$RECEIPT_POINTER")"; fi
+RECEIPT_FILE="${FOUNDER_DICE_LIVE_WINDOW_RECEIPT_FILE:-}"
 
 case "$ROOT" in "$SSD_ROOT"/Worktrees/*) ;; *) stop SSD_WORKTREE_REQUIRED ;; esac
-[[ "$(git -C "$ROOT" branch --show-current)" == "codex/s2-t349-mobile-dice-live-candidate" ]] || stop WRONG_BRANCH
+[[ "$(git -C "$ROOT" branch --show-current)" == "codex/s2-t359-dice-live-proof" ]] || stop WRONG_BRANCH
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]] || stop TRACKED_TREE_DIRTY
 [[ "$PORT" =~ ^[0-9]+$ && "$PORT" -ge 1024 && "$PORT" -le 65535 ]] || stop INVALID_PORT
 [[ "$RELAY_PORT" =~ ^[0-9]+$ && "$RELAY_PORT" -ge 1024 && "$RELAY_PORT" -le 65535 && "$RELAY_PORT" != "$PORT" ]] || stop INVALID_RELAY_PORT
@@ -32,10 +29,18 @@ case "$ROOT" in "$SSD_ROOT"/Worktrees/*) ;; *) stop SSD_WORKTREE_REQUIRED ;; esa
 
 ANON_KEY="$(security find-generic-password -w -s lumis-supabase-anon-key 2>/dev/null)" || stop PUBLIC_CONFIG_UNAVAILABLE
 [[ -n "$ANON_KEY" && "$ANON_KEY" != sb_secret_* && "$ANON_KEY" != *service_role* ]] || stop PUBLIC_CONFIG_UNSAFE
-PUBLIC_KEY_FILE="$(security find-generic-password -w -s lumis-founder-public-key-path 2>/dev/null)" || stop PUBLIC_KEY_REFERENCE_UNAVAILABLE
-[[ -f "$PUBLIC_KEY_FILE" ]] || stop PUBLIC_KEY_FILE_UNAVAILABLE
-[[ -n "$RECEIPT_FILE" && -f "$RECEIPT_FILE" ]] || stop FOUNDER_WINDOW_RECEIPT_MISSING
-FOUNDER_RECEIPT_SHA="$(shasum -a 256 "$RECEIPT_FILE" | awk '{print $1}')"
+FREE_TEXT_ACCESS_KEY="$(security find-generic-password -w -s lumis-dice-founder-free-text-access-key 2>/dev/null)" || stop FREE_TEXT_ACCESS_UNAVAILABLE
+[[ "${#FREE_TEXT_ACCESS_KEY}" -ge 32 ]] || stop FREE_TEXT_ACCESS_INVALID
+FREE_TEXT_AUTHORITY_SHA="$(printf '%s' "$FREE_TEXT_ACCESS_KEY" | shasum -a 256 | awk '{print $1}')"
+PUBLIC_KEY_FILE=""
+FOUNDER_RECEIPT_SHA=""
+if [[ -n "$RECEIPT_FILE" ]]; then
+  [[ -f "$RECEIPT_FILE" ]] || stop FOUNDER_WINDOW_RECEIPT_MISSING
+  PUBLIC_KEY_FILE="$(security find-generic-password -w -s lumis-founder-public-key-path 2>/dev/null)" || stop PUBLIC_KEY_REFERENCE_UNAVAILABLE
+  [[ -f "$PUBLIC_KEY_FILE" ]] || stop PUBLIC_KEY_FILE_UNAVAILABLE
+  FOUNDER_RECEIPT_SHA="$(shasum -a 256 "$RECEIPT_FILE" | awk '{print $1}')"
+  [[ "$FOUNDER_RECEIPT_SHA" =~ ^[0-9a-f]{64}$ ]] || stop FOUNDER_EVIDENCE_INVALID
+fi
 
 HEAD="$(git -C "$ROOT" rev-parse HEAD)"
 PNPM_STORE="${PNPM_STORE_DIR:-$SSD_ROOT/Dependencies/pnpm-store}"
@@ -45,7 +50,6 @@ TMP_ROOT="${TMPDIR:-$SSD_ROOT/BuildCaches/Tmp/founder-live-mobile-dice}"
 mkdir -p "$EXPO_CACHE" "$TMP_ROOT"
 export PNPM_STORE_DIR="$PNPM_STORE" npm_config_cache="$NPM_CACHE" XDG_CACHE_HOME="$EXPO_CACHE" TMPDIR="$TMP_ROOT"
 
-[[ "$FOUNDER_RECEIPT_SHA" =~ ^[0-9a-f]{64}$ ]] || stop FOUNDER_EVIDENCE_INVALID
 if [[ "$MODE" == "--ios" ]]; then
   RELAY_HOST="127.0.0.1"
 else
@@ -58,16 +62,24 @@ RELAY_SESSION="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')"
 cleanup() {
   if [[ -n "${RELAY_PID:-}" ]]; then kill "$RELAY_PID" 2>/dev/null || true; wait "$RELAY_PID" 2>/dev/null || true; fi
   unset ANON_KEY PUBLIC_KEY_FILE RELAY_SESSION
+  unset FREE_TEXT_ACCESS_KEY FREE_TEXT_AUTHORITY_SHA
 }
 trap cleanup EXIT INT TERM
 
-LUMIS_DICE_MOBILE_RELAY_PORT="$RELAY_PORT" \
-LUMIS_DICE_MOBILE_RELAY_SESSION="$RELAY_SESSION" \
-LUMIS_DICE_MOBILE_ANON_KEY="$ANON_KEY" \
-LUMIS_DICE_FOUNDER_RECEIPT_FILE="$RECEIPT_FILE" \
-LUMIS_DICE_FOUNDER_RECEIPT_SHA256="$FOUNDER_RECEIPT_SHA" \
-LUMIS_DICE_FOUNDER_PUBLIC_KEY_FILE="$PUBLIC_KEY_FILE" \
-node scripts/founder-mobile-dice-relay.mjs &
+RELAY_ENV=(
+  "LUMIS_DICE_MOBILE_RELAY_PORT=$RELAY_PORT"
+  "LUMIS_DICE_MOBILE_RELAY_SESSION=$RELAY_SESSION"
+  "LUMIS_DICE_MOBILE_ANON_KEY=$ANON_KEY"
+  "LUMIS_DICE_MOBILE_FREE_TEXT_ACCESS_KEY=$FREE_TEXT_ACCESS_KEY"
+)
+if [[ -n "$RECEIPT_FILE" ]]; then
+  RELAY_ENV+=(
+    "LUMIS_DICE_FOUNDER_RECEIPT_FILE=$RECEIPT_FILE"
+    "LUMIS_DICE_FOUNDER_RECEIPT_SHA256=$FOUNDER_RECEIPT_SHA"
+    "LUMIS_DICE_FOUNDER_PUBLIC_KEY_FILE=$PUBLIC_KEY_FILE"
+  )
+fi
+env "${RELAY_ENV[@]}" node scripts/founder-mobile-dice-relay.mjs &
 RELAY_PID=$!
 for _ in {1..40}; do
   if curl --silent --fail "http://127.0.0.1:$RELAY_PORT/health" >/dev/null 2>&1; then break; fi
@@ -76,7 +88,7 @@ for _ in {1..40}; do
 done
 curl --silent --fail "http://127.0.0.1:$RELAY_PORT/health" >/dev/null 2>&1 || stop RELAY_HEALTH_FAILED
 
-printf 'FOUNDER_LIVE_MOBILE_DICE_READY\nsource_commit=%s\nroute=customer-dice\ntechnical_80=accepted\nlive_transport=receipt_verified_server_relay\nexpo_port=%s\nrelay_port=%s\n' "$HEAD" "$PORT" "$RELAY_PORT"
+printf 'FOUNDER_LIVE_MOBILE_DICE_READY\nsource_commit=%s\nroute=customer-dice\ntechnical_80=accepted\nlive_transport=private_free_text_relay\nlocal_consumption_lock=none\nexpo_port=%s\nrelay_port=%s\n' "$HEAD" "$PORT" "$RELAY_PORT"
 
 ARGS=(start --clear --port "$PORT")
 if [[ "$MODE" == "--ios" ]]; then ARGS+=(--ios); else ARGS+=("$MODE"); fi
@@ -89,7 +101,11 @@ EXPO_PUBLIC_DICE_TRAFFIC_AUTHORIZED=1 \
 EXPO_PUBLIC_DICE_FOUNDER_WINDOW_EVIDENCE_SHA256="$FOUNDER_RECEIPT_SHA" \
 EXPO_PUBLIC_DICE_ACCEPTED_FOUNDER_WINDOW_EVIDENCE_SHA256="$FOUNDER_RECEIPT_SHA" \
 EXPO_PUBLIC_DICE_MOBILE_RELAY_URL="http://$RELAY_HOST:$RELAY_PORT/dice" \
+EXPO_PUBLIC_DICE_MOBILE_FREE_TEXT_RELAY_URL="http://$RELAY_HOST:$RELAY_PORT/dice-free-text" \
 EXPO_PUBLIC_DICE_MOBILE_RELAY_SESSION="$RELAY_SESSION" \
+EXPO_PUBLIC_DICE_FOUNDER_FREE_TEXT=1 \
+EXPO_PUBLIC_DICE_FOUNDER_FREE_TEXT_AUTHORITY_SHA256="$FREE_TEXT_AUTHORITY_SHA" \
+EXPO_PUBLIC_DICE_ACCEPTED_FOUNDER_FREE_TEXT_AUTHORITY_SHA256="$FREE_TEXT_AUTHORITY_SHA" \
 EXPO_PUBLIC_FOUNDER_LIVE_MOBILE_DICE=1 \
 EXPO_PUBLIC_SUPABASE_URL= \
 EXPO_PUBLIC_SUPABASE_ANON_KEY= \

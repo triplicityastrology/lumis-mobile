@@ -16,6 +16,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { MainTabBar, type MainTab } from "../../components/MainTabBar";
+import { ChatThinkingIndicator } from "../../components/ChatThinkingIndicator";
 import { colors, radii, spacing } from "../../theme/tokens";
 import { DICE_TIMINGS, DIE_ORDER, FACE_SETS, type DiceFace, type DieKind } from "./constants";
 import { DIE_INRADIUS, DIE_RADIUS, DODECA_FACES, DODECA_VERTICES } from "./geometry";
@@ -786,7 +787,14 @@ function buildReflectionPrompt(question: string, symbols: StageSymbols, interpre
 
 function DiceInterpretationCard({ state, onRetry }: { state: DiceLiveResultState; onRetry?: () => void }) {
   if (state.kind === "loading") {
-    return <View accessibilityLiveRegion="polite" style={styles.interpretationPanel}><Text style={styles.interpretationStatus}>Lumis is reading your throw...</Text></View>;
+    return (
+      <View accessibilityLabel="Lumis is reading your throw" accessibilityLiveRegion="polite" style={[styles.interpretationPanel, styles.interpretationThinkingBubble]}>
+        <View style={styles.interpretationThinkingRow}>
+          <ChatThinkingIndicator />
+          <Text style={styles.interpretationStatus}>Lumis is reading your throw...</Text>
+        </View>
+      </View>
+    );
   }
   if (state.kind === "interpretation") {
     return (
@@ -1242,6 +1250,8 @@ const styles = StyleSheet.create({
   interpretationLabel: { color: colors.goldLight, fontSize: 9.5, fontWeight: "800", letterSpacing: 1 },
   interpretationBody: { color: colors.ice, fontSize: 13, lineHeight: 19 },
   interpretationStatus: { color: colors.textSoft, fontSize: 13, fontWeight: "600", lineHeight: 19, textAlign: "center" },
+  interpretationThinkingBubble: { alignSelf: "flex-start", backgroundColor: "rgba(22,39,61,0.10)", borderColor: "rgba(215,185,120,0.28)", borderTopLeftRadius: 6, borderRadius: 19 },
+  interpretationThinkingRow: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 20 },
   interpretationRetry: { marginTop: 2, minHeight: 44 },
   sheetActions: { flexDirection: "row", gap: 10, justifyContent: "center", marginTop: 14 },
   sheetActionsStacked: { flexDirection: "column" },

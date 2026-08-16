@@ -1,0 +1,172 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import vm from "node:vm";
+import {
+  HOUSE_OPTIONS, PLANET_OPTIONS, SIGN_OPTIONS, createLabServer, deterministicPresentation, executeLabFreeTextRequest, executeLabRequest,
+  labStatus, loadFixtures, parseControlledHouseWatchBank, presentLabResult, redactExportRecord, renderLabPage, validateLabFreeTextRunRequest, validateLabResult, validateLabRunRequest,
+} from "../tools/internal-dice-ai-lab/server.mjs";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const serverSource = await readFile(path.join(root, "tools/internal-dice-ai-lab/server.mjs"), "utf8");
+const liveWindowSource = await readFile(path.join(root, "tools/internal-dice-ai-lab/founder-live-window.mjs"), "utf8");
+const liveLauncherSource = await readFile(path.join(root, "scripts/start-founder-dice-web-lab-live.sh"), "utf8");
+const fixtures = await loadFixtures();
+const interpretationBankSource = await readFile(path.join(root, "apps/mobile/src/features/dice/interpretationBank.ts"), "utf8");
+const houseWatchBank = parseControlledHouseWatchBank(interpretationBankSource);
+assert.equal(Object.keys(houseWatchBank).length, 12, "all controlled house watch-outs are sourced from the accepted interpretation bank");
+assert.equal(houseWatchBank.house_6.en, "Don't let the daily grind wear you down");
+assert.equal(houseWatchBank.house_12.zh, "有些事被收起，靜下來才看得見");
+assert.equal(fixtures.length, 40, "closed Founder registry only");
+assert.deepEqual(PLANET_OPTIONS.map(({ id }) => id), ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "north_node", "south_node"]);
+assert.deepEqual(SIGN_OPTIONS.map(({ id }) => id), ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]);
+assert.deepEqual(HOUSE_OPTIONS.map(({ id }) => id), Array.from({ length: 12 }, (_, index) => `house_${index + 1}`));
+assert.equal(new Set([...PLANET_OPTIONS, ...SIGN_OPTIONS, ...HOUSE_OPTIONS].map(({ id }) => id)).size, 36);
+
+const request = { fixture_id: fixtures[0].fixture_id, planet_id: "venus", sign_id: "scorpio", house_id: "house_12" };
+const selection = validateLabRunRequest(request, fixtures);
+assert(selection, "exact allow-listed identifiers pass");
+for (const mutation of [
+  { ...request, planet_id: "chiron" }, { ...request, sign_id: "ophiuchus" }, { ...request, house_id: "house_13" },
+  { ...request, fixture_id: "DICE-FOUNDER-EN-99" }, { ...request, question: "free text" },
+]) assert.equal(validateLabRunRequest(mutation, fixtures), null);
+
+let gatewayConstructions = 0;
+for (const mutation of [{ ...request, planet_id: "invalid" }, { ...request, extra: true }]) {
+  const stopped = await executeLabRequest(mutation, { fixtures, providerEnabled: true, gatewayFactory: () => { gatewayConstructions += 1; } });
+  assert.equal(stopped.status, 400);
+}
+const disabled = await executeLabRequest(request, { fixtures, providerEnabled: false, gatewayFactory: () => { gatewayConstructions += 1; } });
+assert.equal(disabled.status, 503);
+assert.equal(disabled.body.code, "DICE_AI_DISABLED");
+assert.equal(disabled.body.presentation.kind, "fallback");
+assert.equal(gatewayConstructions, 0, "invalid/default-off requests construct no gateway/provider");
+const classifiedFailure = await executeLabRequest(request, { fixtures, providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "fallback", code: "DICE_FIXED_FALLBACK", redacted_failure_code: "DICE_PROVIDER_MALFORMED", provider_disposition: "responses_completed_schema_invalid" }) }) });
+assert.equal(classifiedFailure.body.redacted_failure_code, "DICE_PROVIDER_MALFORMED", "closed provider failure survives the Lab boundary");
+assert.equal(classifiedFailure.body.presentation.kind, "fallback");
+assert.equal(classifiedFailure.body.metadata, null);
+assert.equal(classifiedFailure.body.persistence_writes, 0);
+assert.equal(classifiedFailure.body.units_charged, 0);
+assert.equal(Object.hasOwn(classifiedFailure.body, "provider_disposition"), false, "protected disposition never reaches the browser failure envelope");
+const live = await executeLabRequest(request, { fixtures, providerEnabled: true, gatewayFactory: () => ({ run: async (body) => {
+  gatewayConstructions += 1;
+  assert.deepEqual(Object.keys(body), ["fixture_id", "planet_id", "sign_id", "house_id"]);
+  return { kind: "completed", result: {
+    schema: "lumis_dice_v0_3_result_v2", language: "en", planet_layer: "Venus centers connection and shared value.",
+    sign_element_layer: "Scorpio and Water express this through depth and privacy.", house_layer: "The 12th House places it in a hidden external environment.",
+    timing_or_pace: null, judgment: "Watch for feelings that remain unspoken.", practical_direction: "Name one concrete need in a calm conversation.",
+  }, metadata: { fixture_id: fixtures[0].fixture_id, language: "en", result_class: "completed", attempt_count: 1, latency_bucket: "lt_12s", input_token_bucket: "lt_800", output_token_bucket: "lt_300", cost_bucket: "within_cap" }, provider_disposition: "responses_completed_valid" };
+} }) });
+assert.equal(live.status, 200);
+assert.equal(live.body.presentation.kind, "reading");
+assert.equal(live.body.persistence_writes, 0);
+assert.equal(live.body.units_charged, 0);
+assert.equal(Object.hasOwn(live.body, "provider_disposition"), false, "protected disposition never reaches the browser success envelope");
+assert.equal(gatewayConstructions, 1);
+
+const freeTextRequest = { question: "What should I understand about changing direction?", planet_id: "mercury", sign_id: "virgo", house_id: "house_6" };
+assert(validateLabFreeTextRunRequest(freeTextRequest), "Founder free text plus closed faces passes");
+for (const mutation of [
+  { ...freeTextRequest, question: "" }, { ...freeTextRequest, question: " ".repeat(4) },
+  { ...freeTextRequest, question: "x".repeat(281) }, { ...freeTextRequest, planet_id: "chiron" },
+  { ...freeTextRequest, fixture_id: fixtures[0].fixture_id },
+]) assert.equal(validateLabFreeTextRunRequest(mutation), null, "free-text boundary rejects malformed or mixed-mode input");
+
+let freeTextConstructions = 0;
+const freeTextDisabled = await executeLabFreeTextRequest(freeTextRequest, { providerEnabled: false, gatewayFactory: () => { freeTextConstructions += 1; } });
+assert.equal(freeTextDisabled.status, 503);
+assert.equal(freeTextConstructions, 0, "default-off free text constructs no gateway");
+const freeTextLive = await executeLabFreeTextRequest(freeTextRequest, { providerEnabled: true, gatewayFactory: () => ({ run: async (body) => {
+  freeTextConstructions += 1;
+  assert.deepEqual(Object.keys(body), ["question", "planet_id", "sign_id", "house_id"]);
+  return { kind: "completed", classification: { accepted: true, language: "en", route: "descriptive_reflection", shape: "descriptive" }, result: {
+    schema: "lumis_dice_v0_3_result_v2", language: "en", planet_layer: "Mercury centers interpretation and exchange.",
+    sign_element_layer: "Virgo and Earth express this through careful practical detail.", house_layer: "The 6th House places it in the external environment of routines and service.",
+    timing_or_pace: null, judgment: null, practical_direction: "Choose one routine to test before making a wider change.",
+  }, metadata: { request_mode: "founder_free_text", language: "en", result_class: "completed", attempt_count: 1, latency_bucket: "lt_12s", input_token_bucket: "lt_800", output_token_bucket: "lt_300", cost_bucket: "within_cap" }, provider_disposition: "responses_completed_valid" };
+} }) });
+assert.equal(freeTextLive.status, 200);
+assert.equal(freeTextLive.body.presentation.kind, "reading");
+assert.equal(freeTextLive.body.classification.route, "descriptive_reflection");
+assert.equal(freeTextLive.body.presentation.sections[1].body, "For “What should I understand about changing direction?”, one specific risk is overusing Virgo's mode of expression and missing this external caution: Don't let the daily grind wear you down.");
+assert.notEqual(freeTextLive.body.presentation.sections[1].body, "The 6th House places it in the external environment of routines and service.", "descriptive readings must not reuse the house layer as the watch-out");
+assert.equal(freeTextLive.body.persistence_writes, 0);
+assert.equal(freeTextLive.body.units_charged, 0);
+assert.equal(freeTextConstructions, 1);
+
+const enResult = {
+  schema: "lumis_dice_v0_3_result_v2", language: "en",
+  planet_layer: "Venus centers connection and shared value.", sign_element_layer: "Scorpio and Water express this through depth and privacy.",
+  house_layer: "The 12th House places it in a hidden external environment.", timing_or_pace: null,
+  judgment: "Watch for feelings that remain unspoken.", practical_direction: "Name one concrete need in a calm conversation.",
+};
+const validatedEn = validateLabResult(enResult, "en");
+assert(validatedEn);
+const enPresentation = presentLabResult(validatedEn, selection);
+assert.match(enPresentation.opening, /^You drew Venus in Scorpio in the 12th House —/u);
+assert.deepEqual(enPresentation.sections.map(({ heading }) => heading), ["Reading", "One thing to watch", "Practical step"]);
+assert.match(enPresentation.sections[1].body, /Something is tucked away — stillness reveals it/u);
+assert.equal(enPresentation.sections[2].body, enResult.practical_direction);
+
+const zhResult = {
+  schema: "lumis_dice_v0_3_result_v2", language: "zh-Hant",
+  planet_layer: "金星把核心放在連結與共同價值。", sign_element_layer: "天蠍座與水元素以深度和私密方式表達。",
+  house_layer: "第十二宮把事情放在隱藏的外在環境。", timing_or_pace: null,
+  judgment: "需要留意未有說出口的感受。", practical_direction: "在平靜的對話中說出一項具體需要。",
+};
+const validatedZh = validateLabResult(zhResult, "zh-Hant");
+assert(validatedZh);
+const zhPresentation = presentLabResult(validatedZh, selection);
+assert.match(zhPresentation.opening, /^你抽到金星落在天蠍座及第十二宮/u);
+assert.deepEqual(zhPresentation.sections.map(({ heading }) => heading), ["解讀", "需要留意", "實際一步"]);
+assert.equal(zhPresentation.sections[1].body, `就「${selection.fixture.question}」而言，一項具體風險是過度依賴天蠍座的表達方式，因而忽略：有些事被收起，靜下來才看得見。`);
+
+assert.equal(validateLabResult({ ...enResult, diagnostic: true }, "en"), null, "unknown result fields rejected");
+assert.equal(validateLabResult({ ...enResult, language: "zh-Hant" }, "en"), null, "language drift rejected");
+assert.equal(validateLabResult({ ...zhResult, practical_direction: "呢個做法唔得" }, "zh-Hant"), null, "colloquial/malformed zh-Hant rejected");
+assert.deepEqual(Object.keys(deterministicPresentation("DICE_SAFETY_REDIRECT", "en")), ["kind", "language", "message"]);
+assert.equal(deterministicPresentation("DICE_SAFETY_REDIRECT", "en").message, "Lumis can’t help with that request, but it can offer a safer, general reflection instead.");
+assert.equal(deterministicPresentation("DICE_FIXED_FALLBACK", "en").message, "Lumis couldn’t complete that reflection just now. Please try again.");
+assert.match(liveWindowSource, /receiptEncoded: bytes\.toString\("base64url"\)/u, "gateway must transmit the exact verified receipt bytes");
+assert.doesNotMatch(liveWindowSource, /Buffer\.from\(JSON\.stringify\(receipt\)/u, "gateway must not reserialize signed receipt bytes");
+assert.match(liveWindowSource, /AbortSignal\.timeout\(14_000\)/u, "local transport keeps a response-only margin above the server-owned 12-second deadline");
+
+assert.equal(labStatus().contract_commit, "c1ec632fdea1f2677621f8b1bd3a71e72d17f071");
+assert.equal(labStatus().contract_seal_sha256, "d0f0c631aa40cf076d86d0a661fe289466d23593bb117c4a359b7ba46e7c007c");
+assert.equal(labStatus().window_live, false);
+assert.equal(labStatus().provider_calls, 0);
+const redacted = redactExportRecord({ fixture_id: fixtures[0].fixture_id, language: "en", route: "DICE_AI_DISABLED", question: fixtures[0].question, response: enResult, prompt: "not exportable", latency_bucket: "none", token_bucket: "zero", cost_bucket: "zero" });
+assert.deepEqual(Object.keys(redacted).filter((key) => /question|prompt|response|secret|credential/i.test(key)), [], "CSV is metadata-only");
+assert.doesNotMatch(serverSource, /openai\.azure\.com|services\.ai\.azure\.com|@supabase|chat-message|normal.?chat/i, "no provider, Supabase, or normal-chat route");
+assert.doesNotMatch(serverSource, /contenteditable|localStorage|sessionStorage|console\.log\([^`]*response/iu, "raw response is not persisted or logged");
+assert.match(serverSource, /value="free_text"/u, "Founder free-text mode is explicit");
+assert.match(serverSource, /value="fixture"/u, "approved fixture mode is explicit and mutually exclusive");
+assert.match(serverSource, /endpoint=mode==='free_text'\?'\/api\/run\/free-text':'\/api\/run\/fixture'/u, "browser routes each mode to its closed endpoint");
+assert.match(serverSource, /body:JSON\.stringify\(body\)/u, "browser sends only the selected-mode body");
+assert.doesNotMatch(serverSource, /result[^\n]*JSON\.stringify|JSON\.stringify\(await r\.json/u, "diagnostic JSON is not the main response");
+assert.match(serverSource, /LUMIS_FOUNDER_DICE_WINDOW_RECEIPT/u, "live mode requires a separate Founder receipt");
+assert.match(serverSource, /latestMetadata=data\.metadata\|\|null/u, "only redacted metadata is retained for export");
+assert.match(serverSource, /dataset\.failureClass/u, "closed failure class remains session-only for diagnosis");
+assert.doesNotMatch(serverSource, /redacted_failure_code[^\n]*row=|redacted_failure_code[^\n]*csv/iu, "failure class is not exported");
+assert.match(liveLauncherSource, /LUMIS_FOUNDER_DICE_FREE_TEXT_LIVE/u, "live launcher has an independent free-text switch");
+assert.match(liveLauncherSource, /STOP_LAB_FREE_TEXT_ACCESS_UNAVAILABLE/u, "free-text live mode requires its server-held access boundary");
+assert.match(liveLauncherSource, /if \[\[ "\$FIXTURE_LIVE" == "true" \]\]/u, "fixture receipts are required only for fixture mode");
+const generatedScript = renderLabPage().match(/<script>([\s\S]*)<\/script>/u)?.[1];
+assert(generatedScript, "generated Lab page contains its bootstrap script");
+assert.doesNotThrow(() => new vm.Script(generatedScript), "generated inline JavaScript parses before bootstrap");
+const labServer = await createLabServer();
+await new Promise((resolve) => labServer.listen(0, "127.0.0.1", resolve));
+const labAddress = labServer.address();
+const labBase = `http://127.0.0.1:${labAddress.port}`;
+const [pageResponse, statusResponse, fixtureResponse, optionResponse] = await Promise.all([
+  fetch(labBase), fetch(`${labBase}/api/status`), fetch(`${labBase}/api/fixtures`), fetch(`${labBase}/api/options`),
+]);
+assert.equal(pageResponse.status, 200);
+assert.equal(statusResponse.status, 200);
+assert.equal((await fixtureResponse.json()).length, 40);
+assert.deepEqual(Object.fromEntries(Object.entries(await optionResponse.json()).map(([key, value]) => [key, value.length])), { planets: 12, signs: 12, houses: 12 });
+const stoppedFreeText = await fetch(`${labBase}/api/run/free-text`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(freeTextRequest) });
+assert.equal(stoppedFreeText.status, 503, "default-off HTTP free-text route is present and fail closed");
+await new Promise((resolve, reject) => labServer.close((error) => error ? reject(error) : resolve()));
+console.log("internal Dice AI Lab contract passed: bootstrap, dual modes, 36 closed faces, v2 presentation, metadata-only, provider_calls=0");

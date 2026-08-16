@@ -13,6 +13,8 @@ import {
   readDiceMobileLiveConfig,
 } from "../../services/diceMobileLiveGateway";
 import { createDiceMobileSupabaseTransport } from "../../services/diceMobileSupabaseTransport";
+import { createDiceFounderFreeTextController, readDiceFounderFreeTextConfig } from "../../services/diceFounderFreeTextGateway";
+import { createDiceFounderFreeTextTransport } from "../../services/diceFounderFreeTextTransport";
 import { DiceRitualScreen } from "./DiceRitualScreen";
 
 type Props = Readonly<{
@@ -20,13 +22,16 @@ type Props = Readonly<{
   onReflect: (chatDraft: string) => void;
   onSelectTab: (tab: MainTab) => void;
   onBack: () => void;
+  founderLiveFreeText?: boolean;
 }>;
 
 export function CustomerDiceRitualRoute(props: Props) {
   const mode = parseDiceCustomerFixtureMode(process.env.EXPO_PUBLIC_DICE_CUSTOMER_LOCAL_FIXTURE, __DEV__);
-  const controller = useMemo(() => mode === "disabled"
-    ? createDiceMobileLiveController({ ...readDiceMobileLiveConfig(), create_transport: createDiceMobileSupabaseTransport })
-    : createDiceCustomerInterpretationController(mode), [mode]);
+  const controller = useMemo(() => mode !== "disabled"
+    ? createDiceCustomerInterpretationController(mode)
+    : props.founderLiveFreeText
+      ? createDiceFounderFreeTextController({ ...readDiceFounderFreeTextConfig(), create_transport: createDiceFounderFreeTextTransport })
+      : createDiceMobileLiveController({ ...readDiceMobileLiveConfig(), create_transport: createDiceMobileSupabaseTransport }), [mode, props.founderLiveFreeText]);
   const [interpretationState, setInterpretationState] = useState<DiceCustomerInterpretationEnvelope>();
   const latestRequestRef = useRef<DiceCustomerInterpretationInput | null>(null);
   const activeRequestKeyRef = useRef<string | null>(null);
@@ -51,7 +56,7 @@ export function CustomerDiceRitualRoute(props: Props) {
         const latest = latestRequestRef.current;
         if (latest?.request_key === requestKey) requestInterpretation(latest);
       }}
-      requireClosedFixtureRegistry
+      requireClosedFixtureRegistry={!props.founderLiveFreeText}
     />
   );
 }

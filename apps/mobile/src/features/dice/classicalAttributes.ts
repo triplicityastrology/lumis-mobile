@@ -1,4 +1,4 @@
-import type { DieKind } from "./constants";
+import type { DieKind } from "./constants.ts";
 
 /**
  * Classical horary attributes for the dice reading — Level 2 course material

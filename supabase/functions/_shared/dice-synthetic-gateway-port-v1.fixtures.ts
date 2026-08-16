@@ -1,6 +1,7 @@
 import {
   DICE_AUTHORIZATION_SCHEMA,
   DICE_GATEWAY_INTERFACE_VERSION,
+  DICE_PROMPT_VERSION,
   canonicalDiceRegistry,
 } from "./dice-synthetic-canonical-v1.ts";
 import { diceServerTokenizer, measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
@@ -24,8 +25,12 @@ const SECRET = "test-only-authority-secret-32-bytes-minimum";
 const PACKAGE_SHA = "a".repeat(64);
 const REGISTRY_SHA = "b".repeat(64);
 const NOW = Date.parse("2026-08-09T15:00:00.000Z");
-const EN_OUTPUT = JSON.stringify({ reading: "Notice the measured opening.", watch_out: "Avoid certainty.", practical_direction: "Take one reversible step." });
-const ZH_OUTPUT = JSON.stringify({ reading: "留意較平穩的開端。", watch_out: "避免過早下定論。", practical_direction: "先踏出可以回頭的一步。" });
+function outputFor(language: "en" | "zh-Hant", prompt = ""): string {
+  const judgment = /"question_shape":"judgment"/.test(prompt);
+  return JSON.stringify(language === "en"
+    ? { schema: "lumis_dice_v0_3_result_v2", language, planet_layer: "Notice the planet's core capability.", sign_element_layer: "Notice the sign's expression and atmosphere.", house_layer: "Notice the external house environment.", timing_or_pace: null, judgment: judgment ? "Treat the current momentum as reflective rather than certain." : null, practical_direction: "Take one reversible step." }
+    : { schema: "lumis_dice_v0_3_result_v2", language, planet_layer: "留意行星所代表的核心能力。", sign_element_layer: "留意星座與元素所呈現的表達和氛圍。", house_layer: "留意宮位所代表的外在環境。", timing_or_pace: null, judgment: judgment ? "把目前的動勢視為反思，而不是確定答案。" : null, practical_direction: "先踏出可以回頭的一步。" });
+}
 
 runFixtures()
   .then(() => console.log("S2-T257 canonical Dice gateway port fixtures passed"))
@@ -100,7 +105,7 @@ async function runFixtures(): Promise<void> {
       peak = Math.max(peak, active);
       await Promise.resolve();
       active -= 1;
-      return { kind: "success", content: input.language === "en" ? EN_OUTPUT : ZH_OUTPUT };
+      return { kind: "success", content: outputFor(input.language, input.prompt), provider_disposition: "responses_completed_valid" };
     },
   };
   const successfulPort = port(successfulAdapter);
@@ -110,7 +115,7 @@ async function runFixtures(): Promise<void> {
   equal(evidencePackage.technical_case_count, 80, "all Technical cases execute");
   equal(evidencePackage.founder_case_count, 0, "Founder execution is prohibited");
   equal(evidencePackage.records.length, 80, "evidence includes exactly 80 metadata records");
-  truthy(providerCalls > 0 && providerCalls <= 160, "provider attempts remain inside the 160 cap");
+  truthy(providerCalls > 0 && providerCalls <= 160, `provider attempts remain inside the 160 cap (actual=${providerCalls})`);
   truthy(peak <= 2, "real worker execution stays within concurrency two");
   truthy(verifyDiceGatewayDisabled(successfulPort.status()), "port is independently disabled after success");
   for (const record of evidencePackage.records) {
@@ -132,7 +137,7 @@ async function runFixtures(): Promise<void> {
   const crossInstanceAdapter: DiceProviderAdapter = {
     async invoke(input) {
       crossInstanceCalls += 1;
-      return { kind: "success", content: input.language === "en" ? EN_OUTPUT : ZH_OUTPUT };
+      return { kind: "success", content: outputFor(input.language, input.prompt), provider_disposition: "responses_completed_valid" };
     },
   };
   const firstInstance = port(crossInstanceAdapter, sharedAtomicStore);
@@ -150,7 +155,7 @@ async function runFixtures(): Promise<void> {
 
   let unavailableProviderCalls = 0;
   const unavailablePort = port(
-    { async invoke() { unavailableProviderCalls += 1; return { kind: "success", content: EN_OUTPUT }; } },
+    { async invoke(input) { unavailableProviderCalls += 1; return { kind: "success", content: outputFor(input.language, input.prompt), provider_disposition: "responses_completed_valid" }; } },
     createPostgresDiceAuthorityStore({ async rpc() { return { data: null, error: { code: "PGRST_UNAVAILABLE" } }; } }),
   );
   const unavailableAuthorization = await authorizationFor("dice-tech80-storeoffline0001");
@@ -168,7 +173,7 @@ async function runFixtures(): Promise<void> {
   await rejectsCode(() => port(successfulAdapter).executeAuthorizedWindow(expired), "DICE_AUTHORITY_EXPIRED_OR_OVERBROAD", "expired authority fails closed");
   let movingNow = NOW;
   const expiringPort = new DiceSyntheticGatewayPortV1(
-    { async invoke(input) { movingNow = NOW + 2; return { kind: "success", content: input.language === "en" ? EN_OUTPUT : ZH_OUTPUT }; } },
+    { async invoke(input) { movingNow = NOW + 2; return { kind: "success", content: outputFor(input.language, input.prompt), provider_disposition: "responses_completed_valid" }; } },
     new AtomicAuthorityStore(),
     SECRET,
     { gatewayPackageSha256: PACKAGE_SHA, fixtureRegistrySha256: REGISTRY_SHA },
@@ -180,10 +185,10 @@ async function runFixtures(): Promise<void> {
 
   const exact300 = { en: exactOutput("en", 300), "zh-Hant": exactOutput("zh-Hant", 300) };
   const exact301 = { en: exactOutput("en", 301), "zh-Hant": exactOutput("zh-Hant", 301) };
-  const boundaryPort = port({ async invoke(input) { return { kind: "success", content: exact300[input.language] }; } });
+  const boundaryPort = port({ async invoke(input) { return { kind: "success", content: exact300[input.language], provider_disposition: "responses_completed_valid" }; } });
   const boundary = await boundaryPort.executeAuthorizedWindow(await authorizationFor("dice-tech80-outputedge000100"));
   truthy(boundary.records.some((record) => record.result_class === "completed" && record.output_tokens === 300), "actual o200k 300-token provider output is accepted");
-  const capPort = port({ async invoke(input) { return { kind: "success", content: exact301[input.language] }; } });
+  const capPort = port({ async invoke(input) { return { kind: "success", content: exact301[input.language], provider_disposition: "responses_completed_valid" }; } });
   const capped = await capPort.executeAuthorizedWindow(await authorizationFor("dice-tech80-outputcap0000100"));
   truthy(capped.records.some((record) => record.output_tokens === 301 && record.redacted_failure_code === "output_token_cap"), "actual o200k 301-token provider output is rejected");
 
@@ -230,9 +235,9 @@ async function runFixtures(): Promise<void> {
     routeFamily: "v1",
   }, async (input) => {
     fetchUrl = String(input);
-    return new Response(JSON.stringify({ status: "completed", output_text: EN_OUTPUT }), { status: 200 });
+    return new Response(JSON.stringify({ status: "completed", output_text: outputFor("en", "\"question_shape\":\"judgment\"") }), { status: 200 });
   });
-  await adapter.invoke({ prompt: "fixture", prompt_version: "lumis_dice_synthetic_prompt_v1", language: "en", deadline_at_ms: Date.now() + 1000, max_output_tokens: 300, signal: new AbortController().signal });
+  await adapter.invoke({ prompt: "fixture", prompt_version: DICE_PROMPT_VERSION, language: "en", question_shape: "judgment", deadline_at_ms: Date.now() + 1000, max_output_tokens: 300, signal: new AbortController().signal });
   truthy(fetchUrl.endsWith("/openai/v1/responses"), "adapter uses only documented v1 route family");
 }
 
@@ -244,8 +249,12 @@ function exactOutput(language: "en" | "zh-Hant", target: number): string {
   const unit = language === "en" ? " hello" : " 星";
   for (let repeats = 0; repeats <= target * 2; repeats += 1) {
     const content = JSON.stringify({
-      reading: unit.repeat(repeats).trim(),
-      watch_out: language === "en" ? "Avoid certainty." : "避免過早下定論。",
+      schema: "lumis_dice_v0_3_result_v2", language,
+      planet_layer: `${unit.repeat(repeats).trim()}${language === "en" ? "." : "。"}`,
+      sign_element_layer: language === "en" ? "Use the sign as expression." : "把星座視為表達方式。",
+      house_layer: language === "en" ? "Use the house as environment." : "把宮位視為外在環境。",
+      timing_or_pace: null,
+      judgment: language === "en" ? "Avoid certainty." : "避免過早下定論。",
       practical_direction: language === "en" ? "Take one reversible step." : "先踏出可以回頭的一步。",
     });
     if (diceServerTokenizer.count(content) === target) return content;

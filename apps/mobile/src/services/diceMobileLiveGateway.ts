@@ -94,7 +94,7 @@ export function createDiceMobileLiveController(config: DiceMobileLiveConfig) {
         return;
       }
       try {
-        const result = projectResult(await transport({
+        const result = projectDiceMobileResult(await transport({
           fixture_id: fixture.fixture_id,
           planet_id: input.planet_id,
           sign_id: input.sign_id,
@@ -141,7 +141,7 @@ function closedLanding(input: DiceCustomerInterpretationInput): boolean {
   return PLANETS.has(input.planet_id) && SIGNS.has(input.sign_id) && HOUSES.has(input.house_id);
 }
 
-function projectResult(value: unknown, language: "en" | "zh-Hant"): DiceLiveResultState {
+export function projectDiceMobileResult(value: unknown, language: "en" | "zh-Hant"): DiceLiveResultState {
   if (!record(value)) return retry(language, "DICE_RESPONSE_INVALID");
   const normalKeys = ["schema", "language", "planet_layer", "sign_element_layer", "house_layer", "timing_or_pace", "judgment", "practical_direction"];
   if (exactKeys(value, normalKeys) && value.schema === DICE_RESULT_SCHEMA && value.language === language) {

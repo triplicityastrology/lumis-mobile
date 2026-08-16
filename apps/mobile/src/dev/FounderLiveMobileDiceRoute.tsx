@@ -15,6 +15,7 @@ export function FounderLiveMobileDiceRoute() {
       </View>
       <View style={styles.productPixels}>
         <CustomerDiceRitualRoute
+          founderLiveFreeText
           onBack={() => undefined}
           onNotifications={() => undefined}
           onReflect={() => setNote("Reflect in Chat selected explicitly")}

@@ -3,5 +3,5 @@
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2.110.2",
     "js-tiktoken": "npm:js-tiktoken@1.0.21"
   },
-  "nodeModulesDir": "manual"
+  "nodeModulesDir": "auto"
 }

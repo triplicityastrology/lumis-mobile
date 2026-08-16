@@ -2,15 +2,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { AC_DICE_09_HEADINGS, validateIntegrationManifest, validateProofReceipt } from "./s2-t359-dice-live-proof.mjs";
+import { AC_DICE_09_HEADINGS, INTEGRATED_T356_COMMIT, INTEGRATED_T357_COMMIT, INTEGRATED_T358_COMMIT, validateIntegrationManifest, validateProofReceipt } from "./s2-t359-dice-live-proof.mjs";
 
 const hex = (seed) => createHash("sha256").update(seed).digest("hex");
+const commit = (seed) => createHash("sha1").update(seed).digest("hex");
 const manifest = validateIntegrationManifest({
-  schema: "lumis_s2_t359_integration_manifest_v1", integrated_commit: hex("integrated"),
-  t356_commit: hex("t356"), t356_package_sha256: hex("t356-package"),
-  t357_commit: hex("t357"), t357_package_sha256: hex("t357-package"),
-  t358_commit: hex("t358"), t358_package_sha256: hex("t358-package"),
-  web_build_marker: hex("integrated"), mobile_build_marker: hex("integrated"),
+  schema: "lumis_s2_t359_integration_manifest_v1", integrated_commit: commit("integrated"),
+  t356_commit: INTEGRATED_T356_COMMIT, t356_package_sha256: hex("t356-package"),
+  t357_commit: INTEGRATED_T357_COMMIT, t357_package_sha256: hex("t357-package"),
+  t358_commit: INTEGRATED_T358_COMMIT, t358_package_sha256: hex("t358-package"),
+  web_build_marker: commit("integrated"), mobile_build_marker: commit("integrated"),
   web_launcher: "scripts/start-founder-dice-web-lab-live.sh", web_launcher_sha256: hex("web-launcher"),
   mobile_launcher: "scripts/start-founder-live-mobile-dice-ssd.sh", mobile_launcher_sha256: hex("mobile-launcher"),
   web_url: "http://127.0.0.1:8147", mobile_expo_url: "exp://192.168.0.185:8222",
@@ -39,6 +40,7 @@ assert.equal(validateProofReceipt({ ...receipt, web: { ...receipt.web, runs: [we
 assert.equal(validateProofReceipt({ ...receipt, mobile: { ...receipt.mobile, runs: mobileRuns.map((entry) => ({ ...entry, retry_count: 0 })) } }, manifest, manifestSha), false);
 assert.equal(validateProofReceipt({ ...receipt, raw_response: "forbidden" }, manifest, manifestSha), false);
 assert.equal(validateIntegrationManifest({ ...manifest, mobile_expo_url: "exp://example.com:8222" }), null);
+assert.equal(validateIntegrationManifest({ ...manifest, t358_commit: hex("wrong-t358") }), null);
 
 const launcher = readFileSync("scripts/start-s2-t359-dice-live-proof.sh", "utf8");
 assert.match(launcher, /s2-t359-dice-live-proof\.mjs" preflight/);

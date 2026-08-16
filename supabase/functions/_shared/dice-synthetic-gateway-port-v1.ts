@@ -9,6 +9,7 @@ import {
   assembleCanonicalDicePrompt,
   canonicalDiceRegistry,
   isCanonicalFixtureId,
+  parseCanonicalDiceOutput,
   type CanonicalDiceFixture,
   type DiceFailureCode,
   type DiceLanguage,
@@ -16,18 +17,32 @@ import {
 } from "./dice-synthetic-canonical-v1.ts";
 import { diceServerTokenizer, measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 import type { DiceAuthorityStore } from "./dice-authority-store-v1.ts";
+import type { DiceV03QuestionShape } from "./dice-v0-3-interpretation-contract.ts";
 
 export type DiceProviderResult =
-  | Readonly<{ kind: "success"; content: string }>
-  | Readonly<{ kind: "content_filter_block" | "content_filter_partial" }>
+  | Readonly<{ kind: "success"; content: string; provider_disposition: "responses_completed_valid" }>
+  | Readonly<{ kind: "content_filter_block" | "content_filter_partial"; provider_disposition?: DiceProviderDisposition }>
   | Readonly<{ kind: "timeout" | "network" | "rate_limited" | "server_error" }>
-  | Readonly<{ kind: "authentication" | "permission" | "invalid_output" }>;
+  | Readonly<{ kind: "authentication" | "permission" }>
+  | Readonly<{ kind: "invalid_output"; provider_disposition: Exclude<DiceProviderDisposition, "responses_completed_valid"> }>;
+
+export type DiceProviderDisposition =
+  | "http_400_text_format_schema"
+  | "http_non_2xx"
+  | "responses_incomplete_content_filter"
+  | "responses_incomplete_max_output"
+  | "responses_incomplete_other"
+  | "responses_completed_empty_output"
+  | "responses_completed_non_text_output"
+  | "responses_completed_schema_invalid"
+  | "responses_completed_valid";
 
 export interface DiceProviderAdapter {
   invoke(input: Readonly<{
     prompt: string;
     prompt_version: typeof DICE_PROMPT_VERSION;
     language: DiceLanguage;
+    question_shape: DiceV03QuestionShape;
     deadline_at_ms: number;
     max_output_tokens: 300;
     signal: AbortSignal;
@@ -268,14 +283,14 @@ export class DiceSyntheticGatewayPortV1 {
       }
       this.attemptTotal += 1;
       attempts = (attempts + 1) as 1 | 2;
-      const provider = await this.callProvider(prompt, fixture.language, deadlineAt);
+      const provider = await this.callProvider(prompt, fixture.language, fixture.classification, deadlineAt);
       if (provider.kind === "success") {
         const outputMeasurement = measureDiceTokenLimit(provider.content, DICE_LIMITS.outputTokens);
         const outputTokens = outputMeasurement.token_count;
         if (!outputMeasurement.within_limit) {
           return this.evidence(runId, fixture, attempts, inputTokens, outputTokens, startedAt, "fallback", "output_token_cap");
         }
-        if (!parseCanonicalOutput(provider.content, fixture.language)) {
+        if (!parseCanonicalDiceOutput(provider.content, fixture)) {
           return this.evidence(runId, fixture, attempts, inputTokens, outputTokens, startedAt, "fallback", "provider_malformed");
         }
         return this.evidence(runId, fixture, attempts, inputTokens, outputTokens, startedAt, "completed", "none");
@@ -288,7 +303,7 @@ export class DiceSyntheticGatewayPortV1 {
     throw new DiceGatewayStop("DICE_RETRY_LOOP_INVALID");
   }
 
-  private async callProvider(prompt: string, language: DiceLanguage, deadlineAt: number): Promise<DiceProviderResult> {
+  private async callProvider(prompt: string, language: DiceLanguage, questionShape: DiceV03QuestionShape, deadlineAt: number): Promise<DiceProviderResult> {
     this.activeProviderCalls += 1;
     this.concurrencyPeak = Math.max(this.concurrencyPeak, this.activeProviderCalls);
     if (this.activeProviderCalls > DICE_LIMITS.concurrency) throw new DiceGatewayStop("DICE_CONCURRENCY_CAP");
@@ -305,6 +320,7 @@ export class DiceSyntheticGatewayPortV1 {
         prompt,
         prompt_version: DICE_PROMPT_VERSION,
         language,
+        question_shape: questionShape,
         deadline_at_ms: deadlineAt,
         max_output_tokens: 300,
         signal: controller.signal,
@@ -430,16 +446,6 @@ function constantTimeHexEqual(left: string, right: string): boolean {
   let mismatch = 0;
   for (let index = 0; index < left.length; index += 1) mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
   return mismatch === 0;
-}
-
-function parseCanonicalOutput(content: string, language: DiceLanguage): boolean {
-  let raw: unknown;
-  try { raw = JSON.parse(content); } catch { return false; }
-  if (!isRecord(raw) || !hasExactKeys(raw, ["reading", "watch_out", "practical_direction"])) return false;
-  const values = [raw.reading, raw.watch_out, raw.practical_direction];
-  if (values.some((value) => typeof value !== "string" || !value.trim())) return false;
-  const containsChinese = /[\u3400-\u9fff\uf900-\ufaff]/u.test(values.join(" "));
-  return language === "zh-Hant" ? containsChinese : !containsChinese;
 }
 
 function providerDisposition(kind: Exclude<DiceProviderResult, { kind: "success" }>["kind"]): { retryable: boolean; result: DiceResultClass; code: DiceFailureCode } {

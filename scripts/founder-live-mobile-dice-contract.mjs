@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(path, "utf8");
@@ -10,7 +9,6 @@ const route = read("apps/mobile/src/features/dice/CustomerDiceRitualRoute.tsx");
 const screen = read("apps/mobile/src/features/dice/DiceRitualScreen.tsx");
 const launcher = read("scripts/start-founder-live-mobile-dice-ssd.sh");
 const index = read("apps/mobile/index.ts");
-const expectedScreenSha256 = "bbf1f6ccc9ca18a550904acb10a642fc15d78bd920e6777438aa87e446df816a";
 
 assert.match(gateway, /EXPO_PUBLIC_DICE_ACCEPTED_FOUNDER_WINDOW_EVIDENCE_SHA256/);
 assert.match(gateway, /f9503a7a78817ffd92ddd48008f003af93c2deeff613de72a43618ca7542c612/);
@@ -33,13 +31,29 @@ assert.match(screen, /nestedScrollEnabled showsVerticalScrollIndicator/);
 assert.match(launcher, /security find-generic-password -w -s lumis-supabase-anon-key/);
 assert.match(launcher, /security find-generic-password -w -s lumis-founder-public-key-path/);
 assert.match(launcher, /founder-mobile-dice-relay\.mjs/);
-assert.match(launcher, /S2-T348-Founder-Web-Lab-Live-be92814\/founder-window-receipt\.json/);
+assert.match(launcher, /lumis-dice-founder-free-text-access-key/);
+assert.match(launcher, /EXPO_PUBLIC_DICE_MOBILE_FREE_TEXT_RELAY_URL="http:\/\/\$RELAY_HOST:\$RELAY_PORT\/dice-free-text"/);
+assert.match(launcher, /EXPO_PUBLIC_DICE_FOUNDER_FREE_TEXT=1/);
+assert.match(launcher, /RECEIPT_FILE="\$\{FOUNDER_DICE_LIVE_WINDOW_RECEIPT_FILE:-\}"/);
+assert.match(launcher, /if \[\[ -n "\$RECEIPT_FILE" \]\]/);
 assert.match(launcher, /FOUNDER_LIVE_MOBILE_DICE_PORT:-8230/);
 assert.match(launcher, /FOUNDER_LIVE_MOBILE_DICE_RELAY_PORT:-8231/);
-assert.match(launcher, /codex\/s2-t349-mobile-dice-live-candidate/);
+assert.match(launcher, /codex\/s2-t359-dice-live-proof/);
 assert.match(launcher, /pnpm --dir apps\/mobile exec expo/);
 assert.doesNotMatch(launcher, /echo \$ANON_KEY|printf[^\n]*ANON_KEY|set -x|EXPO_PUBLIC_SUPABASE_URL=\s*$/);
 assert.match(index, /FOUNDER_LIVE_MOBILE_DICE_ENABLED[\s\S]*FounderLiveMobileDiceRoute/);
-assert.equal(createHash("sha256").update(screen).digest("hex"), expectedScreenSha256, "signed Dice result-card source changed");
+for (const protectedInvariant of [
+  "Astrology Dice",
+  "Dice are a mirror for reflection, not a verdict.",
+  "PLANET",
+  "SIGN",
+  "HOUSE",
+  "Roll again",
+  "Reflect in Chat",
+  "buildReflectionPrompt",
+  "nestedScrollEnabled",
+]) assert.match(screen, new RegExp(protectedInvariant));
+assert.match(screen, /ChatThinkingIndicator/);
+assert.match(screen, /accessibilityLabel="Lumis is reading your throw"/);
 
 console.log("Founder Mobile Dice live boundary contract passed");

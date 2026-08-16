@@ -1,4 +1,5 @@
 export const MOBILE_DICE_REQUEST_KEYS = Object.freeze(["fixture_id", "planet_id", "sign_id", "house_id"]);
+export const MOBILE_DICE_FREE_TEXT_REQUEST_KEYS = Object.freeze(["question", "planet_id", "sign_id", "house_id"]);
 
 const PLANETS = new Set(["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "north_node", "south_node"]);
 const SIGNS = new Set(["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]);
@@ -9,11 +10,30 @@ export function validateMobileDiceRelayRequest(value, fixtureIds) {
     PLANETS.has(value.planet_id) && SIGNS.has(value.sign_id) && HOUSES.has(value.house_id);
 }
 
+export function validateMobileDiceFreeTextRelayRequest(value) {
+  return exactKeys(value, MOBILE_DICE_FREE_TEXT_REQUEST_KEYS) && typeof value.question === "string" &&
+    value.question === value.question.trim() && value.question.length > 0 && [...value.question].length <= 280 &&
+    PLANETS.has(value.planet_id) && SIGNS.has(value.sign_id) && HOUSES.has(value.house_id);
+}
+
 export function projectMobileDiceUpstream(status, payload, fixtureId) {
   if (status >= 200 && status < 300 && exactKeys(payload, ["result", "metadata"]) && record(payload.result)) {
     return Object.freeze({ status: 200, body: payload.result });
   }
   const language = fixtureId.includes("-zh-") ? "zh-Hant" : "en";
+  if (payload?.error?.code === "DICE_SAFETY_REDIRECT") {
+    return Object.freeze({ status: 200, body: outcome("safety_redirect", language, "Lumis can’t help with that request, but it can offer a safer, general reflection instead.") });
+  }
+  if (payload?.error?.code === "DICE_FIXED_FALLBACK") {
+    return Object.freeze({ status: 200, body: outcome("fixed_fallback", language, "Lumis couldn’t complete that reflection just now. Please try again.") });
+  }
+  return Object.freeze({ status: 502, body: { error: "DICE_GATEWAY_UNAVAILABLE" } });
+}
+
+export function projectMobileDiceFreeTextUpstream(status, payload, language) {
+  if (status >= 200 && status < 300 && record(payload) && record(payload.result)) {
+    return Object.freeze({ status: 200, body: payload.result });
+  }
   if (payload?.error?.code === "DICE_SAFETY_REDIRECT") {
     return Object.freeze({ status: 200, body: outcome("safety_redirect", language, "Lumis can’t help with that request, but it can offer a safer, general reflection instead.") });
   }

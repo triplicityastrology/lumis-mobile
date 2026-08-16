@@ -2,7 +2,13 @@
 import { createHash, createPublicKey, timingSafeEqual, verify } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { MOBILE_DICE_REQUEST_KEYS, projectMobileDiceUpstream, validateMobileDiceRelayRequest } from "./lib/founder-mobile-dice-relay.mjs";
+import {
+  MOBILE_DICE_REQUEST_KEYS,
+  projectMobileDiceFreeTextUpstream,
+  projectMobileDiceUpstream,
+  validateMobileDiceFreeTextRelayRequest,
+  validateMobileDiceRelayRequest,
+} from "./lib/founder-mobile-dice-relay.mjs";
 
 const PROJECT_ORIGIN = "https://bmqhwofmdgebpcihjlnb.supabase.co";
 const FUNCTION_URL = `${PROJECT_ORIGIN}/functions/v1/dice-synthetic`;
@@ -36,10 +42,14 @@ const canonical = (value) => Array.isArray(value)
 const port = Number(required("LUMIS_DICE_MOBILE_RELAY_PORT"));
 const session = required("LUMIS_DICE_MOBILE_RELAY_SESSION");
 const anonKey = required("LUMIS_DICE_MOBILE_ANON_KEY");
-const receiptPath = required("LUMIS_DICE_FOUNDER_RECEIPT_FILE");
-const expectedReceiptSha256 = required("LUMIS_DICE_FOUNDER_RECEIPT_SHA256");
-const publicKeyPath = required("LUMIS_DICE_FOUNDER_PUBLIC_KEY_FILE");
-if (!Number.isInteger(port) || port < 1024 || port > 65535 || !/^[A-Za-z0-9_-]{43}$/u.test(session) || !/^[a-f0-9]{64}$/u.test(expectedReceiptSha256)) {
+const freeTextAccessKey = required("LUMIS_DICE_MOBILE_FREE_TEXT_ACCESS_KEY");
+const receiptPath = process.env.LUMIS_DICE_FOUNDER_RECEIPT_FILE?.trim() ?? "";
+const expectedReceiptSha256 = process.env.LUMIS_DICE_FOUNDER_RECEIPT_SHA256?.trim() ?? "";
+const publicKeyPath = process.env.LUMIS_DICE_FOUNDER_PUBLIC_KEY_FILE?.trim() ?? "";
+const fixtureMode = [receiptPath, expectedReceiptSha256, publicKeyPath].every(Boolean);
+if ([receiptPath, expectedReceiptSha256, publicKeyPath].some(Boolean) && !fixtureMode) throw new Error("STOP_MOBILE_DICE_RELAY_FIXTURE_CONFIGURATION_INCOMPLETE");
+if (!Number.isInteger(port) || port < 1024 || port > 65535 || !/^[A-Za-z0-9_-]{43}$/u.test(session) ||
+    freeTextAccessKey.length < 32 || (fixtureMode && !/^[a-f0-9]{64}$/u.test(expectedReceiptSha256))) {
   throw new Error("STOP_MOBILE_DICE_RELAY_CONFIGURATION_INVALID");
 }
 
@@ -47,37 +57,63 @@ const registry = JSON.parse(await readFile(new URL("../config/s2-t314-founder-fi
 const fixtureIds = new Set(registry.fixtures?.map((fixture) => fixture.fixture_id));
 if (registry.fixture_total !== 40 || fixtureIds.size !== 40) throw new Error("STOP_MOBILE_DICE_RELAY_REGISTRY_INVALID");
 
-const receiptBytes = await readFile(receiptPath);
-if (sha256(receiptBytes) !== expectedReceiptSha256) throw new Error("STOP_MOBILE_DICE_RELAY_RECEIPT_SHA256_MISMATCH");
-const receipt = JSON.parse(receiptBytes.toString("utf8"));
-const issuedAt = Date.parse(receipt.issued_at);
-const validUntil = Date.parse(receipt.valid_until);
-if (!exactKeys(receipt, RECEIPT_KEYS) || receipt.schema !== "lumis_dice_founder_web_lab_window_authorization_v1" ||
-    receipt.issuer !== "Lumis Founder Deployment Approver" || receipt.decision !== "AUTHORIZED" ||
-    receipt.authorization_scope !== "DICE_FOUNDER_SYNTHETIC_WINDOW_40_ONLY" || receipt.technical_evidence_sha256 !== TECHNICAL_EVIDENCE_SHA256 ||
-    receipt.source_commit !== ACCEPTED_T348_SOURCE_COMMIT || receipt.lab_package_sha256 !== ACCEPTED_T348_PACKAGE_SHA256 ||
-    receipt.founder_registry_sha256 !== REGISTRY_SHA256 || receipt.fixture_total !== 40 || receipt.language_totals?.en !== 20 || receipt.language_totals?.["zh-Hant"] !== 20 ||
-    JSON.stringify(receipt.request_fields) !== JSON.stringify(MOBILE_DICE_REQUEST_KEYS) || receipt.provider_attempt_cap !== 80 || receipt.concurrency_cap !== 1 ||
-    receipt.shared_deadline_ms !== 12_000 || receipt.input_token_cap !== 800 || receipt.output_token_cap !== 300 || receipt.cost_ceiling_usd !== 0.064 ||
-    receipt.raw_response_retention !== "session_memory_only" || receipt.metadata_export_only !== true || receipt.member_data !== 0 ||
-    receipt.persistence_writes !== 0 || receipt.units_charged !== 0 || receipt.normal_chat_authorized !== false || receipt.signature_algorithm !== "Ed25519" ||
-    receipt.issuer_public_key_spki_sha256 !== TRUSTED_SPKI_SHA256 || receipt.trust_anchor_owner !== "Founder" ||
-    !Number.isFinite(issuedAt) || !Number.isFinite(validUntil) || validUntil <= Date.now() || validUntil > issuedAt + 900_000) {
-  throw new Error("STOP_MOBILE_DICE_RELAY_RECEIPT_INVALID");
-}
-const publicKey = createPublicKey(await readFile(publicKeyPath, "utf8"));
-if (sha256(publicKey.export({ type: "spki", format: "der" })) !== TRUSTED_SPKI_SHA256) throw new Error("STOP_MOBILE_DICE_RELAY_TRUST_ANCHOR_MISMATCH");
-const { issuer_signature_base64: signature, ...signedPayload } = receipt;
-if (!verify(null, Buffer.from(canonical(signedPayload), "utf8"), publicKey, Buffer.from(signature, "base64"))) {
-  throw new Error("STOP_MOBILE_DICE_RELAY_SIGNATURE_INVALID");
+let receipt = null;
+if (fixtureMode) {
+  const receiptBytes = await readFile(receiptPath);
+  if (sha256(receiptBytes) !== expectedReceiptSha256) throw new Error("STOP_MOBILE_DICE_RELAY_RECEIPT_SHA256_MISMATCH");
+  receipt = JSON.parse(receiptBytes.toString("utf8"));
+  const issuedAt = Date.parse(receipt.issued_at);
+  const validUntil = Date.parse(receipt.valid_until);
+  if (!exactKeys(receipt, RECEIPT_KEYS) || receipt.schema !== "lumis_dice_founder_web_lab_window_authorization_v1" ||
+      receipt.issuer !== "Lumis Founder Deployment Approver" || receipt.decision !== "AUTHORIZED" ||
+      receipt.authorization_scope !== "DICE_FOUNDER_SYNTHETIC_WINDOW_40_ONLY" || receipt.technical_evidence_sha256 !== TECHNICAL_EVIDENCE_SHA256 ||
+      receipt.source_commit !== ACCEPTED_T348_SOURCE_COMMIT || receipt.lab_package_sha256 !== ACCEPTED_T348_PACKAGE_SHA256 ||
+      receipt.founder_registry_sha256 !== REGISTRY_SHA256 || receipt.fixture_total !== 40 || receipt.language_totals?.en !== 20 || receipt.language_totals?.["zh-Hant"] !== 20 ||
+      JSON.stringify(receipt.request_fields) !== JSON.stringify(MOBILE_DICE_REQUEST_KEYS) || receipt.provider_attempt_cap !== 80 || receipt.concurrency_cap !== 1 ||
+      receipt.shared_deadline_ms !== 12_000 || receipt.input_token_cap !== 800 || receipt.output_token_cap !== 300 || receipt.cost_ceiling_usd !== 0.064 ||
+      receipt.raw_response_retention !== "session_memory_only" || receipt.metadata_export_only !== true || receipt.member_data !== 0 ||
+      receipt.persistence_writes !== 0 || receipt.units_charged !== 0 || receipt.normal_chat_authorized !== false || receipt.signature_algorithm !== "Ed25519" ||
+      receipt.issuer_public_key_spki_sha256 !== TRUSTED_SPKI_SHA256 || receipt.trust_anchor_owner !== "Founder" ||
+      !Number.isFinite(issuedAt) || !Number.isFinite(validUntil) || validUntil <= Date.now() || validUntil > issuedAt + 900_000) {
+    throw new Error("STOP_MOBILE_DICE_RELAY_RECEIPT_INVALID");
+  }
+  const publicKey = createPublicKey(await readFile(publicKeyPath, "utf8"));
+  if (sha256(publicKey.export({ type: "spki", format: "der" })) !== TRUSTED_SPKI_SHA256) throw new Error("STOP_MOBILE_DICE_RELAY_TRUST_ANCHOR_MISMATCH");
+  const { issuer_signature_base64: signature, ...signedPayload } = receipt;
+  if (!verify(null, Buffer.from(canonical(signedPayload), "utf8"), publicKey, Buffer.from(signature, "base64"))) {
+    throw new Error("STOP_MOBILE_DICE_RELAY_SIGNATURE_INVALID");
+  }
 }
 
 const server = createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/health") return json(response, 200, { status: "ready" });
-  if (request.method !== "POST" || request.url !== "/dice" || !sameSession(request.headers["x-lumis-mobile-dice-session"])) {
+  if (request.method !== "POST" || !["/dice", "/dice-free-text"].includes(request.url ?? "") || !sameSession(request.headers["x-lumis-mobile-dice-session"])) {
     return json(response, 404, { error: "DICE_GATEWAY_UNAVAILABLE" });
   }
   const body = await readBody(request).catch(() => null);
+  if (request.url === "/dice-free-text") {
+    if (!validateMobileDiceFreeTextRelayRequest(body)) return json(response, 400, { error: "DICE_REQUEST_SCHEMA_INVALID" });
+    try {
+      const upstream = await fetch(FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${anonKey}`,
+          apikey: anonKey,
+          "content-type": "application/json",
+          "x-lumis-founder-free-text-access": freeTextAccessKey,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(12_000),
+      });
+      const payload = await upstream.json().catch(() => null);
+      const language = /[\u3400-\u9fff\uf900-\ufaff]/u.test(body.question) ? "zh-Hant" : "en";
+      const projected = projectMobileDiceFreeTextUpstream(upstream.status, payload, language);
+      return json(response, projected.status, projected.body);
+    } catch {
+      return json(response, 504, { error: "DICE_GATEWAY_UNAVAILABLE" });
+    }
+  }
+  if (!fixtureMode || !receipt) return json(response, 404, { error: "DICE_GATEWAY_UNAVAILABLE" });
   if (!validateMobileDiceRelayRequest(body, fixtureIds)) {
     return json(response, 400, { error: "DICE_REQUEST_SCHEMA_INVALID" });
   }

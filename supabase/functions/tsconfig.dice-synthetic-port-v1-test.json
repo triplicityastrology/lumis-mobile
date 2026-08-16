@@ -11,6 +11,9 @@
   "include": [
     "dice-synthetic/js-tiktoken-test.d.ts",
     "_shared/dice-synthetic-fixture-registry-v0-3.ts",
+    "_shared/dice-v0-3-interpretation-contract.ts",
+    "_shared/dice-v0-3-interpretation-contract.fixtures.ts",
+    "_shared/dice-v0-3-presentation.ts",
     "_shared/dice-tokenizer-v1.ts",
     "_shared/dice-authority-store-v1.ts",
     "_shared/dice-synthetic-canonical-v1.ts",

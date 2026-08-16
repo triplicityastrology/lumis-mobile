@@ -1,0 +1,36 @@
+{
+  "schema": "lumis_dice_v0_3_source_provenance_manifest_v1",
+  "status": "reviewed_distinct_supporting_artifacts_reconciled",
+  "primary_implementation_authority": {
+    "path": "01_Functions/02_Dice/01_Business_Process/Dice_Question_to_Interpretation_and_AI_Orchestration_v0.3.md",
+    "sha256": "7852cbd40187c2bc6302566f6f590404ac56cba99495eedfcd3ce6ff96924b69"
+  },
+  "founder_content_authority": {
+    "path": "01_Functions/02_Dice/06_Decisions_and_Approvals/AC-DICE-06_Interpretation_Content_Review.md",
+    "sha256": "aef0f75a32cebad3516ad1cbdedfa6b8a002b7387f6e2c12e701c244fe6f1120"
+  },
+  "founder_presentation_authority": {
+    "path": "01_Functions/02_Dice/06_Decisions_and_Approvals/AC-DICE-09_Playground_Reading_Presentation_Handoff_2026-08-13.md",
+    "sha256": "de82baba5cc71acce6d66f060fc1e9382ccd535a78a41df2ea7a4a40fd4dee0c"
+  },
+  "supporting_recovered_sources": {
+    "markdown": {
+      "path": "01_Functions/02_Dice/04_AI_Routing_and_Prompts/AC-DICE-05_Dice_Interpretation_Bank_and_Route_Spec_v0.3_Recovered_Source_2026-08-13.md",
+      "sha256": "40edaf38ca20ac2a6b340012f73dc6eb23167780d0aadd4bf845ac683e7415f2"
+    },
+    "workbook": {
+      "path": "01_Functions/02_Dice/04_AI_Routing_and_Prompts/AC-DICE-05_Dice_Interpretation_Bank_Bilingual_v0.3_2026-08-13.xlsx",
+      "sha256": "1a3a676bd1ae717970ce260e9b1d373e3d41d07fc8560264541365eaa00a3a64",
+      "inspection_sha256": "b27e41e85cd6e0d46ca10779413ba055225db9b91a6fca8799b0bb2e653bbabe",
+      "embedded_recovered_source_sha256": "5a72d19c706f60084eec08d04f46fbd4abae31c7f0059afc8053f341a9cea5ff"
+    }
+  },
+  "reconciliation": {
+    "finding": "The workbook embeds the checksum of an earlier recovered source; the current recovered Markdown and current bilingual workbook have their own verified checksums.",
+    "artifact_relationship": "The recovered Markdown and bilingual workbook are separate reviewed supporting artifacts. They are complementary and are not asserted to be byte-identical or generated from identical bytes.",
+    "binding_rule": "The v0.3 process and AC-DICE-06 control interpretation logic; AC-DICE-09 controls presentation. Both supporting AC-DICE-05 artifacts remain checksum-bound independently.",
+    "traffic_gate": "Any later release must bind this reconciled manifest, exact prompt/schema versions, and all independently verified source checksums."
+  },
+  "implementation_control_sha256": "02e3a01aec1657c59eecb5d4f655f180739e4062a2dd09d2a8faa147a782cf57",
+  "authority_map_sha256": "504d6ec119b2a757f74f30df34e3e2d0f96052ba59e513a61e92833cfc85a045"
+}

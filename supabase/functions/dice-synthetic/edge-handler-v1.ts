@@ -1,6 +1,7 @@
 import { createAzureDiceAdapter, readDiceAzureServerConfig } from "../_shared/azure-dice-adapter-v1.ts";
 import { createPostgresDiceAuthorityStore, type DiceAuthorityRpcClient } from "../_shared/dice-authority-store-v1.ts";
 import { DiceGatewayStop, DiceSyntheticGatewayPortV1 } from "../_shared/dice-synthetic-gateway-port-v1.ts";
+import { executeFounderDiceCase, executeFounderDiceFreeTextCase, parseFounderDiceFreeTextRequest, parseFounderDiceRequest, verifyFounderWindowReceipt } from "../_shared/dice-founder-window-v1.ts";
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
 export const DICE_EDGE_PACKAGE_SHA256 = "7962b7059e678819a7ca91263b4b6aaaea020932f3fa1b4faacbadb4b1ac7959" as const;
@@ -12,6 +13,7 @@ export type DiceEdgeDependencies = Readonly<{
   environment: EdgeEnvironment;
   createAuthorityClient(url: string, serviceRoleKey: string): DiceAuthorityRpcClient;
   fetchImpl?: typeof fetch;
+  verifyFounderReceipt?: typeof verifyFounderWindowReceipt;
 }>;
 
 export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencies): (request: Request) => Promise<Response> {
@@ -38,12 +40,57 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
     });
     if (!providerConfig.ok) return errorResponse(providerConfig.code, 503);
 
+    const body = await request.json().catch(() => null);
+    const freeTextRequest = parseFounderDiceFreeTextRequest(body);
+    if (hasFounderFreeTextIntent(body) && !freeTextRequest) return errorResponse("DICE_FOUNDER_FREE_TEXT_SCHEMA_INVALID", 400);
+    if (freeTextRequest) {
+      const suppliedAccess = request.headers.get("x-lumis-founder-free-text-access");
+      if (dependencies.environment.LUMIS_DICE_FOUNDER_FREE_TEXT_ENABLED !== "true" ||
+          !await validFounderFreeTextAccess(suppliedAccess, dependencies.environment.LUMIS_DICE_FOUNDER_FREE_TEXT_ACCESS_KEY)) {
+        return errorResponse("DICE_FOUNDER_FREE_TEXT_DISABLED", 403);
+      }
+      const outcome = await executeFounderDiceFreeTextCase(freeTextRequest, () => createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl));
+      if (outcome.kind !== "completed") {
+        const code = outcome.kind === "safety" ? "DICE_SAFETY_REDIRECT" : "DICE_FIXED_FALLBACK";
+        const protectedMetadata = "provider_disposition" in outcome && outcome.provider_disposition
+          ? { provider_disposition: outcome.provider_disposition }
+          : undefined;
+        return jsonResponse({ error: { code, redacted_failure_code: outcome.code }, classification: outcome.classification, metadata: outcome.metadata, protected_metadata: protectedMetadata }, { status: 422 });
+      }
+      return jsonResponse({ result: outcome.result, classification: outcome.classification, metadata: outcome.metadata, protected_metadata: { provider_disposition: outcome.provider_disposition } }, { status: 200 });
+    }
+
     const runtimeConfig = readRuntimeConfig(dependencies.environment);
     if (!runtimeConfig.ok) return errorResponse(runtimeConfig.code, 503);
-    const body = await request.json().catch(() => null);
+    const authorityClient = dependencies.createAuthorityClient(runtimeConfig.supabaseUrl, runtimeConfig.serviceRoleKey);
+    const founderRequest = parseFounderDiceRequest(body);
+    if (founderRequest) {
+      const encoded = request.headers.get("x-lumis-founder-window-authorization");
+      const claimedSha256 = request.headers.get("x-lumis-founder-window-receipt-sha256");
+      const publicKeyPem = dependencies.environment.LUMIS_DICE_FOUNDER_WINDOW_PUBLIC_KEY_PEM?.trim();
+      if (!encoded || !claimedSha256 || !publicKeyPem) return errorResponse("DICE_FOUNDER_WINDOW_NOT_AUTHORIZED", 403);
+      let verified: Awaited<ReturnType<typeof verifyFounderWindowReceipt>>;
+      try {
+        verified = await (dependencies.verifyFounderReceipt ?? verifyFounderWindowReceipt)(encoded, claimedSha256, publicKeyPem);
+      } catch {
+        return errorResponse("DICE_FOUNDER_WINDOW_REJECTED", 403);
+      }
+      try {
+        const outcome = await executeFounderDiceCase(founderRequest, verified.receipt, verified.receiptSha256, createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl), authorityClient);
+        if (outcome.kind !== "completed") {
+          return founderOutcomeResponse(
+            outcome.kind === "safety" ? "DICE_SAFETY_REDIRECT" : "DICE_FIXED_FALLBACK",
+            outcome.code,
+            "provider_disposition" in outcome ? outcome.provider_disposition : undefined,
+          );
+        }
+        return jsonResponse({ result: outcome.result, metadata: outcome.metadata, protected_metadata: { provider_disposition: outcome.provider_disposition } }, { status: 200 });
+      } catch (error) {
+        return founderOutcomeResponse("DICE_FIXED_FALLBACK", founderExecutionFailure(error));
+      }
+    }
     if (!isClosedEdgeRequest(body)) return errorResponse("DICE_REQUEST_SCHEMA_INVALID", 400);
 
-    const authorityClient = dependencies.createAuthorityClient(runtimeConfig.supabaseUrl, runtimeConfig.serviceRoleKey);
     const gateway = new DiceSyntheticGatewayPortV1(
       createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl),
       createPostgresDiceAuthorityStore(authorityClient),
@@ -58,6 +105,24 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
       return errorResponse(error instanceof DiceGatewayStop ? error.code : "DICE_EDGE_UNAVAILABLE", statusFor(error));
     }
   };
+}
+
+function hasFounderFreeTextIntent(value: unknown): boolean {
+  return typeof value === "object" && value !== null && !Array.isArray(value) && Object.hasOwn(value, "question");
+}
+
+async function validFounderFreeTextAccess(supplied: string | null, expected: string | undefined): Promise<boolean> {
+  if (!supplied || !expected?.trim() || supplied.length < 32 || expected.length < 32) return false;
+  const encoder = new TextEncoder();
+  const [left, right] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(supplied)),
+    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
+  ]);
+  const a = new Uint8Array(left);
+  const b = new Uint8Array(right);
+  let different = a.length ^ b.length;
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) different |= a[index] ^ b[index];
+  return different === 0;
 }
 
 function readRuntimeConfig(environment: EdgeEnvironment):
@@ -84,4 +149,18 @@ function statusFor(error: unknown): number {
 
 function errorResponse(code: string, status: number): Response {
   return jsonResponse({ error: { code } }, { status });
+}
+
+function founderOutcomeResponse(code: "DICE_SAFETY_REDIRECT" | "DICE_FIXED_FALLBACK", redactedFailureCode: string, providerDisposition?: string): Response {
+  const body = providerDisposition
+    ? { error: { code, redacted_failure_code: redactedFailureCode }, protected_metadata: { provider_disposition: providerDisposition } }
+    : { error: { code, redacted_failure_code: redactedFailureCode } };
+  return jsonResponse(body, { status: 422 });
+}
+
+function founderExecutionFailure(error: unknown): string {
+  const code = error instanceof Error ? error.message : "";
+  return ["DICE_FOUNDER_AUTHORITY_REJECTED", "DICE_FOUNDER_RETRY_INVALID"].includes(code)
+    ? code
+    : "DICE_FOUNDER_EXECUTION_REJECTED";
 }

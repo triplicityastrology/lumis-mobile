@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 
 export const ACCEPTED_T348_COMMIT = "be92814f6a466fdd56f0fd1e86fd10d5277dbd78";
 export const ACCEPTED_T349_COMMIT = "522063abad92d3931aecfc1b9a31e60e8c9f8ce1";
+export const INTEGRATED_T356_COMMIT = "fe3f8866b7b8a111a55e216012ce1db06f1735dc";
+export const INTEGRATED_T357_COMMIT = "8b93b148e9680ef534f7391b1d2d90d9c7d865a8";
+export const INTEGRATED_T358_COMMIT = "017a1b12541abff16229682672129d1cfe2f0f57";
 export const AC_DICE_09_HEADINGS = Object.freeze({
   en: Object.freeze(["Reading", "One thing to watch", "Practical step"]),
   "zh-Hant": Object.freeze(["解讀", "需要留意", "實際一步"])
@@ -16,6 +19,7 @@ export const AC_DICE_09_HEADINGS = Object.freeze({
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const hex = (value) => typeof value === "string" && /^[0-9a-f]{64}$/u.test(value);
+const gitCommit = (value) => typeof value === "string" && /^[0-9a-f]{40}$/u.test(value);
 const record = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 const exactKeys = (value, keys) => record(value) && Object.keys(value).sort().join(",") === [...keys].sort().join(",");
 
@@ -28,8 +32,9 @@ export function validateIntegrationManifest(value) {
     "local_consumption_lock"
   ];
   if (!exactKeys(value, keys) || value.schema !== "lumis_s2_t359_integration_manifest_v1") return null;
+  if (value.t356_commit !== INTEGRATED_T356_COMMIT || value.t357_commit !== INTEGRATED_T357_COMMIT || value.t358_commit !== INTEGRATED_T358_COMMIT) return null;
   for (const key of ["integrated_commit", "t356_commit", "t357_commit", "t358_commit", "web_build_marker", "mobile_build_marker"]) {
-    if (!hex(value[key])) return null;
+    if (!gitCommit(value[key])) return null;
   }
   for (const key of ["t356_package_sha256", "t357_package_sha256", "t358_package_sha256", "web_launcher_sha256", "mobile_launcher_sha256"]) {
     if (!hex(value[key])) return null;
@@ -108,9 +113,11 @@ function assertIntegrated(manifest, manifestPath) {
   if (git("rev-parse", "HEAD") !== manifest.integrated_commit || git("status", "--porcelain", "--untracked-files=no") !== "") {
     throw new Error("STOP_S2_T359_INTEGRATED_TREE_MISMATCH");
   }
-  for (const commit of [ACCEPTED_T348_COMMIT, ACCEPTED_T349_COMMIT, manifest.t356_commit, manifest.t357_commit, manifest.t358_commit]) {
-    const result = spawnSync("git", ["-C", root, "merge-base", "--is-ancestor", commit, "HEAD"]);
-    if (result.status !== 0) throw new Error("STOP_S2_T359_REQUIRED_LINEAGE_MISSING");
+  const ancestor = spawnSync("git", ["-C", root, "merge-base", "--is-ancestor", ACCEPTED_T349_COMMIT, "HEAD"]);
+  if (ancestor.status !== 0) throw new Error("STOP_S2_T359_REQUIRED_LINEAGE_MISSING");
+  for (const commit of [ACCEPTED_T348_COMMIT, manifest.t356_commit, manifest.t357_commit, manifest.t358_commit]) {
+    const result = spawnSync("git", ["-C", root, "cat-file", "-e", `${commit}^{commit}`]);
+    if (result.status !== 0) throw new Error("STOP_S2_T359_INTEGRATION_INPUT_MISSING");
   }
   for (const [file, expected] of [[manifest.web_launcher, manifest.web_launcher_sha256], [manifest.mobile_launcher, manifest.mobile_launcher_sha256]]) {
     const resolved = realpathSync(path.join(root, file));

@@ -2,12 +2,18 @@ import {
   DICE_FOUNDER_RESERVED_SLOTS,
   DICE_TECHNICAL_FIXTURES,
 } from "./dice-synthetic-fixture-registry-v0-3.ts";
+import {
+  DICE_V03_PROMPT_VERSION,
+  DICE_V03_RESULT_SCHEMA,
+  buildDiceV03Prompt,
+  parseDiceV03ModelResult,
+} from "./dice-v0-3-interpretation-contract.ts";
 
 export const DICE_GATEWAY_INTERFACE_VERSION = "dice_synthetic_gateway_port_v1" as const;
 export const DICE_AUTHORIZATION_SCHEMA = "lumis_dice_default_off_deployment_authorization_v2" as const;
 export const DICE_REGISTRY_VERSION = "lumis_dice_synthetic_registry_v1" as const;
-export const DICE_PROMPT_VERSION = "lumis_dice_synthetic_prompt_v1" as const;
-export const DICE_RESPONSE_SCHEMA = "lumis_dice_synthetic_result_v1" as const;
+export const DICE_PROMPT_VERSION = DICE_V03_PROMPT_VERSION;
+export const DICE_RESPONSE_SCHEMA = DICE_V03_RESULT_SCHEMA;
 export const DICE_EVIDENCE_SCHEMA = "lumis_dice_synthetic_metadata_evidence_v1" as const;
 
 export const DICE_LIMITS = Object.freeze({
@@ -121,15 +127,15 @@ export function isCanonicalFixtureId(value: unknown): value is string {
 }
 
 export function assembleCanonicalDicePrompt(fixture: CanonicalDiceFixture): string {
-  return [
-    `schema=${DICE_RESPONSE_SCHEMA}`,
-    `prompt=${DICE_PROMPT_VERSION}`,
-    `fixture_id=${fixture.fixture_id}`,
-    `language=${fixture.language}`,
-    `classification=${fixture.classification}`,
-    `question=${fixture.question}`,
-    `landed=${fixture.outcome.planet}|${fixture.outcome.sign}|${fixture.outcome.house}`,
-    "Interpret only the supplied landed symbols. Never calculate or redraw them. Never use natal chart, birth, member, Persona, Knowledge Bank, history, sharing, multi-throw, or Level 3 body-part data.",
-    "Return a JSON object with exactly reading, watch_out, and practical_direction. Use the requested language and avoid certainty.",
-  ].join("\n");
+  return buildDiceV03Prompt({
+    fixture_id: fixture.fixture_id,
+    question: fixture.question,
+    language: fixture.language,
+    question_shape: fixture.classification,
+    outcome: fixture.outcome,
+  });
+}
+
+export function parseCanonicalDiceOutput(content: string, fixture: Pick<CanonicalDiceFixture, "language" | "classification">): boolean {
+  return parseDiceV03ModelResult(content, { language: fixture.language, question_shape: fixture.classification }) !== null;
 }
