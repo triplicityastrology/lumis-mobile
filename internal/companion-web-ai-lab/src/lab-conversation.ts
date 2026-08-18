@@ -59,7 +59,7 @@ export async function handleConversationTurn(raw: unknown, ctx: ConversationCont
   // (routing/classification/Chart Composition/fixed safety copy) with zero provider calls.
   const liveProvider = auth.ok
     ? async (args: { plan: LabPlan; request: LabRequest; language: LabLanguage }): Promise<LabGenerativeOutcome> => {
-        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context);
+        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition);
         const outcome = await runGenerative(auth.runtime, promptInput, args.language, nowMs);
         providerDisposition = outcome.providerDisposition;
         switch (outcome.kind) {

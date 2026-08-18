@@ -22,7 +22,7 @@ export function handleCompose(raw: unknown): { status: number; body: unknown } {
   const plan = planLabTurn(v.request);
   const roleMeta = LAB_ROLES.find((x) => x.code === v.request.role_code)!;
   const prompt = plan.generative && plan.personaPromptAssembled
-    ? serializePersonaPrompt(plan.personaPromptPayload, v.request.message, plan.language, v.request.context)
+    ? serializePersonaPrompt(plan.personaPromptPayload, v.request.message, plan.language, v.request.context, plan.composition)
     : null;
 
   return {

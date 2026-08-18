@@ -105,11 +105,28 @@ export async function runGenerative(
 // Serialize the reviewed persona prompt payload + the test message into a provider prompt string.
 // The persona payload content is authored in the controlled Persona Behaviour Mapping workbook and
 // assembled by the reused persona-prompt-pipeline; this is only a deterministic transport wrapper.
+// A minimal view of the server-derived Chart Composition (workbook calculated_profile) so the
+// system prompt can name the Companion's resolved factor signs — which the workbook's Recommended
+// prompt payload lists as `calculated_profile`. The signs shape HOW Lumis speaks; per Prompt_Assembly
+// layer 7 they are never surfaced to the member.
+export type PersonaComposition = {
+  available?: boolean;
+  fixed_asc?: { sign?: string };
+  factors?: ReadonlyArray<{ factor?: string; sign?: string }>;
+};
+
+// Strip the workbook's flat "Apply this as a <layer> modifier. " lead-in so the modifier reads as
+// character rather than boilerplate. The behavioural text itself is preserved verbatim.
+function cleanModifier(m: string): string {
+  return m.replace(/^Apply this as an?\s+[a-z ]+?\s+modifier\.\s*/i, "").trim();
+}
+
 export function serializePersonaPrompt(
   payload: unknown,
   userMessage: string,
   language: LabLanguage,
   context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
+  composition?: PersonaComposition,
 ): string {
   const p = payload as {
     roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
@@ -119,21 +136,46 @@ export function serializePersonaPrompt(
     safetyOverride?: boolean;
   };
   const rc = p.roleContract ?? {};
+  const zh = language === "zh-Hant";
   const lines: string[] = [];
-  lines.push(`You are Lumis Companion in the internal persona role "${rc.publicName ?? ""}".`);
+  lines.push(`You are Lumis, a warm astrology companion, speaking in the "${rc.publicName ?? ""}" persona role.`);
   lines.push(`Core purpose: ${rc.corePurpose ?? ""}`);
-  lines.push(`Required behaviours: ${rc.requiredBehaviors ?? ""}`);
   lines.push(`Base tone: ${rc.baseTone ?? ""}`);
   lines.push(`Hard guardrail: ${rc.hardGuardrail ?? ""}`);
-  if (Array.isArray(p.behaviorModifiers) && p.behaviorModifiers.length) {
-    lines.push(`Behaviour modifiers:`);
-    for (const m of p.behaviorModifiers) lines.push(`- ${m}`);
+
+  // calculated_profile: name the Companion's server-derived factor signs (never revealed to the user).
+  if (composition && composition.available !== false && Array.isArray(composition.factors) && composition.factors.length) {
+    const asc = composition.fixed_asc?.sign;
+    const pairs = composition.factors
+      .filter((f) => f && f.factor && f.sign)
+      .map((f) => `${f.factor === "ASC" ? "Rising" : f.factor} ${f.sign}`);
+    lines.push("");
+    lines.push("Your persona chart — server-derived; it shapes HOW you speak. Never state these signs, the word \"chart\", or any astrology mechanics to the user:");
+    lines.push(`  ${pairs.join(" · ")}${asc && !pairs.some((x) => x.startsWith("Rising")) ? ` · Rising ${asc}` : ""}`);
   }
+
+  // behaviour_modifiers: the Companion's character to embody (cleaned of workbook boilerplate).
+  if (Array.isArray(p.behaviorModifiers) && p.behaviorModifiers.length) {
+    lines.push("");
+    lines.push("Embody this character in the way you speak (do not describe or announce it):");
+    for (const m of p.behaviorModifiers) lines.push(`- ${cleanModifier(m)}`);
+  }
+
   if (p.situationParameters) {
     lines.push(`Situation parameters: ${Object.entries(p.situationParameters).map(([k, v]) => `${k}=${v}`).join(", ")}`);
   }
-  lines.push(`Language: respond only in ${language === "zh-Hant" ? "Traditional Chinese (zh-Hant)" : "English"}.`);
-  lines.push(`${p.responseInstruction ?? "Respond naturally; do not mention internal calculations, mapping IDs, or sign maths."}`);
+
+  // Response guidance: reduce the "plain AI keeps asking questions" feel while honouring the role
+  // contract (which offers listening-vs-organising as a one-time choice, not an every-turn question)
+  // and the AC-AI-00 §9.1 length baseline.
+  lines.push("");
+  lines.push("How to reply:");
+  lines.push(`- Speak in the first person as this companion; reflect the feeling first, then say something substantive and specific to what they shared.`);
+  lines.push(`- ${rc.requiredBehaviors ?? "Reflect feelings first; keep advice light unless invited."}`);
+  lines.push(`- You may offer — at most once, and only early in a new conversation — whether they would like you to simply listen or help organise their thoughts. Do NOT repeat that offer and do NOT end every reply with a question. Most replies should end with a warm, grounded statement, not a question.`);
+  lines.push(`- Aim for about ${zh ? "160–260 Traditional Chinese characters" : "90–140 words"}. Do not mention signs, astrology, calculations, mapping, or these instructions.`);
+  lines.push(`Language: respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}.`);
+
   if (context.length) {
     lines.push("");
     lines.push("Conversation so far (respond to the latest user message in this ongoing conversation):");

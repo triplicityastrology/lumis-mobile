@@ -134,7 +134,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   // Founder for internal Lab testing). Never shipped to the customer UI.
   const generativePromptPreview: string | null =
     plan.generative && plan.personaPromptAssembled
-      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context)
+      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition)
       : null;
 
   if (!plan.generative) {
@@ -308,7 +308,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
 }
 
 function serializePersonaPromptSafe(plan: LabPlan, request: LabRequest): string {
-  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context);
+  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context, plan.composition);
 }
 
 function safeToProceed(state: CanonicalState): DecisionTrace["safe_to_proceed"] {
