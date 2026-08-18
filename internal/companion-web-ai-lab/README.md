@@ -133,6 +133,23 @@ at the same `LAB_IDENTITY_RECEIPT_PATH` to authorize the provider path.
 - `POST /api/lab/regression` — one optional frozen fixture:
   `{ schema_version:"companion_web_ai_lab_regression_request_v1", fixture_id }`.
 
+## Basic natal Knowledge Bank (Founder-directed)
+
+`src/lab-knowledge-bank.ts` grounds Lumis in the **person's own chart** using **planet-in-sign** facts
+transcribed verbatim from the Founder-Approved controlled interpretation bank
+(`Lumis_Knowledge_Bank_Founder_Interpretation_Bank_First_Controlled_Draft_2026-07-28.xlsx`, Signs +
+Planets sheets). Nothing is invented — per KB Answer Rule ANS-01 only rows present in the approved
+bank may be used. It honours the product's confirmed constraints (S2-T23 CI-02/CI-03: **no birth
+time, no houses, no cusps, no ASC/DSC/MC/IC**), so the Lab retrieves planet-in-sign only; an
+**unconfirmed Moon is suppressed, never inferred**; retrieval stays within the six-fact budget
+(KB-TB-04); and composition follows ANS-02/05/06/07/12 (planet=what · sign=how, conditional
+language, no whole-chart dump, no houses/timing, no Solar Return). The grounding is threaded into the
+persona prompt for generative routes and returned as `knowledge_bank.facts`.
+
+The `/api/lab/compose` "Calculate" endpoint and the per-message **"This message"** panel now show the
+**full thinking process** end to end: (1) language, (2) routing & classification, (3) Knowledge Bank
+facts, (4) persona/character, (5) provider, (6) model & prompt versions, (7) the assembled prompt.
+
 ## Security posture
 
 - The browser sends **only** the controlled chart context + role + latest message + a bounded
