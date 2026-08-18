@@ -127,6 +127,7 @@ export function serializePersonaPrompt(
   language: LabLanguage,
   context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
   composition?: PersonaComposition,
+  knowledgeGrounding?: string | null,
 ): string {
   const p = payload as {
     roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
@@ -159,6 +160,12 @@ export function serializePersonaPrompt(
     lines.push("");
     lines.push("Let these shape how you speak:");
     for (const m of p.behaviorModifiers) lines.push(`- ${cleanModifier(m)}`);
+  }
+
+  // Knowledge Bank grounding: controlled natal facts about the person (planet-in-sign only).
+  if (knowledgeGrounding && knowledgeGrounding.trim()) {
+    lines.push("");
+    lines.push(knowledgeGrounding.trim());
   }
 
   if (p.situationParameters) {

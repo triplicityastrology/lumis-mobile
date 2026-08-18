@@ -12,6 +12,7 @@
 import { handleLabTurn, type LabGenerativeOutcome, type LabTurnContext, type LabTurnResult } from "./lab-turn.ts";
 import { validateLabRequest, type CanonicalState, type LabPlan, type LabRequest } from "./lab-engine.ts";
 import { serializePersonaPrompt, runGenerative } from "./lab-provider.ts";
+import { retrieveNatalFacts, buildKnowledgeGrounding } from "./lab-knowledge-bank.ts";
 import { authorizeProvider, type VerifiedIdentity } from "./lab-identity.ts";
 import type { LabLanguage } from "./lab-constants.ts";
 
@@ -59,7 +60,8 @@ export async function handleConversationTurn(raw: unknown, ctx: ConversationCont
   // (routing/classification/Chart Composition/fixed safety copy) with zero provider calls.
   const liveProvider = auth.ok
     ? async (args: { plan: LabPlan; request: LabRequest; language: LabLanguage }): Promise<LabGenerativeOutcome> => {
-        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition);
+        const kbGrounding = buildKnowledgeGrounding(retrieveNatalFacts(args.request.chart));
+        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition, kbGrounding);
         const outcome = await runGenerative(auth.runtime, promptInput, args.language, nowMs);
         providerDisposition = outcome.providerDisposition;
         switch (outcome.kind) {

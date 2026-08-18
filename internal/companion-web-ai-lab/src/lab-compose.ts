@@ -3,6 +3,7 @@
 
 import { validateLabRequest, planLabTurn } from "./lab-engine.ts";
 import { serializePersonaPrompt } from "./lab-provider.ts";
+import { retrieveNatalFacts, buildKnowledgeGrounding } from "./lab-knowledge-bank.ts";
 import { LAB_ROLES } from "./lab-constants.ts";
 
 export const COMPOSE_REQUEST_SCHEMA = "companion_web_ai_lab_compose_v1" as const;
@@ -21,8 +22,9 @@ export function handleCompose(raw: unknown): { status: number; body: unknown } {
 
   const plan = planLabTurn(v.request);
   const roleMeta = LAB_ROLES.find((x) => x.code === v.request.role_code)!;
+  const kbRetrieval = plan.generative ? retrieveNatalFacts(v.request.chart) : { facts: [], suppressed: [] };
   const prompt = plan.generative && plan.personaPromptAssembled
-    ? serializePersonaPrompt(plan.personaPromptPayload, v.request.message, plan.language, v.request.context, plan.composition)
+    ? serializePersonaPrompt(plan.personaPromptPayload, v.request.message, plan.language, v.request.context, plan.composition, buildKnowledgeGrounding(kbRetrieval))
     : null;
 
   return {
@@ -34,6 +36,7 @@ export function handleCompose(raw: unknown): { status: number; body: unknown } {
       language: plan.language,
       canonical_state: plan.canonicalState,
       chart_composition: plan.composition,
+      knowledge_bank: { facts: kbRetrieval.facts, suppressed: kbRetrieval.suppressed },
       generative_prompt_preview: prompt,
       persona_prompt_assembled: plan.personaPromptAssembled,
       note: "Deterministic preview: no provider call, no persistence.",

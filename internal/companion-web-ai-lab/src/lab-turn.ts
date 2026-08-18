@@ -18,6 +18,7 @@ import {
   type LabResultClass,
 } from "./lab-engine.ts";
 import { serializePersonaPrompt } from "./lab-provider.ts";
+import { retrieveNatalFacts, buildKnowledgeGrounding } from "./lab-knowledge-bank.ts";
 import { templateForPublic } from "./lab-templates.ts";
 import {
   LAB_RESPONSE_SCHEMA,
@@ -130,11 +131,15 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   let errorCode: string | null = null;
   let fixedTemplate: LabResponse["fixed_template"] = null;
   let outputTokenEstimate: number | null = null;
+  // Basic natal Knowledge Bank grounding (planet-in-sign only) for generative routes — controlled
+  // Founder-approved bank content about the PERSON's own chart. Suppressed for non-generative routes.
+  const kbRetrieval = plan.generative ? retrieveNatalFacts(request.chart) : { facts: [], suppressed: [] };
+  const kbGrounding = buildKnowledgeGrounding(kbRetrieval);
   // Founder-internal preview of the assembled persona prompt for generative routes (re-enabled by
   // Founder for internal Lab testing). Never shipped to the customer UI.
   const generativePromptPreview: string | null =
     plan.generative && plan.personaPromptAssembled
-      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition)
+      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition, kbGrounding)
       : null;
 
   if (!plan.generative) {
@@ -290,6 +295,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
     idempotency_outcome: "not_committed",
     provider_attempts: providerAttempts,
     chart_composition: plan.composition,
+    knowledge_bank: { facts: kbRetrieval.facts, suppressed: kbRetrieval.suppressed },
     decision_trace: trace,
     mobile_contract_alignment: {
       mobile_response_schema: MOBILE_CHAT_RESPONSE_SCHEMA,
@@ -308,7 +314,8 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
 }
 
 function serializePersonaPromptSafe(plan: LabPlan, request: LabRequest): string {
-  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context, plan.composition);
+  const kb = plan.generative ? buildKnowledgeGrounding(retrieveNatalFacts(request.chart)) : null;
+  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context, plan.composition, kb);
 }
 
 function safeToProceed(state: CanonicalState): DecisionTrace["safe_to_proceed"] {

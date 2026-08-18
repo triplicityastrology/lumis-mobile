@@ -194,6 +194,7 @@ export type LabResponse = {
   idempotency_outcome: "not_committed";
   provider_attempts: 0 | 1 | 2;
   chart_composition: ChartComposition;
+  knowledge_bank?: { facts: unknown[]; suppressed: unknown[] };
   decision_trace: DecisionTrace;
   // The disposable Lab mirrors the mobile Chat structured response result-class mapping.
   mobile_contract_alignment: {

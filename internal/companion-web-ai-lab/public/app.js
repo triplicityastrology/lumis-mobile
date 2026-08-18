@@ -128,37 +128,80 @@ async function calculate() {
   finally { $("loading").hidden = true; $("calculate").disabled = false; }
   if (body.chart_composition) renderComposition(body.chart_composition);
   else { $("composition").className = "composition"; $("composition").textContent = `cannot derive: ${body.error_code || "error"}`; }
+  renderKB($("compose-kb"), body.knowledge_bank);
   renderPrompt($("compose-prompt"), body.generative_prompt_preview, body.canonical_state);
 }
 
 function line(k, v) { return el("div", { class: "line" }, el("span", { class: "k", text: k }), el("span", { class: "v", text: String(v) })); }
-function group(title, ...lines) { const g = el("div", { class: "group" }, el("h3", { text: title })); for (const l of lines) g.append(l); return g; }
+function group(title, ...lines) { const g = el("div", { class: "group" }, el("h3", { text: title })); for (const l of lines) if (l) g.append(l); return g; }
 
+// Knowledge Bank facts (controlled natal grounding, planet-in-sign).
+function renderKB(box, kb) {
+  box.className = "trace"; box.innerHTML = "";
+  if (!kb || (!kb.facts || !kb.facts.length) && (!kb.suppressed || !kb.suppressed.length)) {
+    box.append(el("div", { class: "small", text: "No natal facts for this route (grounding is retrieved only for normal-chat routes)." })); return;
+  }
+  if (kb.facts && kb.facts.length) {
+    const t = el("table");
+    t.append(el("tr", {}, el("th", { text: "Planet · Sign" }), el("th", { text: "What → How" })));
+    for (const f of kb.facts) {
+      t.append(el("tr", {},
+        el("td", {}, el("b", { text: `${f.planet_name} in ${f.sign_name}` })),
+        el("td", { class: "small", text: `${f.what} → ${f.how}` })));
+    }
+    box.append(t);
+  }
+  if (kb.suppressed && kb.suppressed.length) {
+    for (const s of kb.suppressed) box.append(el("div", { class: "small b-error badge", text: `suppressed: ${s.planet} — ${s.reason}` }));
+  }
+}
+
+// Full "thinking process" pipeline so the Founder can verify the logic end to end.
 function renderDetails(body, target) {
   const box = target || $("message-details"); box.className = "trace"; box.innerHTML = "";
   const pc = body.product_classification || { class: "unavailable", label: body.result || "—" };
-  const head = el("div", { class: "row" }, el("span", { class: "badge " + (CLASS_BADGE[pc.class] || "b-error"), text: pc.label }), el("span", { class: "small", text: `state: ${body.canonical_state}` }));
-  box.append(head);
+  box.append(el("div", { class: "row" }, el("span", { class: "badge " + (CLASS_BADGE[pc.class] || "b-error"), text: pc.label }), el("span", { class: "small", text: `state: ${body.canonical_state}` })));
   const t = body.decision_trace;
-  if (t) {
-    box.append(group("Routing",
-      line("selected role", `${t.selected_role.current_label} (${t.selected_role.code})`),
-      line("classification", t.deterministic_classification.canonical_state),
-      line("safe to proceed", `${t.safe_to_proceed.value} — ${t.safe_to_proceed.reason}`),
-      line("language", `${t.detected_language} (${t.language_source})`)));
-    box.append(group("Provider",
-      line("authorized", String(body.provider_authorized)),
-      line("reason", body.provider_authorization_reason || "—"),
-      line("attempts", body.provider_attempts),
-      line("units", body.units_charged), line("persist", body.persistence)));
-    box.append(group("Model / prompt",
-      line("deployment", t.model_identity.deployment), line("model", `${t.model_identity.model} (${t.model_identity.model_version})`),
-      line("prompt pipeline", t.prompt_system_version.persona_prompt_pipeline), line("no chain-of-thought", t.no_hidden_chain_of_thought)));
-    if (body.provider_disposition) box.append(group("Provider disposition", line("disposition", body.provider_disposition)));
-    if (body.generative_prompt_preview) { const g = group("Assembled persona prompt (would be sent)"); g.append(el("pre", { text: body.generative_prompt_preview })); box.append(g); }
-  } else if (body.error_code) {
-    box.append(el("div", { class: "small", text: `error: ${body.error_code}` }));
-  }
+  if (!t) { if (body.error_code) box.append(el("div", { class: "small", text: `error: ${body.error_code}` })); return; }
+
+  box.append(group("1 · Language",
+    line("detected", `${t.detected_language} (${t.language_source})`),
+    t.request_text_language ? line("request-text script", t.request_text_language) : null));
+
+  box.append(group("2 · Routing & classification",
+    line("base route", t.deterministic_classification.base_route),
+    line("canonical state", t.deterministic_classification.canonical_state),
+    line("product class", `${pc.label} (${pc.class})`),
+    line("safe to proceed", `${t.safe_to_proceed.value} — ${t.safe_to_proceed.reason}`),
+    line("crisis/safety", `${t.crisis_safety_result.triggered}${t.crisis_safety_result.level ? " · " + t.crisis_safety_result.level : ""}`),
+    line("out of scope", `${t.out_of_scope_result.triggered}${t.out_of_scope_result.kind ? " · " + t.out_of_scope_result.kind : ""}`),
+    line("handoff", `${t.routing_handoff.kind}${t.routing_handoff.requires_explicit_confirmation ? " (needs confirm)" : ""}`),
+    line("knowledge-bank scope", `${t.knowledge_bank.in_scope} — ${t.knowledge_bank.note}`)));
+
+  const kbg = group("3 · Knowledge Bank (the person's natal facts)");
+  const kbBox = el("div"); renderKB(kbBox, body.knowledge_bank); kbg.append(kbBox); box.append(kbg);
+
+  box.append(group("4 · Persona (Companion character)",
+    line("selected role", `${t.selected_role.current_label} (${t.selected_role.code})`),
+    ...(Array.isArray(t.chart_composition_summary) ? t.chart_composition_summary.map((s) => line("·", s)) : [])));
+
+  box.append(group("5 · Provider",
+    line("authorized", String(body.provider_authorized)),
+    line("reason", body.provider_authorization_reason || "—"),
+    body.provider_disposition ? line("disposition", body.provider_disposition) : null,
+    line("attempts", body.provider_attempts),
+    line("units", body.units_charged), line("persist", body.persistence)));
+
+  box.append(group("6 · Model / prompt versions",
+    line("deployment", t.model_identity.deployment),
+    line("model", `${t.model_identity.model} (${t.model_identity.model_version})`),
+    line("persona pipeline", t.prompt_system_version.persona_prompt_pipeline),
+    line("persona rule / mapping", `${t.prompt_system_version.persona_rule} / ${t.prompt_system_version.persona_mapping}`),
+    line("template registry", t.prompt_system_version.fixed_template_registry),
+    line("no chain-of-thought", t.no_hidden_chain_of_thought),
+    line("latency", `${t.latency.total_ms}ms (${t.latency.duration_bucket})`)));
+
+  if (body.generative_prompt_preview) { const g = group("7 · Assembled prompt actually sent"); g.append(el("pre", { text: body.generative_prompt_preview })); box.append(g); }
 }
 
 async function runRegression() {

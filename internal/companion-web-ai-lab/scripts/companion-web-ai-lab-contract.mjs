@@ -122,8 +122,14 @@ check("server does not allow a host override or bind 0.0.0.0", !server.includes(
 // Founder re-enabled the assembled-prompt preview for internal Lab testing (reverses the earlier
 // removal). Still Founder-only/internal, never the customer UI.
 check("server response includes the Founder-internal generative_prompt_preview", read("src/lab-turn.ts").includes("generative_prompt_preview") && read("src/lab-engine.ts").includes("generative_prompt_preview"));
-check("browser renders the assembled persona prompt (Founder-internal)", appJs.includes("generative_prompt_preview") && appJs.includes("Assembled persona prompt"));
+check("browser renders the assembled persona prompt (Founder-internal)", appJs.includes("generative_prompt_preview") && appJs.includes("Assembled prompt"));
 check("Calculate/compose endpoint present (derive composition + prompt, no provider)", read("src/server.ts").includes('"/api/lab/compose"') && read("src/lab-compose.ts").includes("serializePersonaPrompt"));
+// (3b) Basic natal Knowledge Bank grounding (Founder-directed; controlled bank content only).
+const kb = read("src/lab-knowledge-bank.ts");
+check("Knowledge Bank uses controlled bank content, planet-in-sign only (no invention)", kb.includes("Founder-Approved") && kb.includes("retrieveNatalFacts") && kb.includes("buildKnowledgeGrounding"));
+check("KB suppresses unconfirmed Moon + excludes houses/timing (birth-time gate)", kb.includes("Moon unconfirmed") && kb.includes("planet-in-sign"));
+check("KB grounding threaded into the persona prompt", read("src/lab-provider.ts").includes("knowledgeGrounding") && read("src/lab-conversation.ts").includes("buildKnowledgeGrounding"));
+check("KB facts surfaced in the browser thinking-process view", appJs.includes("knowledge_bank") && appJs.includes("renderKB"));
 // (4) Corrected Azure Responses adapter boundary + metadata-only disposition.
 const adapter = read("src/lab-azure-responses-adapter.ts");
 check("adapter preserves /openai/v1/responses + deployment + store:false + max_output_tokens", adapter.includes("/openai/${config.routeFamily}/responses") && adapter.includes("model: config.deployment") && adapter.includes("store: false") && adapter.includes("max_output_tokens: Math.max(input.maxOutputTokens") && adapter.includes('reasoning: { effort: "minimal" }'));
