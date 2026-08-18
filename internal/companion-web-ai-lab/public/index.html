@@ -40,9 +40,13 @@
       </div>
       <label class="checkbox"><input type="checkbox" id="moon-confirmed" checked /><span>Moon confirmed by birth time</span></label>
       <label class="field"><span>Language</span><select id="language"></select></label>
+      <div class="row"><button id="calculate" class="btn-primary" type="button">Calculate composition &amp; prompt</button></div>
 
       <h2>Chart Composition <span class="muted">(server-derived)</span></h2>
-      <div id="composition" class="composition muted">Send a message to derive the composition.</div>
+      <div id="composition" class="composition muted">Pick a chart + role and press <b>Calculate</b> (or send a message).</div>
+
+      <h2>Assembled prompt <span class="muted">(Founder-internal preview)</span></h2>
+      <div id="compose-prompt" class="trace muted">Press <b>Calculate</b> to preview the persona prompt that would be sent.</div>
     </section>
 
     <section class="panel conversation-panel" aria-label="Conversation">

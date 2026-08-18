@@ -83,8 +83,8 @@ test("multi-turn follow-up sends the prior conversation context to the provider"
   assert.ok(sent.includes("anxious about a decision at work"), "prior user turn included");
   assert.ok(sent.includes("What's weighing on you most") || sent.includes("weighing on you"), "prior assistant turn included");
   assert.ok(sent.includes("keep second-guessing"), "latest message included");
-  // The assembled prompt is NEVER returned to the browser (no preview field, no chain-of-thought).
-  assert.equal("generative_prompt_preview" in b, false, "no prompt preview in the response");
+  // Founder re-enabled the internal prompt preview: it is present and shows the same context.
+  assert.ok(typeof b.generative_prompt_preview === "string" && b.generative_prompt_preview.includes("Conversation so far"), "prompt preview present with context");
 });
 
 // --- 3. New conversation / Clear session: empty context carries nothing over (server is stateless) ---
@@ -179,7 +179,8 @@ test("the Azure key never appears in any response body", async () => {
   const b = out.body as any;
   const structural = JSON.stringify({ ...b, assistant_message: undefined });
   assert.equal(structural.includes(SECRET), false);
-  assert.equal("generative_prompt_preview" in b, false, "no assembled-prompt preview in the response");
+  // The Founder-internal prompt preview is present but must never contain the Azure key.
+  assert.equal(typeof b.generative_prompt_preview === "string" && b.generative_prompt_preview.includes(SECRET), false, "prompt preview must not leak the key");
 });
 
 // --- 8. No 12-message limit: many sequential free-text turns all succeed ---

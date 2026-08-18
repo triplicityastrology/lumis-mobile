@@ -186,6 +186,8 @@ export type LabResponse = {
   assistant_message: string | null;
   fixed_template: { template_id: string; family: FixedTemplateFamilyId; status: string; clinical_review_required: boolean } | null;
   handoff: { kind: "dice" | "astro_timing"; requires_explicit_confirmation: true; note: string; date_comparison_max?: 3 } | null;
+  // Founder-internal preview of the assembled persona prompt (generative routes only); null otherwise.
+  generative_prompt_preview: string | null;
   error_code: string | null;
   persistence: "not_committed";
   units_charged: 0;

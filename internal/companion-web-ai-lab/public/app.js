@@ -93,11 +93,42 @@ function renderComposition(c) {
   const box = $("composition"); box.className = "composition"; box.innerHTML = "";
   box.append(el("div", {}, el("b", { text: `${c.role.current_label} ` }), el("span", { class: "small", text: `(${c.role.code})` })));
   if (!c.available) { box.append(el("p", { class: "b-error badge", text: `chart unavailable: ${c.error_code}` })); return; }
-  box.append(el("div", { class: "small", text: `ASC (fixed): ${c.fixed_asc.sign}` }));
+  // Your 4 inputs, and whether this role uses each one.
+  if (Array.isArray(c.provided_placements)) {
+    box.append(el("div", { class: "small", text: "Your chart → used by this role?" }));
+    const pt = el("table");
+    pt.append(el("tr", {}, el("th", { text: "Placement" }), el("th", { text: "Your sign" }), el("th", { text: "Used?" })));
+    for (const p of c.provided_placements) {
+      pt.append(el("tr", {}, el("td", { text: p.placement }), el("td", { text: p.sign }),
+        el("td", { class: p.consumed ? "tag used" : "tag unused", text: p.consumed ? "✓ used" : "— not used" })));
+    }
+    box.append(pt);
+  }
+  // Derived Companion factors (ASC + the placements this role blends).
+  box.append(el("div", { class: "small", text: `Companion (derived) · ASC fixed: ${c.fixed_asc.sign}` }));
   const t = el("table");
   t.append(el("tr", {}, el("th", { text: "Factor" }), el("th", { text: "Resolved" }), el("th", { text: "Derivation" })));
   for (const f of c.factors) t.append(el("tr", {}, el("td", { text: f.factor }), el("td", { text: f.sign }), el("td", { class: "small", text: f.note })));
   box.append(t);
+}
+
+function renderPrompt(box, prompt, state) {
+  box.className = "trace"; box.innerHTML = "";
+  if (prompt) { box.append(el("pre", { text: prompt })); }
+  else { box.append(el("div", { class: "small", text: `No assembled prompt for this route (state: ${state || "—"}). The persona prompt is built only for normal-chat routes; safety/scope/handoff routes use fixed copy.` })); }
+}
+
+async function calculate() {
+  const langSel = $("language").value;
+  const req = { schema_version: REQUEST_SCHEMA, role_code: $("role").value, chart: chart(), app_language_preference: langSel === "auto" ? null : langSel };
+  $("loading").hidden = false; $("calculate").disabled = true;
+  let body;
+  try { body = await fetch("/api/lab/compose", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(req) }).then((r) => r.json()); }
+  catch (e) { body = { error_code: "LAB_NETWORK_ERROR" }; }
+  finally { $("loading").hidden = true; $("calculate").disabled = false; }
+  if (body.chart_composition) renderComposition(body.chart_composition);
+  else { $("composition").className = "composition"; $("composition").textContent = `cannot derive: ${body.error_code || "error"}`; }
+  renderPrompt($("compose-prompt"), body.generative_prompt_preview, body.canonical_state);
 }
 
 function line(k, v) { return el("div", { class: "line" }, el("span", { class: "k", text: k }), el("span", { class: "v", text: String(v) })); }
@@ -124,6 +155,7 @@ function renderDetails(body, target) {
       line("deployment", t.model_identity.deployment), line("model", `${t.model_identity.model} (${t.model_identity.model_version})`),
       line("prompt pipeline", t.prompt_system_version.persona_prompt_pipeline), line("no chain-of-thought", t.no_hidden_chain_of_thought)));
     if (body.provider_disposition) box.append(group("Provider disposition", line("disposition", body.provider_disposition)));
+    if (body.generative_prompt_preview) { const g = group("Assembled persona prompt (would be sent)"); g.append(el("pre", { text: body.generative_prompt_preview })); box.append(g); }
   } else if (body.error_code) {
     box.append(el("div", { class: "small", text: `error: ${body.error_code}` }));
   }
@@ -150,6 +182,7 @@ function switchTab(name) {
   $("tab-regression").classList.toggle("hidden", name !== "regression");
 }
 
+$("calculate").addEventListener("click", calculate);
 $("send").addEventListener("click", send);
 $("message").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
 $("new-conversation").addEventListener("click", newConversation);

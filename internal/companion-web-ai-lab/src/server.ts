@@ -15,6 +15,7 @@ import * as http from "node:http";
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { handleConversationTurn } from "./lab-conversation.ts";
+import { handleCompose } from "./lab-compose.ts";
 import { handleRegressionFixture, listRegressionFixtures } from "./lab-regression.ts";
 import { authorizeProvider, identityStatus, killSwitchEngaged, LAB_SCOPE } from "./lab-identity.ts";
 import { MAX_CONTEXT_TURNS } from "./lab-engine.ts";
@@ -129,6 +130,14 @@ const server = http.createServer((req, res) => {
     return readBody(req, res, async (parsed) => {
       try { const out = await handleRegressionFixture(parsed, { environment: process.env, recordTelemetry }); sendJson(res, out.status, out.body); }
       catch { sendJson(res, 500, { canonical_state: "technical_error", result: "technical_error", error_code: "LAB_REGRESSION_INTERNAL_ERROR", persistence: "not_committed", units_charged: 0, provider_attempts: 0 }); }
+    });
+  }
+
+  // Founder "Calculate": derive Chart Composition + assembled prompt for a chart+role; no provider call.
+  if (req.method === "POST" && route === "/api/lab/compose") {
+    return readBody(req, res, (parsed) => {
+      try { const out = handleCompose(parsed); sendJson(res, out.status, out.body); }
+      catch { sendJson(res, 500, { error_code: "LAB_COMPOSE_INTERNAL_ERROR" }); }
     });
   }
 

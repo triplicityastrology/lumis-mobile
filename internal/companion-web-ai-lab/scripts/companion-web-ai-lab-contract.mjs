@@ -119,8 +119,11 @@ check("git call sites pass fixed argv arrays", identitySrc.includes('["rev-parse
 check("server binds to 127.0.0.1 only", /listen\(PORT,\s*LOOPBACK_HOST/.test(server) && server.includes('LOOPBACK_HOST = "127.0.0.1"'));
 check("server does not allow a host override or bind 0.0.0.0", !server.includes("0.0.0.0") && !/process\.env\.[A-Z_]*HOST/.test(server));
 // (3) No assembled-prompt preview in browser or server responses.
-check("server response has no generative_prompt_preview field", !read("src/lab-turn.ts").includes("generative_prompt_preview") && !read("src/lab-engine.ts").includes("generative_prompt_preview"));
-check("browser does not render the assembled persona prompt", !appJs.includes("generative_prompt_preview") && !appJs.includes("Assembled persona prompt"));
+// Founder re-enabled the assembled-prompt preview for internal Lab testing (reverses the earlier
+// removal). Still Founder-only/internal, never the customer UI.
+check("server response includes the Founder-internal generative_prompt_preview", read("src/lab-turn.ts").includes("generative_prompt_preview") && read("src/lab-engine.ts").includes("generative_prompt_preview"));
+check("browser renders the assembled persona prompt (Founder-internal)", appJs.includes("generative_prompt_preview") && appJs.includes("Assembled persona prompt"));
+check("Calculate/compose endpoint present (derive composition + prompt, no provider)", read("src/server.ts").includes('"/api/lab/compose"') && read("src/lab-compose.ts").includes("serializePersonaPrompt"));
 // (4) Corrected Azure Responses adapter boundary + metadata-only disposition.
 const adapter = read("src/lab-azure-responses-adapter.ts");
 check("adapter preserves /openai/v1/responses + deployment + store:false + max_output_tokens", adapter.includes("/openai/${config.routeFamily}/responses") && adapter.includes("model: config.deployment") && adapter.includes("store: false") && adapter.includes("max_output_tokens: input.maxOutputTokens"));
