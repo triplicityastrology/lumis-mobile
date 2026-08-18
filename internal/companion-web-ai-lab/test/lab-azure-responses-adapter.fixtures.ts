@@ -54,7 +54,9 @@ test("preserves the /openai/v1/responses request shape (deployment, key, token c
   const body = JSON.parse(calls[0].init.body as string);
   assert.equal(body.model, "lumis-ai-chat-stg");
   assert.equal(body.input, "PROMPT_BODY_MARKER");
-  assert.equal(body.max_output_tokens, 300);
+  // Reasoning model: total budget floored so text fits after reasoning; minimal reasoning effort.
+  assert.ok(body.max_output_tokens >= 1500, `max_output_tokens floored (got ${body.max_output_tokens})`);
+  assert.equal(body.reasoning && body.reasoning.effort, "minimal");
   assert.equal(body.store, false);
 });
 
