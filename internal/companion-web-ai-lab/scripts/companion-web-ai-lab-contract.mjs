@@ -126,7 +126,7 @@ check("browser renders the assembled persona prompt (Founder-internal)", appJs.i
 check("Calculate/compose endpoint present (derive composition + prompt, no provider)", read("src/server.ts").includes('"/api/lab/compose"') && read("src/lab-compose.ts").includes("serializePersonaPrompt"));
 // (4) Corrected Azure Responses adapter boundary + metadata-only disposition.
 const adapter = read("src/lab-azure-responses-adapter.ts");
-check("adapter preserves /openai/v1/responses + deployment + store:false + max_output_tokens", adapter.includes("/openai/${config.routeFamily}/responses") && adapter.includes("model: config.deployment") && adapter.includes("store: false") && adapter.includes("max_output_tokens: input.maxOutputTokens"));
+check("adapter preserves /openai/v1/responses + deployment + store:false + max_output_tokens", adapter.includes("/openai/${config.routeFamily}/responses") && adapter.includes("model: config.deployment") && adapter.includes("store: false") && adapter.includes("max_output_tokens: Math.max(input.maxOutputTokens") && adapter.includes('reasoning: { effort: "minimal" }'));
 check("adapter preserves both output_text and output[].content[].text extraction", adapter.includes("value.output_text") && adapter.includes('content.type === "output_text"'));
 for (const d of ["http_or_schema_rejected", "incomplete_or_content_filter", "completed_empty_output", "completed_non_text_output", "completed_text"]) {
   check(`adapter distinguishes disposition "${d}"`, adapter.includes(`"${d}"`));

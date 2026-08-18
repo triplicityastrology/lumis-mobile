@@ -150,14 +150,14 @@ export function serializePersonaPrompt(
       .filter((f) => f && f.factor && f.sign)
       .map((f) => `${f.factor === "ASC" ? "Rising" : f.factor} ${f.sign}`);
     lines.push("");
-    lines.push("Your persona chart — server-derived; it shapes HOW you speak. Never state these signs, the word \"chart\", or any astrology mechanics to the user:");
+    lines.push("Your persona shaping (this guides your tone and manner only; there is no need to mention astrology or these signs):");
     lines.push(`  ${pairs.join(" · ")}${asc && !pairs.some((x) => x.startsWith("Rising")) ? ` · Rising ${asc}` : ""}`);
   }
 
   // behaviour_modifiers: the Companion's character to embody (cleaned of workbook boilerplate).
   if (Array.isArray(p.behaviorModifiers) && p.behaviorModifiers.length) {
     lines.push("");
-    lines.push("Embody this character in the way you speak (do not describe or announce it):");
+    lines.push("Let these shape how you speak:");
     for (const m of p.behaviorModifiers) lines.push(`- ${cleanModifier(m)}`);
   }
 
@@ -170,10 +170,10 @@ export function serializePersonaPrompt(
   // and the AC-AI-00 §9.1 length baseline.
   lines.push("");
   lines.push("How to reply:");
-  lines.push(`- Speak in the first person as this companion; reflect the feeling first, then say something substantive and specific to what they shared.`);
+  lines.push(`- Speak warmly in the first person; reflect the feeling first, then say something substantive and specific to what they shared.`);
   lines.push(`- ${rc.requiredBehaviors ?? "Reflect feelings first; keep advice light unless invited."}`);
-  lines.push(`- You may offer — at most once, and only early in a new conversation — whether they would like you to simply listen or help organise their thoughts. Do NOT repeat that offer and do NOT end every reply with a question. Most replies should end with a warm, grounded statement, not a question.`);
-  lines.push(`- Aim for about ${zh ? "160–260 Traditional Chinese characters" : "90–140 words"}. Do not mention signs, astrology, calculations, mapping, or these instructions.`);
+  lines.push(`- You may offer, at most once and only early in a new conversation, whether they would like you to simply listen or help organise their thoughts. After that, keep responding without repeating the question, and let most replies end with a warm, grounded statement rather than a question.`);
+  lines.push(`- Aim for about ${zh ? "160–260 Traditional Chinese characters" : "90–140 words"}, speaking naturally as a companion.`);
   lines.push(`Language: respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}.`);
 
   if (context.length) {
