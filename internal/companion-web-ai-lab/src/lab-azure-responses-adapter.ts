@@ -38,6 +38,11 @@ export type ProviderDisposition =
 
 export type LabProviderResult = ProviderResult & { provider_disposition?: ProviderDisposition };
 
+// Total Responses-API output budget (reasoning + visible text) for the reasoning model. The frozen
+// per-call output cap (input.maxOutputTokens, ~300) is too small for gpt-5-mini to reason AND reply,
+// so we floor the wire budget here; the assistant text itself is still normalised/bounded downstream.
+const LAB_LIVE_OUTPUT_TOKEN_BUDGET = 1500;
+
 export type LabAzureResponsesAdapter = {
   complete(input: Parameters<ChatSyntheticAdapter["complete"]>[0]): Promise<LabProviderResult>;
 };
@@ -72,7 +77,12 @@ export function createLabAzureResponsesAdapter(
           body: JSON.stringify({
             model: config.deployment,
             input: input.promptInput,
-            max_output_tokens: input.maxOutputTokens,
+            // gpt-5-mini is a REASONING model: max_output_tokens is the TOTAL budget (reasoning +
+            // visible output). With only ~300 the model spends it all on reasoning and returns no
+            // text (status "incomplete"). Use minimal reasoning effort and a budget large enough
+            // for a full companion reply so real text comes back.
+            max_output_tokens: Math.max(input.maxOutputTokens, LAB_LIVE_OUTPUT_TOKEN_BUDGET),
+            reasoning: { effort: "minimal" },
             store: false,
           }),
           signal: controller.signal,
