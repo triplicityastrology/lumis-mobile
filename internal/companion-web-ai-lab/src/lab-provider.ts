@@ -115,10 +115,16 @@ export type PersonaComposition = {
   factors?: ReadonlyArray<{ factor?: string; sign?: string }>;
 };
 
-// Strip the workbook's flat "Apply this as a <layer> modifier. " lead-in so the modifier reads as
-// character rather than boilerplate. The behavioural text itself is preserved verbatim.
+// Strip the workbook's flat "Apply this as a <layer> modifier. " lead-in, and drop the trailing
+// negative "Do not …" guardrail clause. Those stacked guardrail tails (e.g. "Do not pry, intensify
+// suspicion, manipulate, or frame pain as destiny") pile up charged words across factors and trip
+// the provider's content/jailbreak shield on benign chats. The POSITIVE behaviour (the character) is
+// preserved verbatim; the role-level Hard guardrail still carries the boundary.
 function cleanModifier(m: string): string {
-  return m.replace(/^Apply this as an?\s+[a-z ]+?\s+modifier\.\s*/i, "").trim();
+  return m
+    .replace(/^Apply this as an?\s+[a-z ]+?\s+modifier\.\s*/i, "")
+    .replace(/\s*Do not\b[^.]*\.\s*$/i, "")
+    .trim();
 }
 
 export function serializePersonaPrompt(
