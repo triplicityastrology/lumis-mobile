@@ -81,7 +81,7 @@ export function retrieveNatalFacts(chart: { sun: number; moon: number; mercury: 
     facts.push({
       planet: item.planet, planet_name: pl.name, sign: item.sign, sign_name: s.name,
       what: pl.coreFunction, how: s.coreDrive, keywords: s.keywords,
-      composed: `${pl.name} in ${s.name}: ${pl.coreFunction} (${pl.role}), tending to be expressed through ${s.coreDrive}.`,
+      composed: `${pl.name} in ${s.name} — ${pl.coreFunction}, expressed through ${s.coreDrive}.`,
       grounding: `${pl.grounding} ${s.grounding}`.trim(),
     });
     if (facts.length >= 6) break;
