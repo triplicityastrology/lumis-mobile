@@ -195,6 +195,8 @@ export type LabResponse = {
   provider_attempts: 0 | 1 | 2;
   chart_composition: ChartComposition;
   knowledge_bank?: { facts: unknown[]; suppressed: unknown[] };
+  persona_blocks?: Array<{ name: string; text: string }> | null;
+  voice_card?: unknown | null;
   decision_trace: DecisionTrace;
   // The disposable Lab mirrors the mobile Chat structured response result-class mapping.
   mobile_contract_alignment: {

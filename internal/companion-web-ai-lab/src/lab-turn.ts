@@ -17,7 +17,7 @@ import {
   type CanonicalState,
   type LabResultClass,
 } from "./lab-engine.ts";
-import { serializePersonaPrompt } from "./lab-provider.ts";
+import { serializePersonaPrompt, assemblePersona } from "./lab-provider.ts";
 import { retrieveNatalFacts, buildKnowledgeGrounding } from "./lab-knowledge-bank.ts";
 import { templateForPublic } from "./lab-templates.ts";
 import {
@@ -135,12 +135,12 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   // Founder-approved bank content about the PERSON's own chart. Suppressed for non-generative routes.
   const kbRetrieval = plan.generative ? retrieveNatalFacts(request.chart) : { facts: [], suppressed: [] };
   const kbGrounding = buildKnowledgeGrounding(kbRetrieval);
-  // Founder-internal preview of the assembled persona prompt for generative routes (re-enabled by
-  // Founder for internal Lab testing). Never shipped to the customer UI.
-  const generativePromptPreview: string | null =
-    plan.generative && plan.personaPromptAssembled
-      ? serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition, kbGrounding)
-      : null;
+  // Founder-internal assembly of the persona prompt (blocks + Character Voice Card) for generative
+  // routes. Never shipped to the customer UI.
+  const personaAssembly = (plan.generative && plan.personaPromptAssembled)
+    ? assemblePersona(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition, kbGrounding)
+    : null;
+  const generativePromptPreview: string | null = personaAssembly ? personaAssembly.prompt : null;
 
   if (!plan.generative) {
     // Deterministic (no provider) states.
@@ -309,6 +309,8 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
     provider_attempts: providerAttempts,
     chart_composition: plan.composition,
     knowledge_bank: { facts: kbRetrieval.facts, suppressed: kbRetrieval.suppressed },
+    persona_blocks: personaAssembly ? personaAssembly.blocks : null,
+    voice_card: personaAssembly ? personaAssembly.voice_card : null,
     decision_trace: trace,
     mobile_contract_alignment: {
       mobile_response_schema: MOBILE_CHAT_RESPONSE_SCHEMA,

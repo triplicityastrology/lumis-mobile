@@ -97,8 +97,8 @@ export function retrieveNatalFacts(chart: { sun: number; moon: number; mercury: 
 export function buildKnowledgeGrounding(retrieval: NatalRetrieval): string | null {
   if (!retrieval.facts.length) return null;
   const lines: string[] = [];
-  lines.push("What you understand about this person (from the Lumis natal knowledge bank — let it gently inform how you see them; weave in only what fits their message, and never list it):");
-  for (const f of retrieval.facts) lines.push(`- ${f.composed} Keywords: ${f.keywords}.`);
-  lines.push("Use only the facts listed above — do not add astrology that is not here. Describe them tentatively (may, can, tends to), and answer their actual message rather than summarising the whole chart.");
+  lines.push("These are things you may understand about this person (about them, not about you):");
+  for (const f of retrieval.facts) lines.push(`- ${f.composed}`);
+  lines.push("Use this understanding only when it adds something specific to what they are actually saying. Weave it into how you see them rather than reciting placements or keywords, and don't expose it just to prove you know it. Use only what is listed here — do not add astrology that is not here, and keep it tentative (may, can, tends to). If nothing here fits their message, simply respond through your role and voice without forcing any of it in.");
   return lines.join("\n");
 }

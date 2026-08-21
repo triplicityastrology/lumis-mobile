@@ -91,7 +91,7 @@ check("provider still reuses the server-side Azure config gate", provider.includ
 // ---- 6. Existing persona/companion prompt pipeline preserved (NOT a simplified replacement) ----
 check("conversation reuses serializePersonaPrompt + runGenerative (no bespoke prompt)", conversation.includes("serializePersonaPrompt(") && conversation.includes("runGenerative("));
 check("prompt is assembled by the reused persona-prompt-pipeline", provider.includes("persona-prompt-pipeline") || read("src/lab-engine.ts").includes("persona-prompt-pipeline-v1.ts"));
-check("multi-turn context is threaded into the same persona prompt", provider.includes("Conversation so far") && provider.includes("context"));
+check("multi-turn context is threaded into the same persona prompt", provider.includes("CONVERSATION CONTINUITY"));
 check("prompt version binds companion-synthetic + persona pipeline", identity.includes("COMPANION_SYNTHETIC_PROMPT_VERSION") && identity.includes("PERSONA_PROMPT_PIPELINE_VERSION"));
 
 // ---- 7. The 12 frozen regression fixtures are present but OPTIONAL ----
@@ -123,12 +123,12 @@ check("server does not allow a host override or bind 0.0.0.0", !server.includes(
 // removal). Still Founder-only/internal, never the customer UI.
 check("server response includes the Founder-internal generative_prompt_preview", read("src/lab-turn.ts").includes("generative_prompt_preview") && read("src/lab-engine.ts").includes("generative_prompt_preview"));
 check("browser renders the assembled persona prompt (Founder-internal)", appJs.includes("generative_prompt_preview") && appJs.includes("Assembled prompt"));
-check("Calculate/compose endpoint present (derive composition + prompt, no provider)", read("src/server.ts").includes('"/api/lab/compose"') && read("src/lab-compose.ts").includes("serializePersonaPrompt"));
+check("Calculate/compose endpoint present (derive composition + prompt, no provider)", read("src/server.ts").includes('"/api/lab/compose"') && read("src/lab-compose.ts").includes("assemblePersona"));
 // (3b) Basic natal Knowledge Bank grounding (Founder-directed; controlled bank content only).
 const kb = read("src/lab-knowledge-bank.ts");
 check("Knowledge Bank uses controlled bank content, planet-in-sign only (no invention)", kb.includes("Founder-Approved") && kb.includes("retrieveNatalFacts") && kb.includes("buildKnowledgeGrounding"));
 check("KB suppresses unconfirmed Moon + excludes houses/timing (birth-time gate)", kb.includes("Moon unconfirmed") && kb.includes("planet-in-sign"));
-check("KB grounding threaded into the persona prompt", read("src/lab-provider.ts").includes("knowledgeGrounding") && read("src/lab-conversation.ts").includes("buildKnowledgeGrounding"));
+check("KB grounding threaded into the persona prompt", read("src/lab-provider.ts").includes("memberContext") && read("src/lab-conversation.ts").includes("buildKnowledgeGrounding"));
 check("KB facts surfaced in the browser thinking-process view", appJs.includes("knowledge_bank") && appJs.includes("renderKB"));
 // (4) Corrected Azure Responses adapter boundary + metadata-only disposition.
 const adapter = read("src/lab-azure-responses-adapter.ts");

@@ -14,6 +14,7 @@
 
 import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
 import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-azure-responses-adapter.ts";
+import { buildVoiceCard, type VoiceCard } from "./lab-persona-voice.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import {
   CHAT_SYNTHETIC_PROVIDER_ALIAS,
@@ -102,100 +103,78 @@ export async function runGenerative(
   }
 }
 
-// Serialize the reviewed persona prompt payload + the test message into a provider prompt string.
-// The persona payload content is authored in the controlled Persona Behaviour Mapping workbook and
-// assembled by the reused persona-prompt-pipeline; this is only a deterministic transport wrapper.
-// A minimal view of the server-derived Chart Composition (workbook calculated_profile) so the
-// system prompt can name the Companion's resolved factor signs — which the workbook's Recommended
-// prompt payload lists as `calculated_profile`. The signs shape HOW Lumis speaks; per Prompt_Assembly
-// layer 7 they are never surfaced to the member.
+// Chart Composition view (workbook calculated_profile) used to build the Character Voice from the
+// approved Behaviour Mapping rows. Includes the role so the Voice Card can name it.
 export type PersonaComposition = {
   available?: boolean;
+  role?: { code?: string; current_label?: string; internal_name?: string };
   fixed_asc?: { sign?: string };
   factors?: ReadonlyArray<{ factor?: string; sign?: string }>;
 };
 
-// Strip the workbook's flat "Apply this as a <layer> modifier. " lead-in, and drop the trailing
-// negative "Do not …" guardrail clause. Those stacked guardrail tails (e.g. "Do not pry, intensify
-// suspicion, manipulate, or frame pain as destiny") pile up charged words across factors and trip
-// the provider's content/jailbreak shield on benign chats. The POSITIVE behaviour (the character) is
-// preserved verbatim; the role-level Hard guardrail still carries the boundary.
-function cleanModifier(m: string): string {
-  return m
-    .replace(/^Apply this as an?\s+[a-z ]+?\s+modifier\.\s*/i, "")
-    .replace(/\s*Do not\b[^.]*\.\s*$/i, "")
-    .trim();
+export type PersonaBlock = { name: string; text: string };
+export type PersonaAssembly = { prompt: string; blocks: PersonaBlock[]; voice_card: VoiceCard | null };
+
+// Character-expression + naturalness rules (Founder-specified). These make the calculated Voice
+// observable in real conversation and stop the templated warm/validate/ask/advise pattern.
+const NATURALNESS_RULES = [
+  "Let the immutable role contract decide WHAT you are doing; let the Character Voice decide HOW. Mercury shapes wording, never the role's purpose.",
+  "Never mention astrology, signs, mappings, or this Voice Card.",
+  "Don't try to show every trait in every reply — in an ordinary reply let your base presence come through plus the one most relevant behaviour for this moment. Keep the same recognisable voice across the whole conversation.",
+  "Speak like a real companion mid-conversation. Use \"I\" only when it adds genuine presence; don't narrate your process, re-introduce yourself, or say your own name in every reply.",
+  "Your base tone is a starting point, not your whole personality. Respond to what they actually said rather than following a fixed template; don't mechanically repeat or paraphrase their sentence.",
+  "Don't open every reply with a stock line like \"I hear you\", \"That sounds\", or \"It makes sense\". Vary your openings, sentence length, and endings; use contractions where natural.",
+  "Don't use headings, numbered lists, or bullet points unless they ask for structure or it genuinely needs it.",
+  "Don't force reflection, interpretation, advice, and a question into one reply. Most replies should do ONE thing well: accompany, clarify, reflect, reframe, or help.",
+  "Ask a question only when it moves things forward, and don't end every reply with one. You may offer once, early on, whether they'd like you to listen or help think it through — never repeat that offer.",
+  "Keep advice optional and proportionate. Don't sound like a therapist, a support script, a report, or an astrology reading. When distress is high, get calmer and simpler without switching to flat, clinical language.",
+];
+
+// Assemble the full system prompt as ordered, labelled blocks (Founder-specified structure). The
+// returned `blocks` + `voice_card` power the founder preview; `prompt` is what the provider receives.
+export function assemblePersona(
+  payload: unknown,
+  userMessage: string,
+  language: LabLanguage,
+  context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
+  composition?: PersonaComposition,
+  memberContext?: string | null,
+): PersonaAssembly {
+  const p = payload as {
+    roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
+    situationParameters?: Record<string, string>;
+  };
+  const rc = p.roleContract ?? {};
+  const zh = language === "zh-Hant";
+  const roleLabel = rc.publicName ?? composition?.role?.current_label ?? "";
+  const roleCode = composition?.role?.code ?? "";
+  const voice = composition ? buildVoiceCard(composition, roleLabel, roleCode) : null;
+
+  const blocks: PersonaBlock[] = [];
+  blocks.push({ name: "1. LUMIS IDENTITY", text: "You are Lumis, a warm astrology companion in an ongoing, natural conversation with one person. Speak like a real companion — not an assistant, a script, or a report." });
+  blocks.push({ name: "2. SAFETY AND HARD GUARDRAILS", text: `${rc.hardGuardrail ?? ""}\nIf there is any sign of risk to the person's safety, set everything else aside and respond with calm, direct care.` });
+  const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
+  blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Adjust pace, warmth, challenge, advice, and length to THIS message. When distress is high, slow down, soften, and ask less of them.` });
+  blocks.push({ name: "4. IMMUTABLE ROLE CONTRACT", text: `Role: ${roleLabel} (${roleCode}). What you are here to do: ${rc.corePurpose ?? ""} Required behaviours: ${rc.requiredBehaviors ?? ""} This defines WHAT you do and never changes; the Character Voice only shapes HOW.` });
+  if (voice) blocks.push({ name: "5. LUMIS CHARACTER VOICE", text: voice.card_text });
+  blocks.push({ name: "6. CHARACTER EXPRESSION AND NATURALNESS RULES", text: NATURALNESS_RULES.map((r) => `- ${r}`).join("\n") });
+  if (memberContext && memberContext.trim()) blocks.push({ name: "7. RELEVANT MEMBER CONTEXT", text: memberContext.trim() });
+  if (context.length) blocks.push({ name: "8. CONVERSATION CONTINUITY", text: "This is an ongoing conversation — keep the same voice and stay consistent with what was already said:\n" + context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") });
+  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: `Respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}. Use the shortest natural response that adequately meets the moment — around ${zh ? "110–260 characters" : "60–140 words"} is normal, but a short emotional message may need less and a complex reflection more. Don't add structure or filler to hit a length.` });
+  blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
+
+  const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
+  return { prompt, blocks, voice_card: voice };
 }
 
+// Back-compat wrapper: returns just the assembled prompt string (used by runGenerative + token est).
 export function serializePersonaPrompt(
   payload: unknown,
   userMessage: string,
   language: LabLanguage,
   context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
   composition?: PersonaComposition,
-  knowledgeGrounding?: string | null,
+  memberContext?: string | null,
 ): string {
-  const p = payload as {
-    roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
-    situationParameters?: Record<string, string>;
-    behaviorModifiers?: string[];
-    responseInstruction?: string;
-    safetyOverride?: boolean;
-  };
-  const rc = p.roleContract ?? {};
-  const zh = language === "zh-Hant";
-  const lines: string[] = [];
-  lines.push(`You are Lumis, a warm astrology companion, speaking in the "${rc.publicName ?? ""}" persona role.`);
-  lines.push(`Core purpose: ${rc.corePurpose ?? ""}`);
-  lines.push(`Base tone: ${rc.baseTone ?? ""}`);
-  lines.push(`Hard guardrail: ${rc.hardGuardrail ?? ""}`);
-
-  // calculated_profile: name the Companion's server-derived factor signs (never revealed to the user).
-  if (composition && composition.available !== false && Array.isArray(composition.factors) && composition.factors.length) {
-    const asc = composition.fixed_asc?.sign;
-    const pairs = composition.factors
-      .filter((f) => f && f.factor && f.sign)
-      .map((f) => `${f.factor === "ASC" ? "Rising" : f.factor} ${f.sign}`);
-    lines.push("");
-    lines.push("Your persona shaping (this guides your tone and manner only; there is no need to mention astrology or these signs):");
-    lines.push(`  ${pairs.join(" · ")}${asc && !pairs.some((x) => x.startsWith("Rising")) ? ` · Rising ${asc}` : ""}`);
-  }
-
-  // behaviour_modifiers: the Companion's character to embody (cleaned of workbook boilerplate).
-  if (Array.isArray(p.behaviorModifiers) && p.behaviorModifiers.length) {
-    lines.push("");
-    lines.push("Let these shape how you speak:");
-    for (const m of p.behaviorModifiers) lines.push(`- ${cleanModifier(m)}`);
-  }
-
-  // Knowledge Bank grounding: controlled natal facts about the person (planet-in-sign only).
-  if (knowledgeGrounding && knowledgeGrounding.trim()) {
-    lines.push("");
-    lines.push(knowledgeGrounding.trim());
-  }
-
-  if (p.situationParameters) {
-    lines.push(`Situation parameters: ${Object.entries(p.situationParameters).map(([k, v]) => `${k}=${v}`).join(", ")}`);
-  }
-
-  // Response guidance: reduce the "plain AI keeps asking questions" feel while honouring the role
-  // contract (which offers listening-vs-organising as a one-time choice, not an every-turn question)
-  // and the AC-AI-00 §9.1 length baseline.
-  lines.push("");
-  lines.push("How to reply:");
-  lines.push(`- Speak warmly in the first person; reflect the feeling first, then say something substantive and specific to what they shared.`);
-  lines.push(`- ${rc.requiredBehaviors ?? "Reflect feelings first; keep advice light unless invited."}`);
-  lines.push(`- You may offer, at most once and only early in a new conversation, whether they would like you to simply listen or help organise their thoughts. After that, keep responding without repeating the question, and let most replies end with a warm, grounded statement rather than a question.`);
-  lines.push(`- Aim for about ${zh ? "160–260 Traditional Chinese characters" : "90–140 words"}, speaking naturally as a companion.`);
-  lines.push(`Language: respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}.`);
-
-  if (context.length) {
-    lines.push("");
-    lines.push("Conversation so far (respond to the latest user message in this ongoing conversation):");
-    for (const turn of context) lines.push(`${turn.role === "assistant" ? "Lumis" : "User"}: ${turn.text}`);
-  }
-  lines.push("");
-  lines.push("Latest user message:");
-  lines.push(userMessage);
-  return lines.join("\n");
+  return assemblePersona(payload, userMessage, language, context, composition, memberContext).prompt;
 }
