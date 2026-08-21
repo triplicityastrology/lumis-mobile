@@ -107,16 +107,16 @@ test("incomplete (max_output_tokens) -> incomplete_truncated, graceful fallback 
 });
 
 // --- Disposition 2: content filter (block + partial) ---
-test("content_filter error -> content_filter_block / content_filtered", async () => {
+test("content_filter error -> content_filter_block / content_filtered_input", async () => {
   const { result } = await run({ error: { code: "content_filter" } }, 200);
   assert.equal(result.kind, "content_filter_block");
-  assert.equal(result.provider_disposition, "content_filtered");
+  assert.equal(result.provider_disposition, "content_filtered_input");
 });
 
 test("incomplete content_filter -> content_filter_partial / content_filtered", async () => {
   const { result } = await run({ status: "incomplete", incomplete_details: { reason: "content_filter" } });
   assert.equal(result.kind, "content_filter_partial");
-  assert.equal(result.provider_disposition, "content_filtered");
+  assert.equal(result.provider_disposition, "content_filtered_output");
 });
 
 // --- Disposition 1: non-success HTTP or unparseable body -> hard schema rejection (malformed) ---

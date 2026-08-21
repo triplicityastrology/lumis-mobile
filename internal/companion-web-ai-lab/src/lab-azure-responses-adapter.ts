@@ -33,7 +33,8 @@ import {
 // hit apart from the reasoning model simply running out of output budget.
 export type ProviderDisposition =
   | "http_or_schema_rejected"       // non-success HTTP status, or an unparseable / invalid-schema body
-  | "content_filtered"              // content-filter block/partial (the safety shield fired)
+  | "content_filtered_input"        // content-filter blocked the request (prompt)
+  | "content_filtered_output"       // content-filter cut the generated reply
   | "incomplete_truncated"          // status "incomplete" for a non-filter reason (e.g. output budget)
   | "completed_empty_output"        // completed, but no output items at all
   | "completed_non_text_output"     // completed, output items present but no usable text item
@@ -102,10 +103,10 @@ export function createLabAzureResponsesAdapter(
 
         // (2) content filter — either an error object or an incomplete/content_filter reason.
         if (isRecord(value?.error) && value!.error.code === "content_filter") {
-          return withDisposition({ kind: "content_filter_block" }, "content_filtered");
+          return withDisposition({ kind: "content_filter_block" }, "content_filtered_input");
         }
         if (status === "incomplete" && isRecord(value?.incomplete_details) && value!.incomplete_details.reason === "content_filter") {
-          return withDisposition({ kind: "content_filter_partial" }, "content_filtered");
+          return withDisposition({ kind: "content_filter_partial" }, "content_filtered_output");
         }
 
         // (1) non-success HTTP or unparseable/invalid body -> hard schema rejection.
