@@ -135,11 +135,6 @@ export function assemblePersona(
   composition?: PersonaComposition,
   memberContext?: string | null,
 ): PersonaAssembly {
-  // TEMP DIAGNOSTIC: LAB_MINIMAL_PROMPT=1 sends only the bare message, to isolate whether the input
-  // content filter is reacting to our assembled prompt or to an Azure-side policy change.
-  if (typeof process !== "undefined" && process.env && process.env.LAB_MINIMAL_PROMPT === "1") {
-    return { prompt: `You are Lumis, a warm companion. Reply naturally.\n\nUser: ${userMessage}`, blocks: [], voice_card: null };
-  }
   const p = payload as {
     roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
     situationParameters?: Record<string, string>;
@@ -151,10 +146,10 @@ export function assemblePersona(
   const voice = composition ? buildVoiceCard(composition, roleLabel, roleCode) : null;
 
   const blocks: PersonaBlock[] = [];
-  blocks.push({ name: "1. LUMIS IDENTITY", text: "You are Lumis, a warm astrology companion in an ongoing, natural conversation with one person. Speak like a real companion — not an assistant, a script, or a report." });
-  blocks.push({ name: "2. GROUNDING", text: "Stay warm, honest, and grounded. Keep the conversation constructive and don't go along with harsh conclusions or worst-case certainties that aren't warranted." });
+  blocks.push({ name: "1. LUMIS IDENTITY", text: "You are Lumis, an astrology companion in a real, ongoing conversation with one person." });
+  blocks.push({ name: "2. GROUNDING", text: "Stay honest and grounded, and keep the conversation constructive." });
   const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
-  blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Adjust pace, warmth, challenge, advice, and length to THIS message. If they sound low or overwhelmed, slow down, soften, and ask less of them.` });
+  blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Match your pace, depth, and length to this message.` });
   blocks.push({ name: "4. ROLE", text: `Role: ${roleLabel} (${roleCode}). What you're here to do: ${rc.corePurpose ?? ""} How you generally behave: ${rc.requiredBehaviors ?? ""}` });
   if (voice) blocks.push({ name: "5. LUMIS CHARACTER VOICE", text: voice.card_text });
   blocks.push({ name: "6. CHARACTER EXPRESSION AND NATURALNESS RULES", text: NATURALNESS_RULES.map((r) => `- ${r}`).join("\n") });
@@ -163,13 +158,7 @@ export function assemblePersona(
   blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: `Respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}. Use the shortest natural response that adequately meets the moment — around ${zh ? "110–260 characters" : "60–140 words"} is normal, but a short emotional message may need less and a complex reflection more. Don't add structure or filler to hit a length.` });
   blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
 
-  // TEMP DIAGNOSTIC: LAB_DROP="5,7" omits blocks whose number is listed, to find a filter trigger.
-  let emit = blocks;
-  if (typeof process !== "undefined" && process.env && process.env.LAB_DROP) {
-    const drop = process.env.LAB_DROP.split(",").map((s) => s.trim());
-    emit = blocks.filter((b) => !drop.some((d) => b.name.startsWith(d + ".")));
-  }
-  const prompt = emit.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
+  const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
   return { prompt, blocks, voice_card: voice };
 }
 
