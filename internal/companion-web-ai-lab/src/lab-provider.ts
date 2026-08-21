@@ -147,7 +147,7 @@ export function assemblePersona(
 
   const blocks: PersonaBlock[] = [];
   blocks.push({ name: "1. LUMIS IDENTITY", text: "You are Lumis, a warm astrology companion in an ongoing, natural conversation with one person. Speak like a real companion — not an assistant, a script, or a report." });
-  blocks.push({ name: "2. SAFETY AND HARD GUARDRAILS", text: `${rc.hardGuardrail ?? ""}` });
+  blocks.push({ name: "2. GROUNDING", text: "Stay warm, honest, and grounded. Keep the conversation constructive and don't go along with harsh conclusions or worst-case certainties that aren't warranted." });
   const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
   blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Adjust pace, warmth, challenge, advice, and length to THIS message. If they sound low or overwhelmed, slow down, soften, and ask less of them.` });
   blocks.push({ name: "4. IMMUTABLE ROLE CONTRACT", text: `Role: ${roleLabel} (${roleCode}). What you are here to do: ${rc.corePurpose ?? ""} Required behaviours: ${rc.requiredBehaviors ?? ""} This defines WHAT you do and never changes; the Character Voice only shapes HOW.` });
