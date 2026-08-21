@@ -200,9 +200,22 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
         outputTokenEstimate = estimateTokens(outcome.message);
         break;
       case "safety_rejected":
-        result = "safety_boundary";
-        assistantMessage = CHAT_SYNTHETIC_SAFETY_REDIRECT;
-        errorCode = outcome.code;
+        // A provider-side content/jailbreak shield hit (LAB_CONTENT_FILTER) on a route the
+        // DETERMINISTIC router already cleared as safe is a false positive on Lumis's own persona
+        // scaffolding — not the member asking for something unsafe. Report it honestly as a
+        // transient provider issue ("temporarily unavailable"), never the misleading "can't help
+        // with that request" redirect. Genuine post-safety failures (LAB_POST_SAFETY) and the
+        // regression path keep the safety boundary.
+        if (outcome.code === "LAB_CONTENT_FILTER" && plan.generative) {
+          canonicalState = "router_unavailable";
+          result = "router_unavailable";
+          assistantMessage = templateForPublic("ROUTER_UNAVAILABLE", plan.language).text;
+          errorCode = "LAB_PROVIDER_CONTENT_FILTER_SAFE_ROUTE";
+        } else {
+          result = "safety_boundary";
+          assistantMessage = CHAT_SYNTHETIC_SAFETY_REDIRECT;
+          errorCode = outcome.code;
+        }
         break;
       case "fixed_fallback":
         result = "fixed_fallback";
