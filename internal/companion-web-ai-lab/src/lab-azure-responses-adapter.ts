@@ -29,9 +29,12 @@ import {
 } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
 
 // Metadata-only internal disposition of a received Azure Responses API response. Closed set.
+// `content_filtered` and `incomplete_truncated` are split so the founder can tell a real safety-shield
+// hit apart from the reasoning model simply running out of output budget.
 export type ProviderDisposition =
   | "http_or_schema_rejected"       // non-success HTTP status, or an unparseable / invalid-schema body
-  | "incomplete_or_content_filter"  // status "incomplete", or a content-filter block/partial
+  | "content_filtered"              // content-filter block/partial (the safety shield fired)
+  | "incomplete_truncated"          // status "incomplete" for a non-filter reason (e.g. output budget)
   | "completed_empty_output"        // completed, but no output items at all
   | "completed_non_text_output"     // completed, output items present but no usable text item
   | "completed_text";               // completed with valid, non-empty text
@@ -39,9 +42,10 @@ export type ProviderDisposition =
 export type LabProviderResult = ProviderResult & { provider_disposition?: ProviderDisposition };
 
 // Total Responses-API output budget (reasoning + visible text) for the reasoning model. The frozen
-// per-call output cap (input.maxOutputTokens, ~300) is too small for gpt-5-mini to reason AND reply,
-// so we floor the wire budget here; the assistant text itself is still normalised/bounded downstream.
-const LAB_LIVE_OUTPUT_TOKEN_BUDGET = 1500;
+// per-call output cap (input.maxOutputTokens, ~300) is far too small for gpt-5-mini to reason AND
+// reply — especially against the larger layered prompt — so we floor the wire budget generously here;
+// the assistant text itself is still normalised/bounded downstream.
+const LAB_LIVE_OUTPUT_TOKEN_BUDGET = 4000;
 
 export type LabAzureResponsesAdapter = {
   complete(input: Parameters<ChatSyntheticAdapter["complete"]>[0]): Promise<LabProviderResult>;
@@ -98,10 +102,10 @@ export function createLabAzureResponsesAdapter(
 
         // (2) content filter — either an error object or an incomplete/content_filter reason.
         if (isRecord(value?.error) && value!.error.code === "content_filter") {
-          return withDisposition({ kind: "content_filter_block" }, "incomplete_or_content_filter");
+          return withDisposition({ kind: "content_filter_block" }, "content_filtered");
         }
         if (status === "incomplete" && isRecord(value?.incomplete_details) && value!.incomplete_details.reason === "content_filter") {
-          return withDisposition({ kind: "content_filter_partial" }, "incomplete_or_content_filter");
+          return withDisposition({ kind: "content_filter_partial" }, "content_filtered");
         }
 
         // (1) non-success HTTP or unparseable/invalid body -> hard schema rejection.
@@ -109,7 +113,7 @@ export function createLabAzureResponsesAdapter(
 
         // (2) incomplete for a non-filter reason (e.g. output budget spent on reasoning): the
         // provider responded but did not finish -> graceful fallback, NOT a schema rejection.
-        if (status === "incomplete") return withDisposition({ kind: "server_error" }, "incomplete_or_content_filter");
+        if (status === "incomplete") return withDisposition({ kind: "server_error" }, "incomplete_truncated");
 
         // (5) completed with valid text (both extraction paths preserved).
         const message = extractAssistantMessage(value);

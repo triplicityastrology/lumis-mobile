@@ -134,7 +134,7 @@ check("KB facts surfaced in the browser thinking-process view", appJs.includes("
 const adapter = read("src/lab-azure-responses-adapter.ts");
 check("adapter preserves /openai/v1/responses + deployment + store:false + max_output_tokens", adapter.includes("/openai/${config.routeFamily}/responses") && adapter.includes("model: config.deployment") && adapter.includes("store: false") && adapter.includes("max_output_tokens: Math.max(input.maxOutputTokens") && adapter.includes('reasoning: { effort: "minimal" }'));
 check("adapter preserves both output_text and output[].content[].text extraction", adapter.includes("value.output_text") && adapter.includes('content.type === "output_text"'));
-for (const d of ["http_or_schema_rejected", "incomplete_or_content_filter", "completed_empty_output", "completed_non_text_output", "completed_text"]) {
+for (const d of ["http_or_schema_rejected", "content_filtered", "incomplete_truncated", "completed_empty_output", "completed_non_text_output", "completed_text"]) {
   check(`adapter distinguishes disposition "${d}"`, adapter.includes(`"${d}"`));
 }
 check("provider_disposition is metadata-only (no bodies/headers/urls/keys retained)", !/response\.headers|value\.output_text\s*\)\s*;\s*\/\/\s*log|console\.log|process\.stdout/.test(adapter) && adapter.includes("never retains or exposes response bodies"));

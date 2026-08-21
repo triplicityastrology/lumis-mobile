@@ -96,27 +96,27 @@ test("completed_non_text_output -> graceful fallback (server_error), not malform
 });
 
 // --- Disposition 2: incomplete (non-filter, e.g. token budget) is NOT a schema rejection ---
-test("incomplete (max_output_tokens) -> incomplete_or_content_filter, graceful fallback (not malformed)", async () => {
+test("incomplete (max_output_tokens) -> incomplete_truncated, graceful fallback (not malformed)", async () => {
   const { result } = await run({
     status: "incomplete",
     incomplete_details: { reason: "max_output_tokens" },
     output: [{ type: "reasoning", summary: [] }],
   });
   assert.equal(result.kind, "server_error");
-  assert.equal(result.provider_disposition, "incomplete_or_content_filter");
+  assert.equal(result.provider_disposition, "incomplete_truncated");
 });
 
 // --- Disposition 2: content filter (block + partial) ---
-test("content_filter error -> content_filter_block / incomplete_or_content_filter", async () => {
+test("content_filter error -> content_filter_block / content_filtered", async () => {
   const { result } = await run({ error: { code: "content_filter" } }, 200);
   assert.equal(result.kind, "content_filter_block");
-  assert.equal(result.provider_disposition, "incomplete_or_content_filter");
+  assert.equal(result.provider_disposition, "content_filtered");
 });
 
-test("incomplete content_filter -> content_filter_partial / incomplete_or_content_filter", async () => {
+test("incomplete content_filter -> content_filter_partial / content_filtered", async () => {
   const { result } = await run({ status: "incomplete", incomplete_details: { reason: "content_filter" } });
   assert.equal(result.kind, "content_filter_partial");
-  assert.equal(result.provider_disposition, "incomplete_or_content_filter");
+  assert.equal(result.provider_disposition, "content_filtered");
 });
 
 // --- Disposition 1: non-success HTTP or unparseable body -> hard schema rejection (malformed) ---
