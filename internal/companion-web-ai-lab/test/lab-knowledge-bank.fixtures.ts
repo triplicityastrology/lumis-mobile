@@ -40,7 +40,7 @@ test("grounding block composes facts + Answer-Rule guardrails; conditional; fact
   assert.ok(typeof g === "string" && g.length > 0);
   assert.ok(g.includes("Sun in Gemini") && g.includes("Saturn in Capricorn"));
   assert.ok(/may|can|tends to/i.test(g), "conditional-language guardrail present");
-  assert.ok(/never add an astrology fact that is not in this list/i.test(g), "ANS-01 boundary present");
+  assert.ok(/do not add astrology that is not here|use only the facts/i.test(g), "ANS-01 boundary present");
   // The FACTS themselves are planet-in-sign only (no house/angle/timing facts without a birth time).
   for (const f of r.facts) assert.equal(/\bhouse\b|\bascendant\b|\btransit\b|solar return/i.test(f.composed), false, `fact ${f.planet} is planet-in-sign only`);
 });
