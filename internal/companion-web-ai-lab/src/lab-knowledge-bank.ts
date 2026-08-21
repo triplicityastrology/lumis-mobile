@@ -99,6 +99,6 @@ export function buildKnowledgeGrounding(retrieval: NatalRetrieval): string | nul
   const lines: string[] = [];
   lines.push("These are things you may understand about this person (about them, not about you):");
   for (const f of retrieval.facts) lines.push(`- ${f.composed}`);
-  lines.push("Use this understanding only when it adds something specific to what they are actually saying. Weave it into how you see them rather than reciting placements or keywords, and don't expose it just to prove you know it. Use only what is listed here — do not add astrology that is not here, and keep it tentative (may, can, tends to). If nothing here fits their message, simply respond through your role and voice without forcing any of it in.");
+  lines.push("Let this inform how you understand them, and draw on it only when it adds something specific to what they're actually saying — woven into your sense of them rather than recited as placements or keywords, and kept tentative (may, can, tends to). Stay within what's listed here. If none of it fits their message, just respond through your role and voice.");
   return lines.join("\n");
 }
