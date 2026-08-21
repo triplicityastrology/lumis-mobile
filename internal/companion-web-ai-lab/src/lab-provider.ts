@@ -163,7 +163,13 @@ export function assemblePersona(
   blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: `Respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}. Use the shortest natural response that adequately meets the moment — around ${zh ? "110–260 characters" : "60–140 words"} is normal, but a short emotional message may need less and a complex reflection more. Don't add structure or filler to hit a length.` });
   blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
 
-  const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
+  // TEMP DIAGNOSTIC: LAB_DROP="5,7" omits blocks whose number is listed, to find a filter trigger.
+  let emit = blocks;
+  if (typeof process !== "undefined" && process.env && process.env.LAB_DROP) {
+    const drop = process.env.LAB_DROP.split(",").map((s) => s.trim());
+    emit = blocks.filter((b) => !drop.some((d) => b.name.startsWith(d + ".")));
+  }
+  const prompt = emit.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
   return { prompt, blocks, voice_card: voice };
 }
 
