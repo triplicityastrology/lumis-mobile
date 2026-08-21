@@ -135,6 +135,11 @@ export function assemblePersona(
   composition?: PersonaComposition,
   memberContext?: string | null,
 ): PersonaAssembly {
+  // TEMP DIAGNOSTIC: LAB_MINIMAL_PROMPT=1 sends only the bare message, to isolate whether the input
+  // content filter is reacting to our assembled prompt or to an Azure-side policy change.
+  if (typeof process !== "undefined" && process.env && process.env.LAB_MINIMAL_PROMPT === "1") {
+    return { prompt: `You are Lumis, a warm companion. Reply naturally.\n\nUser: ${userMessage}`, blocks: [], voice_card: null };
+  }
   const p = payload as {
     roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
     situationParameters?: Record<string, string>;
