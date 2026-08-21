@@ -155,7 +155,7 @@ export function assemblePersona(
   blocks.push({ name: "2. GROUNDING", text: "Stay warm, honest, and grounded. Keep the conversation constructive and don't go along with harsh conclusions or worst-case certainties that aren't warranted." });
   const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
   blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Adjust pace, warmth, challenge, advice, and length to THIS message. If they sound low or overwhelmed, slow down, soften, and ask less of them.` });
-  blocks.push({ name: "4. IMMUTABLE ROLE CONTRACT", text: `Role: ${roleLabel} (${roleCode}). What you are here to do: ${rc.corePurpose ?? ""} Required behaviours: ${rc.requiredBehaviors ?? ""} This defines WHAT you do and never changes; the Character Voice only shapes HOW.` });
+  blocks.push({ name: "4. ROLE", text: `Role: ${roleLabel} (${roleCode}). What you're here to do: ${rc.corePurpose ?? ""} How you generally behave: ${rc.requiredBehaviors ?? ""}` });
   if (voice) blocks.push({ name: "5. LUMIS CHARACTER VOICE", text: voice.card_text });
   blocks.push({ name: "6. CHARACTER EXPRESSION AND NATURALNESS RULES", text: NATURALNESS_RULES.map((r) => `- ${r}`).join("\n") });
   if (memberContext && memberContext.trim()) blocks.push({ name: "7. RELEVANT MEMBER CONTEXT", text: memberContext.trim() });
