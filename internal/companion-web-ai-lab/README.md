@@ -8,13 +8,20 @@ conversation — questions, statements, feelings, follow-ups, short replies, top
 shows the selected role, the server-derived Chart Composition, a concise product-level classification
 (safe to proceed / crisis-safety / out-of-scope / horoscope / professional boundary), and the final
 Lumis response. It reuses the reviewed routing, persona/Chart-Composition, safety wording, prompt
-pipeline, Azure deployment and response workflow — through a disposable, session-only path with **no
-persistence, no billing, no member state, and no durable raw-conversation storage**.
+pipeline, Azure deployment and response workflow. It performs **no customer billing and no member-state
+mutation** and writes nothing to any customer table, unit ledger, or Supabase/Azure store.
 
-Conversation context is held **only in the browser session**. Each request may carry a bounded
-rolling context (≤ 12 turns) plus the latest message; **New conversation** and **Clear session**
-remove that context immediately. The server holds no conversation state and never writes raw
-conversation text to files, databases, exports, analytics, or logs.
+**Persistence (Part 2, Founder-directed).** At explicit Founder direction the Lab now keeps a
+**local, Founder-only test-record store** for scoring and review (see *Persistent testing sessions*
+below). This deliberately reverses the Lab's original "no durable raw-conversation storage" boundary
+— but only for **synthetic** test charts and Founder-entered test conversations, stored as local JSON
+files on the dev machine, entirely separate from every customer data path. The content-free telemetry
+stream is unchanged (dispositions and counts only; never message or chart text).
+
+Conversation context is also held in the browser session (a bounded rolling context of ≤ 12 turns
+plus the latest message). **New conversation** starts a fresh session; **End & archive session**
+archives the saved test without deleting it; a separate **Delete** removes it after an explicit
+confirmation.
 
 The 12 frozen synthetic fixtures remain available as a **separate, optional Regression tests tab** —
 not the main experience, not a limit on free-text testing, and not required before free text.
@@ -83,7 +90,10 @@ bash internal/companion-web-ai-lab/scripts/test-companion-web-ai-lab.sh
 ```
 
 Compiles then runs `test/lab-engine.fixtures.ts`, `test/lab-identity.fixtures.ts`,
-`test/lab-conversation.fixtures.ts`, `test/lab-regression.fixtures.ts` (node:test) + the static
+`test/lab-conversation.fixtures.ts`, `test/lab-regression.fixtures.ts`,
+`test/lab-azure-responses-adapter.fixtures.ts`, `test/lab-knowledge-bank.fixtures.ts`,
+`test/lab-persona-voice.fixtures.ts` (Part 1 Character Voice Card), `test/lab-sessions.fixtures.ts`
+(Part 2 persistence + Excel export) — all node:test — plus the loopback smoke test and the static
 `scripts/companion-web-ai-lab-contract.mjs`.
 
 ## Executable-identity authorization (scope `FOUNDER_INTERNAL_CHAT_LAB_FREE_TEXT_STAGING`)
@@ -132,6 +142,13 @@ at the same `LAB_IDENTITY_RECEIPT_PATH` to authorize the provider path.
   `{ schema_version:"companion_web_ai_lab_request_v1", role_code, chart{sun,moon,mercury,saturn,moon_confirmed}, message, app_language_preference, context:[{role,text}] }`.
 - `POST /api/lab/regression` — one optional frozen fixture:
   `{ schema_version:"companion_web_ai_lab_regression_request_v1", fixture_id }`.
+- **Part 2 (Founder-directed test record):**
+  `POST /api/lab/session/new` (create) · `POST /api/lab/session/evaluate` (save per-response scores) ·
+  `POST /api/lab/session/summary` (session comment + overall result) ·
+  `POST /api/lab/session/archive` (archive without deleting) · `POST /api/lab/session/delete`
+  (explicit delete) · `GET /api/lab/sessions` (list) · `GET /api/lab/session?id=` (one session) ·
+  `GET /api/lab/export.xlsx[?ids=…]` (Excel workbook download). A conversation turn is persisted only
+  when the browser opts in by sending a `session_id`.
 
 ## Basic natal Knowledge Bank (Founder-directed)
 
@@ -148,7 +165,59 @@ persona prompt for generative routes and returned as `knowledge_bank.facts`.
 
 The `/api/lab/compose` "Calculate" endpoint and the per-message **"This message"** panel now show the
 **full thinking process** end to end: (1) language, (2) routing & classification, (3) Knowledge Bank
-facts, (4) persona/character, (5) provider, (6) model & prompt versions, (7) the assembled prompt.
+facts, (4) the **Character Voice Card** (below), (5) provider, (6) model & prompt versions, (7) the
+assembled prompt, shown block-by-block.
+
+## Persona prompt assembly + Character Voice Card (Part 1, Founder-directed)
+
+The persona system prompt is assembled (`src/lab-provider.ts` `assemblePersona`) as **separated,
+ordered blocks** so that *how Lumis speaks* is never merged with *what the Lab knows about the
+member*:
+
+1. **Lumis identity** · 2. **Safety and hard guardrails** · 3. **Current situation adjustment**
+   (pace/humour/challenge/advice/length/safety) · 4. **Immutable role contract** (what the role does)
+   · 5. **Lumis character voice** (the Character Voice Card) · 6. **Character expression + naturalness
+   rules** · 7. **Relevant member context** (the customer's natal Knowledge Bank — used only when
+   relevant, never as a source of Lumis's personality) · 8. **Conversation continuity** · 9. **Language
+   + flexible length** ("around 60–140 words is normal") · 10. **Current user message**.
+
+The **Character Voice Card** (`src/lab-persona-voice.ts` `buildVoiceCard`) is built **deterministically
+from the approved Persona Behaviour Mapping v1.2 workbook** (`BEHAVIOUR_BANK`, 60 rows). For every
+resolved factor it retrieves **exactly one** approved mapping row by a deterministic id
+(`mapping_id = "<factor>_<sign>"`, e.g. `asc_cancer`), carries the row's behavioural instruction and
+its mapping version, and stores the mapping ids for reproducibility — the model is **never** asked to
+calculate offsets or invent behaviour. Rows are ordered **ASC → Sun/Moon/Saturn → Mercury**; Mercury
+is last because it colours *communication*, it does not redefine the role. The card ends with a
+deterministic **Combined character** synthesis. Because the three approved roles pull different factor
+sets (Acceptance = ASC+Moon+Mercury, Spark = ASC+Sun+Moon+Mercury, Awareness = ASC+Sun+Saturn+Mercury),
+the same customer chart yields three **distinguishable** characters (`test/lab-persona-voice.fixtures.ts`).
+
+## Persistent testing sessions, scoring + Excel export (Part 2, Founder-directed)
+
+`src/lab-sessions.ts` (storage) + `src/lab-session-api.ts` (handlers) + `src/lab-xlsx.ts`
+(dependency-free `.xlsx`) add a **persistent, server-side, Founder-only test record** — synthetic
+charts only. A session is created when a conversation begins (`session/new`); every turn is saved
+immediately with turn order + timestamps; the browser autosaves scores and comments with a visible
+saved-state indicator.
+
+- **Per-response scoring** (click a Lumis reply): Usefulness / Tone / Specificity 1–5, **Character
+  distinctiveness** 1–5, **Natural conversational flow** 1–5, Length (too short / about right / too
+  long), and free-text comments — editable and saved after the conversation.
+- **Session-level review**: a summary comment + an overall result (Pass / Needs improvement / Fail /
+  Not yet reviewed).
+- **Reproducibility metadata** per session/response: session id, created/updated, tester, test
+  title, role code/labels, customer Sun/Moon/Mercury/Saturn + Moon status, resolved Lumis factors,
+  persona rule version, behaviour mapping version, retrieved mapping ids, language, model/deployment,
+  prompt version, and the **assembled system-prompt snapshot + hash** per response.
+- **Saved sessions tab**: search / filter / open / export. **End & archive** never deletes; **Delete**
+  is a separate, confirmed action.
+- **Excel export** (`/api/lab/export.xlsx`): one workbook, three tabs — **Evaluations** (one row per
+  Lumis response), **Sessions** (one row per session), **Messages** (one row per message) — with
+  wrapped text and per-sheet autofilter. The writer is dependency-free (Node built-ins only; STORED
+  zip + inline strings), so no npm spreadsheet library is added.
+
+Storage location defaults to `.tmp/lab-sessions` and can be overridden with `LAB_SESSIONS_DIR`. Files
+are written atomically (temp + rename, mode `0600`).
 
 ## Security posture
 
@@ -159,14 +228,21 @@ facts, (4) persona/character, (5) provider, (6) model & prompt versions, (7) the
   contains no endpoint or secret (enforced by the contract runner).
 - Provider access is gated by the executable-identity authorization + the `LUMIS_AI_ENABLED` kill
   switch, verified against the clean worktree **before** any Azure key access.
-- Raw conversation text is never persisted or logged. Telemetry is content-free
-  (AC-AI-01/02/03 DEC-03): routing/outcome metadata only — no message content, context, birth data,
-  names, or private text. No chain-of-thought, provider internals, or raw system prompts are exposed.
-- Disposable: `units_charged: 0`, `persistence: "not_committed"`, session-only conversation. No
-  customer threads/accounts, billing units, or member state are touched.
+- **Telemetry** is content-free (AC-AI-01/02/03 DEC-03): routing/outcome metadata only — no message
+  content, context, birth data, names, or private text. No chain-of-thought or provider internals are
+  exposed in telemetry.
+- **Durable raw-text storage** exists **only** in the Part 2 Founder-directed test-record store
+  (`.tmp/lab-sessions`, synthetic charts only, local Founder-only JSON), and only when the browser
+  opts in with a `session_id`. This is a deliberate, documented reversal for internal testing — it is
+  **not** customer persistence, billing, or member-state mutation, and touches no Supabase/Azure/unit
+  path.
+- Disposable at the customer level: `units_charged: 0`, `persistence: "not_committed"`. No customer
+  threads/accounts, billing units, or member state are touched.
 - Fixed crisis/safety/out-of-scope wording is never replaced by model output.
-- The assembled persona prompt is **never** returned to the browser or logged (no
-  `generative_prompt_preview`); only a numeric token estimate is derived from it.
+- The assembled persona prompt **is** surfaced to the browser as a Founder-internal
+  `generative_prompt_preview` (re-enabled at Founder direction for this internal Lab). It remains
+  Founder-only/internal and is never part of the customer UI; it is also the snapshot hashed into the
+  Part 2 reproducibility record.
 - Git identity commands run via `execFileSync("git", [...fixed argv])` (no shell string).
 
 ## Azure Responses API boundary
@@ -175,12 +251,30 @@ The Lab-local adapter (`src/lab-azure-responses-adapter.ts`) preserves `/openai/
 approved deployment, the server-side `api-key`, the deadline/timeout, the one-retry discipline, and
 DefaultV2 gating, and extracts **both** top-level `output_text` and `output[].content[].text`. It
 classifies each received response into one metadata-only, body-free `provider_disposition`:
-`http_or_schema_rejected` · `incomplete_or_content_filter` · `completed_empty_output` ·
-`completed_non_text_output` · `completed_text`. This corrects the earlier boundary, where an HTTP-200
-`incomplete` response (e.g. a reasoning model spending its output budget) or a completed-but-empty /
-non-text response was misreported as a hard `malformed` schema rejection (surfaced as
-`CHAT_SYNTHETIC_MALFORMED`); those now degrade to a graceful fallback. The disposition never retains
-or exposes response bodies, raw text, headers, URLs, keys, or Azure identifiers.
+`http_or_schema_rejected` · `content_filtered_input` · `content_filtered_output` ·
+`incomplete_truncated` · `completed_empty_output` · `completed_non_text_output` · `completed_text`.
+The two content-filter dispositions distinguish an **input** block (the request tripped the DefaultV2
+filter) from an **output** block (a partial/incomplete generation flagged on the way out), and
+`incomplete_truncated` covers a non-filter incomplete (e.g. a reasoning model spending its output
+budget). This corrects the earlier boundary, where an HTTP-200 `incomplete` response or a
+completed-but-empty / non-text response was misreported as a hard `malformed` schema rejection
+(surfaced as `CHAT_SYNTHETIC_MALFORMED`); those now degrade to a graceful fallback. Because `gpt-5-mini`
+is a **reasoning** model, the request sends `reasoning: { effort: "minimal" }` and a generous total
+`max_output_tokens` budget so the model returns visible text rather than spending the whole budget on
+reasoning. The disposition never retains or exposes response bodies, raw text, headers, URLs, keys, or
+Azure identifiers.
+
+## Azure content-filter recommendation (for Technical)
+
+During Founder testing, ordinary emotional-support messages were being blocked by the Azure
+**DefaultV2** content filter: aggregate empathetic/self-referential language on the **input** side can
+cross the self-harm severity threshold, surfacing as `content_filtered_input`, and some role prompts
+tripped the jailbreak/prompt-shield on concealment-style phrasing. The Lab side has been hardened
+(positive-phrased naturalness rules; trimmed grounding; graceful "temporarily unavailable" handling),
+but the **durable fix is in Azure AI Foundry configuration, not code**: raise the self-harm/violence
+severity thresholds (or set the relevant categories to **annotate-only**) for this staging deployment,
+so normal companion conversation is not filtered. This is a Technical/Foundry change and is tracked
+with them.
 
 ## Known documentation note
 

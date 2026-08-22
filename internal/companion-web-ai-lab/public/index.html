@@ -24,11 +24,17 @@
   <nav class="tabs">
     <button class="tab active" data-tab="companion">Companion (main)</button>
     <button class="tab" data-tab="regression">Regression tests (optional)</button>
+    <button class="tab" data-tab="sessions">Saved sessions</button>
   </nav>
 
   <!-- ================= COMPANION (MAIN) ================= -->
   <main class="lab-grid" id="tab-companion">
     <section class="panel" aria-label="Chart selections">
+      <h2>Test</h2>
+      <div class="grid-4" style="grid-template-columns:1fr 1fr;">
+        <label class="field"><span>Tester</span><input id="tester" type="text" placeholder="e.g. Founder" /></label>
+        <label class="field"><span>Test title / number</span><input id="test-title" type="text" placeholder="e.g. T-001" /></label>
+      </div>
       <h2>Chart &amp; role</h2>
       <label class="field"><span>Lumis role (three approved)</span><select id="role"></select></label>
       <p class="hint" id="role-hint"></p>
@@ -54,10 +60,12 @@
 
     <section class="panel conversation-panel" aria-label="Conversation">
       <div class="conv-head">
-        <h2>Conversation <span class="muted">(session-only — not persisted)</span></h2>
+        <h2>Conversation <span class="muted" id="session-label">(no saved session yet)</span></h2>
         <div class="conv-actions">
+          <span class="small" id="save-state"></span>
           <button id="new-conversation" class="btn-secondary" type="button">New conversation</button>
-          <button id="clear-session" class="btn-secondary" type="button">Clear session</button>
+          <button id="clear-session" class="btn-secondary" type="button">End &amp; archive session</button>
+          <button id="delete-session" class="btn-secondary" type="button" title="Permanently delete this saved session">Delete</button>
         </div>
       </div>
       <div id="conversation" class="conversation" aria-live="polite"></div>
@@ -66,10 +74,26 @@
         <button id="send" class="btn-primary">Send</button>
       </div>
       <p class="hint" id="send-note"></p>
+
+      <h2>Evaluate this response <span class="muted" id="eval-target">— click a Lumis reply above</span></h2>
+      <div id="eval-panel" class="eval muted">Select a Lumis reply to score it.</div>
+
+      <h2>Session summary</h2>
+      <div class="eval">
+        <label class="field"><span>Overall result</span>
+          <select id="overall-result">
+            <option value="not_yet_reviewed">Not yet reviewed</option>
+            <option value="pass">Pass</option>
+            <option value="needs_improvement">Needs improvement</option>
+            <option value="fail">Fail</option>
+          </select>
+        </label>
+        <label class="field"><span>Summary comment</span><textarea id="summary-comment" rows="2" placeholder="Overall notes for this session…"></textarea></label>
+      </div>
     </section>
 
     <section class="panel" aria-label="Message details">
-      <h2>This message</h2>
+      <h2>This message <span class="muted">(full thinking process)</span></h2>
       <div id="message-details" class="trace muted">—</div>
     </section>
   </main>
@@ -85,6 +109,29 @@
     <section class="panel" aria-label="Regression result">
       <h2>Result</h2>
       <div id="reg-result" class="trace muted">—</div>
+    </section>
+  </main>
+
+  <!-- ================= SAVED SESSIONS ================= -->
+  <main class="lab-grid-2 hidden" id="tab-sessions">
+    <section class="panel" aria-label="Saved sessions">
+      <div class="conv-head">
+        <h2>Saved sessions <span class="muted">(persisted server-side)</span></h2>
+        <div class="conv-actions">
+          <button id="refresh-sessions" class="btn-secondary" type="button">Refresh</button>
+          <button id="export-all" class="btn-primary" type="button">Export all (Excel)</button>
+          <button id="export-selected" class="btn-secondary" type="button">Export selected</button>
+        </div>
+      </div>
+      <div class="row">
+        <input id="session-search" type="text" placeholder="search tester / title / role…" style="flex:1;" />
+        <select id="session-filter"><option value="">all statuses</option><option value="not_yet_reviewed">not reviewed</option><option value="pass">pass</option><option value="needs_improvement">needs improvement</option><option value="fail">fail</option><option value="archived">archived</option></select>
+      </div>
+      <div id="session-list" class="trace muted">Loading…</div>
+    </section>
+    <section class="panel" aria-label="Session detail">
+      <h2>Session detail</h2>
+      <div id="session-detail" class="trace muted">Open a session from the list to review its messages, scores, and reproducibility metadata.</div>
     </section>
   </main>
 

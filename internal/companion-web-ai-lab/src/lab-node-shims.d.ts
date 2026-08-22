@@ -30,11 +30,17 @@ declare module "node:fs/promises" {
 
 declare module "node:fs" {
   export function readFileSync(path: string, encoding: "utf8"): string;
-  export function writeFileSync(path: string, data: string, options?: { flag?: string; mode?: number }): void;
+  export function writeFileSync(path: string, data: string | Uint8Array, options?: { flag?: string; mode?: number }): void;
   export function existsSync(path: string): boolean;
   export function mkdirSync(path: string, options?: { recursive?: boolean; mode?: number }): void;
+  export function readdirSync(path: string): string[];
   export function renameSync(oldPath: string, newPath: string): void;
   export function rmSync(path: string, options?: { force?: boolean; recursive?: boolean }): void;
+  export function mkdtempSync(prefix: string): string;
+}
+
+declare module "node:os" {
+  export function tmpdir(): string;
 }
 
 declare module "node:crypto" {
@@ -63,6 +69,7 @@ declare module "node:assert" {
     notEqual(actual: unknown, expected: unknown, message?: string): void;
     deepEqual(actual: unknown, expected: unknown, message?: string): void;
     ok(value: unknown, message?: string): void;
+    match(value: string, regex: RegExp, message?: string): void;
     throws(fn: () => unknown, message?: string): void;
     doesNotThrow(fn: () => unknown, message?: string): void;
   };
@@ -79,7 +86,11 @@ declare var process: {
 };
 
 declare class Buffer extends Uint8Array {
-  static concat(list: Buffer[]): Buffer;
-  static from(input: string, encoding?: string): Buffer;
+  static concat(list: Uint8Array[]): Buffer;
+  static from(input: string | number[] | Uint8Array, encoding?: string): Buffer;
+  static alloc(size: number): Buffer;
+  static isBuffer(value: unknown): value is Buffer;
   toString(encoding?: string): string;
+  slice(start?: number, end?: number): Buffer;
+  includes(value: Buffer | number | string): boolean;
 }

@@ -4,9 +4,12 @@
 // with source-level guarantees:
 //   - the browser bundle never contacts Azure/Supabase and carries no secrets;
 //   - the browser talks only to same-origin /api/lab/* and holds conversation context itself
-//     (New/Clear remove it) with NO per-message cap;
-//   - the Lab performs no customer persistence / billing / member-state mutation and never
-//     persists or logs raw conversation text;
+//     (New conversation resets it) with NO per-message cap;
+//   - the Lab performs no customer persistence / billing / member-state mutation, and its
+//     content-free telemetry stream logs no raw conversation text;
+//   - Part 2 (Founder-directed): a persistent, LOCAL, Founder-only test-record store (synthetic
+//     charts only) deliberately reverses the original "no durable raw-conversation storage"
+//     boundary — session/scoring endpoints + a dependency-free Excel export are present;
 //   - provider access is gated by the executable-identity authorization + the LUMIS_AI_ENABLED
 //     kill switch, checked BEFORE any Azure key access;
 //   - the reused persona/companion prompt pipeline is preserved (not a simplified replacement);
@@ -42,7 +45,10 @@ check("browser fetches only same-origin /api/lab/*", fetchTargets.length > 0 && 
 // ---- 2. The browser holds a BOUNDED rolling context itself; New/Clear remove it; no message cap ----
 check("browser holds conversation context in-session", /let\s+conversation\s*=\s*\[\]/.test(appCode));
 check("New conversation empties context", /newConversation\s*\(\)\s*\{[^}]*conversation\s*=\s*\[\]/.test(appCode));
-check("Clear session removes context (bound to newConversation)", appCode.includes('"clear-session"') && /clear-session[\s\S]{0,60}newConversation/.test(appCode));
+// Part 2: "End & archive session" (clear-session) ARCHIVES (never deletes); Delete is a separate,
+// confirmed, explicit action. Archiving must not call the delete endpoint.
+check("End & archive archives (never permanently deletes)", appCode.includes('"clear-session"') && /clear-session[\s\S]{0,40}endAndArchive/.test(appCode) && /endAndArchive[\s\S]*?session\/archive/.test(appCode) && !/endAndArchive[\s\S]*?session\/delete/.test(appCode.match(/async function endAndArchive[\s\S]*?\n\}/)?.[0] || ""));
+check("Delete is a separate explicit confirmed action", appCode.includes('"delete-session"') && /delete-session[\s\S]{0,40}deleteCurrent/.test(appCode) && /deleteCurrent[\s\S]*?confirm\(/.test(appCode) && /deleteCurrent[\s\S]*?session\/delete/.test(appCode));
 check("context is bounded by the server-declared max (rolling window)", appCode.includes("slice(-MAX_CONTEXT") && appCode.includes("max_context_turns"));
 check("conversation payload sends role+chart+message+context (natural free text)", /\/api\/lab\/conversation/.test(appCode) && /role_code/.test(appCode) && /chart:\s*chart\(\)/.test(appCode) && /message,/.test(appCode) && /context:\s*priorContext/.test(appCode));
 check("no client-side per-message cap on sending", !/messagesSent\s*>=|turnCount\s*>=|>=\s*12|max_messages/.test(appCode));
@@ -65,12 +71,15 @@ for (const token of ["createClient(", "postgres-authority", "authority-store", "
 check("responses are disposable (units_charged: 0)", read("src/lab-engine.ts").includes("units_charged: 0"));
 check("responses are not committed", read("src/lab-engine.ts").includes('persistence: "not_committed"'));
 
-// ---- 4. Raw conversation text is never persisted or logged ----
+// ---- 4. Telemetry stays content-free; conversation handler logs no raw text. Durable raw-text
+//        storage exists ONLY in the Part 2 Founder-directed test-record store (section 11). ----
 const conversation = read("src/lab-conversation.ts");
 const server = read("src/server.ts");
-check("server holds no conversation state / never persists raw text (documented + no store)", server.includes("never persists") && !/\.write(File)?Sync?\([^)]*message/.test(server));
-check("telemetry is content-free (no message/context/assistant text in the emitted record)", server.includes("Content-free") && !/stdout[\s\S]{0,80}(message|context|assistant_message)/.test(server));
+check("telemetry is content-free (no message/context/assistant text in the emitted record)", server.includes("content-free") && !/stdout[\s\S]{0,80}(message|context|assistant_message)/.test(server));
 check("conversation handler does not log raw text", !/console\.log[\s\S]{0,60}(request\.message|\.context|assistant_message)/.test(conversation) && !/stdout[\s\S]{0,60}(request\.message|\.context)/.test(conversation));
+// The conversation route itself performs no durable write; persistence is delegated to persistTurn
+// (Part 2 store) and only when the browser opts in by sending a session_id.
+check("conversation route persists only via the Part 2 session store, gated on session_id", server.includes("persistTurn(sessionId") && /if\s*\(sessionId\)/.test(server) && !/\.write(File)?Sync?\(/.test(server));
 
 // ---- 5. Provider access gated by executable identity + kill switch, BEFORE any Azure key ----
 const identity = read("src/lab-identity.ts");
@@ -145,6 +154,30 @@ check("Solar Return EN byte-exact", registry.includes('text: "Solar Return is no
 check("Solar Return ZH byte-exact", registry.includes("Solar Return 不屬於 Lumis 的服務範圍。"));
 check("Router unavailable EN byte-exact", registry.includes('text: "I am temporarily unable to process that message. Please try again shortly."'));
 check("CRISIS/DISTRESS marked clinical-review", registry.includes('status: "provisional_clinical_review_required"'));
+
+// ---- 11. Part 2: Founder-directed persistent test-record store + scoring + Excel export ----
+const sessions = read("src/lab-sessions.ts");
+const sessionApi = read("src/lab-session-api.ts");
+const xlsx = read("src/lab-xlsx.ts");
+// The reversal is explicit and documented, scoped to synthetic charts + local files only.
+check("session store documents the Founder-directed persistence reversal (synthetic-only, local)", /GOVERNANCE NOTE/.test(sessions) && /reverses/.test(sessions) && /SYNTHETIC/.test(sessions) && /never real member data/i.test(sessions));
+check("session store writes local files only — nothing to Supabase/Azure/units", /writeFileSync/.test(sessions) && sessions.includes("nothing to Supabase/Azure/units") && !/createClient\(|unit_ledger|SERVICE_ROLE/.test(sessions));
+check("session store persists reproducibility metadata (prompt snapshot + hash + versions)", /prompt_snapshot/.test(sessions) && /prompt_hash/.test(sessions) && /promptHash/.test(sessionApi) && /behaviour_mapping_version/.test(sessions) && /prompt_version/.test(sessions));
+// Server exposes the full Part 2 surface.
+for (const r of ["/api/lab/session/new", "/api/lab/session/evaluate", "/api/lab/session/summary", "/api/lab/session/archive", "/api/lab/session/delete", "/api/lab/sessions", "/api/lab/session", "/api/lab/export.xlsx"]) {
+  check(`server exposes Part 2 route ${r}`, server.includes(`"${r}"`));
+}
+check("archive and delete are distinct endpoints (archive never deletes)", sessionApi.includes("setArchived(") && sessionApi.includes("deleteSession(") && /handleArchive[\s\S]*?setArchived/.test(sessionApi) && !/handleArchive[\s\S]*?deleteSession/.test(sessionApi.match(/handleArchive[\s\S]*?\n\}/)?.[0] || ""));
+// Excel export: dependency-free, one workbook with the three specified tabs.
+check("Excel export is dependency-free (node built-ins only, no npm xlsx lib)", !/require\(|from ["']exceljs|from ["']xlsx|node_modules/.test(xlsx) && /zipStore|crc32/.test(xlsx));
+check("Excel export builds one workbook with Evaluations + Sessions + Messages tabs", /name: "Evaluations"/.test(sessionApi) && /name: "Sessions"/.test(sessionApi) && /name: "Messages"/.test(sessionApi) && /buildXlsx\(\[/.test(sessionApi));
+check("export.xlsx returns a spreadsheet download (binary, content-disposition)", server.includes("spreadsheetml.sheet") && server.includes("content-disposition") && server.includes("buildExportWorkbook("));
+// Browser: scoring panel + persistent session state + session browser + export controls.
+check("browser has a per-response evaluation panel with the required scores", appCode.includes("renderEvalPanel") && appCode.includes("session/evaluate") && /usefulness/.test(appCode) && /character_distinctiveness/.test(appCode) && /natural_flow/.test(appCode));
+check("browser has session-level summary + overall result", appCode.includes("session/summary") && appCode.includes("overall-result") && appCode.includes("summary-comment"));
+check("browser creates a server session and threads session_id through conversation turns", appCode.includes("session/new") && /session_id/.test(appCode) && appCode.includes("ensureSession"));
+check("browser saved-sessions browser lists/opens/exports sessions", appCode.includes("loadSessions") && appCode.includes("openSession") && appCode.includes("export.xlsx"));
+check("saved-session UI present (tab + list + detail + export buttons)", indexHtml.includes('data-tab="sessions"') && indexHtml.includes('id="session-list"') && indexHtml.includes('id="session-detail"') && indexHtml.includes('id="export-all"'));
 
 console.log(failures === 0 ? "\nCONTRACT OK" : `\nCONTRACT FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

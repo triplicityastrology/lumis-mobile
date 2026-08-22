@@ -86,3 +86,16 @@ textarea { resize: vertical; }
 .trace .line { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; border-bottom: 1px dotted #223052; }
 .trace .line:last-child { border-bottom: 0; }
 .trace pre { background: #0d1422; border: 1px solid var(--line); border-radius: 6px; padding: 8px; overflow: auto; font-size: 11px; max-height: 260px; }
+
+/* ---- Part 2: evaluation + sessions ---- */
+.eval { font-size: 12.5px; }
+.eval.muted { color: var(--muted); }
+.eval textarea { margin-top: 8px; }
+.eval .line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px dotted #223052; }
+.scorebtn { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; margin-left: 4px; cursor: pointer; font: inherit; font-size: 12px; }
+.scorebtn:hover { color: var(--ink); }
+.scorebtn.on { background: var(--gold); color: #201800; border-color: var(--gold); font-weight: 700; }
+.bubble.assistant.sel { outline: 2px solid var(--gold); }
+#save-state { color: var(--ok); }
+#session-list table td, #session-list table th { padding: 4px 6px; }
+#session-list .sess-cb { width: auto; }

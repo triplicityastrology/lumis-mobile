@@ -9,6 +9,16 @@ const REQUEST_SCHEMA = "companion_web_ai_lab_request_v1";
 let CONFIG = null;
 let MAX_CONTEXT = 12;
 let conversation = []; // [{ role: "user"|"assistant", text }]
+let sessionId = null;  // server-side persisted session
+let selectedTurn = null; // Lumis turn currently being evaluated
+let saveTimer = null;
+let summaryTimer = null;
+
+function setSaveState(t) { const s = $("save-state"); if (s) s.textContent = t || ""; }
+async function api(path, body) {
+  const opt = body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
+  return fetch(path, opt).then((r) => r.json());
+}
 
 const CLASS_BADGE = {
   safe_to_proceed: "b-completed", crisis_safety: "b-safety", out_of_scope: "b-oos",
@@ -61,20 +71,45 @@ function updateRoleHint(roles) {
 function chart() {
   return { sun: Number($("sun").value), moon: Number($("moon").value), mercury: Number($("mercury").value), saturn: Number($("saturn").value), moon_confirmed: $("moon-confirmed").checked };
 }
-function appendBubble(role, text) {
+function appendBubble(role, text, turn) {
   const b = el("div", { class: "bubble " + (role === "user" ? "user" : "assistant") }, el("b", { text: role === "user" ? "You" : "Lumis" }), " " + text);
+  if (role === "assistant" && turn != null) {
+    b.dataset.turn = String(turn);
+    b.title = "Click to evaluate this reply";
+    b.style.cursor = "pointer";
+    b.addEventListener("click", () => selectMessage(turn));
+  }
   $("conversation").append(b); $("conversation").scrollTop = $("conversation").scrollHeight;
+  return b;
+}
+
+// Ensure a persisted session exists for the current chart + role (creates one if needed).
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  const langSel = $("language").value;
+  const j = await api("/api/lab/session/new", {
+    role_code: $("role").value, chart: chart(), app_language_preference: langSel === "auto" ? null : langSel,
+    tester: $("tester").value.trim(), test_title: $("test-title").value.trim(),
+  });
+  if (j && j.session) { sessionId = j.session.session_id; reflectSession(j.session); }
+  return sessionId;
+}
+function reflectSession(s) {
+  $("session-label").textContent = s ? `(session ${s.session_id.slice(0, 18)}… · saved)` : "(no saved session yet)";
+  if (s) { $("overall-result").value = s.overall_result || "not_yet_reviewed"; $("summary-comment").value = s.summary_comment || ""; }
 }
 
 async function send() {
   const message = $("message").value.trim();
   if (!message) return;
+  await ensureSession();
   const priorContext = conversation.slice(-MAX_CONTEXT);
   appendBubble("user", message); $("message").value = "";
   const langSel = $("language").value;
   const req = {
     schema_version: REQUEST_SCHEMA, role_code: $("role").value, chart: chart(),
     message, app_language_preference: langSel === "auto" ? null : langSel, context: priorContext,
+    session_id: sessionId,
   };
   $("loading").hidden = false; $("send").disabled = true;
   let body;
@@ -82,9 +117,10 @@ async function send() {
   catch (e) { body = { canonical_state: "technical_error", result: "technical_error", error_code: "LAB_NETWORK_ERROR" }; }
   finally { $("loading").hidden = true; $("send").disabled = false; }
   const reply = body.assistant_message || `(${body.result || "no response"}${body.error_code ? " · " + body.error_code : ""})`;
-  appendBubble("assistant", reply);
+  appendBubble("assistant", reply, body.lumis_turn);
   conversation.push({ role: "user", text: message });
   conversation.push({ role: "assistant", text: reply });
+  if (body.lumis_turn != null) { setSaveState("saved ✓"); selectMessage(body.lumis_turn); }
   if (body.chart_composition) renderComposition(body.chart_composition);
   renderDetails(body);
 }
@@ -181,9 +217,19 @@ function renderDetails(body, target) {
   const kbg = group("3 · Knowledge Bank (the person's natal facts)");
   const kbBox = el("div"); renderKB(kbBox, body.knowledge_bank); kbg.append(kbBox); box.append(kbg);
 
-  box.append(group("4 · Persona (Companion character)",
-    line("selected role", `${t.selected_role.current_label} (${t.selected_role.code})`),
-    ...(Array.isArray(t.chart_composition_summary) ? t.chart_composition_summary.map((s) => line("·", s)) : [])));
+  const pg = group("4 · Persona — Character Voice", line("selected role", `${t.selected_role.current_label} (${t.selected_role.code})`));
+  if (body.voice_card && Array.isArray(body.voice_card.rows)) {
+    const vt = el("table");
+    vt.append(el("tr", {}, el("th", { text: "Factor · Sign" }), el("th", { text: "Mapping (v)" }), el("th", { text: "Behaviour instruction" })));
+    for (const r of body.voice_card.rows) vt.append(el("tr", {},
+      el("td", {}, el("b", { text: `${r.factor} ${r.sign}` })),
+      el("td", { class: "small", text: `${r.mapping_id} (${r.version})` }),
+      el("td", { class: "small", text: r.instruction })));
+    pg.append(vt);
+  } else if (Array.isArray(t.chart_composition_summary)) {
+    for (const s of t.chart_composition_summary) pg.append(line("·", s));
+  }
+  box.append(pg);
 
   box.append(group("5 · Provider",
     line("authorized", String(body.provider_authorized)),
@@ -201,7 +247,158 @@ function renderDetails(body, target) {
     line("no chain-of-thought", t.no_hidden_chain_of_thought),
     line("latency", `${t.latency.total_ms}ms (${t.latency.duration_bucket})`)));
 
-  if (body.generative_prompt_preview) { const g = group("7 · Assembled prompt actually sent"); g.append(el("pre", { text: body.generative_prompt_preview })); box.append(g); }
+  if (Array.isArray(body.persona_blocks) && body.persona_blocks.length) {
+    const g = group("7 · Assembled prompt — by block (what produced each part)");
+    for (const blk of body.persona_blocks) {
+      g.append(el("div", { class: "small", style: "color:var(--gold);margin-top:6px" }, blk.name));
+      g.append(el("pre", { text: blk.text }));
+    }
+    box.append(g);
+  } else if (body.generative_prompt_preview) {
+    const g = group("7 · Assembled prompt actually sent"); g.append(el("pre", { text: body.generative_prompt_preview })); box.append(g);
+  }
+}
+
+// ---------- Part 2: evaluation + sessions ----------
+const SCORES = [
+  ["usefulness", "Usefulness"], ["tone", "Tone"], ["specificity", "Specificity"],
+  ["character_distinctiveness", "Character distinctiveness"], ["natural_flow", "Natural conversational flow"],
+];
+let currentEval = {};
+
+function selectMessage(turn) {
+  selectedTurn = turn;
+  document.querySelectorAll(".bubble.assistant").forEach((b) => b.classList.toggle("sel", Number(b.dataset.turn) === turn));
+  $("eval-target").textContent = `— turn ${turn}`;
+  currentEval = {};
+  renderEvalPanel();
+}
+
+function scoreRow(key, label) {
+  const wrap = el("div", { class: "line" }, el("span", { class: "k", text: label }));
+  const btns = el("span");
+  for (let n = 1; n <= 5; n++) {
+    const b = el("button", { class: "scorebtn" + (currentEval[key] === n ? " on" : ""), type: "button", text: String(n) });
+    b.addEventListener("click", () => { currentEval[key] = n; renderEvalPanel(); scheduleEvalSave(); });
+    btns.append(b);
+  }
+  wrap.append(btns); return wrap;
+}
+
+function renderEvalPanel() {
+  const box = $("eval-panel"); box.className = "eval"; box.innerHTML = "";
+  if (selectedTurn == null) { box.className = "eval muted"; box.textContent = "Select a Lumis reply to score it."; return; }
+  for (const [key, label] of SCORES) box.append(scoreRow(key, label));
+  const lenWrap = el("div", { class: "line" }, el("span", { class: "k", text: "Length" }));
+  const lenSel = el("span");
+  for (const [v, lbl] of [["too_short", "Too short"], ["about_right", "About right"], ["too_long", "Too long"]]) {
+    const b = el("button", { class: "scorebtn" + (currentEval.length === v ? " on" : ""), type: "button", text: lbl });
+    b.addEventListener("click", () => { currentEval.length = v; renderEvalPanel(); scheduleEvalSave(); });
+    lenSel.append(b);
+  }
+  lenWrap.append(lenSel); box.append(lenWrap);
+  const ta = el("textarea", { rows: "2", placeholder: "Comments…" }); ta.value = currentEval.comments || "";
+  ta.addEventListener("input", () => { currentEval.comments = ta.value; scheduleEvalSave(); });
+  box.append(ta);
+}
+
+function scheduleEvalSave() {
+  setSaveState("saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    if (!sessionId || selectedTurn == null) return;
+    await api("/api/lab/session/evaluate", { session_id: sessionId, turn: selectedTurn, evaluation: currentEval });
+    setSaveState("saved ✓");
+  }, 500);
+}
+
+async function saveSummary() {
+  if (!sessionId) return;
+  setSaveState("saving…");
+  await api("/api/lab/session/summary", { session_id: sessionId, summary_comment: $("summary-comment").value, overall_result: $("overall-result").value });
+  setSaveState("saved ✓");
+}
+
+function newConversation() {
+  conversation = []; sessionId = null; selectedTurn = null; currentEval = {};
+  $("conversation").innerHTML = ""; $("message-details").className = "trace muted"; $("message-details").textContent = "—";
+  $("eval-panel").className = "eval muted"; $("eval-panel").textContent = "Select a Lumis reply to score it.";
+  $("eval-target").textContent = "— click a Lumis reply above";
+  $("overall-result").value = "not_yet_reviewed"; $("summary-comment").value = "";
+  reflectSession(null); setSaveState("");
+}
+async function endAndArchive() {
+  if (sessionId) { await api("/api/lab/session/archive", { session_id: sessionId, archived: true }); setSaveState("archived ✓"); }
+  newConversation();
+}
+async function deleteCurrent() {
+  if (!sessionId) { newConversation(); return; }
+  if (!confirm("Permanently delete this saved session and its scores? This cannot be undone.")) return;
+  await api("/api/lab/session/delete", { session_id: sessionId });
+  newConversation();
+}
+
+// ----- Saved sessions browser -----
+let sessionRows = [];
+async function loadSessions() {
+  const j = await api("/api/lab/sessions");
+  sessionRows = (j && j.sessions) || [];
+  renderSessionList();
+}
+function renderSessionList() {
+  const box = $("session-list"); box.className = "trace"; box.innerHTML = "";
+  const q = ($("session-search").value || "").toLowerCase();
+  const filt = $("session-filter").value;
+  const rows = sessionRows.filter((s) => {
+    if (filt === "archived" ? !s.archived : (filt && s.overall_result !== filt)) return false;
+    if (!q) return true;
+    return [s.tester, s.test_title, s.role_label, s.session_id].join(" ").toLowerCase().includes(q);
+  });
+  if (!rows.length) { box.className = "trace muted"; box.textContent = "No sessions."; return; }
+  const t = el("table");
+  t.append(el("tr", {}, el("th", { text: "✓" }), el("th", { text: "Date" }), el("th", { text: "Test" }), el("th", { text: "Tester" }), el("th", { text: "Role" }), el("th", { text: "Msgs" }), el("th", { text: "Result" }), el("th", { text: "" })));
+  for (const s of rows) {
+    const cb = el("input", { type: "checkbox", value: s.session_id, class: "sess-cb" });
+    const open = el("button", { class: "chip", type: "button", text: "open" });
+    open.addEventListener("click", () => openSession(s.session_id));
+    t.append(el("tr", {},
+      el("td", {}, cb), el("td", { class: "small", text: s.created_at.slice(0, 16).replace("T", " ") }),
+      el("td", { text: s.test_title || "—" }), el("td", { class: "small", text: s.tester || "—" }),
+      el("td", { class: "small", text: s.role_label }), el("td", { class: "small", text: String(s.lumis_count) }),
+      el("td", {}, el("span", { class: "badge " + RESULT_BADGE(s), text: (s.archived ? "archived · " : "") + s.overall_result.replace(/_/g, " ") })),
+      el("td", {}, open)));
+  }
+  box.append(t);
+}
+function RESULT_BADGE(s) { return s.overall_result === "pass" ? "b-completed" : s.overall_result === "fail" ? "b-safety" : s.overall_result === "needs_improvement" ? "b-oos" : "b-unavailable"; }
+
+async function openSession(id) {
+  const j = await api("/api/lab/session?id=" + encodeURIComponent(id));
+  const s = j && j.session; const box = $("session-detail"); box.className = "trace"; box.innerHTML = "";
+  if (!s) { box.textContent = "not found"; return; }
+  box.append(group("Session",
+    line("id", s.session_id), line("tester", s.tester || "—"), line("test", s.test_title || "—"),
+    line("role", `${s.role_label} (${s.role_code})`), line("chart", s.chart ? `Sun ${s.chart.sun} Moon ${s.chart.moon} Mercury ${s.chart.mercury} Saturn ${s.chart.saturn}` : "—"),
+    line("resolved", Object.entries(s.resolved).map(([k, v]) => `${k}:${v}`).join(" · ")),
+    line("versions", `persona ${s.persona_rule_version} · mapping ${s.behaviour_mapping_version} · prompt ${s.prompt_version}`),
+    line("model", `${s.model} @ ${s.deployment}`), line("overall", s.overall_result), line("summary", s.summary_comment || "—")));
+  const mg = group("Messages + scores");
+  for (const m of s.messages) {
+    const who = m.speaker === "user" ? "You" : "Lumis";
+    mg.append(el("div", { class: "line" }, el("span", { class: "k", text: `${m.turn} · ${who}` }), el("span", { class: "v", text: m.text.slice(0, 200) })));
+    if (m.evaluation) {
+      const e = m.evaluation;
+      const parts = SCORES.filter(([k]) => e[k] != null).map(([k, l]) => `${l}:${e[k]}`).concat(e.length ? [`Length:${e.length}`] : []).concat(e.comments ? [`“${e.comments}”`] : []);
+      if (parts.length) mg.append(el("div", { class: "small", style: "padding-left:12px;color:var(--ok)", text: parts.join(" · ") }));
+    }
+  }
+  box.append(mg);
+}
+
+function selectedSessionIds() { return Array.from(document.querySelectorAll(".sess-cb")).filter((c) => c.checked).map((c) => c.value); }
+function exportSessions(ids) {
+  const q = ids && ids.length ? "?ids=" + encodeURIComponent(ids.join(",")) : "";
+  window.open("/api/lab/export.xlsx" + q, "_blank");
 }
 
 async function runRegression() {
@@ -218,19 +415,28 @@ async function runRegression() {
   const details = el("div"); renderDetails(body, details); box.append(details);
 }
 
-function newConversation() { conversation = []; $("conversation").innerHTML = ""; $("message-details").className = "trace muted"; $("message-details").textContent = "—"; }
 function switchTab(name) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   $("tab-companion").classList.toggle("hidden", name !== "companion");
   $("tab-regression").classList.toggle("hidden", name !== "regression");
+  $("tab-sessions").classList.toggle("hidden", name !== "sessions");
+  if (name === "sessions") loadSessions();
 }
 
 $("calculate").addEventListener("click", calculate);
 $("send").addEventListener("click", send);
 $("message").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
 $("new-conversation").addEventListener("click", newConversation);
-$("clear-session").addEventListener("click", newConversation);
+$("clear-session").addEventListener("click", endAndArchive);
+$("delete-session").addEventListener("click", deleteCurrent);
+$("overall-result").addEventListener("change", saveSummary);
+$("summary-comment").addEventListener("input", () => { clearTimeout(summaryTimer); summaryTimer = setTimeout(saveSummary, 600); });
 $("run-regression").addEventListener("click", runRegression);
+$("refresh-sessions").addEventListener("click", loadSessions);
+$("export-all").addEventListener("click", () => exportSessions(null));
+$("export-selected").addEventListener("click", () => { const ids = selectedSessionIds(); if (ids.length) exportSessions(ids); else alert("Tick one or more sessions to export."); });
+$("session-search").addEventListener("input", renderSessionList);
+$("session-filter").addEventListener("change", renderSessionList);
 document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
 
 loadConfig().catch(() => { $("ai-state").textContent = "config error"; });

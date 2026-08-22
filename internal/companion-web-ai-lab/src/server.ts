@@ -4,7 +4,15 @@
 //
 // - Main: POST /api/lab/conversation — natural, multi-turn, free-text Companion conversation. The
 //   browser sends the controlled context (role + four signs) + latest message + a bounded rolling
-//   conversation context. The server holds no conversation state and never persists/logs raw text.
+//   conversation context. The telemetry stream stays content-free — it carries dispositions and
+//   counts, never the raw text or chart signs. The conversation turn itself is NOT written to any
+//   customer table, unit ledger, or member-state store.
+// - Part 2 (Founder-directed): POST/GET /api/lab/session* + /api/lab/export.xlsx — a persistent,
+//   server-side TEST-RECORD store for the Founder's own evaluation of synthetic charts. This
+//   deliberately reverses the Lab's original "no durable raw-conversation storage" boundary at
+//   Founder direction: it saves the raw test conversation, scores, comments, and reproducibility
+//   metadata to a LOCAL session store (see lab-sessions.ts), separate from every customer data
+//   path. It is still not customer persistence, billing, or member-state mutation.
 // - Optional: POST /api/lab/regression — run one of the 12 frozen synthetic fixtures.
 // - GET /api/lab/config and /api/lab/identity/status — non-secret config + executable-identity state.
 //
@@ -17,6 +25,10 @@ import * as path from "node:path";
 import { handleConversationTurn } from "./lab-conversation.ts";
 import { handleCompose } from "./lab-compose.ts";
 import { handleRegressionFixture, listRegressionFixtures } from "./lab-regression.ts";
+import {
+  handleSessionNew, persistTurn, handleEvaluate, handleSummary, handleArchive, handleDelete,
+  handleList, handleGet, buildExportWorkbook,
+} from "./lab-session-api.ts";
 import { authorizeProvider, identityStatus, killSwitchEngaged, LAB_SCOPE } from "./lab-identity.ts";
 import { MAX_CONTEXT_TURNS } from "./lab-engine.ts";
 import {
@@ -121,9 +133,43 @@ const server = http.createServer((req, res) => {
 
   if (req.method === "POST" && route === "/api/lab/conversation") {
     return readBody(req, res, async (parsed) => {
-      try { const out = await handleConversationTurn(parsed, { environment: process.env, recordTelemetry }); sendJson(res, out.status, out.body); }
+      try {
+        // Strip optional session fields before validation (the LabRequest schema is closed).
+        const p = (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
+        const sessionId = typeof p.session_id === "string" ? p.session_id : null;
+        const labReq = { schema_version: p.schema_version, role_code: p.role_code, chart: p.chart, message: p.message, app_language_preference: p.app_language_preference, context: p.context };
+        const out = await handleConversationTurn(labReq, { environment: process.env, recordTelemetry });
+        const body = out.body as Record<string, unknown>;
+        if (sessionId) {
+          const turns = persistTurn(sessionId, labReq as Record<string, unknown>, body);
+          if (turns) { body.session_id = sessionId; body.user_turn = turns.user_turn; body.lumis_turn = turns.lumis_turn; }
+        }
+        sendJson(res, out.status, body);
+      }
       catch { sendJson(res, 500, { canonical_state: "technical_error", result: "technical_error", error_code: "LAB_INTERNAL_ERROR", persistence: "not_committed", units_charged: 0, provider_attempts: 0 }); }
     });
+  }
+
+  // ---- Part 2: persistent testing sessions + scoring + Excel export (Founder-directed) ----
+  if (req.method === "POST" && route === "/api/lab/session/new") return readBody(req, res, (p) => { const o = handleSessionNew(p); sendJson(res, o.status, o.body); });
+  if (req.method === "POST" && route === "/api/lab/session/evaluate") return readBody(req, res, (p) => { const o = handleEvaluate(p); sendJson(res, o.status, o.body); });
+  if (req.method === "POST" && route === "/api/lab/session/summary") return readBody(req, res, (p) => { const o = handleSummary(p); sendJson(res, o.status, o.body); });
+  if (req.method === "POST" && route === "/api/lab/session/archive") return readBody(req, res, (p) => { const o = handleArchive(p); sendJson(res, o.status, o.body); });
+  if (req.method === "POST" && route === "/api/lab/session/delete") return readBody(req, res, (p) => { const o = handleDelete(p); sendJson(res, o.status, o.body); });
+  if (req.method === "GET" && route === "/api/lab/sessions") { const o = handleList(); return sendJson(res, o.status, o.body); }
+  if (req.method === "GET" && route === "/api/lab/session") { const o = handleGet(url.searchParams.get("id") ?? ""); return sendJson(res, o.status, o.body); }
+  if (req.method === "GET" && route === "/api/lab/export.xlsx") {
+    try {
+      const idsParam = url.searchParams.get("ids");
+      const ids = idsParam ? idsParam.split(",").map((s) => s.trim()).filter(Boolean) : undefined;
+      const buf = buildExportWorkbook(ids);
+      res.writeHead(200, {
+        "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content-disposition": `attachment; filename="lumis-companion-lab-sessions.xlsx"`,
+        "cache-control": "no-store",
+      });
+      return void res.end(buf);
+    } catch { return sendJson(res, 500, { error_code: "LAB_EXPORT_ERROR" }); }
   }
 
   if (req.method === "POST" && route === "/api/lab/regression") {
