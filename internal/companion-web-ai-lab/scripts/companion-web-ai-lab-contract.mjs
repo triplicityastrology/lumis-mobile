@@ -147,6 +147,23 @@ for (const d of ["http_or_schema_rejected", "content_filtered_input", "content_f
   check(`adapter distinguishes disposition "${d}"`, adapter.includes(`"${d}"`));
 }
 check("provider_disposition is metadata-only (no bodies/headers/urls/keys retained)", !/response\.headers|value\.output_text\s*\)\s*;\s*\/\/\s*log|console\.log|process\.stdout/.test(adapter) && adapter.includes("never retains or exposes response bodies"));
+// (5) Request-scoped Azure policy id: set as a fixed x-policy-id header on the server-side outbound
+// request ONLY. It must be confined to the adapter — never in the browser bundle, never in the
+// response/telemetry builders, never in the persistence/export modules.
+const POLICY_ID = "lumis-stg-companion-lab-high-v1";
+// The header name/value are fixed server constants; the header is set inside the outbound fetch's
+// headers object, in the same object literal as the server-side api-key.
+check("adapter declares the x-policy-id header name as a fixed constant", adapter.includes('LAB_AZURE_POLICY_HEADER = "x-policy-id"'));
+check("policy id constant equals the exact approved value", adapter.includes(`LAB_AZURE_POLICY_ID = "${POLICY_ID}"`));
+check("adapter sets the policy header alongside the server-side api-key on the outbound request", /headers:\s*\{[^}]*"api-key"[^}]*\[LAB_AZURE_POLICY_HEADER\]:\s*LAB_AZURE_POLICY_ID/.test(adapter));
+check("policy id is ABSENT from the browser bundle (not browser-visible/editable)", !appJs.includes(POLICY_ID) && !appJs.includes("x-policy-id"));
+check("policy id is ABSENT from server responses + config payload (server.ts)", !server.includes(POLICY_ID) && !server.includes("x-policy-id"));
+for (const rel of ["src/lab-turn.ts", "src/lab-engine.ts", "src/lab-provider.ts", "src/lab-compose.ts"]) {
+  check(`policy id is ABSENT from response/telemetry builder ${rel}`, !read(rel).includes(POLICY_ID) && !read(rel).includes("x-policy-id"));
+}
+for (const rel of ["src/lab-sessions.ts", "src/lab-session-api.ts", "src/lab-xlsx.ts"]) {
+  check(`policy id is ABSENT from persistence/export module ${rel}`, !read(rel).includes(POLICY_ID) && !read(rel).includes("x-policy-id"));
+}
 
 // ---- 10. Byte-exact founder-approved wording present in the reused registry ----
 const registry = read("../../supabase/functions/_shared/fixed-template-registry.ts");

@@ -48,6 +48,13 @@ export type LabProviderResult = ProviderResult & { provider_disposition?: Provid
 // the assistant text itself is still normalised/bounded downstream.
 const LAB_LIVE_OUTPUT_TOKEN_BUDGET = 4000;
 
+// Request-scoped Azure content-filter policy id for the Companion Lab (Technical-created, staging).
+// Sent ONLY on the server-side outbound Azure Responses request, so Azure applies the approved
+// Lab-specific policy to this request. It is a fixed server constant — never derived from the browser
+// request, never surfaced in a ProviderResult/response body, never logged, never persisted/exported.
+export const LAB_AZURE_POLICY_ID = "lumis-stg-companion-lab-high-v1";
+const LAB_AZURE_POLICY_HEADER = "x-policy-id";
+
 export type LabAzureResponsesAdapter = {
   complete(input: Parameters<ChatSyntheticAdapter["complete"]>[0]): Promise<LabProviderResult>;
 };
@@ -78,7 +85,9 @@ export function createLabAzureResponsesAdapter(
         // max_output_tokens cap, store:false. (Same fields as the shared adapter.)
         const response = await fetchImpl(`${config.origin}/openai/${config.routeFamily}/responses`, {
           method: "POST",
-          headers: { "api-key": config.apiKey, "content-type": "application/json" },
+          // Server-side headers only: the api-key and the fixed request-scoped policy id. Neither is
+          // ever exposed to or editable from the browser.
+          headers: { "api-key": config.apiKey, "content-type": "application/json", [LAB_AZURE_POLICY_HEADER]: LAB_AZURE_POLICY_ID },
           body: JSON.stringify({
             model: config.deployment,
             input: input.promptInput,

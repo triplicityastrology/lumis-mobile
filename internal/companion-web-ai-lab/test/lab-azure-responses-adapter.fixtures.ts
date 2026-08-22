@@ -8,7 +8,7 @@
 
 import test from "node:test";
 import { strict as assert } from "node:assert";
-import { createLabAzureResponsesAdapter } from "../src/lab-azure-responses-adapter.ts";
+import { createLabAzureResponsesAdapter, LAB_AZURE_POLICY_ID } from "../src/lab-azure-responses-adapter.ts";
 import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
 
 const SECRET = "SECRET_SENTINEL_KEY_DO_NOT_LEAK";
@@ -58,6 +58,31 @@ test("preserves the /openai/v1/responses request shape (deployment, key, token c
   assert.ok(body.max_output_tokens >= 1500, `max_output_tokens floored (got ${body.max_output_tokens})`);
   assert.equal(body.reasoning && body.reasoning.effort, "minimal");
   assert.equal(body.store, false);
+});
+
+// --- Request-scoped Azure policy id: present on the server-side outbound request ONLY ---
+test("outbound Azure request carries the exact server-side x-policy-id header", async () => {
+  const { calls } = await run({ status: "completed", output_text: "hi" });
+  const headers = calls[0].init.headers as Record<string, string>;
+  assert.equal(headers["x-policy-id"], "lumis-stg-companion-lab-high-v1");
+  assert.equal(headers["x-policy-id"], LAB_AZURE_POLICY_ID, "header uses the fixed server constant");
+});
+
+test("the policy id is a fixed server constant — it does NOT vary with the (browser) request input", async () => {
+  const a = stub({ status: "completed", output_text: "one" });
+  const adapterA = createLabAzureResponsesAdapter(config, a.fn, () => Date.now());
+  await adapterA.complete({ ...baseInput, promptInput: "DIFFERENT PROMPT BODY", deadlineAtMs: Date.now() + 12_000 });
+  const headersA = a.calls[0].init.headers as Record<string, string>;
+  assert.equal(headersA["x-policy-id"], LAB_AZURE_POLICY_ID, "same fixed value regardless of prompt input");
+});
+
+test("the policy id NEVER appears in the returned result (what flows to browser / persistence / logs)", async () => {
+  // Even if the model text echoed the policy id, only the extracted assistant text may pass through —
+  // the header is not surfaced. Assert the serialized result carries no policy id of its own.
+  const { result } = await run({ status: "completed", output_text: "A grounded reflection." });
+  assert.equal(JSON.stringify(result).includes(LAB_AZURE_POLICY_ID), false, "result body free of the policy id");
+  // The disposition is still a bare enum.
+  assert.equal(result.provider_disposition, "completed_text");
 });
 
 // --- Disposition 5: completed valid text (BOTH extraction paths) ---
