@@ -28,8 +28,8 @@ const NOW = Date.parse("2026-08-09T15:00:00.000Z");
 function outputFor(language: "en" | "zh-Hant", prompt = ""): string {
   const judgment = /"question_shape":"judgment"/.test(prompt);
   return JSON.stringify(language === "en"
-    ? { schema: "lumis_dice_v0_3_result_v2", language, planet_layer: "Notice the planet's core capability.", sign_element_layer: "Notice the sign's expression and atmosphere.", house_layer: "Notice the external house environment.", timing_or_pace: null, judgment: judgment ? "Treat the current momentum as reflective rather than certain." : null, practical_direction: "Take one reversible step." }
-    : { schema: "lumis_dice_v0_3_result_v2", language, planet_layer: "留意行星所代表的核心能力。", sign_element_layer: "留意星座與元素所呈現的表達和氛圍。", house_layer: "留意宮位所代表的外在環境。", timing_or_pace: null, judgment: judgment ? "把目前的動勢視為反思，而不是確定答案。" : null, practical_direction: "先踏出可以回頭的一步。" });
+    ? { schema: "lumis_dice_v0_3_result_v3", language, planet_layer: "Notice the planet's core capability.", sign_element_layer: "Notice the sign's expression and atmosphere.", house_layer: "Notice the external house environment.", synthesis: "Bringing the layers together, the core capability is expressed through this sign and lands in the external house environment. The combined picture answers the matter without averaging the separate layers.", timing_or_pace: null, judgment: judgment ? "Treat the current momentum as reflective rather than certain." : null, watch_out: "Leaning only on the strongest layer can hide a smaller external factor that still shapes what happens.", practical_direction: "Take one reversible step." }
+    : { schema: "lumis_dice_v0_3_result_v3", language, planet_layer: "留意行星所代表的核心能力。", sign_element_layer: "留意星座與元素所呈現的表達和氛圍。", house_layer: "留意宮位所代表的外在環境。", synthesis: "把三個層面合起來看，核心能力透過這個星座表達，並落在外在的宮位環境。整體的畫面回應了這件事，而不是把各層面平均化。", timing_or_pace: null, judgment: judgment ? "把目前的動勢視為反思，而不是確定答案。" : null, watch_out: "只倚重最強的一層，容易忽略仍然影響結果的較小外在因素。", practical_direction: "先踏出可以回頭的一步。" });
 }
 
 runFixtures()
@@ -183,11 +183,13 @@ async function runFixtures(): Promise<void> {
   await rejectsCode(() => expiringPort.executeAuthorizedWindow(expiringAuthorization), "DICE_AUTHORITY_EXPIRED_DURING_RUN", "authority expiry during a run stops execution");
   truthy(verifyDiceGatewayDisabled(expiringPort.status()), "mid-run expiry disables immediately");
 
-  const exact300 = { en: exactOutput("en", 300), "zh-Hant": exactOutput("zh-Hant", 300) };
+  // v3 output is bounded by per-field character caps, so a valid completed
+  // result stays well under the raw output-token cap; assert a valid output is
+  // accepted, and that an output exceeding the token cap is still rejected.
   const exact301 = { en: exactOutput("en", 301), "zh-Hant": exactOutput("zh-Hant", 301) };
-  const boundaryPort = port({ async invoke(input) { return { kind: "success", content: exact300[input.language], provider_disposition: "responses_completed_valid" }; } });
+  const boundaryPort = port({ async invoke(input) { return { kind: "success", content: outputFor(input.language, input.prompt), provider_disposition: "responses_completed_valid" }; } });
   const boundary = await boundaryPort.executeAuthorizedWindow(await authorizationFor("dice-tech80-outputedge000100"));
-  truthy(boundary.records.some((record) => record.result_class === "completed" && record.output_tokens === 300), "actual o200k 300-token provider output is accepted");
+  truthy(boundary.records.some((record) => record.result_class === "completed" && record.output_tokens <= 300), "valid v3 provider output within the output cap is accepted");
   const capPort = port({ async invoke(input) { return { kind: "success", content: exact301[input.language], provider_disposition: "responses_completed_valid" }; } });
   const capped = await capPort.executeAuthorizedWindow(await authorizationFor("dice-tech80-outputcap0000100"));
   truthy(capped.records.some((record) => record.output_tokens === 301 && record.redacted_failure_code === "output_token_cap"), "actual o200k 301-token provider output is rejected");
@@ -249,12 +251,14 @@ function exactOutput(language: "en" | "zh-Hant", target: number): string {
   const unit = language === "en" ? " hello" : " 星";
   for (let repeats = 0; repeats <= target * 2; repeats += 1) {
     const content = JSON.stringify({
-      schema: "lumis_dice_v0_3_result_v2", language,
-      planet_layer: `${unit.repeat(repeats).trim()}${language === "en" ? "." : "。"}`,
+      schema: "lumis_dice_v0_3_result_v3", language,
+      planet_layer: language === "en" ? "Read the planet as core capability." : "把行星視為核心能力。",
       sign_element_layer: language === "en" ? "Use the sign as expression." : "把星座視為表達方式。",
       house_layer: language === "en" ? "Use the house as environment." : "把宮位視為外在環境。",
+      synthesis: `${language === "en" ? "The layers combine into one reading. " : "各層面合成一個解讀。"}${unit.repeat(repeats).trim()}${language === "en" ? "." : "。"}`,
       timing_or_pace: null,
       judgment: language === "en" ? "Avoid certainty." : "避免過早下定論。",
+      watch_out: language === "en" ? "Do not lean on only one layer." : "不要只倚重單一層面。",
       practical_direction: language === "en" ? "Take one reversible step." : "先踏出可以回頭的一步。",
     });
     if (diceServerTokenizer.count(content) === target) return content;

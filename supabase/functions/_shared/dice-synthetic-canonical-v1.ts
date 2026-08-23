@@ -20,7 +20,11 @@ export const DICE_LIMITS = Object.freeze({
   technicalCases: 80,
   founderCasesExecutable: 0,
   providerAttempts: 160,
-  inputTokens: 800,
+  // Raised 800 -> 1600 for the v3 prompt (route hierarchy, synthesis, dignity,
+  // route sanity check). Worst measured assembled request ~1194 tokens; 1600
+  // keeps headroom for a 280-char question without truncating required rules
+  // (prompt-quality handoff §8.5).
+  inputTokens: 1600,
   outputTokens: 300,
   concurrency: 2,
   retries: 1,

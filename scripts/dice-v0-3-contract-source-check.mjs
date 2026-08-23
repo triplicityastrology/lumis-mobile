@@ -29,8 +29,8 @@ assert.match(manifest.reconciliation.artifact_relationship, /separate reviewed s
 assert.match(manifest.reconciliation.artifact_relationship, /not asserted to be byte-identical/);
 assert.match(manifest.reconciliation.traffic_gate, /later release/);
 assert.equal(seal.status, "source_only_default_off");
-assert.equal(seal.prompt_version, "lumis_dice_v0_3_prompt_v2");
-assert.equal(seal.result_schema, "lumis_dice_v0_3_result_v2");
+assert.equal(seal.prompt_version, "lumis_dice_v0_3_prompt_v3");
+assert.equal(seal.result_schema, "lumis_dice_v0_3_result_v3");
 assert.equal(seal.source_provenance_manifest_sha256, sha256("config/dice-v0-3-source-provenance-manifest.json"));
 for (const [file, digest] of Object.entries(seal.files)) assert.equal(sha256(file), digest, `seal drift: ${file}`);
 assert.equal(seal.runtime_boundary.browser_request_shape, "fixture_id_only_for_registry_or_private_founder_free_text_v1");

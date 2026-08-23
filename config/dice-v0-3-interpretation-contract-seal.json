@@ -1,19 +1,19 @@
 {
   "schema": "lumis_dice_v0_3_interpretation_contract_seal_v1",
   "status": "source_only_default_off",
-  "prompt_version": "lumis_dice_v0_3_prompt_v2",
-  "result_schema": "lumis_dice_v0_3_result_v2",
+  "prompt_version": "lumis_dice_v0_3_prompt_v3",
+  "result_schema": "lumis_dice_v0_3_result_v3",
   "source_provenance_manifest_sha256": "ee8bebb3aaed0260b3c2a4ca9a99260e4724730e7e1547bbdeb638f430e75ca7",
   "files": {
-    "supabase/functions/_shared/dice-v0-3-interpretation-contract.ts": "2d5e6ee8ba47097bfab2049b9b8b80ea87f83500336d5ad5cce94cb2151c2c8d",
-    "supabase/functions/_shared/dice-v0-3-interpretation-contract.fixtures.ts": "afb9b140b742e1c8b1d44bf6bfe7c4135a1f79c3d23152c78a158c9152a4ed22",
-    "supabase/functions/_shared/dice-v0-3-presentation.ts": "2ee64c5923d58197c915874dbbc4f25588680f70b997a669dbb2d35c4276b0d8",
-    "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "89c8d5e1d4810cf2425bf90d9dcca8c7635d5807ad54229d969e179ee0d6cbe1",
+    "supabase/functions/_shared/dice-v0-3-interpretation-contract.ts": "6689d5f2482ca281584d70fc9cf450a44453a9e3f8c6cdfe31970347271888ee",
+    "supabase/functions/_shared/dice-v0-3-interpretation-contract.fixtures.ts": "99c7728790e83999e33a009d9dd63563aecf76b0917465a7b2e7d8abe83bc03d",
+    "supabase/functions/_shared/dice-v0-3-presentation.ts": "08477ee4706697d00d2df60117c3d62ecd1eb88c8e92e3ac8544b85d2272cb15",
+    "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "7632c40eda15adf97665ad787803da8444b41df56a22f1e90148ff1e53f6d7c7",
     "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "7ba73ec788c032bf3de08162ed22fca7250290d81b32609d1fded2faa5df9991",
     "supabase/functions/_shared/azure-dice-adapter-v1.ts": "acf7eb1dc56fab3ac9a4c167b5d851a4916bf3fc64943366629a3009b4f3ac1b",
-    "supabase/functions/_shared/dice-synthetic-gateway-port-v1.fixtures.ts": "eb6e84764bed8f03298c0533faaa10e4e0b299cb0d8c335570eb4854e998891b",
+    "supabase/functions/_shared/dice-synthetic-gateway-port-v1.fixtures.ts": "5a42229836bfc998c78df238fd83ddc72be63cbf49502b3ffcd1a396202eb3f1",
     "supabase/functions/tsconfig.dice-synthetic-port-v1-test.json": "05df52a9f6b125497b8aa1363ffbecae99f8281c9dfa86481d6cff1e07d1986e",
-    "scripts/dice-v0-3-contract-source-check.mjs": "3c46efec494c2b353d621e9797a08f0ac48b0f648c07e9df6b442c365eebb75c"
+    "scripts/dice-v0-3-contract-source-check.mjs": "6df8471726b58815e54abbaa109f3137b23344f3b35a4fcdaaeee50c79b0ce0a"
   },
   "runtime_boundary": {
     "browser_request_shape": "fixture_id_only_for_registry_or_private_founder_free_text_v1",
