@@ -32,7 +32,7 @@ test("each resolved factor retrieves exactly one approved, versioned mapping row
   const role = LAB_ROLES.find((r) => r.code === "harmonious_catalyst")!;
   const card = buildVoiceCard(comp, role.currentLabel, role.code)!;
   assert.ok(card, "voice card built");
-  assert.equal(BEHAVIOUR_MAPPING_VERSION, "v1.2", "approved workbook version");
+  assert.equal(BEHAVIOUR_MAPPING_VERSION, "v1.3", "approved workbook version (AP-5a content rewrite)");
   for (const row of card.rows) {
     assert.equal(row.mapping_id, `${row.factor.toLowerCase()}_${row.sign.toLowerCase()}`);
     assert.ok(BEHAVIOUR_BANK[row.mapping_id], "row comes from the approved bank");

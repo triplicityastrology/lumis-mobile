@@ -209,8 +209,17 @@ check("Lab imports naturalness rules from shared (no Lab-local NATURALNESS_RULES
 check("Lab voice card imports buildCombinedCharacter from shared", read("src/lab-persona-voice.ts").includes(`buildCombinedCharacter } from "../../../supabase/functions/_shared/${voiceMod}"`));
 check("block 4 separates immutable role PURPOSE from format", provider.includes("Your job:") && provider.includes("This job never changes"));
 check("prompt version records the voice/naturalness revision", identity.includes("COMPANION_VOICE_NATURALNESS_VERSION") && identity.includes("+voice_"));
-// AP-5 DEFERRED: Persona Behaviour Mapping row wording is untouched (still workbook v1.2 / v1 rows).
-check("AP-5 deferred: mapping bank + version untouched", read("src/lab-persona-voice.ts").includes('BEHAVIOUR_MAPPING_VERSION = "v1.2"') && read("src/lab-persona-voice.ts").includes("BEHAVIOUR_BANK"));
+// AP-5a APPLIED: mapping rows are the SINGLE shared canonical source (no Lab duplicate); the Lab
+// derives BEHAVIOUR_BANK from persona-behavior-mapping-v1.ts. Content version bumped to v1.3.
+const labVoice = read("src/lab-persona-voice.ts");
+check("mapping is one shared canonical source (Lab derives, no duplicated 60-row literal)", labVoice.includes("PERSONA_BEHAVIOR_MAPPING_V1") && labVoice.includes("Object.fromEntries") && !/"asc_aries":\s*\{ factor:/.test(labVoice));
+check("AP-5a content version recorded (v1.3)", labVoice.includes('BEHAVIOUR_MAPPING_VERSION = "v1.3"'));
+// The nine reworded rows no longer carry compulsory-action wording in the shared source.
+const sharedMap = read("../../supabase/functions/_shared/persona-behavior-mapping-v1.ts");
+for (const gone of ["Validate emotion before", "ask focused questions", "more than one relevant perspective", "offer one expansive question", "recommend a realistic next step", "offer structure only after"]) {
+  check(`AP-5a: compulsory phrase removed from shared mapping ("${gone.slice(0,28)}…")`, !sharedMap.includes(gone));
+}
+check("shared mapping still has the full 60-row set", (sharedMap.match(/"mappingId":/g) || []).length === 60);
 // Role contracts keep their immutable PURPOSE (corePurpose), safety guardrails unchanged.
 check("role contracts retain corePurpose + hardGuardrail (purpose/safety unchanged)", /corePurpose:/.test(personaBehavior) && /hardGuardrail:/.test(personaBehavior));
 
