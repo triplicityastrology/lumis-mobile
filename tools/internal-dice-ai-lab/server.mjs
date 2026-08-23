@@ -19,10 +19,11 @@ const BANNER = "Synthetic staging only — no member data.";
 const PORT = Number(process.env.LUMIS_INTERNAL_DICE_LAB_PORT || 8147);
 const CONTRACT_COMMIT = "c1ec632fdea1f2677621f8b1bd3a71e72d17f071";
 const CONTRACT_SEAL = "d0f0c631aa40cf076d86d0a661fe289466d23593bb117c4a359b7ba46e7c007c";
-const RESULT_SCHEMA = "lumis_dice_v0_3_result_v2";
-const PROMPT_VERSION = "lumis_dice_v0_3_prompt_v2";
+const RESULT_SCHEMA = "lumis_dice_v0_3_result_v3";
+const PROMPT_VERSION = "lumis_dice_v0_3_prompt_v3";
 const SAFETY_COPY = Object.freeze({ en: "Lumis can’t help with that request, but it can offer a safer, general reflection instead.", "zh-Hant": "Lumis 無法協助這項要求，但可以改為提供較安全、概括的反思。" });
 const FALLBACK_COPY = Object.freeze({ en: "Lumis couldn’t complete that reflection just now. Please try again.", "zh-Hant": "Lumis 暫時未能完成這次反思，請再試一次。" });
+const ROUTE_MISMATCH_COPY = Object.freeze({ en: "Lumis couldn’t confirm the correct reading type for this question, so no interpretation was generated. Please rephrase the question clearly and try again.", "zh-Hant": "Lumis 暫時未能確認這個問題適用的解讀方式，因此沒有生成解讀。請清晰地改寫問題後再試。" });
 
 export const PLANET_OPTIONS = Object.freeze([
   ["sun", "☉", "Sun", "太陽"], ["moon", "☽", "Moon", "月亮"], ["mercury", "☿", "Mercury", "水星"],
@@ -98,11 +99,13 @@ export function validateLabFreeTextRunRequest(raw) {
 }
 
 export function validateLabResult(raw, expectedLanguage) {
-  const keys = ["schema", "language", "planet_layer", "sign_element_layer", "house_layer", "timing_or_pace", "judgment", "practical_direction"];
+  const keys = ["schema", "language", "planet_layer", "sign_element_layer", "house_layer", "synthesis", "timing_or_pace", "judgment", "watch_out", "practical_direction"];
   if (!exactKeys(raw, keys) || raw.schema !== RESULT_SCHEMA || raw.language !== expectedLanguage) return null;
-  for (const key of ["planet_layer", "sign_element_layer", "house_layer", "practical_direction"]) if (typeof raw[key] !== "string" || !raw[key].trim() || [...raw[key]].length > 540) return null;
+  for (const key of ["planet_layer", "sign_element_layer", "house_layer"]) if (typeof raw[key] !== "string" || !raw[key].trim() || [...raw[key]].length > 240) return null;
+  if (typeof raw.synthesis !== "string" || !raw.synthesis.trim() || [...raw.synthesis].length > 900) return null;
+  for (const key of ["watch_out", "practical_direction"]) if (typeof raw[key] !== "string" || !raw[key].trim() || [...raw[key]].length > 320) return null;
   if (!(raw.timing_or_pace === null || (typeof raw.timing_or_pace === "string" && raw.timing_or_pace.trim())) || !(raw.judgment === null || (typeof raw.judgment === "string" && raw.judgment.trim()))) return null;
-  const joined = [raw.planet_layer, raw.sign_element_layer, raw.house_layer, raw.timing_or_pace || "", raw.judgment || "", raw.practical_direction].join(" ");
+  const joined = [raw.planet_layer, raw.sign_element_layer, raw.house_layer, raw.synthesis, raw.timing_or_pace || "", raw.judgment || "", raw.watch_out, raw.practical_direction].join(" ");
   const hasChinese = /[\u3400-\u9fff\uf900-\ufaff]/u.test(joined);
   if ((expectedLanguage === "en" && hasChinese) || (expectedLanguage === "zh-Hant" && (!hasChinese || /[嘅唔喺咁]/u.test(joined))) || [...joined].length > 1800) return null;
   return Object.freeze({ ...raw });
@@ -113,22 +116,23 @@ export function presentLabResult(result, selection) {
   const labels = zh
     ? { reading: "解讀", watch: "需要留意", practical: "實際一步" }
     : { reading: "Reading", watch: "One thing to watch", practical: "Practical step" };
+  // Opening = unheaded identification line + the first synthesis sentence; the
+  // Reading renders the remaining synthesis so the opening is never repeated.
+  const boundary = zh ? /^[^。！？]*[。！？]/u : /^[^.!?]*[.!?]/u;
+  const matched = result.synthesis.trim().match(boundary);
+  const first = matched ? matched[0].trim() : result.synthesis.trim();
+  const rest = matched ? result.synthesis.trim().slice(matched[0].length).trim() : "";
   const opening = zh
-    ? `你抽到${selection.planet.zh}落在${selection.sign.zh}及${selection.house.zh} — ${result.planet_layer}，透過${result.sign_element_layer}呈現，並落在${result.house_layer}的外在環境。`
-    : `You drew ${selection.planet.en} in ${selection.sign.en} in the ${selection.house.en} — ${result.planet_layer}, expressed through ${result.sign_element_layer}, landing in ${result.house_layer}.`;
-  const reading = [result.planet_layer, result.sign_element_layer, result.house_layer, result.timing_or_pace].filter(Boolean).join(zh ? "" : " ");
-  const question = selection.fixture?.question ?? selection.question;
-  const houseWatch = HOUSE_WATCH_BANK[selection.house.id]?.[zh ? "zh" : "en"];
-  if (!question || !houseWatch) throw new Error("LAB_PRESENTATION_WATCH_SOURCE_INVALID");
-  const watch = zh
-    ? `就「${question}」而言，一項具體風險是過度依賴${selection.sign.zh}的表達方式，因而忽略：${houseWatch}。`
-    : `For “${question}”, one specific risk is overusing ${selection.sign.en}'s mode of expression and missing this external caution: ${houseWatch}.`;
-  return Object.freeze({ kind: "reading", language: result.language, opening, sections: Object.freeze([{ heading: labels.reading, body: reading }, { heading: labels.watch, body: watch }, { heading: labels.practical, body: result.practical_direction }]) });
+    ? `你抽到${selection.planet.zh}落在${selection.sign.zh}及${selection.house.zh}。${first}`
+    : `You drew ${selection.planet.en} in ${selection.sign.en} in the ${selection.house.en}. ${first}`;
+  const reading = rest || result.synthesis.trim();
+  return Object.freeze({ kind: "reading", language: result.language, opening, sections: Object.freeze([{ heading: labels.reading, body: reading }, { heading: labels.watch, body: result.watch_out }, { heading: labels.practical, body: result.practical_direction }]) });
 }
 
 export function deterministicPresentation(code, language) {
-  const kind = code === "DICE_SAFETY_REDIRECT" ? "safety" : "fallback";
-  return Object.freeze({ kind, language, message: (kind === "safety" ? SAFETY_COPY : FALLBACK_COPY)[language] });
+  const kind = code === "DICE_SAFETY_REDIRECT" ? "safety" : code === "DICE_ROUTE_MISMATCH" ? "route_mismatch" : "fallback";
+  const copy = kind === "safety" ? SAFETY_COPY : kind === "route_mismatch" ? ROUTE_MISMATCH_COPY : FALLBACK_COPY;
+  return Object.freeze({ kind, language, message: copy[language] });
 }
 
 export async function executeLabRequest(raw, { fixtures, providerEnabled = false, gatewayFactory } = {}) {
@@ -139,7 +143,7 @@ export async function executeLabRequest(raw, { fixtures, providerEnabled = false
   const gateway = gatewayFactory();
   const response = await gateway.run({ fixture_id: selection.fixture.fixture_id, planet_id: selection.planet.id, sign_id: selection.sign.id, house_id: selection.house.id });
   if (response.kind !== "completed") {
-    const code = response.kind === "safety" ? "DICE_SAFETY_REDIRECT" : "DICE_FIXED_FALLBACK";
+    const code = response.kind === "safety" ? "DICE_SAFETY_REDIRECT" : response.kind === "route_mismatch" ? "DICE_ROUTE_MISMATCH" : "DICE_FIXED_FALLBACK";
     return Object.freeze({ status: 200, body: { code, presentation: deterministicPresentation(code, selection.fixture.language), metadata: null, redacted_failure_code: response.redacted_failure_code, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
   }
   const result = validateLabResult(response.result, selection.fixture.language);
@@ -160,7 +164,7 @@ export async function executeLabFreeTextRequest(raw, { providerEnabled = false, 
   const classification = validateClassification(response.classification, language);
   const metadata = redactFreeTextMetadata(response.metadata);
   if (response.kind !== "completed") {
-    const code = response.kind === "safety" ? "DICE_SAFETY_REDIRECT" : "DICE_FIXED_FALLBACK";
+    const code = response.kind === "safety" ? "DICE_SAFETY_REDIRECT" : response.kind === "route_mismatch" ? "DICE_ROUTE_MISMATCH" : "DICE_FIXED_FALLBACK";
     return Object.freeze({ status: 200, body: { code, presentation: deterministicPresentation(code, language), classification, metadata, redacted_failure_code: response.redacted_failure_code, provider_disposition: response.provider_disposition ?? null, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
   }
   const result = validateLabResult(response.result, language);

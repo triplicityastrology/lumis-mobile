@@ -1,6 +1,6 @@
 import { DICE_FOUNDER_FIXTURES, DICE_FOUNDER_FIXTURE_REGISTRY_SHA256 } from "../../../apps/mobile/src/services/diceFounderFixtureRegistry.ts";
 import { classifyDiceQuestionRequest, detectDiceQuestionLanguage } from "../../../packages/shared/src/config/dice-question-boundary.ts";
-import { buildDiceV03Prompt, parseDiceV03ModelResult, type DiceV03ModelResult } from "./dice-v0-3-interpretation-contract.ts";
+import { buildDiceV03Prompt, parseDiceV03Output, DICE_V03_PROMPT_VERSION, type DiceV03ModelResult } from "./dice-v0-3-interpretation-contract.ts";
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 import type { DiceProviderAdapter } from "./dice-synthetic-gateway-port-v1.ts";
 
@@ -82,13 +82,14 @@ export async function executeFounderDiceCase(input: FounderDiceRequest, receipt:
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), Math.max(0, deadline - now()));
-      const response = await adapter.invoke({ prompt, prompt_version: "lumis_dice_v0_3_prompt_v2", language: decision.language, question_shape: decision.shape, deadline_at_ms: deadline, max_output_tokens: 300, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
+      const response = await adapter.invoke({ prompt, prompt_version: DICE_V03_PROMPT_VERSION, language: decision.language, question_shape: decision.shape, deadline_at_ms: deadline, max_output_tokens: 300, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
       clearTimeout(timer);
       if (response.kind === "success") {
         const measured = measureDiceTokenLimit(response.content, 300);
-        const result = measured.within_limit ? parseDiceV03ModelResult(response.content, { language: decision.language, question_shape: decision.shape }) : null;
-        if (!result) return Object.freeze({ kind: "fallback", code: "DICE_PROVIDER_MALFORMED", provider_disposition: "responses_completed_schema_invalid" as const, metadata: metadata(fixture, attempt, "fallback", "lt_12s", "lt_800", "lt_300") });
-        return Object.freeze({ kind: "completed", result: result as DiceV03ModelResult, provider_disposition: response.provider_disposition, metadata: metadata(fixture, attempt, "completed", "lt_12s", "lt_800", "lt_300") });
+        const output = measured.within_limit ? parseDiceV03Output(response.content, { language: decision.language, question_shape: decision.shape }) : null;
+        if (!output) return Object.freeze({ kind: "fallback", code: "DICE_PROVIDER_MALFORMED", provider_disposition: "responses_completed_schema_invalid" as const, metadata: metadata(fixture, attempt, "fallback", "lt_12s", "lt_800", "lt_300") });
+        if (output.kind === "route_mismatch") return Object.freeze({ kind: "route_mismatch", code: output.envelope.code, metadata: metadata(fixture, attempt, "route_mismatch", "lt_12s", "lt_800", "zero") });
+        return Object.freeze({ kind: "completed", result: output.result as DiceV03ModelResult, provider_disposition: response.provider_disposition, metadata: metadata(fixture, attempt, "completed", "lt_12s", "lt_800", "lt_300") });
       }
       if (["authentication","permission","content_filter_block","content_filter_partial"].includes(response.kind) || attempt === 2 || now() >= deadline) return Object.freeze({ kind: response.kind.startsWith("content_filter") ? "safety" : "fallback", code: `DICE_${response.kind.toUpperCase()}`, provider_disposition: "provider_disposition" in response ? response.provider_disposition : undefined, metadata: metadata(fixture, attempt, response.kind.startsWith("content_filter") ? "safety" : "fallback", "lt_12s", "lt_800", "zero") });
     }
@@ -111,19 +112,20 @@ export async function executeFounderDiceFreeTextCase(input: FounderDiceFreeTextR
     });
   }
   const prompt = buildDiceV03Prompt({ fixture_id: "founder-free-text", question: decision.normalized_question, language: decision.language, question_shape: decision.shape, outcome: { planet: input.planet_id, sign: input.sign_id, house: input.house_id } });
-  if (!measureDiceTokenLimit(prompt, 800).within_limit) return Object.freeze({ kind: "fallback", code: "DICE_INPUT_TOKEN_CAP", classification: classification(decision), metadata: freeTextMetadata(decision.language, 0, "fallback", "zero", "zero", "zero") });
+  if (!measureDiceTokenLimit(prompt, 1600).within_limit) return Object.freeze({ kind: "fallback", code: "DICE_INPUT_TOKEN_CAP", classification: classification(decision), metadata: freeTextMetadata(decision.language, 0, "fallback", "zero", "zero", "zero") });
   const adapter = typeof adapterSource === "function" ? adapterSource() : adapterSource;
   const deadline = now() + 12000;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.max(0, deadline - now()));
-    const response = await adapter.invoke({ prompt, prompt_version: "lumis_dice_v0_3_prompt_v2", language: decision.language, question_shape: decision.shape, deadline_at_ms: deadline, max_output_tokens: 300, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
+    const response = await adapter.invoke({ prompt, prompt_version: DICE_V03_PROMPT_VERSION, language: decision.language, question_shape: decision.shape, deadline_at_ms: deadline, max_output_tokens: 600, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
     clearTimeout(timer);
     if (response.kind === "success") {
-      const measured = measureDiceTokenLimit(response.content, 300);
-      const result = measured.within_limit ? parseDiceV03ModelResult(response.content, { language: decision.language, question_shape: decision.shape }) : null;
-      if (!result) return Object.freeze({ kind: "fallback", code: "DICE_PROVIDER_MALFORMED", provider_disposition: "responses_completed_schema_invalid" as const, classification: classification(decision), metadata: freeTextMetadata(decision.language, attempt, "fallback", "lt_12s", "lt_800", "lt_300") });
-      return Object.freeze({ kind: "completed", result, provider_disposition: response.provider_disposition, classification: classification(decision), metadata: freeTextMetadata(decision.language, attempt, "completed", "lt_12s", "lt_800", "lt_300") });
+      const measured = measureDiceTokenLimit(response.content, 600);
+      const output = measured.within_limit ? parseDiceV03Output(response.content, { language: decision.language, question_shape: decision.shape }) : null;
+      if (!output) return Object.freeze({ kind: "fallback", code: "DICE_PROVIDER_MALFORMED", provider_disposition: "responses_completed_schema_invalid" as const, classification: classification(decision), metadata: freeTextMetadata(decision.language, attempt, "fallback", "lt_12s", "lt_1600", "lt_600") });
+      if (output.kind === "route_mismatch") return Object.freeze({ kind: "route_mismatch", code: output.envelope.code, classification: classification(decision), metadata: freeTextMetadata(decision.language, attempt, "route_mismatch", "lt_12s", "lt_1600", "zero") });
+      return Object.freeze({ kind: "completed", result: output.result, provider_disposition: response.provider_disposition, classification: classification(decision), metadata: freeTextMetadata(decision.language, attempt, "completed", "lt_12s", "lt_1600", "lt_600") });
     }
     if (["authentication", "permission", "content_filter_block", "content_filter_partial"].includes(response.kind) || attempt === 2 || now() >= deadline) {
       const safety = response.kind.startsWith("content_filter");

@@ -53,9 +53,10 @@ const live = await executeLabRequest(request, { fixtures, providerEnabled: true,
   gatewayConstructions += 1;
   assert.deepEqual(Object.keys(body), ["fixture_id", "planet_id", "sign_id", "house_id"]);
   return { kind: "completed", result: {
-    schema: "lumis_dice_v0_3_result_v2", language: "en", planet_layer: "Venus centers connection and shared value.",
+    schema: "lumis_dice_v0_3_result_v3", language: "en", planet_layer: "Venus centers connection and shared value.",
     sign_element_layer: "Scorpio and Water express this through depth and privacy.", house_layer: "The 12th House places it in a hidden external environment.",
-    timing_or_pace: null, judgment: "Watch for feelings that remain unspoken.", practical_direction: "Name one concrete need in a calm conversation.",
+    synthesis: "On this question, Venus's pull toward closeness works through Scorpio's intensity but lands in the hidden 12th House, so the wish for connection is real while much of it stays below the surface. The value you seek is present, yet shaped by privacy and unspoken feeling rather than open exchange.",
+    timing_or_pace: null, judgment: "Watch for feelings that remain unspoken.", watch_out: "Small unspoken hurts can harden into distance before either person names what changed.", practical_direction: "Name one concrete need in a calm conversation.",
   }, metadata: { fixture_id: fixtures[0].fixture_id, language: "en", result_class: "completed", attempt_count: 1, latency_bucket: "lt_12s", input_token_bucket: "lt_800", output_token_bucket: "lt_300", cost_bucket: "within_cap" }, provider_disposition: "responses_completed_valid" };
 } }) });
 assert.equal(live.status, 200);
@@ -81,46 +82,52 @@ const freeTextLive = await executeLabFreeTextRequest(freeTextRequest, { provider
   freeTextConstructions += 1;
   assert.deepEqual(Object.keys(body), ["question", "planet_id", "sign_id", "house_id"]);
   return { kind: "completed", classification: { accepted: true, language: "en", route: "descriptive_reflection", shape: "descriptive" }, result: {
-    schema: "lumis_dice_v0_3_result_v2", language: "en", planet_layer: "Mercury centers interpretation and exchange.",
+    schema: "lumis_dice_v0_3_result_v3", language: "en", planet_layer: "Mercury centers interpretation and exchange.",
     sign_element_layer: "Virgo and Earth express this through careful practical detail.", house_layer: "The 6th House places it in the external environment of routines and service.",
-    timing_or_pace: null, judgment: null, practical_direction: "Choose one routine to test before making a wider change.",
+    synthesis: "On changing direction, Mercury's clear thinking works through Virgo's practical care and lands in the everyday 6th House of routines, so the shift is best understood through small, testable adjustments rather than one large leap. What is being asked is how your daily habits, not a single decision, will carry the change.",
+    timing_or_pace: null, judgment: null, watch_out: "Over-refining the plan can become a reason to keep postponing the first real change.", practical_direction: "Choose one routine to test before making a wider change.",
   }, metadata: { request_mode: "founder_free_text", language: "en", result_class: "completed", attempt_count: 1, latency_bucket: "lt_12s", input_token_bucket: "lt_800", output_token_bucket: "lt_300", cost_bucket: "within_cap" }, provider_disposition: "responses_completed_valid" };
 } }) });
 assert.equal(freeTextLive.status, 200);
 assert.equal(freeTextLive.body.presentation.kind, "reading");
 assert.equal(freeTextLive.body.classification.route, "descriptive_reflection");
-assert.equal(freeTextLive.body.presentation.sections[1].body, "For “What should I understand about changing direction?”, one specific risk is overusing Virgo's mode of expression and missing this external caution: Don't let the daily grind wear you down.");
+assert.equal(freeTextLive.body.presentation.sections[1].body, "Over-refining the plan can become a reason to keep postponing the first real change.", "watch-out renders the model's specific field, not a template");
 assert.notEqual(freeTextLive.body.presentation.sections[1].body, "The 6th House places it in the external environment of routines and service.", "descriptive readings must not reuse the house layer as the watch-out");
 assert.equal(freeTextLive.body.persistence_writes, 0);
 assert.equal(freeTextLive.body.units_charged, 0);
 assert.equal(freeTextConstructions, 1);
 
 const enResult = {
-  schema: "lumis_dice_v0_3_result_v2", language: "en",
+  schema: "lumis_dice_v0_3_result_v3", language: "en",
   planet_layer: "Venus centers connection and shared value.", sign_element_layer: "Scorpio and Water express this through depth and privacy.",
-  house_layer: "The 12th House places it in a hidden external environment.", timing_or_pace: null,
-  judgment: "Watch for feelings that remain unspoken.", practical_direction: "Name one concrete need in a calm conversation.",
+  house_layer: "The 12th House places it in a hidden external environment.",
+  synthesis: "Venus's reach for closeness works through Scorpio's intensity but lands in the hidden 12th House, so the desire for connection is genuine while much of it stays unspoken. The value is real, yet shaped by privacy rather than open exchange.",
+  timing_or_pace: null,
+  judgment: "Watch for feelings that remain unspoken.", watch_out: "Small unspoken hurts can harden into distance before either person names what changed.", practical_direction: "Name one concrete need in a calm conversation.",
 };
 const validatedEn = validateLabResult(enResult, "en");
 assert(validatedEn);
 const enPresentation = presentLabResult(validatedEn, selection);
-assert.match(enPresentation.opening, /^You drew Venus in Scorpio in the 12th House —/u);
+assert.match(enPresentation.opening, /^You drew Venus in Scorpio in the 12th House\. /u);
+assert.ok(!enPresentation.opening.includes(enPresentation.sections[0].body), "opening does not repeat the Reading");
 assert.deepEqual(enPresentation.sections.map(({ heading }) => heading), ["Reading", "One thing to watch", "Practical step"]);
-assert.match(enPresentation.sections[1].body, /Something is tucked away — stillness reveals it/u);
+assert.equal(enPresentation.sections[1].body, enResult.watch_out, "watch-out renders the model field");
 assert.equal(enPresentation.sections[2].body, enResult.practical_direction);
 
 const zhResult = {
-  schema: "lumis_dice_v0_3_result_v2", language: "zh-Hant",
+  schema: "lumis_dice_v0_3_result_v3", language: "zh-Hant",
   planet_layer: "金星把核心放在連結與共同價值。", sign_element_layer: "天蠍座與水元素以深度和私密方式表達。",
-  house_layer: "第十二宮把事情放在隱藏的外在環境。", timing_or_pace: null,
-  judgment: "需要留意未有說出口的感受。", practical_direction: "在平靜的對話中說出一項具體需要。",
+  house_layer: "第十二宮把事情放在隱藏的外在環境。",
+  synthesis: "金星對親密的追求透過天蠍座的深度表達，卻落在隱藏的第十二宮，因此渴望連結是真實的，但很多都藏在表面之下。價值確實存在，只是被私密與未說出口的感受塑造，而非公開交流。",
+  timing_or_pace: null,
+  judgment: "需要留意未有說出口的感受。", watch_out: "細小而未說出口的委屈，可能在雙方察覺之前，已慢慢累積成距離。", practical_direction: "在平靜的對話中說出一項具體需要。",
 };
 const validatedZh = validateLabResult(zhResult, "zh-Hant");
 assert(validatedZh);
 const zhPresentation = presentLabResult(validatedZh, selection);
-assert.match(zhPresentation.opening, /^你抽到金星落在天蠍座及第十二宮/u);
+assert.match(zhPresentation.opening, /^你抽到金星落在天蠍座及第十二宮。/u);
 assert.deepEqual(zhPresentation.sections.map(({ heading }) => heading), ["解讀", "需要留意", "實際一步"]);
-assert.equal(zhPresentation.sections[1].body, `就「${selection.fixture.question}」而言，一項具體風險是過度依賴天蠍座的表達方式，因而忽略：有些事被收起，靜下來才看得見。`);
+assert.equal(zhPresentation.sections[1].body, zhResult.watch_out, "zh watch-out renders the model field");
 
 assert.equal(validateLabResult({ ...enResult, diagnostic: true }, "en"), null, "unknown result fields rejected");
 assert.equal(validateLabResult({ ...enResult, language: "zh-Hant" }, "en"), null, "language drift rejected");
@@ -169,4 +176,6 @@ assert.deepEqual(Object.fromEntries(Object.entries(await optionResponse.json()).
 const stoppedFreeText = await fetch(`${labBase}/api/run/free-text`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(freeTextRequest) });
 assert.equal(stoppedFreeText.status, 503, "default-off HTTP free-text route is present and fail closed");
 await new Promise((resolve, reject) => labServer.close((error) => error ? reject(error) : resolve()));
-console.log("internal Dice AI Lab contract passed: bootstrap, dual modes, 36 closed faces, v2 presentation, metadata-only, provider_calls=0");
+assert.equal(deterministicPresentation("DICE_ROUTE_MISMATCH", "en").message, "Lumis couldn’t confirm the correct reading type for this question, so no interpretation was generated. Please rephrase the question clearly and try again.");
+assert.notEqual(deterministicPresentation("DICE_ROUTE_MISMATCH", "en").message, deterministicPresentation("DICE_FIXED_FALLBACK", "en").message, "route-mismatch copy is distinct from technical fallback");
+console.log("internal Dice AI Lab contract passed: bootstrap, dual modes, 36 closed faces, v3 synthesis presentation, route-mismatch copy, metadata-only, provider_calls=0");

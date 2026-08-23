@@ -1,6 +1,12 @@
 import { DICE_PROMPT_VERSION, type DiceLanguage } from "./dice-synthetic-canonical-v1.ts";
 import type { DiceProviderAdapter, DiceProviderDisposition, DiceProviderResult } from "./dice-synthetic-gateway-port-v1.ts";
-import { parseDiceV03ModelResult, type DiceV03QuestionShape } from "./dice-v0-3-interpretation-contract.ts";
+import {
+  DICE_ROUTE_MISMATCH_CODE,
+  DICE_ROUTE_MISMATCH_RESULT,
+  DICE_V03_RESULT_SCHEMA,
+  parseDiceV03Output,
+  type DiceV03QuestionShape,
+} from "./dice-v0-3-interpretation-contract.ts";
 
 export const DICE_AZURE_API_VERSION = null;
 export const DICE_AZURE_ROUTE_FAMILY = "v1" as const;
@@ -26,31 +32,50 @@ export const DICE_AZURE_AUTHORITY = Object.freeze({
   api_route_family: DICE_AZURE_ROUTE_FAMILY,
 });
 
-const RESULT_KEYS = ["schema", "language", "planet_layer", "sign_element_layer", "house_layer", "timing_or_pace", "judgment", "practical_direction"] as const;
+const RESULT_KEYS = ["schema", "language", "planet_layer", "sign_element_layer", "house_layer", "synthesis", "timing_or_pace", "judgment", "watch_out", "practical_direction"] as const;
 
+// v3 structured output: EITHER a completed reading OR the standardized
+// route-mismatch envelope (the non-overriding AI stop, handoff §6.6). Root-level
+// anyOf of two closed objects — Azure strict-mode acceptance of a root anyOf
+// must be reconfirmed at deploy.
 export function diceResultJsonSchema(language: DiceLanguage, questionShape: DiceV03QuestionShape) {
-  const maxLength = language === "zh-Hant" ? 72 : 160;
-  const description = language === "zh-Hant"
-    ? "一個24至36字的精簡完整書面繁體中文句子，必須以。！？結尾；不要填滿72字上限。"
-    : "One compact complete English sentence, ideally 12 to 24 words, ending in punctuation; do not fill the length limit.";
-  const narrative = Object.freeze({ type: "string", minLength: 1, maxLength, description });
-  const requiredText = Object.freeze({ type: "string", minLength: 1, maxLength, description });
+  const layerLen = 240;
+  const synthesisLen = 900;
+  const conditionalLen = 320;
+  const layerDesc = language === "zh-Hant" ? "一句精簡的內部證據句，以。！？結尾。" : "One compact evidence sentence ending in punctuation.";
+  const synthDesc = language === "zh-Hant" ? "兩至四句書面繁體中文，將行星、星座、宮位整合為對問題的一個回答。" : "Two to four sentences integrating Planet, Sign and House into one answer to the question.";
+  const condDesc = language === "zh-Hant" ? "一句具體、以。！？結尾的句子。" : "One specific sentence ending in punctuation.";
+  const layer = Object.freeze({ type: "string", minLength: 1, maxLength: layerLen, description: layerDesc });
+  const conditionalText = Object.freeze({ type: "string", minLength: 1, maxLength: conditionalLen, description: condDesc });
   const requiredNull = Object.freeze({ type: "null" });
-  return Object.freeze({
+  const completed = Object.freeze({
     type: "object",
     additionalProperties: false,
     required: RESULT_KEYS,
     properties: Object.freeze({
-      schema: Object.freeze({ type: "string", enum: ["lumis_dice_v0_3_result_v2"] }),
+      schema: Object.freeze({ type: "string", enum: [DICE_V03_RESULT_SCHEMA] }),
       language: Object.freeze({ type: "string", const: language }),
-      planet_layer: narrative,
-      sign_element_layer: narrative,
-      house_layer: narrative,
-      timing_or_pace: questionShape === "timing" ? requiredText : requiredNull,
-      judgment: questionShape === "judgment" ? requiredText : requiredNull,
-      practical_direction: narrative,
+      planet_layer: layer,
+      sign_element_layer: layer,
+      house_layer: layer,
+      synthesis: Object.freeze({ type: "string", minLength: 1, maxLength: synthesisLen, description: synthDesc }),
+      timing_or_pace: questionShape === "timing" ? conditionalText : requiredNull,
+      judgment: questionShape === "judgment" ? conditionalText : requiredNull,
+      watch_out: conditionalText,
+      practical_direction: conditionalText,
     }),
-  } as const);
+  });
+  const routeMismatch = Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["result", "code", "language"],
+    properties: Object.freeze({
+      result: Object.freeze({ type: "string", const: DICE_ROUTE_MISMATCH_RESULT }),
+      code: Object.freeze({ type: "string", const: DICE_ROUTE_MISMATCH_CODE }),
+      language: Object.freeze({ type: "string", const: language }),
+    }),
+  });
+  return Object.freeze({ anyOf: [completed, routeMismatch] } as const);
 }
 
 export type DiceAzureServerConfig = Readonly<{
@@ -101,7 +126,7 @@ export function createAzureDiceAdapter(config: DiceAzureServerConfig, fetchImpl:
     throw new Error("DICE_AZURE_PROTOCOL_CONFIGURATION_INVALID");
   }
   return Object.freeze({
-    async invoke(input: Readonly<{ prompt: string; prompt_version: typeof DICE_PROMPT_VERSION; language: DiceLanguage; question_shape: DiceV03QuestionShape; deadline_at_ms: number; max_output_tokens: 300; signal: AbortSignal }>): Promise<DiceProviderResult> {
+    async invoke(input: Readonly<{ prompt: string; prompt_version: typeof DICE_PROMPT_VERSION; language: DiceLanguage; question_shape: DiceV03QuestionShape; deadline_at_ms: number; max_output_tokens: 300 | 600; signal: AbortSignal }>): Promise<DiceProviderResult> {
       const remaining = input.deadline_at_ms - Date.now();
       if (remaining <= 0) return { kind: "timeout" };
       try {
@@ -119,7 +144,7 @@ export function createAzureDiceAdapter(config: DiceAzureServerConfig, fetchImpl:
               verbosity: "low",
               format: {
                 type: "json_schema",
-                name: "lumis_dice_v0_3_result_v2",
+                name: "lumis_dice_v0_3_result_v3",
                 strict: true,
                 schema: diceResultJsonSchema(input.language, input.question_shape),
               },
@@ -143,7 +168,7 @@ export function createAzureDiceAdapter(config: DiceAzureServerConfig, fetchImpl:
         }
         const content = assistantContent(body);
         if (content === null) return { kind: "invalid_output", provider_disposition: completedOutputDisposition(body) };
-        if (!parseDiceV03ModelResult(content, { language: input.language, question_shape: input.question_shape })) {
+        if (!parseDiceV03Output(content, { language: input.language, question_shape: input.question_shape })) {
           return { kind: "invalid_output", provider_disposition: "responses_completed_schema_invalid" };
         }
         return { kind: "success", content, provider_disposition: "responses_completed_valid" };

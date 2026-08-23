@@ -51,7 +51,7 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
       }
       const outcome = await executeFounderDiceFreeTextCase(freeTextRequest, () => createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl));
       if (outcome.kind !== "completed") {
-        const code = outcome.kind === "safety" ? "DICE_SAFETY_REDIRECT" : "DICE_FIXED_FALLBACK";
+        const code = outcome.kind === "safety" ? "DICE_SAFETY_REDIRECT" : outcome.kind === "route_mismatch" ? "DICE_ROUTE_MISMATCH" : "DICE_FIXED_FALLBACK";
         const protectedMetadata = "provider_disposition" in outcome && outcome.provider_disposition
           ? { provider_disposition: outcome.provider_disposition }
           : undefined;
@@ -79,7 +79,7 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
         const outcome = await executeFounderDiceCase(founderRequest, verified.receipt, verified.receiptSha256, createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl), authorityClient);
         if (outcome.kind !== "completed") {
           return founderOutcomeResponse(
-            outcome.kind === "safety" ? "DICE_SAFETY_REDIRECT" : "DICE_FIXED_FALLBACK",
+            outcome.kind === "safety" ? "DICE_SAFETY_REDIRECT" : outcome.kind === "route_mismatch" ? "DICE_ROUTE_MISMATCH" : "DICE_FIXED_FALLBACK",
             outcome.code,
             "provider_disposition" in outcome ? outcome.provider_disposition : undefined,
           );
@@ -151,7 +151,7 @@ function errorResponse(code: string, status: number): Response {
   return jsonResponse({ error: { code } }, { status });
 }
 
-function founderOutcomeResponse(code: "DICE_SAFETY_REDIRECT" | "DICE_FIXED_FALLBACK", redactedFailureCode: string, providerDisposition?: string): Response {
+function founderOutcomeResponse(code: "DICE_SAFETY_REDIRECT" | "DICE_FIXED_FALLBACK" | "DICE_ROUTE_MISMATCH", redactedFailureCode: string, providerDisposition?: string): Response {
   const body = providerDisposition
     ? { error: { code, redacted_failure_code: redactedFailureCode }, protected_metadata: { provider_disposition: providerDisposition } }
     : { error: { code, redacted_failure_code: redactedFailureCode } };

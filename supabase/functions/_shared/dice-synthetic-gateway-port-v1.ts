@@ -44,7 +44,7 @@ export interface DiceProviderAdapter {
     language: DiceLanguage;
     question_shape: DiceV03QuestionShape;
     deadline_at_ms: number;
-    max_output_tokens: 300;
+    max_output_tokens: 300 | 600;
     signal: AbortSignal;
   }>): Promise<DiceProviderResult>;
 }
