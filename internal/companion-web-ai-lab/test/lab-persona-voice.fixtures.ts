@@ -12,6 +12,7 @@ import { strict as assert } from "node:assert";
 import { validateLabRequest, deriveChartComposition } from "../src/lab-engine.ts";
 import { buildVoiceCard, BEHAVIOUR_BANK, BEHAVIOUR_MAPPING_VERSION } from "../src/lab-persona-voice.ts";
 import { LAB_ROLES } from "../src/lab-constants.ts";
+import { assemblePersona } from "../src/lab-provider.ts";
 
 // A single synthetic customer chart, reused across roles.
 const CHART = { sun: 3, moon: 6, mercury: 7, saturn: 10, moon_confirmed: true };
@@ -84,4 +85,42 @@ test("Mercury is ordered LAST — it colours communication, it does not lead the
 test("an unavailable composition yields no voice card (no invented character)", () => {
   assert.equal(buildVoiceCard({ available: false, factors: [] }, "Acceptance", "empathetic_peer"), null);
   assert.equal(buildVoiceCard({ available: true, factors: [] }, "Acceptance", "empathetic_peer"), null);
+});
+
+test("the declarative Lumis identity preserves every approved prompt block and role", () => {
+  for (const code of ["empathetic_peer", "harmonious_catalyst", "saturnian_anchor"]) {
+    const role = LAB_ROLES.find((candidate) => candidate.code === code)!;
+    const composition = compositionFor(code);
+    const corePurpose = `Synthetic purpose for ${role.code}.`;
+    const requiredBehaviors = `Synthetic behavior for ${role.code}.`;
+    const assembly = assemblePersona({
+      roleContract: {
+        publicName: role.currentLabel,
+        corePurpose,
+        requiredBehaviors,
+      },
+      situationParameters: { route: "ordinary" },
+    }, "A synthetic conversation turn.", "en", [
+      { role: "user", text: "An earlier synthetic turn." },
+    ], composition, "Synthetic context only.");
+
+    assert.deepEqual(assembly.blocks.map((block) => block.name), [
+      "1. LUMIS IDENTITY",
+      "2. GROUNDING",
+      "3. CURRENT SITUATION ADJUSTMENT",
+      "4. ROLE",
+      "5. LUMIS CHARACTER VOICE",
+      "6. CHARACTER EXPRESSION AND NATURALNESS RULES",
+      "7. RELEVANT MEMBER CONTEXT",
+      "8. CONVERSATION CONTINUITY",
+      "9. LANGUAGE AND FLEXIBLE LENGTH",
+      "10. CURRENT USER MESSAGE",
+    ]);
+    assert.equal(
+      assembly.blocks[0].text,
+      "Lumis is the astrology companion in this real, ongoing conversation with one person.",
+    );
+    assert.equal(assembly.prompt.includes("You are Lumis, an astrology companion"), false);
+    assert.equal(assembly.blocks[3].text, `Role: ${role.currentLabel} (${role.code}). What you're here to do: ${corePurpose} How you generally behave: ${requiredBehaviors}`);
+  }
 });

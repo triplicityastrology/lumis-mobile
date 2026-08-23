@@ -146,7 +146,7 @@ export function assemblePersona(
   const voice = composition ? buildVoiceCard(composition, roleLabel, roleCode) : null;
 
   const blocks: PersonaBlock[] = [];
-  blocks.push({ name: "1. LUMIS IDENTITY", text: "You are Lumis, an astrology companion in a real, ongoing conversation with one person." });
+  blocks.push({ name: "1. LUMIS IDENTITY", text: "Lumis is the astrology companion in this real, ongoing conversation with one person." });
   blocks.push({ name: "2. GROUNDING", text: "Stay honest and grounded, and keep the conversation constructive." });
   const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
   blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Match your pace, depth, and length to this message.` });
