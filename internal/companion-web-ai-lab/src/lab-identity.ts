@@ -17,13 +17,14 @@ import {
 } from "./lab-constants.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import { PERSONA_PROMPT_PIPELINE_VERSION } from "../../../supabase/functions/_shared/persona-prompt-pipeline-v1.ts";
+import { COMPANION_VOICE_NATURALNESS_VERSION } from "../../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts";
 import { resolveProviderRuntime, type ProviderRuntime } from "./lab-provider.ts";
 
 export const LAB_SCOPE = "FOUNDER_INTERNAL_CHAT_LAB_FREE_TEXT_STAGING" as const;
 export const LAB_REVIEWER = "founder" as const;
 export const LAB_ENVIRONMENT = "staging" as const;
 export const LAB_DISABLE_CONTROL = "LUMIS_AI_ENABLED" as const;
-export const LAB_PROMPT_VERSION = `${COMPANION_SYNTHETIC_PROMPT_VERSION}+persona_${PERSONA_PROMPT_PIPELINE_VERSION}` as const;
+export const LAB_PROMPT_VERSION = `${COMPANION_SYNTHETIC_PROMPT_VERSION}+persona_${PERSONA_PROMPT_PIPELINE_VERSION}+voice_${COMPANION_VOICE_NATURALNESS_VERSION}` as const;
 export const IDENTITY_RECEIPT_SCHEMA = "lumis_companion_web_ai_lab_executable_identity_receipt_v1" as const;
 export const LAB_SOURCE_GLOB = "internal/companion-web-ai-lab" as const;
 

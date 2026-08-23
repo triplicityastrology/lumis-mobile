@@ -3,6 +3,12 @@
 // Each row is ONE approved mapping (factor + resolved sign) with its behaviour-layer, sign
 // flavour, primary behaviour instruction, recommended moves, and version. The model receives
 // the primary behaviour; the Lab never asks it to invent behaviour from a sign name.
+//
+// NOTE: the BEHAVIOUR_BANK values below are generated from the workbook and must not be hand-edited
+// (mapping-row wording change AP-5 is deferred). The Character Voice *synthesis wording* is the
+// shared canonical source imported below (AP-4).
+
+import { buildCombinedCharacter } from "../../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts";
 
 export type BehaviourRow = { factor: string; sign: string; layer: string; flavour: string; primary: string; moves: string; version: string };
 export const BEHAVIOUR_MAPPING_VERSION = "v1.2" as const;
@@ -102,17 +108,16 @@ export function buildVoiceCard(composition: Comp, roleLabel: string, roleCode: s
   return { role_code: roleCode, role_label: roleLabel, rows, card_text: lines.join("\n") };
 }
 
+// Manner-based Character Voice synthesis (AP-4). The synthesis WORDING is the shared canonical source
+// (companion-voice-and-naturalness-v1.ts); this function supplies the resolved factor flavours from
+// the approved behaviour mapping (BEHAVIOUR_BANK, unchanged — mapping-row wording AP-5 is deferred).
 function combinedCharacter(rows: VoiceRow[]): string {
   const flavour = (factor: string): string | null => {
     const r = rows.find((x) => x.factor === factor);
     return r ? BEHAVIOUR_BANK[r.mapping_id].flavour : null;
   };
-  const asc = flavour("ASC"), moon = flavour("Moon"), sun = flavour("Sun"), sat = flavour("Saturn"), merc = flavour("Mercury");
-  const parts: string[] = [];
-  if (asc) parts.push(`On first contact you come across as ${asc}`);
-  const middle = moon || sun;
-  if (middle) parts.push(`as the conversation settles you are ${middle}`);
-  if (sat) parts.push(`you steady things by being ${sat}`);
-  if (merc) parts.push(`and when you put something into words you sound ${merc}`);
-  return (parts.join("; ") || "warm and present") + ". Let this feel grounded and real rather than polished, clinical, or over-reassuring.";
+  return buildCombinedCharacter({
+    asc: flavour("ASC"), sun: flavour("Sun"), moon: flavour("Moon"),
+    saturn: flavour("Saturn"), mercury: flavour("Mercury"),
+  });
 }

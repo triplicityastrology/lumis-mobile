@@ -15,6 +15,7 @@
 import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
 import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-azure-responses-adapter.ts";
 import { buildVoiceCard, type VoiceCard } from "./lab-persona-voice.ts";
+import { COMPANION_NATURALNESS_RULES } from "../../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import {
   CHAT_SYNTHETIC_PROVIDER_ALIAS,
@@ -115,15 +116,9 @@ export type PersonaComposition = {
 export type PersonaBlock = { name: string; text: string };
 export type PersonaAssembly = { prompt: string; blocks: PersonaBlock[]; voice_card: VoiceCard | null };
 
-// Character-expression + naturalness rules (Founder-specified). These make the calculated Voice
-// observable in real conversation and stop the templated warm/validate/ask/advise pattern.
-const NATURALNESS_RULES = [
-  "The role decides what you're doing; the Character Voice decides how you sound. Keep that voice consistent across the conversation. The chart just tunes your manner — it stays in the background and isn't something you discuss.",
-  "Talk like a real person in an ongoing conversation: warm but genuine, using contractions and varied openings and lengths. You can simply respond — there's no need to restate your name or reintroduce yourself.",
-  "Answer what they actually said, in your own words. Most replies work best doing one thing well — accompany, clarify, reflect, reframe, or help — rather than stacking a reflection, advice, and a question together. Fresh phrasing beats stock openers.",
-  "Questions are optional: use one only when it genuinely helps, and let plenty of replies land as a statement. Early on you can offer once whether they'd like you to listen or to help think things through.",
-  "Keep advice light and optional, and keep prose natural — plain paragraphs rather than headings or lists, unless they ask for structure. If they're having a rough time, get simpler and warmer.",
-];
+// Character-expression + naturalness rules are the Founder-approved CHAT-05 revision, held in the
+// SHARED canonical source (companion-voice-and-naturalness-v1.ts) so the Lab and the future mobile
+// Normal Chat route use one identical copy with no drift. See COMPANION_NATURALNESS_RULES.
 
 // Assemble the full system prompt as ordered, labelled blocks (Founder-specified structure). The
 // returned `blocks` + `voice_card` power the founder preview; `prompt` is what the provider receives.
@@ -150,12 +145,12 @@ export function assemblePersona(
   blocks.push({ name: "2. GROUNDING", text: "Stay honest and grounded, and keep the conversation constructive." });
   const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
   blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Match your pace, depth, and length to this message.` });
-  blocks.push({ name: "4. ROLE", text: `Role: ${roleLabel} (${roleCode}). What you're here to do: ${rc.corePurpose ?? ""} How you generally behave: ${rc.requiredBehaviors ?? ""}` });
+  blocks.push({ name: "4. ROLE", text: `Role: ${roleLabel} (${roleCode}). Your job: ${rc.corePurpose ?? ""} This job never changes. How you carry it out varies with the person and the moment — see the Character Voice below. Manner: ${rc.requiredBehaviors ?? ""}` });
   if (voice) blocks.push({ name: "5. LUMIS CHARACTER VOICE", text: voice.card_text });
-  blocks.push({ name: "6. CHARACTER EXPRESSION AND NATURALNESS RULES", text: NATURALNESS_RULES.map((r) => `- ${r}`).join("\n") });
+  blocks.push({ name: "6. CHARACTER EXPRESSION AND NATURALNESS RULES", text: COMPANION_NATURALNESS_RULES.map((r) => `- ${r}`).join("\n") });
   if (memberContext && memberContext.trim()) blocks.push({ name: "7. RELEVANT MEMBER CONTEXT", text: memberContext.trim() });
   if (context.length) blocks.push({ name: "8. CONVERSATION CONTINUITY", text: "This is an ongoing conversation — keep the same voice and stay consistent with what was already said:\n" + context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") });
-  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: `Respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}. Use the shortest natural response that adequately meets the moment — around ${zh ? "110–260 characters" : "60–140 words"} is normal, but a short emotional message may need less and a complex reflection more. Don't add structure or filler to hit a length.` });
+  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: `Respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}. Use the shortest natural response that adequately meets the moment — around ${zh ? "110–260 characters" : "60–140 words"} is normal, but a short emotional message may need less and a complex reflection more. A brief emotional statement (for example "I am upset") does not need a long analysis. Don't add structure or filler to hit a length.` });
   blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
 
   const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");

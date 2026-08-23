@@ -196,5 +196,23 @@ check("browser creates a server session and threads session_id through conversat
 check("browser saved-sessions browser lists/opens/exports sessions", appCode.includes("loadSessions") && appCode.includes("openSession") && appCode.includes("export.xlsx"));
 check("saved-session UI present (tab + list + detail + export buttons)", indexHtml.includes('data-tab="sessions"') && indexHtml.includes('id="session-list"') && indexHtml.includes('id="session-detail"') && indexHtml.includes('id="export-all"'));
 
+// ---- 12. CHAT-05 revision (Founder AP-2/3/4): canonical voice+naturalness is SHARED (no drift);
+//         role purpose is separated from format; the deferred mapping (AP-5) is untouched. ----
+const voiceShared = read("../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts");
+const personaBehavior = read("../../supabase/functions/_shared/persona-behavior-v1.ts");
+const voiceMod = "companion-voice-and-naturalness-v1.ts";
+// Single canonical source: the naturalness rules + voice synthesis live in the shared module, and the
+// Lab imports them (they are NOT redefined Lab-locally), so the Lab tests the same prompt mobile will.
+check("naturalness rules live in the shared canonical source", voiceShared.includes("COMPANION_NATURALNESS_RULES") && voiceShared.includes("COMPANION_VOICE_NATURALNESS_VERSION"));
+check("voice synthesis (buildCombinedCharacter) lives in the shared canonical source", voiceShared.includes("export function buildCombinedCharacter"));
+check("Lab imports naturalness rules from shared (no Lab-local NATURALNESS_RULES copy)", provider.includes(`COMPANION_NATURALNESS_RULES } from "../../../supabase/functions/_shared/${voiceMod}"`) && !/const\s+NATURALNESS_RULES\s*=/.test(provider));
+check("Lab voice card imports buildCombinedCharacter from shared", read("src/lab-persona-voice.ts").includes(`buildCombinedCharacter } from "../../../supabase/functions/_shared/${voiceMod}"`));
+check("block 4 separates immutable role PURPOSE from format", provider.includes("Your job:") && provider.includes("This job never changes"));
+check("prompt version records the voice/naturalness revision", identity.includes("COMPANION_VOICE_NATURALNESS_VERSION") && identity.includes("+voice_"));
+// AP-5 DEFERRED: Persona Behaviour Mapping row wording is untouched (still workbook v1.2 / v1 rows).
+check("AP-5 deferred: mapping bank + version untouched", read("src/lab-persona-voice.ts").includes('BEHAVIOUR_MAPPING_VERSION = "v1.2"') && read("src/lab-persona-voice.ts").includes("BEHAVIOUR_BANK"));
+// Role contracts keep their immutable PURPOSE (corePurpose), safety guardrails unchanged.
+check("role contracts retain corePurpose + hardGuardrail (purpose/safety unchanged)", /corePurpose:/.test(personaBehavior) && /hardGuardrail:/.test(personaBehavior));
+
 console.log(failures === 0 ? "\nCONTRACT OK" : `\nCONTRACT FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);
