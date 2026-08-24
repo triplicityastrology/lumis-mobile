@@ -5,7 +5,10 @@ PORT="${LUMIS_INTERNAL_DICE_LAB_PORT:-8212}"
 FIXTURE_LIVE="${LUMIS_FOUNDER_DICE_FIXTURE_LIVE:-false}"
 FREE_TEXT_LIVE="${LUMIS_FOUNDER_DICE_FREE_TEXT_LIVE:-false}"
 [[ "$FIXTURE_LIVE" == "true" || "$FREE_TEXT_LIVE" == "true" ]] || { echo STOP_LAB_NO_LIVE_MODE >&2; exit 1; }
-[[ "$(git -C "$ROOT" branch --show-current)" == "codex/s2-t359-dice-live-proof" ]] || { echo STOP_LAB_WRONG_BRANCH >&2; exit 1; }
+case "$(git -C "$ROOT" branch --show-current)" in
+  codex/s2-t359-dice-live-proof|dice-owner/s2-t359-live-reconcile-20260823) ;;
+  *) echo STOP_LAB_WRONG_BRANCH >&2; exit 1 ;;
+esac
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]] || { echo STOP_LAB_DIRTY_TREE >&2; exit 1; }
 SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 ANON_KEY="$(security find-generic-password -w -s lumis-supabase-anon-key)" || { echo STOP_LAB_ANON_KEY_UNAVAILABLE >&2; exit 1; }
