@@ -13,8 +13,8 @@ const environment = {
   LUMIS_DICE_FOUNDER_FREE_TEXT_ENABLED: "true",
   LUMIS_DICE_FOUNDER_FREE_TEXT_ACCESS_KEY: "founder-free-text-test-access-key-0001",
 };
-const receipt = { single_use_window_id: "dice-founder40-abcdefghijklmnop", valid_until: new Date(Date.now() + 600000).toISOString(), request_sha256: "a".repeat(64) };
-const result = { schema: "lumis_dice_v0_3_result_v2", language: "en", planet_layer: "Venus centers shared value.", sign_element_layer: "Libra expresses balance and an airy social atmosphere.", house_layer: "The 7th House places this in the external environment of partnership.", timing_or_pace: null, judgment: null, practical_direction: "Name one practical expectation before the next conversation." };
+const receipt = { single_use_window_id: "dice-founder40-abcdefghijklmnop", valid_until: new Date(Date.now() + 600000).toISOString(), request_sha256: "a".repeat(64), input_token_cap: 1600, output_token_cap: 600 };
+const result = { schema: "lumis_dice_v0_3_result_v3", language: "en", planet_layer: "Venus centers shared value.", sign_element_layer: "Libra expresses balance and an airy social atmosphere.", house_layer: "The 7th House places this in the external environment of partnership.", synthesis: "Venus's care for shared value works through Libra's balancing style and lands in the 7th House of partnership, so the question turns on fairness that is actually agreed rather than assumed. The emphasis is on visible, mutual terms rather than private hope.", timing_or_pace: null, judgment: null, watch_out: "Smoothing over a real difference to keep the peace can quietly let an unfair arrangement settle in.", practical_direction: "Name one practical expectation before the next conversation." };
 let providerCalls = 0;
 let receiptChecks = 0;
 let authorityMode: "consumed" | "replayed" = "consumed";
@@ -25,8 +25,8 @@ const handler = createDiceSyntheticEdgeHandler({
   fetchImpl: async (_url, init) => {
     providerCalls += 1;
     const providerRequest = JSON.parse(String(init?.body));
-    check(providerRequest.text?.format?.type === "json_schema" && providerRequest.text.format.name === "lumis_dice_v0_3_result_v2" && providerRequest.text.format.strict === true, "Founder wrapper requests the strict v2 schema");
-    check(providerRequest.reasoning?.effort === "minimal" && providerRequest.text?.verbosity === "low" && providerRequest.max_output_tokens === 300, "Founder wrapper reserves the capped output budget for concise validated text");
+    check(providerRequest.text?.format?.type === "json_schema" && providerRequest.text.format.name === "lumis_dice_v0_3_result_v3" && providerRequest.text.format.strict === true, "Founder wrapper requests the strict v3 schema");
+    check(providerRequest.reasoning?.effort === "minimal" && providerRequest.text?.verbosity === "low" && providerRequest.max_output_tokens === 600, "Founder wrapper reserves the receipt-authorized output budget for concise validated text");
     return new Response(JSON.stringify({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify(result) }] }] }), { status: 200, headers: { "content-type": "application/json" } });
   },
 });
@@ -38,13 +38,13 @@ function keys(value: unknown): string[] {
 }
 
 function assertShapeSchema() {
-  const expectedKeys = ["house_layer", "judgment", "language", "planet_layer", "practical_direction", "schema", "sign_element_layer", "timing_or_pace"];
+  const expectedKeys = ["house_layer", "judgment", "language", "planet_layer", "practical_direction", "schema", "sign_element_layer", "synthesis", "timing_or_pace", "watch_out"];
   for (const [language, shape] of [["en", "judgment"], ["zh-Hant", "timing"], ["en", "descriptive"]] as const) {
     const schema = diceResultJsonSchema(language, shape);
-    check(schema.additionalProperties === false && JSON.stringify([...schema.required].sort()) === JSON.stringify(expectedKeys), `${shape} schema has exactly eight required keys`);
-    check(JSON.stringify(keys(schema.properties)) === JSON.stringify(expectedKeys), `${shape} schema exposes exactly eight properties`);
+    check(schema.additionalProperties === false && JSON.stringify([...schema.required].sort()) === JSON.stringify(expectedKeys), `${shape} schema has exactly ten required keys`);
+    check(JSON.stringify(keys(schema.properties)) === JSON.stringify(expectedKeys), `${shape} schema exposes exactly ten properties`);
     check(schema.properties.language.const === language, `${shape} schema pins the requested language`);
-    for (const field of ["planet_layer", "sign_element_layer", "house_layer", "practical_direction"] as const) {
+    for (const field of ["planet_layer", "sign_element_layer", "house_layer", "synthesis", "watch_out", "practical_direction"] as const) {
       check(schema.properties[field].type === "string" && schema.properties[field].minLength === 1, `${shape} schema requires non-empty ${field}`);
     }
     if (shape === "judgment") {
@@ -63,7 +63,7 @@ async function main() {
   await assertFounderFreeTextBoundary();
   const success = await handler(new Request("http://local/dice-synthetic", { method: "POST", headers: founderHeaders, body: JSON.stringify(selected) }));
   const successBody = await success.json();
-  check(success.status === 200 && successBody.result?.schema === "lumis_dice_v0_3_result_v2" && successBody.metadata?.fixture_id === selected.fixture_id && successBody.protected_metadata?.provider_disposition === "responses_completed_valid", "Founder wrapper returns validated v2 plus protected disposition");
+  check(success.status === 200 && successBody.result?.schema === "lumis_dice_v0_3_result_v3" && successBody.metadata?.fixture_id === selected.fixture_id && successBody.protected_metadata?.provider_disposition === "responses_completed_valid", "Founder wrapper returns validated v3 plus protected disposition");
   check(providerCalls === 1 && receiptChecks === 1, "exact Founder route reaches one provider call after receipt and ledger");
 
   const sdkProjectionHandler = createDiceSyntheticEdgeHandler({
@@ -125,7 +125,7 @@ async function main() {
 
   const technicalShape = await handler(new Request("http://local/dice-synthetic", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ authorization: null, extra: true }) }));
   check(technicalShape.status === 400, "technical branch remains closed to authorization only");
-  console.log("Founder Dice Edge wrapper integration passed: closed IDs, receipt, ledger, v2 result, replay stop, zero network");
+  console.log("Founder Dice Edge wrapper integration passed: closed IDs, receipt, ledger, v3 result, replay stop, zero network");
 }
 
 async function assertFounderFreeTextBoundary() {
@@ -157,7 +157,7 @@ async function assertFounderFreeTextBoundary() {
 
   const completed = await freeTextHandler(new Request("http://local/dice-synthetic", { method: "POST", headers, body: JSON.stringify(valid) }));
   const completedBody = await completed.json();
-  check(completed.status === 200 && completedBody.result?.schema === "lumis_dice_v0_3_result_v2", "valid free text returns the strict v2 result");
+  check(completed.status === 200 && completedBody.result?.schema === "lumis_dice_v0_3_result_v3", "valid free text returns the strict v3 result");
   check(completedBody.classification?.accepted === true && completedBody.metadata?.request_mode === "founder_free_text", "classification and metadata remain server-owned");
   check(calls === 1 && authorityConstructions === 0, "valid free text makes one provider call without fixture authority persistence");
 }
@@ -177,7 +177,7 @@ async function assertProviderDispositions() {
   ] as const;
   for (const [expected, response] of cases) {
     const adapter = createAzureDiceAdapter(config, async () => response.clone());
-    const outcome = await adapter.invoke({ prompt: "closed fixture", prompt_version: "lumis_dice_v0_3_prompt_v2", language: "en", question_shape: "descriptive", deadline_at_ms: Date.now() + 1000, max_output_tokens: 300, signal: new AbortController().signal });
+    const outcome = await adapter.invoke({ prompt: "closed fixture", prompt_version: "lumis_dice_v0_3_prompt_v3", language: "en", question_shape: "descriptive", deadline_at_ms: Date.now() + 1000, max_output_tokens: 300, signal: new AbortController().signal });
     check("provider_disposition" in outcome && outcome.provider_disposition === expected, `${expected} is classified exactly`);
     check(!/(must never|message|detail)/u.test(JSON.stringify(outcome)), `${expected} retains no provider detail`);
   }

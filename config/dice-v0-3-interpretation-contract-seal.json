@@ -10,7 +10,7 @@
     "supabase/functions/_shared/dice-v0-3-presentation.ts": "08477ee4706697d00d2df60117c3d62ecd1eb88c8e92e3ac8544b85d2272cb15",
     "supabase/functions/_shared/dice-synthetic-canonical-v1.ts": "7632c40eda15adf97665ad787803da8444b41df56a22f1e90148ff1e53f6d7c7",
     "supabase/functions/_shared/dice-synthetic-gateway-port-v1.ts": "f464e611a8166d4546ea06d09f07e1c16b2ef3986c6430c39e4301a891368ba2",
-    "supabase/functions/_shared/azure-dice-adapter-v1.ts": "d6a88335635ffb28876384b84caafb186e97891f397dae93a65b4e9ea26e5c6f",
+    "supabase/functions/_shared/azure-dice-adapter-v1.ts": "5f99820f914f2b5190d491594d45f893d43adb064534715bd2ae233f36cc2f2f",
     "supabase/functions/_shared/dice-synthetic-gateway-port-v1.fixtures.ts": "5a42229836bfc998c78df238fd83ddc72be63cbf49502b3ffcd1a396202eb3f1",
     "supabase/functions/tsconfig.dice-synthetic-port-v1-test.json": "05df52a9f6b125497b8aa1363ffbecae99f8281c9dfa86481d6cff1e07d1986e",
     "scripts/dice-v0-3-contract-source-check.mjs": "6df8471726b58815e54abbaa109f3137b23344f3b35a4fcdaaeee50c79b0ce0a"

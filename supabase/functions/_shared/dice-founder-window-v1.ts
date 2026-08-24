@@ -75,17 +75,22 @@ export async function executeFounderDiceCase(input: FounderDiceRequest, receipt:
   if (acquisition.error || (acquisition.data as Record<string, unknown> | null)?.consumed !== true) throw new Error("DICE_FOUNDER_AUTHORITY_REJECTED");
   if (!decision.accepted) return Object.freeze({ kind: decision.code.includes("SAFETY") || decision.code.includes("PROFESSIONAL") ? "safety" : "fallback", code: decision.code, metadata: metadata(fixture, 0, "safety", "zero", "zero", "zero") });
   const prompt = buildDiceV03Prompt({ fixture_id: fixture.fixture_id, question: fixture.exact_text, language: decision.language, question_shape: decision.shape, outcome: { planet: input.planet_id, sign: input.sign_id, house: input.house_id } });
-  if (!measureDiceTokenLimit(prompt, 800).within_limit) return Object.freeze({ kind: "fallback", code: "DICE_INPUT_TOKEN_CAP", metadata: metadata(fixture, 0, "fallback", "zero", "zero", "zero") });
+  // Runtime caps derive from the signed window receipt — never exceed the
+  // authorization. A v2 (800/300) receipt correctly input-caps the larger v3
+  // prompt until a v3 (1600/600) window is signed. (handoff §8.5)
+  const inputCap = typeof receipt.input_token_cap === "number" ? receipt.input_token_cap : 800;
+  const outputCap: 300 | 600 = receipt.output_token_cap === 600 ? 600 : 300;
+  if (!measureDiceTokenLimit(prompt, inputCap).within_limit) return Object.freeze({ kind: "fallback", code: "DICE_INPUT_TOKEN_CAP", metadata: metadata(fixture, 0, "fallback", "zero", "zero", "zero") });
   const started = now();
   const deadline = started + 12000;
   try {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), Math.max(0, deadline - now()));
-      const response = await adapter.invoke({ prompt, prompt_version: DICE_V03_PROMPT_VERSION, language: decision.language, question_shape: decision.shape, deadline_at_ms: deadline, max_output_tokens: 300, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
+      const response = await adapter.invoke({ prompt, prompt_version: DICE_V03_PROMPT_VERSION, language: decision.language, question_shape: decision.shape, deadline_at_ms: deadline, max_output_tokens: outputCap, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
       clearTimeout(timer);
       if (response.kind === "success") {
-        const measured = measureDiceTokenLimit(response.content, 300);
+        const measured = measureDiceTokenLimit(response.content, outputCap);
         const output = measured.within_limit ? parseDiceV03Output(response.content, { language: decision.language, question_shape: decision.shape }) : null;
         if (!output) return Object.freeze({ kind: "fallback", code: "DICE_PROVIDER_MALFORMED", provider_disposition: "responses_completed_schema_invalid" as const, metadata: metadata(fixture, attempt, "fallback", "lt_12s", "lt_800", "lt_300") });
         if (output.kind === "route_mismatch") return Object.freeze({ kind: "route_mismatch", code: output.envelope.code, metadata: metadata(fixture, attempt, "route_mismatch", "lt_12s", "lt_800", "zero") });

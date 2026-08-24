@@ -1,8 +1,6 @@
 import { DICE_PROMPT_VERSION, type DiceLanguage } from "./dice-synthetic-canonical-v1.ts";
 import type { DiceProviderAdapter, DiceProviderDisposition, DiceProviderResult } from "./dice-synthetic-gateway-port-v1.ts";
 import {
-  DICE_ROUTE_MISMATCH_CODE,
-  DICE_ROUTE_MISMATCH_RESULT,
   DICE_V03_RESULT_SCHEMA,
   parseDiceV03Output,
   type DiceV03QuestionShape,
@@ -34,10 +32,12 @@ export const DICE_AZURE_AUTHORITY = Object.freeze({
 
 const RESULT_KEYS = ["schema", "language", "planet_layer", "sign_element_layer", "house_layer", "synthesis", "timing_or_pace", "judgment", "watch_out", "practical_direction"] as const;
 
-// v3 structured output: EITHER a completed reading OR the standardized
-// route-mismatch envelope (the non-overriding AI stop, handoff §6.6). Root-level
-// anyOf of two closed objects — Azure strict-mode acceptance of a root anyOf
-// must be reconfirmed at deploy.
+// v3 structured output: the strict completed-reading object. Azure/OpenAI strict
+// Structured Outputs require the ROOT schema to be an object (a root-level anyOf
+// is rejected), so the standardized route-mismatch envelope is NOT emitted by the
+// model here; it is enforced by the deterministic validator/gateway/edge/lab. A
+// model-emitted route-mismatch (nested-anyOf) is a fast-follow to verify against
+// the live window. (handoff §6.6/§6.7)
 export function diceResultJsonSchema(language: DiceLanguage, questionShape: DiceV03QuestionShape) {
   const layerLen = 240;
   const synthesisLen = 900;
@@ -48,7 +48,7 @@ export function diceResultJsonSchema(language: DiceLanguage, questionShape: Dice
   const layer = Object.freeze({ type: "string", minLength: 1, maxLength: layerLen, description: layerDesc });
   const conditionalText = Object.freeze({ type: "string", minLength: 1, maxLength: conditionalLen, description: condDesc });
   const requiredNull = Object.freeze({ type: "null" });
-  const completed = Object.freeze({
+  return Object.freeze({
     type: "object",
     additionalProperties: false,
     required: RESULT_KEYS,
@@ -64,18 +64,7 @@ export function diceResultJsonSchema(language: DiceLanguage, questionShape: Dice
       watch_out: conditionalText,
       practical_direction: conditionalText,
     }),
-  });
-  const routeMismatch = Object.freeze({
-    type: "object",
-    additionalProperties: false,
-    required: ["result", "code", "language"],
-    properties: Object.freeze({
-      result: Object.freeze({ type: "string", const: DICE_ROUTE_MISMATCH_RESULT }),
-      code: Object.freeze({ type: "string", const: DICE_ROUTE_MISMATCH_CODE }),
-      language: Object.freeze({ type: "string", const: language }),
-    }),
-  });
-  return Object.freeze({ anyOf: [completed, routeMismatch] } as const);
+  } as const);
 }
 
 export type DiceAzureServerConfig = Readonly<{
