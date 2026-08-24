@@ -269,7 +269,9 @@
     "external-sync:replay": "node scripts/external-sync-admin.mjs replay",
     "external-sync:resolve": "node scripts/external-sync-admin.mjs resolve",
     "test:dice-v04-contract": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-interpretation-contract.fixtures.ts",
-    "test:dice-v04-window": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-window.fixtures.ts"
+    "test:dice-v04-window": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-window.fixtures.ts",
+    "test:dice-v04-edge": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/dice-synthetic/founder-window-edge-v4.fixtures.ts",
+    "test:dice-v04": "pnpm test:dice-v04-contract && pnpm test:dice-v04-window && pnpm test:dice-v04-edge"
   },
   "devDependencies": {
     "@supabase/supabase-js": "2.110.2",
