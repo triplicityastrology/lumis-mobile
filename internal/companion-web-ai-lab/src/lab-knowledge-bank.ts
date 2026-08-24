@@ -97,8 +97,8 @@ export function retrieveNatalFacts(chart: { sun: number; moon: number; mercury: 
 export function buildKnowledgeGrounding(retrieval: NatalRetrieval): string | null {
   if (!retrieval.facts.length) return null;
   const lines: string[] = [];
-  lines.push("These are things you may understand about this person (about them, not about you):");
+  lines.push("Chart-grounded facts you may draw on for interpretation ONLY when the conversation calls for it — the member profile above already shapes your delivery, so treat these as optional background, not something to recite:");
   for (const f of retrieval.facts) lines.push(`- ${f.composed}`);
-  lines.push("Let this inform how you understand them, and draw on it only when it adds something specific to what they're actually saying — woven into your sense of them rather than recited as placements or keywords, and kept tentative (may, can, tends to). Stay within what's listed here. If none of it fits their message, just respond through your role and voice.");
+  lines.push("Keep it tentative (may, can, tends to), stay within what's listed here, and don't mention placements or astrology unless it genuinely adds to what they actually said.");
   return lines.join("\n");
 }

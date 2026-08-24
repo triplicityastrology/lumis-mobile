@@ -13,7 +13,7 @@ import { validateLabRequest, deriveChartComposition } from "../src/lab-engine.ts
 import { buildVoiceCard, BEHAVIOUR_BANK, BEHAVIOUR_MAPPING_VERSION } from "../src/lab-persona-voice.ts";
 import { LAB_ROLES } from "../src/lab-constants.ts";
 import { assemblePersona } from "../src/lab-provider.ts";
-import { COMPANION_NATURALNESS_RULES } from "../../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts";
+import { COMPANION_IDENTITY_SCOPE, COMPANION_INTERACTION_GUIDANCE } from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
 
 // A single synthetic customer chart, reused across roles.
 const CHART = { sun: 3, moon: 6, mercury: 7, saturn: 10, moon_confirmed: true };
@@ -83,20 +83,24 @@ test("Mercury is ordered LAST — it colours communication, it does not lead the
   assert.match(merc.layer, /communication/i);
 });
 
-test("CHAT-05 revision: naturalness rules + voice come from the shared canonical source", () => {
+test("10-block redesign: identity/scope + interaction guidance from shared source; deterministic placement-free summaries", () => {
   const role = LAB_ROLES.find((r) => r.code === "empathetic_peer")!;
+  const chart = { sun: 3, moon: 6, mercury: 7, saturn: 10, moon_confirmed: true };
   const assembly = assemblePersona(
-    { roleContract: { publicName: role.currentLabel, corePurpose: "p", requiredBehaviors: "b" }, situationParameters: { route: "ordinary" } },
-    "hi", "en", [], compositionFor("empathetic_peer"), null,
+    { roleContract: { publicName: role.currentLabel, corePurpose: "p" }, situationParameters: { route: "ordinary" } },
+    "hi", "en", [], compositionFor("empathetic_peer"), "Some member facts.", chart,
   );
-  const naturalness = assembly.blocks.find((b) => b.name === "6. CHARACTER EXPRESSION AND NATURALNESS RULES")!;
-  // Block 6 is exactly the shared canonical rule set (single source of truth; no drift).
-  assert.equal(naturalness.text, COMPANION_NATURALNESS_RULES.map((r) => `- ${r}`).join("\n"));
-  // DEF-B fixed: no compulsory "offer to listen or help organise" mandate remains.
-  assert.equal(/offer once whether they'd like you to listen/i.test(naturalness.text), false);
-  // AP-4: the Character Voice synthesis uses the shared manner-based wording.
-  const voice = assembly.blocks.find((b) => b.name === "5. LUMIS CHARACTER VOICE")!;
-  assert.match(voice.text, /shapes how you carry out the role, never what the role is/);
+  const byName = (n: string) => assembly.blocks.find((b) => b.name === n)!;
+  // Blocks 1 + 6 come verbatim from the shared canonical synthesis source (one source, no drift).
+  assert.equal(byName("1. IDENTITY AND SCOPE").text, COMPANION_IDENTITY_SCOPE);
+  assert.match(byName("1. IDENTITY AND SCOPE").text, /not a general-purpose how-to assistant/);
+  assert.equal(byName("6. INTERACTION GUIDANCE").text, COMPANION_INTERACTION_GUIDANCE);
+  assert.match(byName("6. INTERACTION GUIDANCE").text, /Advice gate/);
+  // Block 4 Lumis Character Summary + block 5 Moon-led member profile present and PLACEMENT-FREE.
+  assert.match(byName("4. LUMIS CHARACTER SUMMARY").text, /^Lumis is a /);
+  const profile = byName("5. MEMBER COMMUNICATION AND COMFORT PROFILE").text;
+  assert.match(profile, /^This member /);
+  assert.equal(/\b(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b|Moon in|Sun in|Mercury in|Saturn in/.test(profile), false, "member profile names no astrology placements");
 });
 
 test("an unavailable composition yields no voice card (no invented character)", () => {
@@ -104,42 +108,34 @@ test("an unavailable composition yields no voice card (no invented character)", 
   assert.equal(buildVoiceCard({ available: true, factors: [] }, "Acceptance", "empathetic_peer"), null);
 });
 
-test("the declarative Lumis identity preserves every approved prompt block and role", () => {
+test("assembled prompt uses the approved 10-block architecture; role block is PURPOSE only", () => {
   for (const code of ["empathetic_peer", "harmonious_catalyst", "saturnian_anchor"]) {
     const role = LAB_ROLES.find((candidate) => candidate.code === code)!;
     const composition = compositionFor(code);
     const corePurpose = `Synthetic purpose for ${role.code}.`;
-    const requiredBehaviors = `Synthetic behavior for ${role.code}.`;
+    const chart = { sun: 1, moon: 8, mercury: 1, saturn: 10, moon_confirmed: true };
     const assembly = assemblePersona({
-      roleContract: {
-        publicName: role.currentLabel,
-        corePurpose,
-        requiredBehaviors,
-      },
+      roleContract: { publicName: role.currentLabel, corePurpose },
       situationParameters: { route: "ordinary" },
     }, "A synthetic conversation turn.", "en", [
       { role: "user", text: "An earlier synthetic turn." },
-    ], composition, "Synthetic context only.");
+    ], composition, "Synthetic context only.", chart);
 
     assert.deepEqual(assembly.blocks.map((block) => block.name), [
-      "1. LUMIS IDENTITY",
-      "2. GROUNDING",
-      "3. CURRENT SITUATION ADJUSTMENT",
-      "4. ROLE",
-      "5. LUMIS CHARACTER VOICE",
-      "6. CHARACTER EXPRESSION AND NATURALNESS RULES",
-      "7. RELEVANT MEMBER CONTEXT",
+      "1. IDENTITY AND SCOPE",
+      "2. CURRENT SITUATION",
+      "3. ROLE PURPOSE",
+      "4. LUMIS CHARACTER SUMMARY",
+      "5. MEMBER COMMUNICATION AND COMFORT PROFILE",
+      "6. INTERACTION GUIDANCE",
+      "7. RELEVANT MEMBER FACTS",
       "8. CONVERSATION CONTINUITY",
-      "9. LANGUAGE AND FLEXIBLE LENGTH",
+      "9. LANGUAGE AND LENGTH",
       "10. CURRENT USER MESSAGE",
     ]);
-    assert.equal(
-      assembly.blocks[0].text,
-      "Lumis is the astrology companion in this real, ongoing conversation with one person.",
-    );
-    assert.equal(assembly.prompt.includes("You are Lumis, an astrology companion"), false);
-    // AP-3 §5c: block 4 separates immutable role PURPOSE from format ("Your job… This job never
-    // changes… Manner: …"). The role contract is purpose, not a fixed response layout.
-    assert.equal(assembly.blocks[3].text, `Role: ${role.currentLabel} (${role.code}). Your job: ${corePurpose} This job never changes. How you carry it out varies with the person and the moment — see the Character Voice below. Manner: ${requiredBehaviors}`);
+    assert.equal(assembly.blocks[0].text, COMPANION_IDENTITY_SCOPE);
+    assert.equal(assembly.prompt.includes("You are Lumis, a companion"), true);
+    // Role block is stable PURPOSE only — no per-turn manner/device text (that lives in the summaries).
+    assert.equal(assembly.blocks[2].text, `Role: ${role.currentLabel} (${role.code}). Your job: ${corePurpose} This never changes. How you carry it out is described in the Character Summary and the member profile below.`);
   }
 });

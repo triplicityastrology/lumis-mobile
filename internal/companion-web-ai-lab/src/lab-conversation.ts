@@ -61,7 +61,7 @@ export async function handleConversationTurn(raw: unknown, ctx: ConversationCont
   const liveProvider = auth.ok
     ? async (args: { plan: LabPlan; request: LabRequest; language: LabLanguage }): Promise<LabGenerativeOutcome> => {
         const kbGrounding = buildKnowledgeGrounding(retrieveNatalFacts(args.request.chart));
-        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition, kbGrounding);
+        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition, kbGrounding, args.request.chart);
         const outcome = await runGenerative(auth.runtime, promptInput, args.language, nowMs);
         providerDisposition = outcome.providerDisposition;
         switch (outcome.kind) {

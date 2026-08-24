@@ -196,19 +196,26 @@ check("browser creates a server session and threads session_id through conversat
 check("browser saved-sessions browser lists/opens/exports sessions", appCode.includes("loadSessions") && appCode.includes("openSession") && appCode.includes("export.xlsx"));
 check("saved-session UI present (tab + list + detail + export buttons)", indexHtml.includes('data-tab="sessions"') && indexHtml.includes('id="session-list"') && indexHtml.includes('id="session-detail"') && indexHtml.includes('id="export-all"'));
 
-// ---- 12. CHAT-05 revision (Founder AP-2/3/4): canonical voice+naturalness is SHARED (no drift);
-//         role purpose is separated from format; the deferred mapping (AP-5) is untouched. ----
+// ---- 12. Companion redesign (Founder handoff 2026-08-24): 10-block architecture with two
+//         DETERMINISTIC synthesis layers from ONE shared canonical source; Moon-led member profile;
+//         no astrology placements in the summaries. Prior CHAT-05 shared sources remain. ----
 const voiceShared = read("../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts");
 const personaBehavior = read("../../supabase/functions/_shared/persona-behavior-v1.ts");
-const voiceMod = "companion-voice-and-naturalness-v1.ts";
-// Single canonical source: the naturalness rules + voice synthesis live in the shared module, and the
-// Lab imports them (they are NOT redefined Lab-locally), so the Lab tests the same prompt mobile will.
-check("naturalness rules live in the shared canonical source", voiceShared.includes("COMPANION_NATURALNESS_RULES") && voiceShared.includes("COMPANION_VOICE_NATURALNESS_VERSION"));
-check("voice synthesis (buildCombinedCharacter) lives in the shared canonical source", voiceShared.includes("export function buildCombinedCharacter"));
-check("Lab imports naturalness rules from shared (no Lab-local NATURALNESS_RULES copy)", provider.includes(`COMPANION_NATURALNESS_RULES } from "../../../supabase/functions/_shared/${voiceMod}"`) && !/const\s+NATURALNESS_RULES\s*=/.test(provider));
-check("Lab voice card imports buildCombinedCharacter from shared", read("src/lab-persona-voice.ts").includes(`buildCombinedCharacter } from "../../../supabase/functions/_shared/${voiceMod}"`));
-check("block 4 separates immutable role PURPOSE from format", provider.includes("Your job:") && provider.includes("This job never changes"));
-check("prompt version records the voice/naturalness revision", identity.includes("COMPANION_VOICE_NATURALNESS_VERSION") && identity.includes("+voice_"));
+const synth = read("../../supabase/functions/_shared/companion-synthesis-v1.ts");
+const labVoiceSrc = read("src/lab-persona-voice.ts");
+// Two deterministic generators + canonical block text live in ONE shared source.
+check("synthesis generators live in the shared canonical source", synth.includes("export function buildLumisCharacterSummary") && synth.includes("export function buildMemberComfortProfile") && synth.includes("COMPANION_SYNTHESIS_VERSION"));
+check("member comfort profile is Moon-led (Moon primary, before Mercury/Sun)", synth.includes("This member ${MOON_CARE[chart.moon]}") && synth.indexOf("const MOON_CARE") < synth.indexOf("const MERCURY_STYLE"));
+check("summaries name no astrology placements (no sign names in the shared generators)", !/\b(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b/.test(synth));
+check("scope boundary + advice gate + mobile-first length in the shared source", synth.includes("general-purpose how-to assistant") && synth.includes("Advice gate") && synth.includes("mobile-first"));
+// The Lab assembles the 10 blocks and pulls blocks 1/4/5/6/9 from the shared synthesis source.
+check("Lab assembles the 10-block architecture from shared synthesis", provider.includes("companion-synthesis-v1.ts") && provider.includes("1. IDENTITY AND SCOPE") && provider.includes("4. LUMIS CHARACTER SUMMARY") && provider.includes("5. MEMBER COMMUNICATION AND COMFORT PROFILE") && provider.includes("6. INTERACTION GUIDANCE"));
+check("role block is stable PURPOSE only (no per-turn manner/device text)", provider.includes("3. ROLE PURPOSE") && provider.includes("This never changes") && !provider.includes("Manner: ${rc.requiredBehaviors"));
+check("member chart is threaded so the profile shapes every reply", provider.includes("memberChart") && provider.includes("buildMemberComfortProfile(memberChart)"));
+check("prompt version records the architecture revision", identity.includes("COMPANION_SYNTHESIS_VERSION") && identity.includes("+arch_"));
+// Prior CHAT-05 shared sources remain canonical (voice/naturalness module; buildCombinedCharacter still used by the voice-card preview).
+check("voice/naturalness shared module remains canonical", voiceShared.includes("COMPANION_NATURALNESS_RULES") && voiceShared.includes("export function buildCombinedCharacter"));
+check("Lab voice card still derives from shared (buildCombinedCharacter import)", labVoiceSrc.includes("buildCombinedCharacter } from"));
 // AP-5a APPLIED: mapping rows are the SINGLE shared canonical source (no Lab duplicate); the Lab
 // derives BEHAVIOUR_BANK from persona-behavior-mapping-v1.ts. Content version bumped to v1.3.
 const labVoice = read("src/lab-persona-voice.ts");

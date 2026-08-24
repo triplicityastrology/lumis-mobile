@@ -24,7 +24,7 @@ export function handleCompose(raw: unknown): { status: number; body: unknown } {
   const roleMeta = LAB_ROLES.find((x) => x.code === v.request.role_code)!;
   const kbRetrieval = plan.generative ? retrieveNatalFacts(v.request.chart) : { facts: [], suppressed: [] };
   const assembly = (plan.generative && plan.personaPromptAssembled)
-    ? assemblePersona(plan.personaPromptPayload, v.request.message, plan.language, v.request.context, plan.composition, buildKnowledgeGrounding(kbRetrieval))
+    ? assemblePersona(plan.personaPromptPayload, v.request.message, plan.language, v.request.context, plan.composition, buildKnowledgeGrounding(kbRetrieval), v.request.chart)
     : null;
   const prompt = assembly ? assembly.prompt : null;
 

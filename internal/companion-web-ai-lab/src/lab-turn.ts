@@ -138,7 +138,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   // Founder-internal assembly of the persona prompt (blocks + Character Voice Card) for generative
   // routes. Never shipped to the customer UI.
   const personaAssembly = (plan.generative && plan.personaPromptAssembled)
-    ? assemblePersona(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition, kbGrounding)
+    ? assemblePersona(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition, kbGrounding, request.chart)
     : null;
   const generativePromptPreview: string | null = personaAssembly ? personaAssembly.prompt : null;
 
@@ -330,7 +330,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
 
 function serializePersonaPromptSafe(plan: LabPlan, request: LabRequest): string {
   const kb = plan.generative ? buildKnowledgeGrounding(retrieveNatalFacts(request.chart)) : null;
-  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context, plan.composition, kb);
+  return serializePersonaPrompt(plan.personaPromptPayload, request.message, plan.language as LabLanguage, request.context, plan.composition, kb, request.chart);
 }
 
 function safeToProceed(state: CanonicalState): DecisionTrace["safe_to_proceed"] {

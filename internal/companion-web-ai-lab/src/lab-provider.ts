@@ -14,8 +14,11 @@
 
 import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
 import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-azure-responses-adapter.ts";
-import { buildVoiceCard, type VoiceCard } from "./lab-persona-voice.ts";
-import { COMPANION_NATURALNESS_RULES } from "../../../supabase/functions/_shared/companion-voice-and-naturalness-v1.ts";
+import { buildVoiceCard, BEHAVIOUR_BANK, type VoiceCard } from "./lab-persona-voice.ts";
+import {
+  buildLumisCharacterSummary, buildMemberComfortProfile,
+  COMPANION_IDENTITY_SCOPE, COMPANION_INTERACTION_GUIDANCE, companionLengthGuidance,
+} from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import {
   CHAT_SYNTHETIC_PROVIDER_ALIAS,
@@ -116,12 +119,12 @@ export type PersonaComposition = {
 export type PersonaBlock = { name: string; text: string };
 export type PersonaAssembly = { prompt: string; blocks: PersonaBlock[]; voice_card: VoiceCard | null };
 
-// Character-expression + naturalness rules are the Founder-approved CHAT-05 revision, held in the
-// SHARED canonical source (companion-voice-and-naturalness-v1.ts) so the Lab and the future mobile
-// Normal Chat route use one identical copy with no drift. See COMPANION_NATURALNESS_RULES.
+export type MemberChart = { sun: number; moon: number; mercury: number; saturn: number; moon_confirmed: boolean };
 
-// Assemble the full system prompt as ordered, labelled blocks (Founder-specified structure). The
-// returned `blocks` + `voice_card` power the founder preview; `prompt` is what the provider receives.
+// Assemble the full system prompt as the Founder-approved 10-block architecture (handoff 2026-08-24).
+// Blocks 4 (Lumis Character Summary) and 5 (Member Communication & Comfort Profile) are DETERMINISTIC
+// syntheses from the shared canonical source — stable across every turn of a session, and they never
+// name astrology placements. The returned `blocks` + `voice_card` power the founder preview.
 export function assemblePersona(
   payload: unknown,
   userMessage: string,
@@ -129,6 +132,7 @@ export function assemblePersona(
   context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
   composition?: PersonaComposition,
   memberContext?: string | null,
+  memberChart?: MemberChart | null,
 ): PersonaAssembly {
   const p = payload as {
     roleContract?: { publicName?: string; corePurpose?: string; requiredBehaviors?: string; baseTone?: string; hardGuardrail?: string };
@@ -139,18 +143,22 @@ export function assemblePersona(
   const roleLabel = rc.publicName ?? composition?.role?.current_label ?? "";
   const roleCode = composition?.role?.code ?? "";
   const voice = composition ? buildVoiceCard(composition, roleLabel, roleCode) : null;
+  const flav = (factor: string): string | null => {
+    const r = voice ? voice.rows.find((x) => x.factor === factor) : undefined;
+    return r ? BEHAVIOUR_BANK[r.mapping_id].flavour : null;
+  };
 
   const blocks: PersonaBlock[] = [];
-  blocks.push({ name: "1. LUMIS IDENTITY", text: "Lumis is the astrology companion in this real, ongoing conversation with one person." });
-  blocks.push({ name: "2. GROUNDING", text: "Stay honest and grounded, and keep the conversation constructive." });
+  blocks.push({ name: "1. IDENTITY AND SCOPE", text: COMPANION_IDENTITY_SCOPE });
   const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
-  blocks.push({ name: "3. CURRENT SITUATION ADJUSTMENT", text: `${sp ? sp + ". " : ""}Match your pace, depth, and length to this message.` });
-  blocks.push({ name: "4. ROLE", text: `Role: ${roleLabel} (${roleCode}). Your job: ${rc.corePurpose ?? ""} This job never changes. How you carry it out varies with the person and the moment — see the Character Voice below. Manner: ${rc.requiredBehaviors ?? ""}` });
-  if (voice) blocks.push({ name: "5. LUMIS CHARACTER VOICE", text: voice.card_text });
-  blocks.push({ name: "6. CHARACTER EXPRESSION AND NATURALNESS RULES", text: COMPANION_NATURALNESS_RULES.map((r) => `- ${r}`).join("\n") });
-  if (memberContext && memberContext.trim()) blocks.push({ name: "7. RELEVANT MEMBER CONTEXT", text: memberContext.trim() });
-  if (context.length) blocks.push({ name: "8. CONVERSATION CONTINUITY", text: "This is an ongoing conversation — keep the same voice and stay consistent with what was already said:\n" + context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") });
-  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: `Respond only in ${zh ? "Traditional Chinese (zh-Hant)" : "English"}. Use the shortest natural response that adequately meets the moment — around ${zh ? "110–260 characters" : "60–140 words"} is normal, but a short emotional message may need less and a complex reflection more. A brief emotional statement (for example "I am upset") does not need a long analysis. Don't add structure or filler to hit a length.` });
+  blocks.push({ name: "2. CURRENT SITUATION", text: `${sp ? sp + ". " : ""}Match your pace, warmth and length to this message and to what the member seems to need right now.` });
+  blocks.push({ name: "3. ROLE PURPOSE", text: `Role: ${roleLabel} (${roleCode}). Your job: ${rc.corePurpose ?? ""} This never changes. How you carry it out is described in the Character Summary and the member profile below.` });
+  if (voice) blocks.push({ name: "4. LUMIS CHARACTER SUMMARY", text: buildLumisCharacterSummary({ roleCode, ascFlavour: flav("ASC"), moonFlavour: flav("Moon"), sunFlavour: flav("Sun"), saturnFlavour: flav("Saturn"), mercuryFlavour: flav("Mercury") }) });
+  if (memberChart) blocks.push({ name: "5. MEMBER COMMUNICATION AND COMFORT PROFILE", text: buildMemberComfortProfile(memberChart) });
+  blocks.push({ name: "6. INTERACTION GUIDANCE", text: COMPANION_INTERACTION_GUIDANCE });
+  if (memberContext && memberContext.trim()) blocks.push({ name: "7. RELEVANT MEMBER FACTS", text: memberContext.trim() });
+  if (context.length) blocks.push({ name: "8. CONVERSATION CONTINUITY", text: "This is an ongoing conversation — keep the same character and stay consistent with what was already said. Carry forward any preference the member has expressed (for example, if they asked for no advice), until they clearly change it:\n" + context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") });
+  blocks.push({ name: "9. LANGUAGE AND LENGTH", text: companionLengthGuidance(zh) });
   blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
 
   const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
@@ -165,6 +173,7 @@ export function serializePersonaPrompt(
   context: ReadonlyArray<{ role: "user" | "assistant"; text: string }> = [],
   composition?: PersonaComposition,
   memberContext?: string | null,
+  memberChart?: MemberChart | null,
 ): string {
-  return assemblePersona(payload, userMessage, language, context, composition, memberContext).prompt;
+  return assemblePersona(payload, userMessage, language, context, composition, memberContext, memberChart).prompt;
 }
