@@ -6,6 +6,7 @@ import vm from "node:vm";
 import {
   HOUSE_OPTIONS, PLANET_OPTIONS, SIGN_OPTIONS, createLabServer, deterministicPresentation, executeLabFreeTextRequest, executeLabRequest,
   labStatus, loadFixtures, parseControlledHouseWatchBank, presentLabResult, redactExportRecord, renderLabPage, validateLabFreeTextRunRequest, validateLabResult, validateLabRunRequest,
+  executeLabFreeTextV04Request, presentLabV04Result, validateLabV04Result,
 } from "../tools/internal-dice-ai-lab/server.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -178,4 +179,26 @@ assert.equal(stoppedFreeText.status, 503, "default-off HTTP free-text route is p
 await new Promise((resolve, reject) => labServer.close((error) => error ? reject(error) : resolve()));
 assert.equal(deterministicPresentation("DICE_ROUTE_MISMATCH", "en").message, "Lumis couldn’t confirm the correct reading type for this question, so no interpretation was generated. Please rephrase the question clearly and try again.");
 assert.notEqual(deterministicPresentation("DICE_ROUTE_MISMATCH", "en").message, deterministicPresentation("DICE_FIXED_FALLBACK", "en").message, "route-mismatch copy is distinct from technical fallback");
+
+// ---- v4 (Prompt v3 six-mode) lab path ----
+const v04Judgment = { schema: "lumis_dice_interpretation_v4", status: "completed", language: "en", question_mode: "judgment", planet_layer: null, sign_layer: null, house_layer: null, synthesis: "Taking this on is well supported: the core capability is strong and the setting favours you. Still, a strong result depends on handling the basics.", judgment_code: "favourable", judgment_summary: "Favourable overall, with aligned capability and environment.", timing_summary: null, watch_out: "Do not treat a favourable trend as a reason to skip the basics, or momentum can outrun preparation.", practical_step: null, suggested_followups: ["What most needs preparing first?"] };
+const v04Metadata = { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap" };
+const v04FreeText = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
+assert.equal((await executeLabFreeTextV04Request(v04FreeText, { providerEnabled: false })).status, 503, "v4 default-off returns disabled");
+const v04Live = await executeLabFreeTextV04Request(v04FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async (body) => { assert.deepEqual(Object.keys(body), ["question", "planet_id", "sign_id", "house_id"]); return { kind: "completed", result: v04Judgment, question_mode: "judgment", metadata: v04Metadata }; } }) });
+assert.equal(v04Live.status, 200);
+assert.equal(v04Live.body.presentation.kind, "reading");
+assert.equal(v04Live.body.classification.question_mode, "judgment", "v4 surfaces the selected mode");
+assert.deepEqual(v04Live.body.presentation.sections.map((s) => s.heading), ["Result", "Reading", "One thing to watch", "Suggested follow-up questions"], "judgment renders Result + follow-ups, no Practical step");
+assert.match(v04Live.body.presentation.sections[0].body, /^Favourable/u, "verdict label rendered");
+assert.equal(v04Live.body.presentation.sections[3].items.length, 1, "follow-up questions rendered as items");
+assert.equal(v04Live.body.provider_calls, 2, "two provider calls recorded (mode + interpret)");
+const v04Review = await executeLabFreeTextV04Request(v04FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
+assert.equal(v04Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
+assert.equal(v04Review.body.presentation.kind, "route_review");
+const v04Timing = { ...v04Judgment, question_mode: "timing", judgment_code: null, judgment_summary: null, timing_summary: "Slow by nature but externally assisted, gradual overall.", practical_step: "Check one outstanding requirement before the next review point.", suggested_followups: [] };
+const v04TimingPresentation = presentLabV04Result(validateLabV04Result(v04Timing, "en"), { planet: { en: "Pluto", zh: "冥王星", id: "pluto" }, sign: { en: "Sagittarius", zh: "人馬座", id: "sagittarius" }, house: { en: "1st House", zh: "第一宮", id: "house_1" } });
+assert.deepEqual(v04TimingPresentation.sections.map((s) => s.heading), ["Timing", "Reading", "One thing to watch", "Practical step"], "timing renders Timing + Practical step");
+assert.match(serverSource, /id="v4"/u, "browser exposes the v4 toggle");
+assert.match(serverSource, /\/api\/run\/free-text-v4/u, "browser routes the v4 endpoint");
 console.log("internal Dice AI Lab contract passed: bootstrap, dual modes, 36 closed faces, v3 synthesis presentation, route-mismatch copy, metadata-only, provider_calls=0");

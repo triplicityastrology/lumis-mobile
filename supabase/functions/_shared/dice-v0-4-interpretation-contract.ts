@@ -319,3 +319,45 @@ function validateDiceV04Result(raw: Record<string, unknown>, expected: Readonly<
   if ((expected.language === "en" && CHINESE.test(text)) || (expected.language === "zh-Hant" && (!CHINESE.test(text) || CANTONESE_COLLOQUIAL.test(text)))) return null;
   return Object.freeze(raw as unknown as DiceV04Result);
 }
+
+// ---------- Strict structured-output schemas (Azure/OpenAI) ----------
+// Root is always an object (a root-level anyOf is rejected). Content fields are
+// nullable so a single object can carry either a completed reading or a
+// route_review_required stop; the validator enforces the per-mode contract.
+
+export function diceV04ModeSelectionJsonSchema() {
+  return Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["selection"],
+    properties: { selection: { type: "string", enum: [...DICE_V04_MODES, DICE_V04_ROUTE_REVIEW_STATUS] } },
+  } as const);
+}
+
+export function diceV04InterpretationJsonSchema(mode: DiceV04QuestionMode, language: DiceV04Language) {
+  const isJudgment = mode === "judgment";
+  const isTiming = mode === "timing";
+  const nullableString = { type: ["string", "null"] } as const;
+  const nullOnly = { type: "null" } as const;
+  return Object.freeze({
+    type: "object",
+    additionalProperties: false,
+    required: ["schema", "status", "language", "question_mode", "planet_layer", "sign_layer", "house_layer", "synthesis", "judgment_code", "judgment_summary", "timing_summary", "watch_out", "practical_step", "suggested_followups"],
+    properties: {
+      schema: { type: "string", enum: [DICE_V04_RESULT_SCHEMA] },
+      status: { type: "string", enum: ["completed", DICE_V04_ROUTE_REVIEW_STATUS] },
+      language: { type: "string", const: language },
+      question_mode: { type: "string", const: mode },
+      planet_layer: nullableString,
+      sign_layer: nullableString,
+      house_layer: nullableString,
+      synthesis: nullableString,
+      judgment_code: isJudgment ? { type: ["string", "null"], enum: [...DICE_V04_JUDGMENT_CODES, null] } : nullOnly,
+      judgment_summary: isJudgment ? nullableString : nullOnly,
+      timing_summary: isTiming ? nullableString : nullOnly,
+      watch_out: nullableString,
+      practical_step: isJudgment ? nullOnly : nullableString,
+      suggested_followups: { type: "array", items: { type: "string" } },
+    },
+  } as const);
+}

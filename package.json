@@ -271,7 +271,9 @@
     "test:dice-v04-contract": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-interpretation-contract.fixtures.ts",
     "test:dice-v04-window": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-window.fixtures.ts",
     "test:dice-v04-edge": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/dice-synthetic/founder-window-edge-v4.fixtures.ts",
-    "test:dice-v04": "pnpm test:dice-v04-contract && pnpm test:dice-v04-window && pnpm test:dice-v04-edge"
+    "test:dice-v04": "pnpm test:dice-v04-contract && pnpm test:dice-v04-window && pnpm test:dice-v04-edge && pnpm test:dice-v04-classification && pnpm test:dice-v04-timing",
+    "test:dice-v04-classification": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-classification.fixtures.ts",
+    "test:dice-v04-timing": "deno run --config supabase/functions/dice-synthetic/deno.json --allow-read --allow-env supabase/functions/_shared/dice-v0-4-timing.fixtures.ts"
   },
   "devDependencies": {
     "@supabase/supabase-js": "2.110.2",
