@@ -178,6 +178,54 @@ export function createFounderDiceFreeTextGatewayClient({ functionUrl, anonKey, a
   });
 }
 
+// v4 (Dice AI Interpretation Prompt v3) free-text client: sends the opt-in
+// header and parses the two-stage edge response {result, question_mode, metadata}.
+export function createFounderDiceV04FreeTextGatewayClient({ functionUrl, anonKey, accessKey, fetchImpl = fetch }) {
+  const expectedOrigin = "https://bmqhwofmdgebpcihjlnb.supabase.co";
+  const parsed = new URL(functionUrl);
+  if (parsed.origin !== expectedOrigin || parsed.pathname !== "/functions/v1/dice-synthetic" || parsed.search || parsed.hash || !anonKey?.trim() || !accessKey?.trim() || accessKey.length < 32) {
+    throw new Error("LAB_V04_GATEWAY_CONFIGURATION_INVALID");
+  }
+  return Object.freeze({
+    async run(request) {
+      if (!exactKeys(request, FOUNDER_FREE_TEXT_REQUEST_FIELDS)) throw new Error("LAB_V04_GATEWAY_REQUEST_INVALID");
+      const response = await fetchImpl(parsed.href, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${anonKey}`,
+          apikey: anonKey,
+          "content-type": "application/json",
+          "x-lumis-founder-free-text-access": accessKey,
+          "x-lumis-dice-interpretation": "v4",
+        },
+        body: JSON.stringify(request),
+        signal: AbortSignal.timeout(14_000),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const code = payload?.error?.code;
+        return Object.freeze({
+          kind: code === "DICE_SAFETY_REDIRECT" ? "safety"
+            : code === "DICE_BUNDLED_QUESTION" ? "bundled"
+            : code === "DICE_ROUTE_REVIEW_REQUIRED" ? "route_review"
+            : "fallback",
+          code: typeof code === "string" ? code : "DICE_FOUNDER_GATEWAY_UNAVAILABLE",
+          metadata: payload?.metadata ?? null,
+        });
+      }
+      if (!exactKeys(payload, ["result", "question_mode", "metadata"])) throw new Error("LAB_V04_GATEWAY_RESPONSE_INVALID");
+      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, metadata: payload.metadata });
+    },
+  });
+}
+
+export function redactV04Metadata(value) {
+  const allowed = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket"];
+  if (!exactKeys(value, allowed)) return null;
+  if (value.request_mode !== "founder_free_text" || !["en", "zh-Hant"].includes(value.language) || typeof value.result_class !== "string" || !Number.isInteger(value.provider_calls)) return null;
+  return Object.freeze({ ...value });
+}
+
 export function redactLiveMetadata(value) {
   const allowed = ["fixture_id", "language", "result_class", "attempt_count", "latency_bucket", "input_token_bucket", "output_token_bucket", "cost_bucket"];
   if (!exactKeys(value, allowed)) return null;
