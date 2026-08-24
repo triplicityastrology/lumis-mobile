@@ -372,24 +372,52 @@ function renderSessionList() {
 }
 function RESULT_BADGE(s) { return s.overall_result === "pass" ? "b-completed" : s.overall_result === "fail" ? "b-safety" : s.overall_result === "needs_improvement" ? "b-oos" : "b-unavailable"; }
 
+function closeSessionDetail() {
+  const box = $("session-detail"); box.className = "trace muted"; box.innerHTML = "";
+  box.textContent = "Open a session from the list to review its messages, scores, and reproducibility metadata.";
+}
+
 async function openSession(id) {
   const j = await api("/api/lab/session?id=" + encodeURIComponent(id));
   const s = j && j.session; const box = $("session-detail"); box.className = "trace"; box.innerHTML = "";
   if (!s) { box.textContent = "not found"; return; }
+  // Header: title + saved indicator + Close (so the detail can be dismissed and never traps the list).
+  const saved = el("span", { class: "small", id: "detail-saved" });
+  const closeBtn = el("button", { class: "btn-secondary", type: "button", text: "✕ Close" });
+  closeBtn.addEventListener("click", closeSessionDetail);
+  box.append(el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
+    el("b", { text: s.test_title || s.session_id }), el("div", { class: "row", style: "gap:8px;margin:0" }, saved, closeBtn)));
+  const flash = (t) => { const n = $("detail-saved"); if (n) n.textContent = t; };
+
   box.append(group("Session",
     line("id", s.session_id), line("tester", s.tester || "—"), line("test", s.test_title || "—"),
     line("role", `${s.role_label} (${s.role_code})`), line("chart", s.chart ? `Sun ${s.chart.sun} Moon ${s.chart.moon} Mercury ${s.chart.mercury} Saturn ${s.chart.saturn}` : "—"),
     line("resolved", Object.entries(s.resolved).map(([k, v]) => `${k}:${v}`).join(" · ")),
     line("versions", `persona ${s.persona_rule_version} · mapping ${s.behaviour_mapping_version} · prompt ${s.prompt_version}`),
-    line("model", `${s.model} @ ${s.deployment}`), line("overall", s.overall_result), line("summary", s.summary_comment || "—")));
-  const mg = group("Messages + scores");
+    line("model", `${s.model} @ ${s.deployment}`), line("overall", s.overall_result)));
+
+  // Editable session summary comment (saves; preserves the overall result).
+  const summaryTa = el("textarea", { rows: "2", placeholder: "Session summary comment…" }); summaryTa.value = s.summary_comment || "";
+  let sTimer; summaryTa.addEventListener("input", () => {
+    flash("saving…"); clearTimeout(sTimer);
+    sTimer = setTimeout(async () => { await api("/api/lab/session/summary", { session_id: s.session_id, summary_comment: summaryTa.value, overall_result: s.overall_result }); flash("saved ✓"); }, 600);
+  });
+  box.append(group("Session summary comment (editable)", summaryTa));
+
+  const mg = group("Messages + scores (comments editable)");
   for (const m of s.messages) {
     const who = m.speaker === "user" ? "You" : "Lumis";
     mg.append(el("div", { class: "line" }, el("span", { class: "k", text: `${m.turn} · ${who}` }), el("span", { class: "v", text: m.text.slice(0, 200) })));
-    if (m.evaluation) {
-      const e = m.evaluation;
-      const parts = SCORES.filter(([k]) => e[k] != null).map(([k, l]) => `${l}:${e[k]}`).concat(e.length ? [`Length:${e.length}`] : []).concat(e.comments ? [`“${e.comments}”`] : []);
+    if (m.speaker === "lumis") {
+      const e = m.evaluation || {};
+      const parts = SCORES.filter(([k]) => e[k] != null).map(([k, l]) => `${l}:${e[k]}`).concat(e.length ? [`Length:${e.length}`] : []);
       if (parts.length) mg.append(el("div", { class: "small", style: "padding-left:12px;color:var(--ok)", text: parts.join(" · ") }));
+      const ta = el("textarea", { rows: "2", placeholder: `Comment on turn ${m.turn}…` }); ta.value = e.comments || "";
+      let tTimer; ta.addEventListener("input", () => {
+        flash("saving…"); clearTimeout(tTimer);
+        tTimer = setTimeout(async () => { await api("/api/lab/session/evaluate", { session_id: s.session_id, turn: m.turn, evaluation: { comments: ta.value } }); flash("saved ✓"); }, 600);
+      });
+      mg.append(el("div", { style: "padding-left:12px" }, ta));
     }
   }
   box.append(mg);
