@@ -100,7 +100,7 @@ check("provider still reuses the server-side Azure config gate", provider.includ
 // ---- 6. Existing persona/companion prompt pipeline preserved (NOT a simplified replacement) ----
 check("conversation reuses serializePersonaPrompt + runGenerative (no bespoke prompt)", conversation.includes("serializePersonaPrompt(") && conversation.includes("runGenerative("));
 check("prompt is assembled by the reused persona-prompt-pipeline", provider.includes("persona-prompt-pipeline") || read("src/lab-engine.ts").includes("persona-prompt-pipeline-v1.ts"));
-check("multi-turn context is threaded into the same persona prompt", provider.includes("CONTINUITY AND EXPRESSED PREFERENCES"));
+check("multi-turn context is threaded into the same persona prompt", provider.includes("history: context") && read("../../supabase/functions/_shared/companion-synthesis-v1.ts").includes("8. CONTINUITY AND EXPRESSED PREFERENCES"));
 check("prompt version binds companion-synthetic + persona pipeline", identity.includes("COMPANION_SYNTHETIC_PROMPT_VERSION") && identity.includes("PERSONA_PROMPT_PIPELINE_VERSION"));
 
 // ---- 7. The 12 frozen regression fixtures are present but OPTIONAL ----
@@ -205,14 +205,27 @@ const synth = read("../../supabase/functions/_shared/companion-synthesis-v1.ts")
 const labVoiceSrc = read("src/lab-persona-voice.ts");
 // Two deterministic generators + canonical block text live in ONE shared source.
 check("synthesis generators live in the shared canonical source", synth.includes("export function buildLumisCharacterSummary") && synth.includes("export function buildMemberComfortProfile") && synth.includes("COMPANION_SYNTHESIS_VERSION"));
-check("member comfort profile is Moon-led (Moon primary, before Mercury/Sun)", synth.includes("This member ${MOON_CARE[chart.moon]}") && synth.indexOf("const MOON_CARE") < synth.indexOf("const MERCURY_STYLE"));
+check("member comfort profile is Moon-led (Moon primary, before Mercury/Sun)", synth.includes("This member likely ${MOON_CARE[chart.moon]}") && synth.indexOf("const MOON_CARE") < synth.indexOf("const MERCURY_STYLE"));
 check("summaries name no astrology placements (no sign names in the shared generators)", !/\b(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b/.test(synth));
 check("Prompt v3 canonical text in the shared source (scope + email boundary + role contracts + chart translation + natural conversation + flexible length)", synth.includes("general-purpose how-to assistant") && synth.includes("do not write the completed email") && synth.includes("ROLE_CONTRACT_V3") && synth.includes("Keep astrology invisible by default") && synth.includes("Do not ask the member to choose between listening") && synth.includes("Length guidance, not targets") && synth.includes("Do not infer Venus"));
-// The Lab assembles the 10 blocks and pulls blocks 1/4/5/6/9 from the shared synthesis source.
-check("Lab assembles the Prompt v3 10-block architecture from shared synthesis", provider.includes("companion-synthesis-v1.ts") && provider.includes("1. IDENTITY AND SCOPE") && provider.includes("4. LUMIS CHARACTER EXPRESSION") && provider.includes("5. MEMBER COMMUNICATION AND COMFORT PROFILE") && provider.includes("6. CHART TRANSLATION AND ASTROLOGY VISIBILITY") && provider.includes("7. NATURAL CONVERSATION AND REPAIR") && provider.includes("8. CONTINUITY AND EXPRESSED PREFERENCES"));
-check("role block is a v3 conversational-perspective contract (not a format/device)", provider.includes("3. ROLE PURPOSE") && provider.includes("ROLE_CONTRACT_V3[roleCode]") && provider.includes("conversational perspective, not a required format") && !provider.includes("Manner: ${rc.requiredBehaviors"));
-check("member chart is threaded so the profile shapes every reply", provider.includes("memberChart") && provider.includes("buildMemberComfortProfile(memberChart)"));
-check("prompt version records the architecture revision", identity.includes("COMPANION_SYNTHESIS_VERSION") && identity.includes("+arch_"));
+// Correction #2: the 10-block Prompt v3 assembly is ONE canonical shared function. The Lab CALLS it
+// and maintains NO independent assembly (no block-name literals in lab-provider).
+check("single canonical Prompt v3 assembler lives in the shared source", synth.includes("export function assembleCompanionPromptV3") && synth.includes("1. IDENTITY AND SCOPE") && synth.includes("4. LUMIS CHARACTER EXPRESSION") && synth.includes("5. MEMBER COMMUNICATION AND COMFORT PROFILE") && synth.includes("6. CHART TRANSLATION AND ASTROLOGY VISIBILITY") && synth.includes("7. NATURAL CONVERSATION AND REPAIR") && synth.includes("8. CONTINUITY AND EXPRESSED PREFERENCES"));
+check("Lab calls the shared assembler and keeps NO independent Prompt v3 assembly", provider.includes("assembleCompanionPromptV3(") && !/name:\s*"1\. IDENTITY AND SCOPE"/.test(provider) && !provider.includes('"4. LUMIS CHARACTER EXPRESSION"'));
+check("Lab threads role, factor flavours and member chart into the shared assembler", provider.includes("factorFlavours:") && provider.includes("memberChart: memberChart") && provider.includes("memberFacts: memberContext"));
+// Correction #2(b): role contracts are ONE canonical source; the old per-role mandates are gone.
+check("role contracts consolidated: persona-behavior sources the canonical ROLE_CONTRACT_V3", personaBehavior.includes("ROLE_CONTRACT_V3 } from") && personaBehavior.includes("requiredBehaviors: ROLE_CONTRACT_V3.empathetic_peer") && synth.includes("export const ROLE_CONTRACT_V3"));
+for (const gone of ["help unpack it", "listen-or-organise question", "blind spot only when there is a real one"]) {
+  check(`old role mandate removed from persona-behavior ("${gone.slice(0, 26)}…")`, !personaBehavior.includes(gone));
+}
+// Correction #4: member-profile output is tentative.
+check("member comfort profile is tentative (likely / may / tends to)", synth.includes("This member likely ${MOON_CARE") && synth.includes("It may help to recognise") && synth.includes("They may feel most secure"));
+// Correction #6: the browser excludes failed turns from the rolling model context.
+check("browser excludes failed turns from rolling context (correction #6)", appCode.includes("contextEligible") && appCode.includes("failedResults") && appCode.includes("failedDispositions") && /if \(contextEligible\)/.test(appCode));
+check("shared predicate contextEligibleTurn exists and excludes failure dispositions", read("src/lab-turn.ts").includes("export function contextEligibleTurn") && read("src/lab-turn.ts").includes("CONTEXT_FAILURE_DISPOSITIONS"));
+// Correction #7: full +arch_v3 identity + a documented reason the adapter uses the base gateway version.
+check("prompt version records the full architecture revision (+arch_v3)", identity.includes("COMPANION_SYNTHESIS_VERSION") && identity.includes("+arch_"));
+check("runGenerative documents base-vs-full prompt version (traceability #7)", provider.includes("reused synthetic-gateway prompt-version") && provider.includes("FULL LAB_PROMPT_VERSION"));
 // Prior CHAT-05 shared sources remain canonical (voice/naturalness module; buildCombinedCharacter still used by the voice-card preview).
 check("voice/naturalness shared module remains canonical", voiceShared.includes("COMPANION_NATURALNESS_RULES") && voiceShared.includes("export function buildCombinedCharacter"));
 check("Lab voice card still derives from shared (buildCombinedCharacter import)", labVoiceSrc.includes("buildCombinedCharacter } from"));

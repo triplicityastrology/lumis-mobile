@@ -15,12 +15,7 @@
 import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
 import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-azure-responses-adapter.ts";
 import { buildVoiceCard, BEHAVIOUR_BANK, type VoiceCard } from "./lab-persona-voice.ts";
-import {
-  buildLumisCharacterSummary, buildMemberComfortProfile,
-  COMPANION_IDENTITY_SCOPE, COMPANION_NATURAL_CONVERSATION, companionLengthGuidance,
-  ROLE_CONTRACT_V3, COMPANION_CHART_TRANSLATION,
-  COMPANION_CHARACTER_EXPRESSION_NOTE, COMPANION_MEMBER_PROFILE_NOTE,
-} from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
+import { assembleCompanionPromptV3 } from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import {
   CHAT_SYNTHETIC_PROVIDER_ALIAS,
@@ -80,6 +75,11 @@ export async function runGenerative(
     const result = await runtime.adapter.complete({
       providerAlias: CHAT_SYNTHETIC_PROVIDER_ALIAS,
       safetyProfile: CHAT_SYNTHETIC_SAFETY_PROFILE,
+      // Correction round #7: this is the reused synthetic-gateway prompt-version LITERAL required by the
+      // Azure Responses adapter's identity binding — deliberately the base gateway version, NOT the Lab
+      // architecture label. Founder-facing traceability (persisted session, prompt snapshot/hash, Excel
+      // export, identity receipt) records the FULL LAB_PROMPT_VERSION ending in +arch_v3; the two are
+      // distinct on purpose and must not be conflated.
       promptVersion: COMPANION_SYNTHETIC_PROMPT_VERSION,
       language,
       promptInput,
@@ -123,10 +123,11 @@ export type PersonaAssembly = { prompt: string; blocks: PersonaBlock[]; voice_ca
 
 export type MemberChart = { sun: number; moon: number; mercury: number; saturn: number; moon_confirmed: boolean };
 
-// Assemble the full system prompt as the Founder-approved 10-block architecture (handoff 2026-08-24).
-// Blocks 4 (Lumis Character Summary) and 5 (Member Communication & Comfort Profile) are DETERMINISTIC
-// syntheses from the shared canonical source — stable across every turn of a session, and they never
-// name astrology placements. The returned `blocks` + `voice_card` power the founder preview.
+// Assemble the full Prompt v3 system prompt. The 10-block assembly itself lives in the SHARED canonical
+// source (assembleCompanionPromptV3); the Lab only resolves the voice-card factor flavours (from the
+// shared Persona Behaviour Mapping v1.3) and passes them in. The Lab maintains NO independent Prompt v3
+// assembly, so Lab and future mobile cannot drift. The returned `blocks` + `voice_card` power the
+// founder preview; `prompt` is what the provider receives.
 export function assemblePersona(
   payload: unknown,
   userMessage: string,
@@ -141,7 +142,6 @@ export function assemblePersona(
     situationParameters?: Record<string, string>;
   };
   const rc = p.roleContract ?? {};
-  const zh = language === "zh-Hant";
   const roleLabel = rc.publicName ?? composition?.role?.current_label ?? "";
   const roleCode = composition?.role?.code ?? "";
   const voice = composition ? buildVoiceCard(composition, roleLabel, roleCode) : null;
@@ -150,21 +150,18 @@ export function assemblePersona(
     return r ? BEHAVIOUR_BANK[r.mapping_id].flavour : null;
   };
 
-  const blocks: PersonaBlock[] = [];
-  // Prompt v3 assembly (handoff 2026-08-24). Canonical text lives in the shared synthesis source.
-  blocks.push({ name: "1. IDENTITY AND SCOPE", text: COMPANION_IDENTITY_SCOPE });
-  const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k}=${String(v).replace(/_/g, " ")}`).join(", ") : "";
-  blocks.push({ name: "2. CURRENT SITUATION", text: `${sp ? sp + ".\n\n" : ""}Match the pace, warmth, directness, and length to this message, the conversation already underway, and any preference the member has clearly expressed.` });
-  const roleContract = ROLE_CONTRACT_V3[roleCode] ?? rc.corePurpose ?? "";
-  blocks.push({ name: "3. ROLE PURPOSE", text: `Role: ${roleLabel} (${roleCode}).\n\n${roleContract}\n\nThis role determines why you are responding. It is a conversational perspective, not a required format, opening, question, list, or catchphrase.` });
-  if (voice) blocks.push({ name: "4. LUMIS CHARACTER EXPRESSION", text: `${buildLumisCharacterSummary({ roleCode, ascFlavour: flav("ASC"), moonFlavour: flav("Moon"), sunFlavour: flav("Sun"), saturnFlavour: flav("Saturn"), mercuryFlavour: flav("Mercury") })}\n\n${COMPANION_CHARACTER_EXPRESSION_NOTE}` });
-  if (memberChart) blocks.push({ name: "5. MEMBER COMMUNICATION AND COMFORT PROFILE", text: `${buildMemberComfortProfile(memberChart)}\n\n${COMPANION_MEMBER_PROFILE_NOTE}` });
-  const facts = memberContext && memberContext.trim() ? memberContext.trim() : "None available in this conversation.";
-  blocks.push({ name: "6. CHART TRANSLATION AND ASTROLOGY VISIBILITY", text: `Available approved member facts:\n${facts}\n\n${COMPANION_CHART_TRANSLATION}` });
-  blocks.push({ name: "7. NATURAL CONVERSATION AND REPAIR", text: COMPANION_NATURAL_CONVERSATION });
-  if (context.length) blocks.push({ name: "8. CONTINUITY AND EXPRESSED PREFERENCES", text: context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") + "\n\nUse only relevant history. Do not quote or recap it unnecessarily. Carry forward any preference the member has expressed (for example, no advice) until they clearly change it. If no successful earlier model response reached the member, do not treat a repeated user message as an emotional loop." });
-  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: companionLengthGuidance(zh) });
-  blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
+  const blocks = assembleCompanionPromptV3({
+    roleLabel,
+    roleCode,
+    // roleContract omitted -> the shared assembler uses the canonical ROLE_CONTRACT_V3[roleCode].
+    situationParams: p.situationParameters ?? null,
+    factorFlavours: voice ? { asc: flav("ASC"), sun: flav("Sun"), moon: flav("Moon"), saturn: flav("Saturn"), mercury: flav("Mercury") } : null,
+    memberChart: memberChart ?? null,
+    memberFacts: memberContext ?? null,
+    history: context,
+    language,
+    userMessage,
+  });
 
   const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");
   return { prompt, blocks, voice_card: voice };

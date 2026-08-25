@@ -48,22 +48,29 @@ const SATURN_SECURE: Record<number, string> = {
   10: "structure, responsibility and earned progress", 11: "autonomy and principle", 12: "gentleness and space to breathe",
 };
 
-// Block 5 — Member Communication & Comfort Profile (Moon-led). Tentative language; shapes delivery;
-// names no placements. The underlying facts are supplied separately to the Chart Translation block.
+// Block 5 — Member Communication & Comfort Profile (Moon-led). Tentative language ("likely / may /
+// tends to"); shapes delivery; names no placements. The underlying facts are supplied separately to
+// the Chart Translation block.
+//
+// GOVERNANCE (Founder correction round): the MOON_CARE/MERCURY_STYLE/SUN_VALUE/SATURN_SECURE tables
+// above are CONTROLLED WORDING — faithful paraphrases of the approved Knowledge Bank sign core-drives,
+// held here as the single canonical member-profile source. They are not a second interpretation to be
+// edited ad hoc; any change is a controlled wording change requiring Founder approval. Profile output
+// is deliberately tentative and must not become a definite claim or diagnosis about the member.
 export function buildMemberComfortProfile(chart: Chart): string {
   const parts: string[] = [];
   if (chart.moon_confirmed && MOON_CARE[chart.moon]) {
-    parts.push(`This member ${MOON_CARE[chart.moon]}`);
+    parts.push(`This member likely ${MOON_CARE[chart.moon]}.`);
   } else {
-    parts.push("This member's emotional comfort layer is not confirmed (no birth-time Moon), so lean on their communication style and what they value rather than assuming how they process feeling");
+    parts.push("This member's emotional comfort layer is not confirmed (no birth-time Moon), so lean on their communication style and what they value rather than assuming how they process feeling.");
   }
-  if (MERCURY_STYLE[chart.mercury]) parts.push(`They tend to communicate in a way that is ${MERCURY_STYLE[chart.mercury]}`);
-  if (SUN_VALUE[chart.sun]) parts.push(`Recognise ${SUN_VALUE[chart.sun]}`);
-  if (SATURN_SECURE[chart.saturn]) parts.push(`They tend to feel most secure with ${SATURN_SECURE[chart.saturn]}`);
-  return parts.join(". ") + ". Let this shape your pacing, warmth, directness and framing.";
+  if (MERCURY_STYLE[chart.mercury]) parts.push(`They tend to communicate in a way that is ${MERCURY_STYLE[chart.mercury]}.`);
+  if (SUN_VALUE[chart.sun]) parts.push(`It may help to recognise ${SUN_VALUE[chart.sun]}.`);
+  if (SATURN_SECURE[chart.saturn]) parts.push(`They may feel most secure with ${SATURN_SECURE[chart.saturn]}.`);
+  return parts.join(" ") + " Let this gently shape your pacing, warmth, directness and framing; hold it as a tendency, not a fixed fact about them.";
 }
 
-// Block 4 — Lumis Character Expression (one stable character from role + resolved manner flavours).
+// Block 4 — Lumis Character Expression (one stable character from role + ALL resolved role factors).
 export type CharacterInput = {
   roleCode: string;
   ascFlavour?: string | null; moonFlavour?: string | null; sunFlavour?: string | null;
@@ -74,14 +81,31 @@ const ROLE_CLAUSE: Record<string, string> = {
   harmonious_catalyst: "It brings a little lightness and one live possibility rather than a menu of options, and it reads the moment before nudging anything.",
   saturnian_anchor: "It offers one clear observation or distinction rather than announcing a blind spot or assigning a task every turn.",
 };
+const normFlavour = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
+
+// Compose ONE coherent character from every approved resolved factor the role uses (ASC presence ->
+// Sun drive -> Moon settling -> Saturn steadying -> Mercury voice, Mercury last). Every present factor
+// contributes exactly once; when two factors resolve to the same flavour it is expressed as
+// reinforcement rather than repeated verbatim (Founder correction round #1 and #3).
 export function buildLumisCharacterSummary(input: CharacterInput): string {
-  const settled = input.moonFlavour || input.sunFlavour;
-  const bits: string[] = [];
-  bits.push(`Lumis is a ${input.ascFlavour || "warm, present"} companion`);
-  if (settled) bits.push(`${settled} as the conversation settles`);
-  if (input.saturnFlavour) bits.push(`${input.saturnFlavour} when something needs steadying`);
-  let s = bits.join("; ");
-  if (input.mercuryFlavour) s += `. When it puts something into words it sounds ${input.mercuryFlavour}`;
+  const ascF = (input.ascFlavour || "warm, present").trim();
+  const used = new Set<string>([normFlavour(ascF)]);
+  let reinforced = false;
+  const mid: string[] = [];
+  const consider = (flav: string | null | undefined, distinct: (f: string) => string, reinforce: string) => {
+    const f = (flav || "").trim();
+    if (!f) return;
+    if (used.has(normFlavour(f))) { reinforced = true; mid.push(reinforce); }
+    else { used.add(normFlavour(f)); mid.push(distinct(f)); }
+  };
+  consider(input.sunFlavour, (f) => `driven by ${f}`, "carried by that same drive");
+  consider(input.moonFlavour, (f) => `${f} as the conversation settles`, "holding that presence as the conversation settles");
+  consider(input.saturnFlavour, (f) => `${f} when something needs steadying`, "and that same steadiness when something needs holding");
+  const opener = reinforced ? `Lumis is especially ${ascF}` : `Lumis is a ${ascF} companion`;
+  let s = opener;
+  mid.forEach((c, i) => { s += (i === 0 ? ", " : "; ") + c; });
+  const merc = (input.mercuryFlavour || "").trim();
+  if (merc) s += used.has(normFlavour(merc)) ? ". Its wording carries that same quality" : `. When it puts something into words it sounds ${merc}`;
   const clause = ROLE_CLAUSE[input.roleCode] || "It sounds like a real companion rather than a script.";
   return `${s}. ${clause}`;
 }
@@ -172,4 +196,47 @@ export function companionLengthGuidance(zh: boolean): string {
     "- requested advice or simple chart explanation: about 50–120 words;\n" +
     "- longer only when the subject genuinely requires it.\n\n" +
     "Never add filler to reach a range or truncate a complete natural thought merely to remain inside it.";
+}
+
+// ---- SINGLE CANONICAL PROMPT v3 ASSEMBLER (Founder correction round #2) ----
+// This is the one place the 10 Prompt v3 blocks are assembled, in the approved order, from the shared
+// canonical text. The Lab and the future mobile/product pipeline BOTH call this — neither maintains its
+// own Prompt v3 assembly. Callers supply the resolved factor flavours (extracted from the shared
+// Persona Behaviour Mapping v1.3) and the member chart/facts; the assembler builds the deterministic
+// character + comfort summaries itself so the assembly cannot drift between surfaces.
+export type CompanionPromptBlock = { name: string; text: string };
+export type CompanionAssembleInput = {
+  roleLabel: string;
+  roleCode: string;
+  roleContract?: string | null;                 // defaults to the canonical ROLE_CONTRACT_V3[roleCode]
+  situationParams?: Record<string, string> | null;
+  factorFlavours: { asc?: string | null; sun?: string | null; moon?: string | null; saturn?: string | null; mercury?: string | null } | null;
+  memberChart?: Chart | null;
+  memberFacts?: string | null;
+  history?: ReadonlyArray<{ role: "user" | "assistant"; text: string }>;
+  language: "en" | "zh-Hant";
+  userMessage: string;
+};
+export function assembleCompanionPromptV3(i: CompanionAssembleInput): CompanionPromptBlock[] {
+  const zh = i.language === "zh-Hant";
+  const blocks: CompanionPromptBlock[] = [];
+  blocks.push({ name: "1. IDENTITY AND SCOPE", text: COMPANION_IDENTITY_SCOPE });
+  const sp = i.situationParams ? Object.entries(i.situationParams).map(([k, v]) => `${k}=${String(v).replace(/_/g, " ")}`).join(", ") : "";
+  blocks.push({ name: "2. CURRENT SITUATION", text: `${sp ? sp + ".\n\n" : ""}Match the pace, warmth, directness, and length to this message, the conversation already underway, and any preference the member has clearly expressed.` });
+  const roleContract = i.roleContract ?? ROLE_CONTRACT_V3[i.roleCode] ?? "";
+  blocks.push({ name: "3. ROLE PURPOSE", text: `Role: ${i.roleLabel} (${i.roleCode}).\n\n${roleContract}\n\nThis role determines why you are responding. It is a conversational perspective, not a required format, opening, question, list, or catchphrase.` });
+  const f = i.factorFlavours;
+  if (f && (f.asc || f.moon || f.sun || f.saturn || f.mercury)) {
+    const summary = buildLumisCharacterSummary({ roleCode: i.roleCode, ascFlavour: f.asc, sunFlavour: f.sun, moonFlavour: f.moon, saturnFlavour: f.saturn, mercuryFlavour: f.mercury });
+    blocks.push({ name: "4. LUMIS CHARACTER EXPRESSION", text: `${summary}\n\n${COMPANION_CHARACTER_EXPRESSION_NOTE}` });
+  }
+  if (i.memberChart) blocks.push({ name: "5. MEMBER COMMUNICATION AND COMFORT PROFILE", text: `${buildMemberComfortProfile(i.memberChart)}\n\n${COMPANION_MEMBER_PROFILE_NOTE}` });
+  const facts = i.memberFacts && i.memberFacts.trim() ? i.memberFacts.trim() : "None available in this conversation.";
+  blocks.push({ name: "6. CHART TRANSLATION AND ASTROLOGY VISIBILITY", text: `Available approved member facts:\n${facts}\n\n${COMPANION_CHART_TRANSLATION}` });
+  blocks.push({ name: "7. NATURAL CONVERSATION AND REPAIR", text: COMPANION_NATURAL_CONVERSATION });
+  const history = i.history ?? [];
+  if (history.length) blocks.push({ name: "8. CONTINUITY AND EXPRESSED PREFERENCES", text: history.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") + "\n\nUse only relevant history. Do not quote or recap it unnecessarily. Carry forward any preference the member has expressed (for example, no advice) until they clearly change it. If no successful earlier model response reached the member, do not treat a repeated user message as an emotional loop." });
+  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: companionLengthGuidance(zh) });
+  blocks.push({ name: "10. CURRENT USER MESSAGE", text: i.userMessage });
+  return blocks;
 }

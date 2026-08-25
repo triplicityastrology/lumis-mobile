@@ -38,6 +38,20 @@ import {
 import { FIXED_TEMPLATE_REGISTRY_VERSION } from "../../../supabase/functions/_shared/fixed-template-registry.ts";
 import { PERSONA_PROMPT_PIPELINE_VERSION } from "../../../supabase/functions/_shared/persona-prompt-pipeline-v1.ts";
 
+// Failed-response continuity (Founder correction round #6). A turn that did not produce a real Lumis
+// reply (temporary-unavailable / router-unavailable / technical error / content-filtered) must NOT be
+// threaded into the rolling model history as if Lumis had successfully said it — otherwise a resend of
+// the same message would be mistaken for an emotional repetition loop, and fallback text would pollute
+// later context. The browser uses `contextEligibleTurn` to decide whether a turn enters the rolling
+// context; failed turns are still displayed and persisted server-side for evidence, just not replayed.
+export const CONTEXT_FAILURE_RESULTS = ["router_unavailable", "route_unavailable", "technical_error"] as const;
+export const CONTEXT_FAILURE_DISPOSITIONS = ["content_filtered_input", "content_filtered_output", "http_or_schema_rejected"] as const;
+export function contextEligibleTurn(result: string, providerDisposition: string | null | undefined): boolean {
+  if ((CONTEXT_FAILURE_RESULTS as readonly string[]).includes(result)) return false;
+  if (providerDisposition && (CONTEXT_FAILURE_DISPOSITIONS as readonly string[]).includes(providerDisposition)) return false;
+  return true;
+}
+
 export type LabTelemetry = Readonly<{
   requestId: string;
   timestamp: string;

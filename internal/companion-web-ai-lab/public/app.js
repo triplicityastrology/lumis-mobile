@@ -118,8 +118,16 @@ async function send() {
   finally { $("loading").hidden = true; $("send").disabled = false; }
   const reply = body.assistant_message || `(${body.result || "no response"}${body.error_code ? " · " + body.error_code : ""})`;
   appendBubble("assistant", reply, body.lumis_turn);
-  conversation.push({ role: "user", text: message });
-  conversation.push({ role: "assistant", text: reply });
+  // Failed-response continuity (correction #6): only thread a REAL reply into the rolling model
+  // context. A temporary-unavailable / router-unavailable / technical / content-filtered turn is
+  // shown + persisted server-side, but NOT replayed as history, so a resend is a retry not a loop.
+  const failedResults = ["router_unavailable", "route_unavailable", "technical_error"];
+  const failedDispositions = ["content_filtered_input", "content_filtered_output", "http_or_schema_rejected"];
+  const contextEligible = !failedResults.includes(body.result) && !failedDispositions.includes(body.provider_disposition);
+  if (contextEligible) {
+    conversation.push({ role: "user", text: message });
+    conversation.push({ role: "assistant", text: reply });
+  }
   if (body.lumis_turn != null) { setSaveState("saved ✓"); selectMessage(body.lumis_turn); }
   if (body.chart_composition) renderComposition(body.chart_composition);
   renderDetails(body);

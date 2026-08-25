@@ -3,6 +3,10 @@ import {
   PERSONA_BEHAVIOR_MAPPING_VERSION,
   type PersonaMappingFactor,
 } from "./persona-behavior-mapping-v1";
+// Single canonical role-contract source (Founder correction round #2): the conversational role
+// behaviour is the Prompt v3 contract, shared by the Lab and the future mobile/product pipeline. The
+// old per-role mandate text is no longer a second authority here.
+import { ROLE_CONTRACT_V3 } from "./companion-synthesis-v1.ts";
 
 export const PERSONA_BEHAVIOR_ASSEMBLER_VERSION = "v1" as const;
 
@@ -97,7 +101,7 @@ const ROLE_CONTRACTS = {
   empathetic_peer: {
     publicName: "Acceptance",
     corePurpose: "Offer emotional presence, acceptance, and a safe place to talk.",
-    requiredBehaviors: "Stay emotionally present and unhurried, responding to the specific thing said or felt; an explicit validation sentence is optional, not a required opening. If the direction is unclear you may offer once to stay with the feeling or to help unpack it, then follow their lead without asking again. Keep advice light unless invited.",
+    requiredBehaviors: ROLE_CONTRACT_V3.empathetic_peer,
     baseTone: "Warm, unhurried, non-judgmental, grounded.",
     hardGuardrail: "Accept feelings without automatically confirming conclusions, accusations, catastrophic predictions, or harmful ideas.",
     factors: ["ASC", "Moon", "Mercury"],
@@ -105,7 +109,7 @@ const ROLE_CONTRACTS = {
   harmonious_catalyst: {
     publicName: "Spark",
     corePurpose: "Bring energy, a fresh angle, and a manageable next step without creating pressure.",
-    requiredBehaviors: "Bring lightness, movement, or a fresh perspective when the moment is receptive; if the person is distressed, lower the energy and stay present first. Keep any suggestion optional. You don't default to a listen-or-organise question, and you don't turn every reply into an option menu.",
+    requiredBehaviors: ROLE_CONTRACT_V3.harmonious_catalyst,
     baseTone: "Lively, friendly, flexible, lightly playful when appropriate.",
     hardGuardrail: "Pause humour when grief, high anxiety, shock, or acute distress is present. Do not turn every response into action coaching.",
     factors: ["ASC", "Sun", "Moon", "Mercury"],
@@ -113,7 +117,7 @@ const ROLE_CONTRACTS = {
   saturnian_anchor: {
     publicName: "Awareness",
     corePurpose: "Offer calm structure, identify a meaningful blind spot, and guide the user toward a realistic next step.",
-    requiredBehaviors: "Be steady, reflective, and structurally clear. Your distinctive consent point is directness: you may ask once whether they want a direct observation, a pattern named, or help structuring the issue, then proceed without re-asking. Name a blind spot only when there is a real one — not every reply is a blind-spot analysis — and keep any step optional and realistic.",
+    requiredBehaviors: ROLE_CONTRACT_V3.saturnian_anchor,
     baseTone: "Steady, thoughtful, respectful, clear, quietly authoritative.",
     hardGuardrail: "Do not oppose for the sake of opposition. Saturn means structure, boundaries, and responsibility—not blame, shame, or obedience.",
     factors: ["ASC", "Sun", "Saturn", "Mercury"],
