@@ -17,7 +17,9 @@ import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-
 import { buildVoiceCard, BEHAVIOUR_BANK, type VoiceCard } from "./lab-persona-voice.ts";
 import {
   buildLumisCharacterSummary, buildMemberComfortProfile,
-  COMPANION_IDENTITY_SCOPE, COMPANION_INTERACTION_GUIDANCE, companionLengthGuidance,
+  COMPANION_IDENTITY_SCOPE, COMPANION_NATURAL_CONVERSATION, companionLengthGuidance,
+  ROLE_CONTRACT_V3, COMPANION_CHART_TRANSLATION,
+  COMPANION_CHARACTER_EXPRESSION_NOTE, COMPANION_MEMBER_PROFILE_NOTE,
 } from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
 import {
@@ -149,16 +151,19 @@ export function assemblePersona(
   };
 
   const blocks: PersonaBlock[] = [];
+  // Prompt v3 assembly (handoff 2026-08-24). Canonical text lives in the shared synthesis source.
   blocks.push({ name: "1. IDENTITY AND SCOPE", text: COMPANION_IDENTITY_SCOPE });
-  const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k} ${String(v).replace(/_/g, " ")}`).join(", ") : "";
-  blocks.push({ name: "2. CURRENT SITUATION", text: `${sp ? sp + ". " : ""}Match your pace, warmth and length to this message and to what the member seems to need right now.` });
-  blocks.push({ name: "3. ROLE PURPOSE", text: `Role: ${roleLabel} (${roleCode}). Your job: ${rc.corePurpose ?? ""} This never changes. How you carry it out is described in the Character Summary and the member profile below.` });
-  if (voice) blocks.push({ name: "4. LUMIS CHARACTER SUMMARY", text: buildLumisCharacterSummary({ roleCode, ascFlavour: flav("ASC"), moonFlavour: flav("Moon"), sunFlavour: flav("Sun"), saturnFlavour: flav("Saturn"), mercuryFlavour: flav("Mercury") }) });
-  if (memberChart) blocks.push({ name: "5. MEMBER COMMUNICATION AND COMFORT PROFILE", text: buildMemberComfortProfile(memberChart) });
-  blocks.push({ name: "6. INTERACTION GUIDANCE", text: COMPANION_INTERACTION_GUIDANCE });
-  if (memberContext && memberContext.trim()) blocks.push({ name: "7. RELEVANT MEMBER FACTS", text: memberContext.trim() });
-  if (context.length) blocks.push({ name: "8. CONVERSATION CONTINUITY", text: "This is an ongoing conversation — keep the same character and stay consistent with what was already said. Carry forward any preference the member has expressed (for example, if they asked for no advice), until they clearly change it:\n" + context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") });
-  blocks.push({ name: "9. LANGUAGE AND LENGTH", text: companionLengthGuidance(zh) });
+  const sp = p.situationParameters ? Object.entries(p.situationParameters).map(([k, v]) => `${k}=${String(v).replace(/_/g, " ")}`).join(", ") : "";
+  blocks.push({ name: "2. CURRENT SITUATION", text: `${sp ? sp + ".\n\n" : ""}Match the pace, warmth, directness, and length to this message, the conversation already underway, and any preference the member has clearly expressed.` });
+  const roleContract = ROLE_CONTRACT_V3[roleCode] ?? rc.corePurpose ?? "";
+  blocks.push({ name: "3. ROLE PURPOSE", text: `Role: ${roleLabel} (${roleCode}).\n\n${roleContract}\n\nThis role determines why you are responding. It is a conversational perspective, not a required format, opening, question, list, or catchphrase.` });
+  if (voice) blocks.push({ name: "4. LUMIS CHARACTER EXPRESSION", text: `${buildLumisCharacterSummary({ roleCode, ascFlavour: flav("ASC"), moonFlavour: flav("Moon"), sunFlavour: flav("Sun"), saturnFlavour: flav("Saturn"), mercuryFlavour: flav("Mercury") })}\n\n${COMPANION_CHARACTER_EXPRESSION_NOTE}` });
+  if (memberChart) blocks.push({ name: "5. MEMBER COMMUNICATION AND COMFORT PROFILE", text: `${buildMemberComfortProfile(memberChart)}\n\n${COMPANION_MEMBER_PROFILE_NOTE}` });
+  const facts = memberContext && memberContext.trim() ? memberContext.trim() : "None available in this conversation.";
+  blocks.push({ name: "6. CHART TRANSLATION AND ASTROLOGY VISIBILITY", text: `Available approved member facts:\n${facts}\n\n${COMPANION_CHART_TRANSLATION}` });
+  blocks.push({ name: "7. NATURAL CONVERSATION AND REPAIR", text: COMPANION_NATURAL_CONVERSATION });
+  if (context.length) blocks.push({ name: "8. CONTINUITY AND EXPRESSED PREFERENCES", text: context.map((t) => `${t.role === "assistant" ? "Lumis" : "Them"}: ${t.text}`).join("\n") + "\n\nUse only relevant history. Do not quote or recap it unnecessarily. Carry forward any preference the member has expressed (for example, no advice) until they clearly change it. If no successful earlier model response reached the member, do not treat a repeated user message as an emotional loop." });
+  blocks.push({ name: "9. LANGUAGE AND FLEXIBLE LENGTH", text: companionLengthGuidance(zh) });
   blocks.push({ name: "10. CURRENT USER MESSAGE", text: userMessage });
 
   const prompt = blocks.map((b) => `===== ${b.name} =====\n${b.text}`).join("\n\n");

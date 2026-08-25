@@ -79,12 +79,12 @@ test("multi-turn follow-up sends the prior conversation context to the provider"
   assert.equal(b.result, "completed");
   assert.equal(spy.calls.length, 1);
   const sent = spy.calls[0].body;
-  assert.ok(sent.includes("CONVERSATION CONTINUITY"), "prompt frames prior context");
+  assert.ok(sent.includes("CONTINUITY AND EXPRESSED PREFERENCES"), "prompt frames prior context");
   assert.ok(sent.includes("anxious about a decision at work"), "prior user turn included");
   assert.ok(sent.includes("What's weighing on you most") || sent.includes("weighing on you"), "prior assistant turn included");
   assert.ok(sent.includes("keep second-guessing"), "latest message included");
   // Founder re-enabled the internal prompt preview: it is present and shows the same context.
-  assert.ok(typeof b.generative_prompt_preview === "string" && b.generative_prompt_preview.includes("CONVERSATION CONTINUITY"), "prompt preview present with context");
+  assert.ok(typeof b.generative_prompt_preview === "string" && b.generative_prompt_preview.includes("CONTINUITY AND EXPRESSED PREFERENCES"), "prompt preview present with context");
 });
 
 // --- 3. New conversation / Clear session: empty context carries nothing over (server is stateless) ---
@@ -96,7 +96,7 @@ test("empty context (new conversation / cleared session) carries no prior turns"
   const spy2 = spyFetch();
   await handleConversationTurn(req({ message: "What's a good book?", context: [] }), { environment: enabledEnv, fetchImpl: spy2.fn, verifyIdentity: goodIdentity });
   const sent = spy2.calls[0].body;
-  assert.equal(sent.includes("CONVERSATION CONTINUITY"), false, "no context block sent when empty");
+  assert.equal(sent.includes("CONTINUITY AND EXPRESSED PREFERENCES"), false, "no context block sent when empty");
   assert.equal(sent.includes("my father's health"), false, "prior conversation never leaks server-side");
 });
 

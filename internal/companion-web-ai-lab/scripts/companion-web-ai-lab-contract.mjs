@@ -100,7 +100,7 @@ check("provider still reuses the server-side Azure config gate", provider.includ
 // ---- 6. Existing persona/companion prompt pipeline preserved (NOT a simplified replacement) ----
 check("conversation reuses serializePersonaPrompt + runGenerative (no bespoke prompt)", conversation.includes("serializePersonaPrompt(") && conversation.includes("runGenerative("));
 check("prompt is assembled by the reused persona-prompt-pipeline", provider.includes("persona-prompt-pipeline") || read("src/lab-engine.ts").includes("persona-prompt-pipeline-v1.ts"));
-check("multi-turn context is threaded into the same persona prompt", provider.includes("CONVERSATION CONTINUITY"));
+check("multi-turn context is threaded into the same persona prompt", provider.includes("CONTINUITY AND EXPRESSED PREFERENCES"));
 check("prompt version binds companion-synthetic + persona pipeline", identity.includes("COMPANION_SYNTHETIC_PROMPT_VERSION") && identity.includes("PERSONA_PROMPT_PIPELINE_VERSION"));
 
 // ---- 7. The 12 frozen regression fixtures are present but OPTIONAL ----
@@ -207,10 +207,10 @@ const labVoiceSrc = read("src/lab-persona-voice.ts");
 check("synthesis generators live in the shared canonical source", synth.includes("export function buildLumisCharacterSummary") && synth.includes("export function buildMemberComfortProfile") && synth.includes("COMPANION_SYNTHESIS_VERSION"));
 check("member comfort profile is Moon-led (Moon primary, before Mercury/Sun)", synth.includes("This member ${MOON_CARE[chart.moon]}") && synth.indexOf("const MOON_CARE") < synth.indexOf("const MERCURY_STYLE"));
 check("summaries name no astrology placements (no sign names in the shared generators)", !/\b(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b/.test(synth));
-check("scope boundary + advice gate + mobile-first length in the shared source", synth.includes("general-purpose how-to assistant") && synth.includes("Advice gate") && synth.includes("mobile-first"));
+check("Prompt v3 canonical text in the shared source (scope + email boundary + role contracts + chart translation + natural conversation + flexible length)", synth.includes("general-purpose how-to assistant") && synth.includes("do not write the completed email") && synth.includes("ROLE_CONTRACT_V3") && synth.includes("Keep astrology invisible by default") && synth.includes("Do not ask the member to choose between listening") && synth.includes("Length guidance, not targets") && synth.includes("Do not infer Venus"));
 // The Lab assembles the 10 blocks and pulls blocks 1/4/5/6/9 from the shared synthesis source.
-check("Lab assembles the 10-block architecture from shared synthesis", provider.includes("companion-synthesis-v1.ts") && provider.includes("1. IDENTITY AND SCOPE") && provider.includes("4. LUMIS CHARACTER SUMMARY") && provider.includes("5. MEMBER COMMUNICATION AND COMFORT PROFILE") && provider.includes("6. INTERACTION GUIDANCE"));
-check("role block is stable PURPOSE only (no per-turn manner/device text)", provider.includes("3. ROLE PURPOSE") && provider.includes("This never changes") && !provider.includes("Manner: ${rc.requiredBehaviors"));
+check("Lab assembles the Prompt v3 10-block architecture from shared synthesis", provider.includes("companion-synthesis-v1.ts") && provider.includes("1. IDENTITY AND SCOPE") && provider.includes("4. LUMIS CHARACTER EXPRESSION") && provider.includes("5. MEMBER COMMUNICATION AND COMFORT PROFILE") && provider.includes("6. CHART TRANSLATION AND ASTROLOGY VISIBILITY") && provider.includes("7. NATURAL CONVERSATION AND REPAIR") && provider.includes("8. CONTINUITY AND EXPRESSED PREFERENCES"));
+check("role block is a v3 conversational-perspective contract (not a format/device)", provider.includes("3. ROLE PURPOSE") && provider.includes("ROLE_CONTRACT_V3[roleCode]") && provider.includes("conversational perspective, not a required format") && !provider.includes("Manner: ${rc.requiredBehaviors"));
 check("member chart is threaded so the profile shapes every reply", provider.includes("memberChart") && provider.includes("buildMemberComfortProfile(memberChart)"));
 check("prompt version records the architecture revision", identity.includes("COMPANION_SYNTHESIS_VERSION") && identity.includes("+arch_"));
 // Prior CHAT-05 shared sources remain canonical (voice/naturalness module; buildCombinedCharacter still used by the voice-card preview).

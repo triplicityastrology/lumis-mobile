@@ -13,7 +13,7 @@ import { validateLabRequest, deriveChartComposition } from "../src/lab-engine.ts
 import { buildVoiceCard, BEHAVIOUR_BANK, BEHAVIOUR_MAPPING_VERSION } from "../src/lab-persona-voice.ts";
 import { LAB_ROLES } from "../src/lab-constants.ts";
 import { assemblePersona } from "../src/lab-provider.ts";
-import { COMPANION_IDENTITY_SCOPE, COMPANION_INTERACTION_GUIDANCE } from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
+import { COMPANION_IDENTITY_SCOPE, COMPANION_NATURAL_CONVERSATION, ROLE_CONTRACT_V3 } from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
 
 // A single synthetic customer chart, reused across roles.
 const CHART = { sun: 3, moon: 6, mercury: 7, saturn: 10, moon_confirmed: true };
@@ -83,7 +83,7 @@ test("Mercury is ordered LAST — it colours communication, it does not lead the
   assert.match(merc.layer, /communication/i);
 });
 
-test("10-block redesign: identity/scope + interaction guidance from shared source; deterministic placement-free summaries", () => {
+test("Prompt v3: identity/scope + natural-conversation + chart-translation from shared source; placement-free summaries", () => {
   const role = LAB_ROLES.find((r) => r.code === "empathetic_peer")!;
   const chart = { sun: 3, moon: 6, mercury: 7, saturn: 10, moon_confirmed: true };
   const assembly = assemblePersona(
@@ -91,16 +91,23 @@ test("10-block redesign: identity/scope + interaction guidance from shared sourc
     "hi", "en", [], compositionFor("empathetic_peer"), "Some member facts.", chart,
   );
   const byName = (n: string) => assembly.blocks.find((b) => b.name === n)!;
-  // Blocks 1 + 6 come verbatim from the shared canonical synthesis source (one source, no drift).
+  // Canonical block text comes verbatim from the shared synthesis source (one source, no drift).
   assert.equal(byName("1. IDENTITY AND SCOPE").text, COMPANION_IDENTITY_SCOPE);
-  assert.match(byName("1. IDENTITY AND SCOPE").text, /not a general-purpose how-to assistant/);
-  assert.equal(byName("6. INTERACTION GUIDANCE").text, COMPANION_INTERACTION_GUIDANCE);
-  assert.match(byName("6. INTERACTION GUIDANCE").text, /Advice gate/);
-  // Block 4 Lumis Character Summary + block 5 Moon-led member profile present and PLACEMENT-FREE.
-  assert.match(byName("4. LUMIS CHARACTER SUMMARY").text, /^Lumis is a /);
+  assert.match(byName("1. IDENTITY AND SCOPE").text, /general-purpose how-to assistant/);
+  assert.equal(byName("7. NATURAL CONVERSATION AND REPAIR").text, COMPANION_NATURAL_CONVERSATION);
+  assert.match(byName("7. NATURAL CONVERSATION AND REPAIR").text, /Do not ask the member to choose between listening/);
+  // Block 3 role purpose uses the approved v3 role contract text.
+  assert.match(byName("3. ROLE PURPOSE").text, /emotional presence, acceptance, and companionship/);
+  // Block 6 chart translation carries the need->factor logic + facts + astrology-visibility rules.
+  const chartBlock = byName("6. CHART TRANSLATION AND ASTROLOGY VISIBILITY").text;
+  assert.match(chartBlock, /Available approved member facts:/);
+  assert.match(chartBlock, /consult Moon/);
+  assert.match(chartBlock, /Keep astrology invisible by default/);
+  // Block 4 Lumis Character Expression + block 5 Moon-led member profile present and PLACEMENT-FREE.
+  assert.match(byName("4. LUMIS CHARACTER EXPRESSION").text, /^Lumis is a /);
   const profile = byName("5. MEMBER COMMUNICATION AND COMFORT PROFILE").text;
   assert.match(profile, /^This member /);
-  assert.equal(/\b(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b|Moon in|Sun in|Mercury in|Saturn in/.test(profile), false, "member profile names no astrology placements");
+  assert.equal(/\b(Aries|Taurus|Gemini|Cancer|Leo|Virgo|Libra|Scorpio|Sagittarius|Capricorn|Aquarius|Pisces)\b|Moon in|Sun in|Mercury in|Saturn in/.test(profile.split("\n\n")[0]), false, "member profile names no astrology placements");
 });
 
 test("an unavailable composition yields no voice card (no invented character)", () => {
@@ -125,17 +132,17 @@ test("assembled prompt uses the approved 10-block architecture; role block is PU
       "1. IDENTITY AND SCOPE",
       "2. CURRENT SITUATION",
       "3. ROLE PURPOSE",
-      "4. LUMIS CHARACTER SUMMARY",
+      "4. LUMIS CHARACTER EXPRESSION",
       "5. MEMBER COMMUNICATION AND COMFORT PROFILE",
-      "6. INTERACTION GUIDANCE",
-      "7. RELEVANT MEMBER FACTS",
-      "8. CONVERSATION CONTINUITY",
-      "9. LANGUAGE AND LENGTH",
+      "6. CHART TRANSLATION AND ASTROLOGY VISIBILITY",
+      "7. NATURAL CONVERSATION AND REPAIR",
+      "8. CONTINUITY AND EXPRESSED PREFERENCES",
+      "9. LANGUAGE AND FLEXIBLE LENGTH",
       "10. CURRENT USER MESSAGE",
     ]);
     assert.equal(assembly.blocks[0].text, COMPANION_IDENTITY_SCOPE);
     assert.equal(assembly.prompt.includes("You are Lumis, a companion"), true);
-    // Role block is stable PURPOSE only — no per-turn manner/device text (that lives in the summaries).
-    assert.equal(assembly.blocks[2].text, `Role: ${role.currentLabel} (${role.code}). Your job: ${corePurpose} This never changes. How you carry it out is described in the Character Summary and the member profile below.`);
+    // Block 3 uses the approved v3 role contract as a conversational perspective, not a format.
+    assert.equal(assembly.blocks[2].text, `Role: ${role.currentLabel} (${role.code}).\n\n${ROLE_CONTRACT_V3[code]}\n\nThis role determines why you are responding. It is a conversational perspective, not a required format, opening, question, list, or catchphrase.`);
   }
 });
