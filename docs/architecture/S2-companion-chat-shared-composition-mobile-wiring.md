@@ -96,10 +96,12 @@ whole-branch merge.
 - **Product-path composition wiring** is blocked by the T3xx seals + `NO_NORMAL_CHAT_INTEGRATION_AUTHORITY` (see §2).
   Next round, under authority: bind the injected provider seam to `assembleCompanionPromptV3` + the pipeline + the
   registry and refresh the affected seals — no new composition.
-- **Synthesis layers (CHAT-18–CHAT-25).** The Character Summary and Member Communication & Comfort Profile blocks are
-  **present and consumed** in the canonical `74787b3` (`companion-synthesis-v1.ts`, blocks 4 and 5) — preserved here,
-  not redesigned. Any further synthesis/prompt redesign remains founder-gated per the controlled workplan and is out
-  of scope for this round.
+- **Synthesis layers.** The Character Summary and Member Communication & Comfort Profile blocks are **present and
+  consumed** in the canonical base `74787b3`, which is the authorized correction-round commit (it supersedes
+  `245bd94` and already carries the Spark-Sun, duplicate-flavour, consolidated-role-contract, failed-response
+  continuity, and version-traceability corrections). This round preserves that work untouched and does not redesign
+  it; the earlier Technical-Architect workplan framing of these layers as un-started is superseded by `74787b3`. Any
+  further synthesis/prompt change is a separate authorized round, not part of this mobile-wiring change.
 - **Pre-existing failing fixture (not introduced here):**
   `supabase/functions/chat-message/chat-persistence.fixtures.mjs` asserts an `App.tsx` recovery-UI pattern
   (`>Retry< … >New topic<`) that the current `App.tsx` no longer contains. This fails identically on the untouched
