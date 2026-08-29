@@ -40,7 +40,37 @@ export type ProviderDisposition =
   | "completed_non_text_output"     // completed, output items present but no usable text item
   | "completed_text";               // completed with valid, non-empty text
 
-export type LabProviderResult = ProviderResult & { provider_disposition?: ProviderDisposition };
+// ---- Staging-only content-filter diagnostic (redaction-only, closed metadata) ----
+// When Azure blocks the request on the content filter, the exact category is the only thing needed to
+// decide prompt-wording vs Azure-policy. `summarizeAzureContentFilter` parses the error body IN MEMORY
+// and returns ONLY the closed enum fields below — never the raw user message, system prompt, history,
+// model output, Azure error message, headers, URL, request id, endpoint, key, token, offsets, or any
+// account/member data. It is surfaced on the result ONLY when the explicit staging diagnostic flag
+// LUMIS_LAB_FILTER_DIAGNOSTIC=1 is set; by default the live path is byte-identical and carries only the
+// bare provider_disposition enum. The redacted summary is intended for the local Founder decision trace
+// of a single controlled request and must not be persisted, exported, telemetered, or sent to a browser.
+export type ContentFilterSourceType = "prompt" | "completion";
+export type ContentFilterCategory =
+  | "hate" | "sexual" | "violence" | "self_harm"
+  | "jailbreak" | "indirect_attack"
+  | "protected_material_text" | "protected_material_code"
+  | "unknown";
+export type ContentFilterSeverity = "safe" | "low" | "medium" | "high" | null;
+export type ContentFilterCategoryHit = Readonly<{
+  source_type: ContentFilterSourceType;
+  category: ContentFilterCategory;
+  severity: ContentFilterSeverity;
+  detected: boolean | null;
+  filtered: boolean;
+  blocked: boolean;
+}>;
+
+export const LAB_FILTER_DIAGNOSTIC_FLAG = "LUMIS_LAB_FILTER_DIAGNOSTIC" as const;
+
+export type LabProviderResult = ProviderResult & {
+  provider_disposition?: ProviderDisposition;
+  content_filter_diagnostic?: ContentFilterCategoryHit[];
+};
 
 // Total Responses-API output budget (reasoning + visible text) for the reasoning model. The frozen
 // per-call output cap (input.maxOutputTokens, ~300) is far too small for gpt-5-mini to reason AND
@@ -112,10 +142,10 @@ export function createLabAzureResponsesAdapter(
 
         // (2) content filter — either an error object or an incomplete/content_filter reason.
         if (isRecord(value?.error) && value!.error.code === "content_filter") {
-          return withDisposition({ kind: "content_filter_block" }, "content_filtered_input");
+          return attachFilterDiagnostic(withDisposition({ kind: "content_filter_block" }, "content_filtered_input"), value);
         }
         if (status === "incomplete" && isRecord(value?.incomplete_details) && value!.incomplete_details.reason === "content_filter") {
-          return withDisposition({ kind: "content_filter_partial" }, "content_filtered_output");
+          return attachFilterDiagnostic(withDisposition({ kind: "content_filter_partial" }, "content_filtered_output"), value);
         }
 
         // (1) non-success HTTP or unparseable/invalid body -> hard schema rejection.
@@ -156,4 +186,113 @@ function extractAssistantMessage(value: Record<string, unknown> | null): string 
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Server-only: is the explicit staging content-filter diagnostic flag set? Reads the process
+// environment defensively (never the browser request) and never throws.
+function filterDiagnosticEnabled(): boolean {
+  try {
+    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+    return env?.[LAB_FILTER_DIAGNOSTIC_FLAG] === "1";
+  } catch {
+    return false;
+  }
+}
+
+// Attach the redacted, closed content-filter summary to a filter result ONLY under the diagnostic flag.
+// Off by default, so the normal Lab path is unchanged and nothing extra can reach persistence/export/UI.
+function attachFilterDiagnostic(result: LabProviderResult, body: unknown): LabProviderResult {
+  if (!filterDiagnosticEnabled()) return result;
+  const summary = summarizeAzureContentFilter(body);
+  return summary.length ? { ...result, content_filter_diagnostic: summary } : result;
+}
+
+function normalizeCategory(key: string): ContentFilterCategory {
+  switch (key) {
+    case "hate": case "sexual": case "violence": case "self_harm":
+    case "jailbreak": case "indirect_attack":
+    case "protected_material_text": case "protected_material_code":
+      return key;
+    default:
+      return "unknown"; // fail closed — never surface an unrecognised raw category key
+  }
+}
+
+function normalizeSeverity(value: unknown): ContentFilterSeverity {
+  return value === "safe" || value === "low" || value === "medium" || value === "high" ? value : null;
+}
+
+function normalizeSourceType(value: unknown): ContentFilterSourceType {
+  return value === "prompt" || value === "completion" ? value : "prompt";
+}
+
+function hitsFromCategoryMap(map: Record<string, unknown>, source: ContentFilterSourceType): ContentFilterCategoryHit[] {
+  const hits: ContentFilterCategoryHit[] = [];
+  for (const [key, raw] of Object.entries(map)) {
+    if (!isRecord(raw)) continue;
+    const filtered = raw.filtered === true;
+    hits.push(Object.freeze({
+      source_type: source,
+      category: normalizeCategory(key),
+      severity: normalizeSeverity(raw.severity),
+      detected: typeof raw.detected === "boolean" ? raw.detected : null,
+      filtered,
+      blocked: filtered,
+    }));
+  }
+  return hits;
+}
+
+function failClosed(source: ContentFilterSourceType): ContentFilterCategoryHit {
+  return Object.freeze({ source_type: source, category: "unknown", severity: null, detected: null, filtered: true, blocked: true });
+}
+
+// Parse a Responses-API content-filter body into ONLY the closed summary. Supports the documented Azure
+// error shapes; any content-filter signal with an unrecognised shape fails closed as category=unknown.
+// No raw text/message/headers/urls/keys are read into the result.
+export function summarizeAzureContentFilter(value: unknown): ContentFilterCategoryHit[] {
+  if (!isRecord(value)) return [];
+  const hits: ContentFilterCategoryHit[] = [];
+
+  const err = isRecord(value.error) ? value.error : null;
+  const inner = err ? (isRecord(err.innererror) ? err.innererror : isRecord(err.inner_error) ? err.inner_error : null) : null;
+  if (inner) {
+    const cfr = isRecord(inner.content_filter_result) ? inner.content_filter_result
+      : isRecord(inner.content_filter_results) ? inner.content_filter_results : null;
+    if (cfr) hits.push(...hitsFromCategoryMap(cfr, "prompt"));
+  }
+
+  // Azure prompt-side array shape: prompt_filter_results:[{ content_filter_results:{...} }].
+  if (Array.isArray(value.prompt_filter_results)) {
+    for (const entry of value.prompt_filter_results) {
+      if (isRecord(entry) && isRecord(entry.content_filter_results)) {
+        hits.push(...hitsFromCategoryMap(entry.content_filter_results, "prompt"));
+      }
+    }
+  }
+
+  // Top-level completion-side category map (chat-completions style).
+  if (isRecord(value.content_filter_results)) hits.push(...hitsFromCategoryMap(value.content_filter_results, "completion"));
+
+  // Top-level content_filters: the Responses-API shape is an ARRAY of entries, each carrying its own
+  // source_type ("prompt" | "completion") plus a content_filter_results category map. source_type is
+  // derived per entry; a missing/invalid one defaults safely to "prompt" (an unlabelled top-level filter
+  // entry on a blocked request is treated as prompt-side). A bare category-map object is tolerated too.
+  const cf = value.content_filters;
+  if (Array.isArray(cf)) {
+    for (const entry of cf) {
+      if (isRecord(entry) && isRecord(entry.content_filter_results)) {
+        hits.push(...hitsFromCategoryMap(entry.content_filter_results, normalizeSourceType(entry.source_type)));
+      }
+    }
+  } else if (isRecord(cf)) {
+    hits.push(...hitsFromCategoryMap(cf, "completion"));
+  }
+
+  if (hits.length) return hits;
+
+  // Recognised content-filter signal but no parseable category detail -> fail closed.
+  if (err && err.code === "content_filter") return [failClosed("prompt")];
+  if (isRecord(value.incomplete_details) && value.incomplete_details.reason === "content_filter") return [failClosed("completion")];
+  return [];
 }

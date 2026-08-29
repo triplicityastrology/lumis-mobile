@@ -13,7 +13,7 @@
 // lab-azure-responses-adapter.ts). The shared mobile-chat adapter is left untouched.
 
 import { readChatAzureServerConfig } from "../../../supabase/functions/_shared/azure-chat-synthetic-adapter-v1.ts";
-import { createLabAzureResponsesAdapter, type ProviderDisposition } from "./lab-azure-responses-adapter.ts";
+import { createLabAzureResponsesAdapter, type ProviderDisposition, type ContentFilterCategoryHit } from "./lab-azure-responses-adapter.ts";
 import { buildVoiceCard, BEHAVIOUR_BANK, type VoiceCard } from "./lab-persona-voice.ts";
 import { assembleCompanionPromptV3 } from "../../../supabase/functions/_shared/companion-synthesis-v1.ts";
 import { COMPANION_SYNTHETIC_PROMPT_VERSION } from "../../../supabase/functions/_shared/companion-synthetic-prompt-v1.ts";
@@ -45,7 +45,7 @@ export function resolveProviderRuntime(
 export type ProviderOutcome =
   | { kind: "disabled"; code: string; attempts: 0; providerDisposition: null }
   | { kind: "completed"; message: string; attempts: 1 | 2; providerDisposition: ProviderDisposition | null }
-  | { kind: "safety_rejected"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null }
+  | { kind: "safety_rejected"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null; contentFilterDiagnostic?: ContentFilterCategoryHit[] | null }
   | { kind: "fixed_fallback"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null }
   | { kind: "router_unavailable"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null }
   | { kind: "technical_error"; attempts: 1 | 2; code: string; providerDisposition: ProviderDisposition | null };
@@ -95,7 +95,8 @@ export async function runGenerative(
       return { kind: "completed", message, attempts, providerDisposition: disposition };
     }
     if (result.kind === "content_filter_block" || result.kind === "content_filter_partial") {
-      return { kind: "safety_rejected", attempts, code: "LAB_CONTENT_FILTER", providerDisposition: disposition };
+      // Redacted, closed content-filter summary is present only under the staging diagnostic flag.
+      return { kind: "safety_rejected", attempts, code: "LAB_CONTENT_FILTER", providerDisposition: disposition, contentFilterDiagnostic: result.content_filter_diagnostic ?? null };
     }
     const retryable = result.kind === "timeout" || result.kind === "network" || result.kind === "rate_limited" || result.kind === "server_error";
     if (retryable && attempts === 1 && nowMs() < deadlineAtMs) {
