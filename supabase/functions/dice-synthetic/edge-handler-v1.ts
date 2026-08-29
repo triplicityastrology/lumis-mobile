@@ -2,8 +2,8 @@ import { createAzureDiceAdapter, readDiceAzureServerConfig } from "../_shared/az
 import { createPostgresDiceAuthorityStore, type DiceAuthorityRpcClient } from "../_shared/dice-authority-store-v1.ts";
 import { DiceGatewayStop, DiceSyntheticGatewayPortV1 } from "../_shared/dice-synthetic-gateway-port-v1.ts";
 import { executeFounderDiceCase, executeFounderDiceFreeTextCase, parseFounderDiceFreeTextRequest, parseFounderDiceRequest, verifyFounderWindowReceipt } from "../_shared/dice-founder-window-v1.ts";
-import { executeDiceV04FreeTextCase } from "../_shared/dice-v0-4-window.ts";
-import { createDiceV04Adapter } from "../_shared/azure-dice-adapter-v4.ts";
+import { executeDiceV05FreeTextCase, parseDiceV05FreeTextRequest } from "../_shared/dice-v0-5-window.ts";
+import { createDiceV05Adapter } from "../_shared/azure-dice-adapter-v5.ts";
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
 export const DICE_EDGE_PACKAGE_SHA256 = "7962b7059e678819a7ca91263b4b6aaaea020932f3fa1b4faacbadb4b1ac7959" as const;
@@ -51,15 +51,23 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
           !await validFounderFreeTextAccess(suppliedAccess, dependencies.environment.LUMIS_DICE_FOUNDER_FREE_TEXT_ACCESS_KEY)) {
         return errorResponse("DICE_FOUNDER_FREE_TEXT_DISABLED", 403);
       }
-      // v4 (Dice AI Interpretation Prompt v3) two-stage route, opt-in by header
-      // so the sealed v3 free-text path remains the untouched default.
-      if (request.headers.get("x-lumis-dice-interpretation") === "v4") {
-        const v4 = await executeDiceV04FreeTextCase(freeTextRequest, () => createDiceV04Adapter(providerConfig.config, dependencies.fetchImpl));
-        if (v4.kind !== "completed") {
-          const code = v4.kind === "safety" ? "DICE_SAFETY_REDIRECT" : v4.kind === "bundled" ? "DICE_BUNDLED_QUESTION" : v4.kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
-          return jsonResponse({ error: { code, redacted_failure_code: v4.code }, metadata: v4.metadata }, { status: 422 });
+      // The v5 two-stage route (technical identity for "Dice AI Interpretation
+      // Prompt v3") is opt-in by header so the sealed v3 free-text path stays the
+      // untouched default. v4 is retired: its permissive runtime is deleted (§24)
+      // and the v4 header is rejected rather than silently downgraded.
+      const interpretationHeader = request.headers.get("x-lumis-dice-interpretation");
+      if (interpretationHeader === "v4") {
+        return errorResponse("DICE_INTERPRETATION_VERSION_UNSUPPORTED", 400);
+      }
+      if (interpretationHeader === "v5") {
+        const v5Request = parseDiceV05FreeTextRequest(freeTextRequest);
+        if (!v5Request) return errorResponse("DICE_FOUNDER_FREE_TEXT_SCHEMA_INVALID", 400);
+        const v5 = await executeDiceV05FreeTextCase(v5Request, () => createDiceV05Adapter(providerConfig.config, dependencies.fetchImpl));
+        if (v5.kind !== "completed") {
+          const code = v5.kind === "safety" ? "DICE_SAFETY_REDIRECT" : v5.kind === "bundled" ? "DICE_BUNDLED_QUESTION" : v5.kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
+          return jsonResponse({ error: { code, redacted_failure_code: v5.code }, metadata: v5.metadata }, { status: 422 });
         }
-        return jsonResponse({ result: v4.result, question_mode: v4.question_mode, metadata: v4.metadata }, { status: 200 });
+        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, metadata: v5.metadata }, { status: 200 });
       }
       const outcome = await executeFounderDiceFreeTextCase(freeTextRequest, () => createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl));
       if (outcome.kind !== "completed") {
