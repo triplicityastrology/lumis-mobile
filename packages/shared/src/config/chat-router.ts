@@ -23,6 +23,38 @@ export const SAFETY_RESPONSE_EN =
 export const SAFETY_RESPONSE_ZH_HANT =
   "聽到你正承受這麼沉重的感受，我很難過。Lumis 無法單獨提供危機支援。請立即聯絡當地緊急服務，或你信任的人。";
 
+// Canonical fixed-template wording mirrored for the app/client boundary. The single
+// canonical server source is supabase/functions/_shared/fixed-template-registry.ts
+// (AC-AI-00 v1.5 §8 / Fixed Template Wording Register v0.2). These app-boundary copies
+// are byte-exact mirrors of the OUT_OF_SCOPE, PROFESSIONAL_BOUNDARY, and ROUTE_UNAVAILABLE
+// families and are guarded against drift by scripts/companion-shared-composition-contract.mjs.
+// The app must not compose or improvise these; it only selects a registered template by
+// family + language, never generatively translating or rewriting it.
+export const OUT_OF_SCOPE_EN =
+  "That request is outside Lumis's scope. I can help you reflect on the feelings or decision around it, without presenting the excluded service as something Lumis provides.";
+export const OUT_OF_SCOPE_ZH_HANT =
+  "這項要求不屬於 Lumis 的服務範圍。我可以陪你整理相關的感受或抉擇，但不會把不屬於 Lumis 的服務當作可提供的功能。";
+export const PROFESSIONAL_BOUNDARY_EN =
+  "Lumis cannot diagnose, prescribe, or guarantee legal or financial outcomes. Please consult a qualified professional. I can help you organise questions to bring to them, but I will not provide a diagnosis, treatment instruction, legal advice, or financial guarantee.";
+export const PROFESSIONAL_BOUNDARY_ZH_HANT =
+  "Lumis 不能作出診斷、處方，亦不能保證法律或財務結果。請諮詢合資格的專業人士。我可以協助你整理需要向專業人士提出的問題，但不會提供診斷、治療指示、法律意見或財務保證。";
+export const ROUTE_UNAVAILABLE_EN =
+  "That Lumis feature is not available right now. Please try again later.";
+export const ROUTE_UNAVAILABLE_ZH_HANT =
+  "這項 Lumis 功能目前未能使用，請稍後再試。";
+
+// Direct-professional refinement, byte-identical to the reviewed server planner
+// (companion Web Lab lab-engine.ts PROFESSIONAL_DIRECT). This selects the distinct
+// professional_direct wording; it does NOT change classifyChatRoute route semantics or
+// route credits — a direct professional request still classifies as out_of_scope and is
+// then given the PROFESSIONAL_BOUNDARY template instead of the general OUT_OF_SCOPE one.
+const PROFESSIONAL_DIRECT_PATTERN =
+  /(diagnos|prescrib|medication|dosage|treat(ment)?|symptom|guarantee|sue|lawsuit|legally|invest(ment)?\b|tax\b|診斷|處方|藥物|劑量|治療|症狀|保證|訴訟|投資|報稅)/i;
+
+export function isProfessionalDirectRequest(message: string): boolean {
+  return PROFESSIONAL_DIRECT_PATTERN.test(message);
+}
+
 export type SolarReturnRouteFixture = ChatRouteFixture & {
   expectedResponse: typeof OUT_OF_SCOPE_SOLAR_RETURN_EN | typeof OUT_OF_SCOPE_SOLAR_RETURN_ZH_HANT;
 };
@@ -133,6 +165,33 @@ export function getSafetyResponse(
   return resolveFixedTemplateLanguage(appLanguagePreference, message) === "zh-Hant"
     ? SAFETY_RESPONSE_ZH_HANT
     : SAFETY_RESPONSE_EN;
+}
+
+export function getOutOfScopeResponse(
+  message: string,
+  appLanguagePreference?: AppLanguagePreference | null
+): typeof OUT_OF_SCOPE_EN | typeof OUT_OF_SCOPE_ZH_HANT {
+  return resolveFixedTemplateLanguage(appLanguagePreference, message) === "zh-Hant"
+    ? OUT_OF_SCOPE_ZH_HANT
+    : OUT_OF_SCOPE_EN;
+}
+
+export function getProfessionalBoundaryResponse(
+  message: string,
+  appLanguagePreference?: AppLanguagePreference | null
+): typeof PROFESSIONAL_BOUNDARY_EN | typeof PROFESSIONAL_BOUNDARY_ZH_HANT {
+  return resolveFixedTemplateLanguage(appLanguagePreference, message) === "zh-Hant"
+    ? PROFESSIONAL_BOUNDARY_ZH_HANT
+    : PROFESSIONAL_BOUNDARY_EN;
+}
+
+export function getRouteUnavailableResponse(
+  message: string,
+  appLanguagePreference?: AppLanguagePreference | null
+): typeof ROUTE_UNAVAILABLE_EN | typeof ROUTE_UNAVAILABLE_ZH_HANT {
+  return resolveFixedTemplateLanguage(appLanguagePreference, message) === "zh-Hant"
+    ? ROUTE_UNAVAILABLE_ZH_HANT
+    : ROUTE_UNAVAILABLE_EN;
 }
 
 export function classifyChatRoute(message: string): ChatRoute {

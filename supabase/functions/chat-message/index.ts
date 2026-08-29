@@ -5,7 +5,11 @@ import {
   classifyChatRoute,
   getSafetyResponse,
   getSolarReturnScopeResponse,
-  isSolarReturnRequest
+  isSolarReturnRequest,
+  isProfessionalDirectRequest,
+  getOutOfScopeResponse,
+  getProfessionalBoundaryResponse,
+  getRouteUnavailableResponse
 } from "../../../packages/shared/src/config/chat-router.ts";
 import {
   isAppLanguagePreference,
@@ -493,16 +497,6 @@ function buildChatResponse(
     : null;
   const safetyResponse = getSafetyResponse(message, appLanguagePreference);
   const credits = ROUTE_CREDITS[route];
-  const chartPhrase =
-    body.chart_context?.sun && body.chart_context?.moon
-      ? `With your ${body.chart_context.sun} Sun and ${body.chart_context.moon} Moon in view, `
-      : "";
-  const stylePhrase =
-    body.persona_style === "spark"
-      ? " Let us find the fresh angle."
-      : body.persona_style === "awareness"
-        ? " Let us notice the pattern underneath."
-        : " Let us move gently and steadily.";
 
   return {
     route,
@@ -511,14 +505,20 @@ function buildChatResponse(
     estimated_credits_cost: credits,
     remaining_credits: null,
     billing_mode: "scaffold_no_charge",
-    reply: buildReplyText(route, chartPhrase, stylePhrase, solarReturnResponse, safetyResponse)
+    reply: buildReplyText(route, message, appLanguagePreference, solarReturnResponse, safetyResponse)
   };
 }
 
+// Every disposition is selected from the shared canonical wording; this route composes
+// nothing of its own. Generation belongs to the one shared server-side composition/routing
+// system and remains disabled here (NO_NORMAL_CHAT_INTEGRATION_AUTHORITY), so a generative
+// classification returns the canonical route-unavailable template rather than an improvised
+// reply, and a direct professional request receives its distinct professional_direct wording
+// instead of being blended into the general out_of_scope template.
 function buildReplyText(
   route: ChatRoute,
-  chartPhrase: string,
-  stylePhrase: string,
+  message: string,
+  appLanguagePreference: AppLanguagePreference | null,
   solarReturnResponse: string | null,
   safetyResponse: string
 ): string {
@@ -531,8 +531,10 @@ function buildReplyText(
   }
 
   if (route === "out_of_scope") {
-    return "That sits outside what Lumis should answer directly. I can help you reflect on the feelings and timing around it, but not replace medical, legal, financial, or emergency advice.";
+    return isProfessionalDirectRequest(message)
+      ? getProfessionalBoundaryResponse(message, appLanguagePreference)
+      : getOutOfScopeResponse(message, appLanguagePreference);
   }
 
-  return `${chartPhrase}I hear this question.${stylePhrase}`;
+  return getRouteUnavailableResponse(message, appLanguagePreference);
 }

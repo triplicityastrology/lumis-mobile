@@ -1,8 +1,12 @@
 import {
   classifyChatRoute,
   getChatRouteDecision,
+  getOutOfScopeResponse,
+  getProfessionalBoundaryResponse,
+  getRouteUnavailableResponse,
   getSafetyResponse,
   getSolarReturnScopeResponse,
+  isProfessionalDirectRequest,
   isSolarReturnRequest,
   type AppLanguagePreference,
   type ChartV2,
@@ -95,16 +99,8 @@ export async function sendChatMessage(input: SendChatMessageInput): Promise<Send
 }
 
 function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult {
-  const chartContext = buildSafeChatChartContext(input.chart);
   const route = classifyChatRoute(input.message);
-  const solarReturnResponse = isSolarReturnRequest(input.message)
-    ? getSolarReturnScopeResponse(input.message, input.appLanguagePreference)
-    : null;
   const routeDecision = getChatRouteDecision(route);
-  const chartPhrase =
-    chartContext.sun && chartContext.moon
-      ? ` With your ${chartContext.sun} Sun and ${chartContext.moon} Moon in view,`
-      : "";
 
   return {
     mode: "local",
@@ -112,57 +108,34 @@ function buildLocalChatReply(input: SendChatMessageInput): SendChatMessageResult
     creditsCost: routeDecision.credits,
     remainingCredits: 50,
     billingMode: "local_demo",
-    reply: buildLocalReplyText(
-      route,
-      chartPhrase,
-      input.personaStyle,
-      solarReturnResponse,
-      getSafetyResponse(input.message, input.appLanguagePreference)
-    )
+    reply: resolveLocalCanonicalReply(route, input.message, input.appLanguagePreference ?? null)
   };
 }
 
-function buildLocalReplyText(
+// The offline/local path composes NOTHING of its own. Every disposition is selected
+// from the shared canonical wording (@lumis/shared, mirrored byte-exact from the
+// server fixed-template registry). Generation is owned solely by the one shared
+// server-side composition/routing system; while that route is disabled
+// (NO_NORMAL_CHAT_INTEGRATION_AUTHORITY) a generative request surfaces the canonical
+// route-unavailable template rather than an improvised reply.
+function resolveLocalCanonicalReply(
   route: ChatRoute,
-  chartPhrase: string,
-  personaStyle: PersonaStyleKey,
-  solarReturnResponse: string | null,
-  safetyResponse: string
+  message: string,
+  appLanguagePreference: AppLanguagePreference | null
 ): string {
-  const stylePhrase =
-    personaStyle === "spark"
-      ? " I will keep this exploratory and a little provocative."
-      : personaStyle === "awareness"
-        ? " I will keep this practical and growth-oriented."
-        : " I will keep this gentle and grounding.";
-
   if (route === "safety") {
-    return safetyResponse;
+    return getSafetyResponse(message, appLanguagePreference);
   }
 
-  if (solarReturnResponse) {
-    return solarReturnResponse;
+  if (isSolarReturnRequest(message)) {
+    return getSolarReturnScopeResponse(message, appLanguagePreference);
   }
 
   if (route === "out_of_scope") {
-    return "That sits outside what Lumis should answer directly. I can help you reflect on the feelings and timing around it, but not replace medical, legal, financial, or emergency advice.";
+    return isProfessionalDirectRequest(message)
+      ? getProfessionalBoundaryResponse(message, appLanguagePreference)
+      : getOutOfScopeResponse(message, appLanguagePreference);
   }
 
-  if (route === "dice") {
-    return `${chartPhrase} Treat these symbols as a reflective prompt: what first instinct appears, what resistance appears, and what might change if you trusted the quieter answer?`;
-  }
-
-  if (route === "astro_timing") {
-    return `${chartPhrase} Timing guidance is not active in this preview. We can keep the reflection grounded in your natal chart and the question underneath it.${stylePhrase}`;
-  }
-
-  if (route === "astro_deep") {
-    return `${chartPhrase} Let us look for the repeated pattern first, then connect it to the chart and the way it shows up in daily life.${stylePhrase}`;
-  }
-
-  if (route === "knowledge") {
-    return `${chartPhrase} I can explain the astrology plainly first, then show how it may matter within your own Lumis Persona.${stylePhrase}`;
-  }
-
-  return `${chartPhrase} I hear the question. Let us start with what feels most alive right now, then let Lumis connect it back to your pattern gently.${stylePhrase}`;
+  return getRouteUnavailableResponse(message, appLanguagePreference);
 }
