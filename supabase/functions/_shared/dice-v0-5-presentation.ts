@@ -62,19 +62,23 @@ export function buildLocationResolution(language: DiceV05Language, planet: DiceV
   const zh = language === "zh-Hant";
   const pb = LOCATION_PLANET_BANK[planet], hb = LOCATION_HOUSE_BANK[house], el = SIGN_ELEMENT[sign], et = ELEMENT_TABLE[el], hr = HOUSE_TABLE[house];
   const gid: Record<string, string> = {};
-  const pRelated = (zh ? pb.related_zh : pb.related_en).map((t, i) => { const k = `p${i + 1}`; gid[k] = `planet.${planet}.related.${i + 1}`; return { k, t }; });
-  const hRelated = (zh ? hb.related_zh : hb.related_en).map((t, i) => { const k = `h${i + 1}`; gid[k] = `house.${house}.related.${i + 1}`; return { k, t }; });
-  const ePlaces = (zh ? et.places_zh : et.places_en).map((t, i) => { const k = `e${i + 1}`; gid[k] = `element.${el.toLowerCase()}.${i + 1}`; return { k, t }; });
-  gid["pt"] = `planet.${planet}.theme`; gid["pc"] = `planet.${planet}.context`;
-  gid["hs"] = `house.${house}.setting`; gid["hc"] = `house.${house}.context`;
+  // Stable semantic evidence ids: wire key = p.theme / p.context / p.related.<slug>
+  // (planet), h.setting / h.context / h.related.<slug> (house), e.<slug> (element);
+  // gid = planet.<id>.(theme|context|related.<slug>), house.<n>.(setting|context|
+  // related.<slug>), element.<element>.<slug>. Reordering a list never changes an id.
+  const pRelated = pb.related.map((r) => { const k = `p_${r.slug}`; gid[k] = `planet.${planet}.related.${r.slug}`; return { k, t: zh ? r.zh : r.en }; });
+  const hRelated = hb.related.map((r) => { const k = `h_${r.slug}`; gid[k] = `house.${house}.related.${r.slug}`; return { k, t: zh ? r.zh : r.en }; });
+  const ePlaces = et.places.map((r) => { const k = `e_${r.slug}`; gid[k] = `element.${el.toLowerCase()}.${r.slug}`; return { k, t: zh ? r.zh : r.en }; });
+  gid["p_theme"] = `planet.${planet}.theme`; gid["p_context"] = `planet.${planet}.context`;
+  gid["h_setting"] = `house.${house}.setting`; gid["h_context"] = `house.${house}.context`;
   const envelope = { language, question: "", mode: "location", given: {
-    planet_place: { id: planet, theme: { k: "pt", t: zh ? pb.theme_zh : pb.theme_en }, related: pRelated, context: { k: "pc", t: zh ? pb.context_zh : pb.context_en } },
-    house_place: { id: `house_${house}`, distance: hr.distance, setting: { k: "hs", t: zh ? hb.setting_zh : hb.setting_en }, related: hRelated, context: { k: "hc", t: zh ? hb.context_zh : hb.context_en } },
+    planet_place: { id: planet, theme: { k: "p_theme", t: zh ? pb.theme_zh : pb.theme_en }, related: pRelated, context: { k: "p_context", t: zh ? pb.context_zh : pb.context_en } },
+    house_place: { id: `house_${house}`, distance: hr.distance, setting: { k: "h_setting", t: zh ? hb.setting_zh : hb.setting_en }, related: hRelated, context: { k: "h_context", t: zh ? hb.context_zh : hb.context_en } },
     sign_element: { element: el, direction: et.direction, places: ePlaces },
   } };
   return Object.freeze({
     envelope,
-    selectedKeys: Object.freeze({ p: ["pt", "pc", ...pRelated.map((r) => r.k)], h: ["hs", "hc", ...hRelated.map((r) => r.k)], e: ePlaces.map((r) => r.k) }),
+    selectedKeys: Object.freeze({ p: ["p_theme", "p_context", ...pRelated.map((r) => r.k)], h: ["h_setting", "h_context", ...hRelated.map((r) => r.k)], e: ePlaces.map((r) => r.k) }),
     gid: Object.freeze(gid),
   });
 }

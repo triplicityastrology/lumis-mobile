@@ -196,12 +196,20 @@ assert.equal(v05Live.body.presentation.kind, "reading");
 assert.equal(v05Live.body.classification.question_mode, "judgment", "v5 surfaces the selected mode");
 assert.deepEqual(v05Live.body.presentation.sections.map((s) => s.heading), ["Result", "Reading", "One thing to watch", "Suggested follow-up questions"], "judgment renders Result (planet+house prose) + follow-ups, no Practical step");
 assert.equal(v05Live.body.presentation.sections[0].body, "Jupiter is a major benefic at full strength here. House 1 is the most supportive setting, with the matter in your hands.", "Result body joins the two fixed sides");
+// Opening identifies the dice landing ONLY (no first sentence of synthesis spliced in).
+assert.equal(v05Live.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening is landing-only, no synthesis splice");
+// The complete synthesis stays intact under Reading (not truncated by an opening splice).
+assert.equal(v05Live.body.presentation.sections[1].body, v05Judgment.synthesis, "Reading holds the complete synthesis");
 assert.equal(v05Live.body.presentation.sections[3].items.length, 1, "follow-up questions rendered as items");
 assert.equal(v05Live.body.provider_calls, 2, "two provider calls recorded (mode + interpret)");
 assert.equal(v05Live.body.metadata.units_consumed, 0, "metadata carries units_consumed 0");
 const v05Review = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
 assert.equal(v05Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
 assert.equal(v05Review.body.presentation.kind, "route_review");
+// Test 6 (§20) — the specific bundled-question member copy is rendered for a bundled outcome.
+const v05Bundled = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "bundled", code: "DICE_BUNDLED_QUESTION", metadata: null }) }) });
+assert.equal(v05Bundled.body.code, "DICE_BUNDLED_QUESTION", "Test 6 bundled code");
+assert.equal(v05Bundled.body.presentation.message, "This contains more than one question. Each Dice throw can interpret only one clear question. Please choose one question and try again.", "Test 6 exact bundled member copy (en)");
 const v05Timing = { ...v05Judgment, question_mode: "timing", planet_side: null, house_side: null, synthesis: "Slow by nature but externally assisted, so gradual overall. The house lifts an otherwise slow pace.", timing_summary: "Slow by nature but externally assisted, gradual overall.", watch_out: "Do not expect a sudden jump.", practical_step: null, suggested_followups: [] };
 const v05TimingPresentation = presentLabV05Result(validateLabV05Result(v05Timing, "en"), { planet: { en: "Pluto", zh: "冥王星", id: "pluto" }, sign: { en: "Sagittarius", zh: "人馬座", id: "sagittarius" }, house: { en: "1st House", zh: "第一宮", id: "house_1" } });
 assert.deepEqual(v05TimingPresentation.sections.map((s) => s.heading), ["Timing", "Reading", "One thing to watch"], "timing renders Timing + Reading + Watch, no Practical step");
@@ -210,8 +218,10 @@ const v05Location = { schema: "lumis_dice_interpretation_v5", status: "ok", lang
   location_extension: { candidate_rank: 1, source_id: "planet.moon.related.1", relationship: "A document pouch is a direct container for a passport." }, location_search_order: [1, 2],
   synthesis: "Start at home, then narrower spots. The heat side comes next.", timing_summary: null, watch_out: "Don't check only the obvious spots.", practical_step: "Begin with the bedroom.", suggested_followups: [] };
 const v05LocationPresentation = presentLabV05Result(validateLabV05Result(v05Location, "en"), { planet: { en: "Moon", zh: "月亮", id: "moon" }, sign: { en: "Leo", zh: "獅子座", id: "leo" }, house: { en: "4th House", zh: "第四宮", id: "house_4" } });
-assert.deepEqual(v05LocationPresentation.sections.map((s) => s.heading), ["Most likely area", "Reading", "Where to look", "Related to the top candidate", "One thing to watch", "Practical step"], "location renders area + ranked candidates + extension + practical step");
-assert.deepEqual(v05LocationPresentation.sections[2].items, ["the bedroom", "the kitchen"], "candidates rendered in search order");
+assert.deepEqual(v05LocationPresentation.sections.map((s) => s.heading), ["Most likely area", "Reading", "Where to look", "One thing to watch", "Practical step"], "location renders area + ranked candidates + practical step (no generic extension section)");
+// Reading holds the full synthesis; the extension is rendered BESIDE candidate_rank 1, not as a separate section.
+assert.equal(v05LocationPresentation.sections[1].body, v05Location.synthesis, "Reading holds the complete synthesis");
+assert.deepEqual(v05LocationPresentation.sections[2].items, ["the bedroom — related: A document pouch is a direct container for a passport.", "the kitchen"], "extension rendered beside candidate_rank 1; other candidates unchanged");
 assert.match(serverSource, /id="v5"/u, "browser exposes the v5 toggle");
 assert.match(serverSource, /\/api\/run\/free-text-v5/u, "browser routes the v5 endpoint");
 console.log("internal Dice AI Lab contract passed: bootstrap, dual modes, 36 closed faces, v3 synthesis presentation, route-mismatch copy, metadata-only, provider_calls=0, v5 judgment/timing/location rendering");

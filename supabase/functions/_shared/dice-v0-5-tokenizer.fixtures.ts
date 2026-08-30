@@ -5,7 +5,7 @@
  *  (2) every complete provider input (block + delimiter + envelope JSON) <= 1600;
  *  (3) the Appendix-H worked-example outputs are within cap (600, Location 580);
  *  (4) the cap-saturated worst case at zh density (1 token/char) is within cap —
- *      Location <= 580 by construction (F1 closed, Founder Decision B).
+ *      Location realistic-maximal <= 580; semantic-key schema max <= 700 (see window cap note).
  */
 import { getEncoding } from "js-tiktoken";
 import { DICE_V05_BLOCK, buildProviderInput, CAPS } from "./dice-v0-5-interpretation-contract.ts";
@@ -53,13 +53,23 @@ function saturate(mode: "judgment" | "timing" | "level1" | "location"): Record<s
   if (mode === "judgment") return { status: "ok", planet_prose: fill(c.planet), house_prose: fill(c.house), synthesis: fill(c.syn), watch_out: fill(c.watch), suggested_followups: [fill(c.follow), fill(c.follow), fill(c.follow)] };
   if (mode === "timing") return { status: "ok", timing_summary: fill(c.ts), synthesis: fill(c.syn), watch_out: fill(c.watch) };
   if (mode === "level1") return { status: "ok", synthesis: fill(c.syn), watch_out: fill(c.watch), practical_step: fill(c.pract) };
-  const cand = (r: number) => ({ rank: r, place: fill(c.place), evidence: { p: ["pt", "pc"], h: ["hs", "hc"], e: ["e1", "e2"] } });
-  return { status: "ok", most_likely_area: fill(c.area), synthesis: fill(c.syn), location_candidates: [cand(1), cand(2), cand(3), cand(4)], extension: { candidate_rank: 1, src: "pt", relationship: fill(c.ext) }, search_order: [1, 2, 3, 4], watch_out: fill(c.watch), practical_step: fill(c.pract) };
+  // Worst case uses long realistic semantic evidence keys (not short "pt"/"e1").
+  const cand = (r: number) => ({ rank: r, place: fill(c.place), evidence: { p: ["p_near_water_domestic", "p_caregiving_service"], h: ["h_deliberately_hidden", "h_institution_isolated"], e: ["e_mountain_high_ground", "e_pool_pond_river"] } });
+  return { status: "ok", most_likely_area: fill(c.area), synthesis: fill(c.syn), location_candidates: [cand(1), cand(2), cand(3), cand(4)], extension: { candidate_rank: 1, src: "p_near_water_domestic", relationship: fill(c.ext) }, search_order: [1, 2, 3, 4], watch_out: fill(c.watch), practical_step: fill(c.pract) };
 }
-const OUT_CAP = { judgment: 600, timing: 600, level1: 600, location: 580 } as const;
+// Location uses stable SEMANTIC evidence ids (reviewer item 3), which enlarge echoed keys.
+// The schema-permitted PATHOLOGICAL max (4 candidates × 2 long keys in all 3 arrays + every
+// field at cap) is ~658 zh, bounded by the raised 700 backstop; a REALISTIC maximal answer
+// (each candidate cites 1 key, all prose at cap) stays <= 580.
+const OUT_CAP = { judgment: 600, timing: 600, level1: 600, location: 700 } as const;
 for (const m of ["judgment", "timing", "level1", "location"] as const) {
   const t = n(JSON.stringify(saturate(m)));
-  ok(t <= OUT_CAP[m], `cap-saturated ${m}/zh = ${t} <= ${OUT_CAP[m]}`);
+  ok(t <= OUT_CAP[m], `cap-saturated (schema max) ${m}/zh = ${t} <= ${OUT_CAP[m]}`);
 }
+// Realistic maximal Location answer (1 evidence key per candidate) stays within the old 580 target.
+const cReal: any = (CAPS as any).location["zh-Hant"];
+const candReal = (r: number) => ({ rank: r, place: fill(cReal.place), evidence: { p: ["p_near_water_domestic"], h: [], e: [] } });
+const realLoc = { status: "ok", most_likely_area: fill(cReal.area), synthesis: fill(cReal.syn), location_candidates: [candReal(1), candReal(2), candReal(3), candReal(4)], extension: null, search_order: [1, 2, 3, 4], watch_out: fill(cReal.watch), practical_step: fill(cReal.pract) };
+ok(n(JSON.stringify(realLoc)) <= 580, `realistic-maximal location/zh = ${n(JSON.stringify(realLoc))} <= 580`);
 
 console.log("dice-v0-5 tokenizer fixtures passed");

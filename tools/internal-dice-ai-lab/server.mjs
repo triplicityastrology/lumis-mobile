@@ -176,14 +176,12 @@ export function validateLabV05Result(raw, language) {
 export function presentLabV05Result(result, selection) {
   const zh = result.language === "zh-Hant";
   const lang = result.language;
-  const boundary = zh ? /^[^。！？]*[。！？]/u : /^[^.!?]*[.!?]/u;
-  const matched = result.synthesis.trim().match(boundary);
-  const first = matched ? matched[0].trim() : result.synthesis.trim();
-  const rest = matched ? result.synthesis.trim().slice(matched[0].length).trim() : "";
+  // Opening identifies the dice landing ONLY (no first-sentence extraction). The complete
+  // `synthesis` stays intact under Reading; `most_likely_area` appears only in its own section.
   const opening = zh
-    ? `你抽到${selection.planet.zh}落在${selection.sign.zh}及${selection.house.zh}。${first}`
-    : `You drew ${selection.planet.en} in ${selection.sign.en} in the ${selection.house.en}. ${first}`;
-  const reading = rest || result.synthesis.trim();
+    ? `你抽到${selection.planet.zh}落在${selection.sign.zh}及${selection.house.zh}。`
+    : `You drew ${selection.planet.en} in ${selection.sign.en} in the ${selection.house.en}.`;
+  const reading = result.synthesis;
   const sections = [];
   const mode = result.question_mode;
   if (mode === "judgment") {
@@ -198,10 +196,19 @@ export function presentLabV05Result(result, selection) {
   } else if (mode === "location") {
     sections.push({ heading: V05_HEAD.area[lang], body: result.most_likely_area });
     sections.push({ heading: V05_HEAD.reading[lang], body: reading });
+    // Ranked candidates in search_order. The one-step extension is rendered BESIDE the
+    // candidate identified by candidate_rank (not as a generic "top candidate" section).
     const byRank = new Map(result.location_candidates.map((c) => [c.rank, c]));
-    const items = result.location_search_order.map((r) => byRank.get(r)?.place).filter(Boolean);
+    const ext = result.location_extension;
+    const sep = zh ? "——相關：" : " — related: ";
+    const items = result.location_search_order
+      .map((r) => {
+        const place = byRank.get(r)?.place;
+        if (!place) return null;
+        return ext && ext.candidate_rank === r ? `${place}${sep}${ext.relationship}` : place;
+      })
+      .filter(Boolean);
     sections.push({ heading: V05_HEAD.candidates[lang], body: "", items });
-    if (result.location_extension) sections.push({ heading: V05_HEAD.extension[lang], body: result.location_extension.relationship });
     sections.push({ heading: V05_HEAD.watch[lang], body: result.watch_out });
     sections.push({ heading: V05_HEAD.practical[lang], body: result.practical_step });
   } else {

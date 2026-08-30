@@ -128,7 +128,9 @@ export function buildLanding(planet: DiceV05PlanetId, sign: DiceV05SignId, house
 /* ---------------- Stage 2 strict schemas (buildStage2Schema) ---------------- */
 const nul = (base: object) => ({ anyOf: [base, { type: "null" }] });
 const str = (min: number, max: number) => ({ type: "string", minLength: min, maxLength: max });
-const keyArr = () => ({ type: "array", minItems: 0, maxItems: 2, uniqueItems: true, items: str(1, 6) });
+// Evidence keys are stable semantic ids (e.g. "p.related.family_documents"); cap length generously.
+const EVIDENCE_KEY_MAX = 48;
+const keyArr = () => ({ type: "array", minItems: 0, maxItems: 2, uniqueItems: true, items: str(1, EVIDENCE_KEY_MAX) });
 
 export function buildStage2Schema(mode: DiceV05Stage2Mode, language: DiceV05Language) {
   if (mode === "judgment") {
@@ -159,7 +161,7 @@ export function buildStage2Schema(mode: DiceV05Stage2Mode, language: DiceV05Lang
           properties: { rank: { type: "integer", minimum: 1, maximum: 4 }, place: str(1, c.place),
             evidence: { type: "object", additionalProperties: false, required: ["p", "h", "e"], properties: { p: keyArr(), h: keyArr(), e: keyArr() } } } } }),
         extension: nul({ type: "object", additionalProperties: false, required: ["candidate_rank", "src", "relationship"],
-          properties: { candidate_rank: { type: "integer", minimum: 1, maximum: 4 }, src: str(1, 6), relationship: str(1, c.ext) } }),
+          properties: { candidate_rank: { type: "integer", minimum: 1, maximum: 4 }, src: str(1, EVIDENCE_KEY_MAX), relationship: str(1, c.ext) } }),
         search_order: nul({ type: "array", minItems: 2, maxItems: 4, uniqueItems: true, items: { type: "integer", minimum: 1, maximum: 4 } }),
         watch_out: nul(str(1, c.watch)), practical_step: nul(str(1, c.pract)),
       } } as const);
@@ -183,6 +185,16 @@ const CHINESE = /[㐀-鿿豈-﫿]/u;
 const CANTONESE = /[嘅唔喺咁]/u;
 const LOCATION_LEAK = /\b(?:to the|towards? the|search (?:the )?|look (?:to the )?)(?:north|south|east|west|north-?east|north-?west|south-?east|south-?west)\b|(?:向|往|朝)(?:東|南|西|北)(?:方|邊)?|方位(?:是|為|在)/iu;
 const TIMING_LEVEL1_LEAK = /\b(emotion|emotional|intuition|feelings?|transformation|rebirth|secrecy|power|personality)\b|情緒|直覺|轉化|重生|秘密|權力|性格/iu;
+// TM-02b: a Timing answer that is ONLY the band label (no two-component explanation)
+// fails the content contract. Matches a field whose ENTIRE text is just a pace word
+// (optionally "…pace/range/節奏/速度"). A real summary/synthesis has surrounding words.
+const TIMING_BAND_ONLY = /^\s*(?:very |extremely |fairly |quite |rather |較|非常|極|頗)?(?:fast|medium|slow|快|中|慢|快速|中速|中等|緩慢|慢速)(?:\s*pace|\s*range|節奏|速度|進程)?[\s.。!！,，]*$/iu;
+// DICE_JUDGMENT_BLENDED_GRADE: reject an averaged / single overall grade. Matches only
+// unambiguous blended-verdict signals — the v4 machine grade codes (snake_case) and
+// "overall/combined/blended grade", "overall verdict", zh overall-score phrases. It does
+// NOT match bare "favourable"/"single grade" (which the compliant Appendix-H answers use
+// legitimately, e.g. "both sides are favourable", "never merged into a single grade").
+const JUDGMENT_BLENDED = /\b(?:strongly_favourable|strongly_unfavourable|mixed_neutral)\b|\b(?:overall|combined|blended|average[d]?)[- ]grade\b|\boverall verdict\b|整體評分|綜合評分|總評分|平均分/iu;
 // Timing must not leak a concrete date/calendar time — only relative pace bands are
 // allowed (SC-18 → DICE_TIMING_LEVEL1_LEAK). "May" is excluded (modal verb); other
 // months, weekdays, numeric durations, 4-digit years and Chinese date/duration forms
@@ -224,10 +236,15 @@ export function parseDiceV05Stage2(mode: DiceV05Stage2Mode, language: DiceV05Lan
     if (!need(raw.planet_prose, c.planet) || !need(raw.house_prose, c.house) || !need(raw.synthesis, c.syn) || !need(raw.watch_out, c.watch)) return null;
     if (!Array.isArray(raw.suggested_followups) || raw.suggested_followups.length < 1 || raw.suggested_followups.length > 3) return null;
     for (const f of raw.suggested_followups) { if (!capped(f, c.follow)) return null; text.push(f as string); }
+    if (JUDGMENT_BLENDED.test(text.join(" "))) return null; // DICE_JUDGMENT_BLENDED_GRADE (averaged / single overall grade)
   } else if (mode === "timing") {
     if (!need(raw.timing_summary, c.ts) || !need(raw.synthesis, c.syn)) return null;
     if (raw.watch_out !== null && !need(raw.watch_out, c.watch)) return null;
     { const j = text.join(" "); if (TIMING_LEVEL1_LEAK.test(j) || TIMING_DATE_LEAK.test(j)) return null; } // DICE_TIMING_LEVEL1_LEAK
+    // TM-02b: reject a band-only answer (no two-component explanation). timing_summary or
+    // synthesis being just the pace word, or a synthesis too short to explain planet+house.
+    if (TIMING_BAND_ONLY.test(raw.timing_summary as string) || TIMING_BAND_ONLY.test(raw.synthesis as string)) return null; // DICE_TIMING_BAND_ONLY
+    if ([...(raw.synthesis as string)].length < (language === "en" ? 50 : 20)) return null; // insufficient explanation
   } else if (mode === "location") {
     if (!need(raw.most_likely_area, c.area) || !need(raw.synthesis, c.syn)) return null;
     if (!Array.isArray(raw.location_candidates)) return null;
@@ -287,4 +304,125 @@ export function validateLocation(res: LocationResponse, sel: LocationSelectedKey
 export function nodeDignityOk(planetId: DiceV05PlanetId, dignity: unknown, dignity_zh: unknown, strength: unknown): boolean {
   if (NODE_IDS.has(planetId)) return dignity === null && dignity_zh === null && strength === "neutral";
   return dignity !== null && dignity_zh !== null;
+}
+
+/* ---------------- §12.4 complete final-result JSON Schema (reusable object) ---------------- */
+const anyStrNull = { anyOf: [{ type: "string" }, { type: "null" }] } as const;
+const strArr = { type: "array", items: { type: "string" } } as const;
+export function diceV05FinalResultSchema() {
+  return Object.freeze({
+    type: "object", additionalProperties: false,
+    required: ["schema", "status", "language", "question_mode", "planet_side", "house_side", "most_likely_area",
+      "location_candidates", "location_extension", "location_search_order", "synthesis", "timing_summary", "watch_out", "practical_step", "suggested_followups"],
+    properties: {
+      schema: { const: "lumis_dice_interpretation_v5" },
+      status: { type: "string", enum: ["ok", DICE_V05_ROUTE_REVIEW] },
+      language: { type: "string", enum: ["en", "zh-Hant"] },
+      question_mode: { type: "string", enum: ["timing", "location", "judgment", "person", "reason", "thing_or_situation"] },
+      planet_side: { anyOf: [{ type: "object", additionalProperties: false,
+        required: ["fortune", "fortune_zh", "dignity", "dignity_zh", "strength", "constructive_traits", "difficult_traits", "dignity_emphasis", "prose"],
+        properties: {
+          fortune: { type: "string", enum: ["major_benefic", "minor_benefic", "major_malefic", "minor_malefic", "neutral", "outer", "benefic_node", "malefic_node"] },
+          fortune_zh: { type: "string" },
+          dignity: { anyOf: [{ type: "string", enum: ["ruler", "exaltation", "peregrine", "fall", "detriment"] }, { type: "null" }] },
+          dignity_zh: anyStrNull, strength: { type: "string", enum: ["strong", "neutral", "weak"] },
+          constructive_traits: { type: "string" }, difficult_traits: { type: "string" },
+          dignity_emphasis: { type: "string", enum: ["constructive", "difficult", "balanced"] }, prose: { type: "string" } } }, { type: "null" }] },
+      house_side: { anyOf: [{ type: "object", additionalProperties: false, required: ["fortune", "fortune_zh", "rank", "prose"],
+        properties: { fortune: { type: "string", enum: ["great_fortune", "fortune", "misfortune", "great_misfortune"] },
+          fortune_zh: { type: "string" }, rank: { type: "integer", minimum: 1, maximum: 12 }, prose: { type: "string" } } }, { type: "null" }] },
+      most_likely_area: anyStrNull,
+      location_candidates: { anyOf: [{ type: "array", minItems: 2, maxItems: 4, items: {
+        type: "object", additionalProperties: false, required: ["rank", "place", "evidence"],
+        properties: { rank: { type: "integer", minimum: 1, maximum: 4 }, place: { type: "string" },
+          evidence: { type: "object", additionalProperties: false, required: ["planet_ids", "house_ids", "element_ids"],
+            properties: { planet_ids: strArr, house_ids: strArr, element_ids: strArr } } } } }, { type: "null" }] },
+      location_extension: { anyOf: [{ type: "object", additionalProperties: false, required: ["candidate_rank", "source_id", "relationship"],
+        properties: { candidate_rank: { type: "integer", minimum: 1, maximum: 4 }, source_id: { type: "string" }, relationship: { type: "string" } } }, { type: "null" }] },
+      location_search_order: { anyOf: [{ type: "array", minItems: 2, maxItems: 4, uniqueItems: true, items: { type: "integer", minimum: 1, maximum: 4 } }, { type: "null" }] },
+      synthesis: anyStrNull, timing_summary: anyStrNull, watch_out: anyStrNull, practical_step: anyStrNull,
+      suggested_followups: strArr,
+    },
+  } as const);
+}
+
+/* Runtime validator for the assembled final object: enforces the §12.4 schema shape AND the
+ * per-mode final-field presence rules (§12.4 note). Returns "OK" or a specific error code. */
+const FORTUNE = new Set(["major_benefic", "minor_benefic", "major_malefic", "minor_malefic", "neutral", "outer", "benefic_node", "malefic_node"]);
+const HFORTUNE = new Set(["great_fortune", "fortune", "misfortune", "great_misfortune"]);
+const DIGNITY = new Set(["ruler", "exaltation", "peregrine", "fall", "detriment"]);
+const FINAL_KEYS = ["schema", "status", "language", "question_mode", "planet_side", "house_side", "most_likely_area",
+  "location_candidates", "location_extension", "location_search_order", "synthesis", "timing_summary", "watch_out", "practical_step", "suggested_followups"];
+const isStr = (v: unknown, min = 1): v is string => typeof v === "string" && v.length >= min;
+const isNul = (v: unknown) => v === null;
+const strOrNull = (v: unknown) => v === null || typeof v === "string";
+export function validateDiceV05FinalResult(obj: unknown): "OK" | string {
+  if (!isRecord(obj) || !exactKeys(obj, FINAL_KEYS)) return "DICE_FINAL_SCHEMA_SHAPE";
+  if (obj.schema !== "lumis_dice_interpretation_v5") return "DICE_FINAL_SCHEMA_ID";
+  if (obj.status !== "ok" && obj.status !== DICE_V05_ROUTE_REVIEW) return "DICE_FINAL_STATUS";
+  if (obj.language !== "en" && obj.language !== "zh-Hant") return "DICE_FINAL_LANGUAGE";
+  const mode = obj.question_mode;
+  if (typeof mode !== "string" || !["timing", "location", "judgment", "person", "reason", "thing_or_situation"].includes(mode)) return "DICE_FINAL_QUESTION_MODE";
+  if (!Array.isArray(obj.suggested_followups) || (obj.suggested_followups as unknown[]).some((f) => typeof f !== "string")) return "DICE_FINAL_FOLLOWUPS_TYPE";
+  // planet_side
+  if (obj.planet_side !== null) {
+    if (!isRecord(obj.planet_side) || !exactKeys(obj.planet_side, ["fortune", "fortune_zh", "dignity", "dignity_zh", "strength", "constructive_traits", "difficult_traits", "dignity_emphasis", "prose"])) return "DICE_FINAL_PLANET_SIDE_SHAPE";
+    const p: any = obj.planet_side;
+    if (!FORTUNE.has(p.fortune) || !isStr(p.fortune_zh) || !(p.dignity === null || DIGNITY.has(p.dignity)) || !strOrNull(p.dignity_zh)
+      || !["strong", "neutral", "weak"].includes(p.strength) || !isStr(p.constructive_traits) || !isStr(p.difficult_traits)
+      || !["constructive", "difficult", "balanced"].includes(p.dignity_emphasis) || !isStr(p.prose)) return "DICE_FINAL_PLANET_SIDE_FIELD";
+  }
+  // house_side
+  if (obj.house_side !== null) {
+    if (!isRecord(obj.house_side) || !exactKeys(obj.house_side, ["fortune", "fortune_zh", "rank", "prose"])) return "DICE_FINAL_HOUSE_SIDE_SHAPE";
+    const h: any = obj.house_side;
+    if (!HFORTUNE.has(h.fortune) || !isStr(h.fortune_zh) || !Number.isInteger(h.rank) || h.rank < 1 || h.rank > 12 || !isStr(h.prose)) return "DICE_FINAL_HOUSE_SIDE_FIELD";
+  }
+  // location_candidates
+  if (obj.location_candidates !== null) {
+    const cs: any = obj.location_candidates;
+    if (!Array.isArray(cs) || cs.length < 2 || cs.length > 4) return "DICE_FINAL_LOCATION_CANDIDATES_SHAPE";
+    for (const c of cs as any[]) {
+      if (!isRecord(c) || !exactKeys(c, ["rank", "place", "evidence"])) return "DICE_FINAL_LOCATION_CANDIDATE_FIELD";
+      const cc: any = c;
+      if (!Number.isInteger(cc.rank) || cc.rank < 1 || cc.rank > 4 || !isStr(cc.place)) return "DICE_FINAL_LOCATION_CANDIDATE_FIELD";
+      if (!isRecord(cc.evidence) || !exactKeys(cc.evidence, ["planet_ids", "house_ids", "element_ids"])) return "DICE_FINAL_LOCATION_EVIDENCE_SHAPE";
+      const ev: any = cc.evidence;
+      for (const a of [ev.planet_ids, ev.house_ids, ev.element_ids]) if (!Array.isArray(a) || a.some((x: unknown) => typeof x !== "string")) return "DICE_FINAL_LOCATION_EVIDENCE_TYPE";
+    }
+  }
+  if (obj.location_extension !== null) {
+    if (!isRecord(obj.location_extension) || !exactKeys(obj.location_extension, ["candidate_rank", "source_id", "relationship"])) return "DICE_FINAL_LOCATION_EXTENSION_SHAPE";
+    const e: any = obj.location_extension;
+    if (!Number.isInteger(e.candidate_rank) || e.candidate_rank < 1 || e.candidate_rank > 4 || !isStr(e.source_id) || !isStr(e.relationship)) return "DICE_FINAL_LOCATION_EXTENSION_SHAPE";
+  }
+  if (obj.location_search_order !== null) {
+    const s: any = obj.location_search_order;
+    if (!Array.isArray(s) || s.length < 2 || s.length > 4 || new Set(s).size !== s.length || s.some((v: unknown) => !Number.isInteger(v) || (v as number) < 1 || (v as number) > 4)) return "DICE_FINAL_SEARCH_ORDER_SHAPE";
+  }
+  for (const k of ["most_likely_area", "synthesis", "timing_summary", "watch_out", "practical_step"]) if (!strOrNull(obj[k])) return "DICE_FINAL_TEXT_TYPE:" + k;
+
+  if (obj.status === DICE_V05_ROUTE_REVIEW) return "OK"; // route-review final: content fields null (already type-checked)
+
+  // Per-mode presence (§12.4 note).
+  const nulls = (keys: string[]) => keys.every((k) => isNul(obj[k]));
+  const set = (keys: string[]) => keys.every((k) => obj[k] !== null);
+  if (mode === "judgment") {
+    if (!(obj.planet_side !== null && obj.house_side !== null && isStr(obj.synthesis) && isStr(obj.watch_out))) return "DICE_FINAL_MODE_JUDGMENT_MISSING";
+    if (!nulls(["most_likely_area", "location_candidates", "location_extension", "location_search_order", "timing_summary", "practical_step"])) return "DICE_FINAL_MODE_JUDGMENT_EXTRA";
+    if ((obj.suggested_followups as unknown[]).length < 1 || (obj.suggested_followups as unknown[]).length > 3) return "DICE_FINAL_MODE_JUDGMENT_FOLLOWUPS";
+  } else if (mode === "timing") {
+    if (!(isStr(obj.synthesis) && isStr(obj.timing_summary))) return "DICE_FINAL_MODE_TIMING_MISSING";
+    if (!nulls(["planet_side", "house_side", "most_likely_area", "location_candidates", "location_extension", "location_search_order", "practical_step"])) return "DICE_FINAL_MODE_TIMING_EXTRA";
+    if ((obj.suggested_followups as unknown[]).length !== 0) return "DICE_FINAL_MODE_TIMING_FOLLOWUPS";
+  } else if (mode === "location") {
+    if (!(isStr(obj.most_likely_area) && obj.location_candidates !== null && isStr(obj.synthesis) && isStr(obj.watch_out) && isStr(obj.practical_step) && set(["location_search_order"]))) return "DICE_FINAL_MODE_LOCATION_MISSING";
+    if (!nulls(["planet_side", "house_side", "timing_summary"])) return "DICE_FINAL_MODE_LOCATION_EXTRA";
+    if ((obj.suggested_followups as unknown[]).length !== 0) return "DICE_FINAL_MODE_LOCATION_FOLLOWUPS";
+  } else { // level-1
+    if (!(isStr(obj.synthesis) && isStr(obj.watch_out) && isStr(obj.practical_step))) return "DICE_FINAL_MODE_LEVEL1_MISSING";
+    if (!nulls(["planet_side", "house_side", "most_likely_area", "location_candidates", "location_extension", "location_search_order", "timing_summary"])) return "DICE_FINAL_MODE_LEVEL1_EXTRA";
+    if ((obj.suggested_followups as unknown[]).length !== 0) return "DICE_FINAL_MODE_LEVEL1_FOLLOWUPS";
+  }
+  return "OK";
 }

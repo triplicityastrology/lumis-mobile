@@ -16,7 +16,7 @@ import {
 import {
   DICE_V05_BLOCK, buildProviderInput, buildStage2Schema, diceV05Stage1Schema,
   parseDiceV05Stage1, parseDiceV05Stage2, validateLocation, validateLandingIdentity,
-  buildLanding, stage2ModeOf, nodeDignityOk,
+  validateDiceV05FinalResult, buildLanding, stage2ModeOf, nodeDignityOk,
   type DiceV05Mode, type DiceV05Stage2Mode,
 } from "./dice-v0-5-interpretation-contract.ts";
 import {
@@ -27,7 +27,13 @@ import {
 const INPUT_CAP = 1600;
 const MODE_OUTPUT_CAP = 300 as const;
 const OUTPUT_CAP = 600 as const;
-const LOCATION_OUTPUT_CAP = 580 as const;
+// Location output backstop. Stable SEMANTIC evidence ids (reviewer item 3) enlarge the
+// keys the model echoes, so the schema-permitted pathological maximum (4 candidates each
+// citing 2 long keys in all three arrays + every field at its char cap) is ~658 zh tokens
+// (was ~557 with positional keys). The backstop is raised 580→700 so no schema-valid answer
+// is ever token-rejected; realistic answers are ~300–534. Per-field character caps remain
+// the primary bound; this token cap is the secondary abuse backstop.
+const LOCATION_OUTPUT_CAP = 700 as const;
 const SHARED_DEADLINE_MS = 12000;
 const PLANETS = new Set<string>(DICE_V05_PLANET_IDS);
 const SIGNS = new Set<string>(DICE_V05_SIGN_IDS);
@@ -168,6 +174,10 @@ export async function executeDiceV05FreeTextCase(
       if (check !== "OK") { if (attempt < 2 && now() < deadline) continue; return fallback(check, language, mode, calls); }
       result = assembleLocation(language, parsed.value, locationResolution!.gid);
     } else result = assembleLevel1(language, mode as "person" | "reason" | "thing_or_situation", parsed.value);
+    // Defense-in-depth: the assembled object must satisfy the complete §12.4 final schema
+    // (shape + per-mode presence). A regression here fails closed rather than emitting a bad card.
+    const finalCheck = validateDiceV05FinalResult(result);
+    if (finalCheck !== "OK") return fallback("DICE_FINAL_ASSEMBLY_INVALID", language, mode, calls);
     return Object.freeze({ kind: "completed", question_mode: mode, result, provider_calls: calls, metadata: metadata(language, mode, "completed", calls) });
   }
   return providerFailure("network", language, mode, calls);

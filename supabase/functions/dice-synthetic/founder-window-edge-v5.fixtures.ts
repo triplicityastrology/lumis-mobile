@@ -41,16 +41,19 @@ async function main() {
   ok(tm.kind === "completed" && tm.question_mode === "timing" && tm.provider_calls === 2, "timing completed");
   ok((tm as any).result.timing_summary && (tm as any).result.planet_side === null, "timing result shape");
 
-  // Location (validateLocation gate).
+  // Location (validateLocation gate) — real semantic evidence keys for Moon/Leo/House 4.
   const cand = (rank: number, p: string[], h: string[], e: string[]) => ({ rank, place: "a specific place", evidence: { p, h, e } });
+  const P1 = "p_family_home", P2 = "p_bedroom_private", P3 = "p_kitchen_food";
+  const H1 = "h_family_property", H2 = "h_household_room", H3 = "h_under_furniture";
+  const E1 = "e_heat_or_fire";
   const loc = await run({ question: "Where did I leave my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" },
     [s1("location", "STEP_2_LOCATION"), JSON.stringify({ status: "ok", most_likely_area: "at home",
       synthesis: "Home first, then narrower spots, then the heat side.",
-      location_candidates: [cand(1, ["p1"], ["h3"], []), cand(2, ["p2"], ["h1"], ["e1"]), cand(3, ["p3"], ["h2"], [])],
+      location_candidates: [cand(1, [P1], [H3], []), cand(2, [P2], [H1], [E1]), cand(3, [P3], [H2], [])],
       extension: null, search_order: [1, 2, 3], watch_out: "Do not check only the obvious spots.", practical_step: "Start with the bedroom, then the living areas." })]);
   ok(loc.kind === "completed" && loc.question_mode === "location" && loc.provider_calls === 2, "location completed");
   ok(Array.isArray((loc as any).result.location_candidates) && (loc as any).result.location_search_order.length === 3, "location result shape");
-  ok((loc as any).result.location_candidates[0].evidence.planet_ids[0] === "planet.moon.related.1", "location gid expansion");
+  ok((loc as any).result.location_candidates[0].evidence.planet_ids[0] === "planet.moon.related.family_home", "location gid expansion (semantic)");
 
   // Level-1 person.
   const lv = await run({ question: "What kind of person is my new manager?", planet_id: "saturn", sign_id: "libra", house_id: "house_10" },
@@ -63,7 +66,7 @@ async function main() {
 
   // A location response whose rank-1 cites no planet key fails the §16 gate → fallback.
   const badLocJson = JSON.stringify({ status: "ok", most_likely_area: "at home", synthesis: "Home first.",
-    location_candidates: [cand(1, [], ["h1"], []), cand(2, ["p2"], [], [])],
+    location_candidates: [cand(1, [], [H1], []), cand(2, [P2], [], [])],
     extension: null, search_order: [1, 2], watch_out: "Check carefully.", practical_step: "Start at home." });
   // The §16 gate re-tries once, so the mock returns the same rejected response twice.
   const badLoc = await run({ question: "Where did I leave my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" },

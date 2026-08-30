@@ -3,11 +3,13 @@
 import {
   buildStage2Schema, diceV05LandingSchema, validateLandingIdentity, buildLanding,
   parseDiceV05Stage2, DICE_V05_ROUTE_REVIEW_LITERAL, CAPS,
+  diceV05FinalResultSchema, validateDiceV05FinalResult,
 } from "./dice-v0-5-interpretation-contract.ts";
+import { nodeDignityOk } from "./dice-v0-5-interpretation-contract.ts";
 import {
   assembleJudgment, assembleTiming, assembleLocation, assembleLevel1, assembleRouteReview, buildLocationResolution,
 } from "./dice-v0-5-presentation.ts";
-import { DICE_V05_RESULT_SCHEMA } from "./dice-v0-5-fixed-data.ts";
+import { DICE_V05_RESULT_SCHEMA, PLANET_TABLE, dignityOf } from "./dice-v0-5-fixed-data.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
@@ -82,6 +84,21 @@ for (const [mode, f] of Object.entries(finals)) {
 eq(finals.route_review.status, "route_review_required", "route-review final status");
 eq(finals.judgment.status, "ok", "judgment final status ok");
 
+/* ---- §12.4 complete final-result JSON Schema object + runtime validator ---- */
+const fs: any = diceV05FinalResultSchema();
+eq(fs.additionalProperties, false, "final schema closed");
+eq(keys(fs.properties), FINAL_KEYS, "final schema property set == §12.4");
+eq(fs.properties.schema.const, DICE_V05_RESULT_SCHEMA, "final schema const id");
+// Every assembled mode validates OK against the complete final validator.
+for (const [mode, f] of Object.entries(finals)) eq(validateDiceV05FinalResult(f), "OK", `final validator OK: ${mode}`);
+// Negatives.
+eq(validateDiceV05FinalResult({ ...finals.judgment, house_side: { ...(finals.judgment as any).house_side, rank: "1" } }), "DICE_FINAL_HOUSE_SIDE_FIELD", "final: rank wrong type rejected");
+eq(validateDiceV05FinalResult({ ...finals.judgment, extra: 1 }), "DICE_FINAL_SCHEMA_SHAPE", "final: extra top-level key rejected");
+eq(validateDiceV05FinalResult({ ...finals.judgment, timing_summary: "x" }), "DICE_FINAL_MODE_JUDGMENT_EXTRA", "final: judgment with timing_summary rejected (per-mode)");
+eq(validateDiceV05FinalResult({ ...finals.timing, suggested_followups: ["x"] }), "DICE_FINAL_MODE_TIMING_FOLLOWUPS", "final: timing with followups rejected (per-mode)");
+eq(validateDiceV05FinalResult({ ...finals.location, planet_side: (finals.judgment as any).planet_side }), "DICE_FINAL_MODE_LOCATION_EXTRA", "final: location with planet_side rejected (per-mode)");
+eq(validateDiceV05FinalResult({ ...finals.judgment, planet_side: { ...(finals.judgment as any).planet_side, fortune: "lucky" } }), "DICE_FINAL_PLANET_SIDE_FIELD", "final: bad fortune enum rejected");
+
 /* ---- SC-18 / SC-19 parser leak heuristics ---- */
 // SC-18: a timing output containing a concrete date is rejected; a bare pace band passes.
 ok(parseDiceV05Stage2("timing", "en", JSON.stringify({ status: "ok", timing_summary: "Expect it around March next year.", synthesis: "The process runs at a medium pace overall.", watch_out: null })) === null, "SC-18 timing date leak rejected");
@@ -95,5 +112,25 @@ const locOk = { status: "ok", most_likely_area: "at home", synthesis: "Home firs
   extension: null, search_order: [1, 2], watch_out: "Do not check only the obvious spots.", practical_step: "Start with the bedroom." };
 ok((parseDiceV05Stage2("location", "en", JSON.stringify(locOk)) as any)?.kind === "ok", "SC-19 clean location accepted");
 ok(parseDiceV05Stage2("location", "en", JSON.stringify({ ...locOk, synthesis: "This is a benefic, fortunate placement pointing home." })) === null, "SC-19 location dignity/fortune word rejected");
+
+/* ---- SC-16 / SC-22 / SC-23 / SC-24 ---- */
+// SC-16 (fixed-value integrity): the assembler INJECTS planet_side/house_side from the controlled
+// tables — the model never supplies them (closed Stage-2 schema has no such keys). So the assembled
+// fixed sub-fields always equal the source; a tampered value is caught by the final validator.
+{
+  const jf: any = assembleJudgment("en", buildLanding("jupiter", "sagittarius", 1), { planet_prose: "p", house_prose: "h", synthesis: "s", watch_out: "w", suggested_followups: ["a"] });
+  eq(jf.planet_side.fortune, PLANET_TABLE.jupiter.fortune, "SC-16 planet_side.fortune == source (injected, not model-authored)");
+  eq(jf.planet_side.dignity, dignityOf("jupiter", "sagittarius").dignity, "SC-16 planet_side.dignity == source");
+  eq(jf.house_side.rank, 1, "SC-16 house_side.rank == source");
+  // A structurally-invalid fixed value is caught by the final validator (defense-in-depth).
+  ok(validateDiceV05FinalResult({ ...jf, planet_side: { ...jf.planet_side, fortune: "lucky" } }) !== "OK", "SC-16 invalid fortune enum rejected by final validator");
+}
+// SC-22 / SC-23: landing identity must equal the physical throw AND the controlled labels.
+ok(!validateLandingIdentity({ ...buildLanding("jupiter", "sagittarius", 1), planet_id: "pluto" as any }, { planet: "jupiter", sign: "sagittarius", house: 1 }), "SC-22 landing planet_id≠labels rejected (DICE_LANDING_VALUE_MISMATCH)");
+ok(!validateLandingIdentity(buildLanding("jupiter", "sagittarius", 1), { planet: "jupiter", sign: "leo", house: 1 }), "SC-23 landing≠physical throw rejected");
+// SC-24: a Node with non-null dignity is invalid; a Node with null/null/neutral is valid.
+ok(!nodeDignityOk("north_node", "ruler", "守護", "neutral"), "SC-24 Timing/any Node non-null dignity invalid (DICE_NODE_DIGNITY_INVALID)");
+ok(nodeDignityOk("north_node", null, null, "neutral"), "SC-24 Node null dignity valid");
+ok(nodeDignityOk("saturn", dignityOf("saturn", "capricorn").dignity, "x", "strong"), "SC-24 non-node non-null dignity valid");
 
 console.log("dice-v0-5 schema fixtures passed");

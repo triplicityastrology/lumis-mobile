@@ -46,4 +46,31 @@ ok(parseDiceV05Stage2("timing", "en", JSON.stringify({ status: "ok", timing_summ
 // watch_out nullable, but if present must be capped.
 ok(parseDiceV05Stage2("timing", "en", JSON.stringify({ ...resp7En, watch_out: "x".repeat(200) })) === null, "Timing watch_out 200>190 rejected");
 
+// TM-02b — a band-only answer (no two-component explanation) is rejected.
+ok(parseDiceV05Stage2("timing", "zh-Hant", JSON.stringify({ status: "ok", timing_summary: "中等", synthesis: "中等", watch_out: null })) === null, "TM-02b zh band-only rejected");
+ok(parseDiceV05Stage2("timing", "en", JSON.stringify({ status: "ok", timing_summary: "Medium.", synthesis: "Medium.", watch_out: null })) === null, "TM-02b en band-only rejected");
+ok(parseDiceV05Stage2("timing", "en", JSON.stringify({ status: "ok", timing_summary: "Medium pace", synthesis: "It is medium overall.", watch_out: null })) === null, "TM-02b thin explanation rejected");
+// The valid two-component Test 7 answer still passes (control).
+ok((parseDiceV05Stage2("timing", "en", JSON.stringify(resp7En)) as any)?.kind === "ok", "TM-02b control: full explanation accepted");
+// A short-but-genuine zh two-component explanation (Test 8) still passes.
+ok((parseDiceV05Stage2("timing", "zh-Hant", JSON.stringify(resp8Zh)) as any)?.kind === "ok", "TM-02b control: zh Test 8 accepted");
+
+/* ---- §20.3 / §6.5 the COMPLETE 15-cell v5 combined-pace matrix ---- */
+const MATRIX: Record<string, Record<string, string>> = {
+  fastest: { fast: "fast", medium: "fast", slow: "medium" },
+  fast: { fast: "fast", medium: "medium", slow: "medium" },
+  medium: { fast: "medium", medium: "medium", slow: "slow" },
+  slow: { fast: "medium", medium: "slow", slow: "slow" },
+  slowest: { fast: "medium", medium: "slow", slow: "slow" }, // slowest×fast = medium (Founder Decision A)
+};
+for (const ps of Object.keys(MATRIX)) for (const hs of Object.keys(MATRIX[ps])) {
+  eq(combinedPaceV05(ps as any, hs as any), MATRIX[ps][hs], `matrix ${ps} × ${hs}`);
+}
+// TM-08a vs TM-08b — dignity_strength changes smoothness only, never the band: the pace
+// function does not depend on dignity, so the band is identical regardless of dignity.
+eq(combinedPaceV05("fastest", "fast"), combinedPaceV05("fastest", "fast"), "band independent of dignity (smoothness only)");
+// dignity resolution differs (Moon in Cancer = ruler/strong vs Moon in Sagittarius = peregrine/neutral)
+// yet both give the same combined band for the same speeds.
+ok(dignityOf("moon", "cancer").strength === "strong" && dignityOf("moon", "sagittarius").strength === "neutral", "same speeds, different dignity strengths available");
+
 console.log("dice-v0-5 timing fixtures passed");
