@@ -14,3 +14,7 @@ coverage/
 supabase/.branches/
 supabase/.temp/
 workers/**/.dev.vars
+
+# Dice Prompt v3 controlling proposal + audit scripts — kept in the working tree for
+# reference but intentionally NOT committed (Founder instruction: untracked and excluded).
+docs/qa/dice-prompt-v3/
