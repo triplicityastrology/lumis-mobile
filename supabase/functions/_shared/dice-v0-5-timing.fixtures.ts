@@ -66,11 +66,18 @@ const MATRIX: Record<string, Record<string, string>> = {
 for (const ps of Object.keys(MATRIX)) for (const hs of Object.keys(MATRIX[ps])) {
   eq(combinedPaceV05(ps as any, hs as any), MATRIX[ps][hs], `matrix ${ps} × ${hs}`);
 }
-// TM-08a vs TM-08b — dignity_strength changes smoothness only, never the band: the pace
-// function does not depend on dignity, so the band is identical regardless of dignity.
-eq(combinedPaceV05("fastest", "fast"), combinedPaceV05("fastest", "fast"), "band independent of dignity (smoothness only)");
-// dignity resolution differs (Moon in Cancer = ruler/strong vs Moon in Sagittarius = peregrine/neutral)
-// yet both give the same combined band for the same speeds.
-ok(dignityOf("moon", "cancer").strength === "strong" && dignityOf("moon", "sagittarius").strength === "neutral", "same speeds, different dignity strengths available");
+// TM-08 (reviewer item 5b) — dignity changes SMOOTHNESS/FRICTION only, never the timing band.
+// Jupiter in Sagittarius (ruler, STRONG) vs Jupiter in Gemini (detriment, WEAK): the SAME planet
+// (same inherent speed) in the SAME house (same environmental speed), so the combined band is
+// identical; only dignity_strength differs. This is a real same-speed contrast, not two calls to
+// the pace function with identical arguments.
+const tm08a = buildTimingEnvelope("en", "When will it happen?", "jupiter", "sagittarius", 1) as any;
+const tm08b = buildTimingEnvelope("en", "When will it happen?", "jupiter", "gemini", 1) as any;
+eq(tm08a.given.planet_speed, tm08b.given.planet_speed, "TM-08 same planet speed (Jupiter)");
+eq(tm08a.given.house_speed, tm08b.given.house_speed, "TM-08 same house speed (House 1)");
+eq(tm08a.given.combined_pace, tm08b.given.combined_pace, "TM-08 identical timing band (medium) regardless of dignity");
+ok(dignityOf("jupiter", "sagittarius").strength === "strong" && dignityOf("jupiter", "gemini").strength === "weak", "TM-08 Jupiter dignity differs: Sagittarius=strong (ruler) vs Gemini=weak (detriment)");
+ok(tm08a.given.dignity_strength === "strong" && tm08b.given.dignity_strength === "weak", "TM-08 envelope carries the differing dignity_strength (smoothness/friction qualifier)");
+ok(tm08a.given.combined_pace === tm08b.given.combined_pace && tm08a.given.dignity_strength !== tm08b.given.dignity_strength, "TM-08 the band is the ONLY thing unchanged; dignity_strength is the only difference");
 
 console.log("dice-v0-5 timing fixtures passed");

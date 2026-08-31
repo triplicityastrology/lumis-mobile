@@ -99,6 +99,21 @@ eq(validateDiceV05FinalResult({ ...finals.timing, suggested_followups: ["x"] }),
 eq(validateDiceV05FinalResult({ ...finals.location, planet_side: (finals.judgment as any).planet_side }), "DICE_FINAL_MODE_LOCATION_EXTRA", "final: location with planet_side rejected (per-mode)");
 eq(validateDiceV05FinalResult({ ...finals.judgment, planet_side: { ...(finals.judgment as any).planet_side, fortune: "lucky" } }), "DICE_FINAL_PLANET_SIDE_FIELD", "final: bad fortune enum rejected");
 
+/* ---- Route-review final envelope MUST be fully closed (reviewer item 4): every content field
+ * null and suggested_followups exactly []. A route-review carrying any content is rejected. ---- */
+eq(validateDiceV05FinalResult(finals.route_review), "OK", "route-review: clean closed envelope OK");
+eq(validateDiceV05FinalResult({ ...finals.route_review, synthesis: "leaked reading" }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with synthesis rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, location_candidates: (finals.location as any).location_candidates }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with candidates rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, planet_side: (finals.judgment as any).planet_side }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with planet_side rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, house_side: (finals.judgment as any).house_side }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with house_side rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, timing_summary: "soon" }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with timing_summary rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, most_likely_area: "at home" }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with most_likely_area rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, location_extension: { candidate_rank: 1, source_id: "planet.moon.related.family_home", relationship: "r" } }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with extension rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, location_search_order: [1, 2] }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with search_order rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, watch_out: "careful" }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with watch_out rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, practical_step: "start here" }), "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY", "route-review with practical_step rejected");
+eq(validateDiceV05FinalResult({ ...finals.route_review, suggested_followups: ["another question"] }), "DICE_FINAL_ROUTE_REVIEW_FOLLOWUPS", "route-review with a follow-up rejected");
+
 /* ---- SC-18 / SC-19 parser leak heuristics ---- */
 // SC-18: a timing output containing a concrete date is rejected; a bare pace band passes.
 ok(parseDiceV05Stage2("timing", "en", JSON.stringify({ status: "ok", timing_summary: "Expect it around March next year.", synthesis: "The process runs at a medium pace overall.", watch_out: null })) === null, "SC-18 timing date leak rejected");

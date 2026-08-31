@@ -7,7 +7,8 @@
  * no raw question or provider response leaves this module.
  * Source of truth: DICE_PROMPT_V3_TECHNICAL_PROPOSAL_REV4_2_FINAL.md (§10–§19).
  */
-import { classifyDiceQuestionRequest, detectDiceQuestionLanguage } from "../../../packages/shared/src/config/dice-question-boundary.ts";
+import { detectDiceQuestionLanguage } from "../../../packages/shared/src/config/dice-question-boundary.ts";
+import { classifyDiceV05QuestionRequest } from "./dice-v0-5-question-gate.ts";
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 import {
   DICE_V05_PLANET_IDS, DICE_V05_SIGN_IDS, dignityOf,
@@ -25,6 +26,10 @@ import {
 } from "./dice-v0-5-presentation.ts";
 
 const INPUT_CAP = 1600;
+// Location Stage-2 carries the complete Planet + House + Element banks plus a full-length (280
+// code-point) question, so its input is materially larger than the other modes. Its cap is 1800
+// (all other mode inputs stay at 1600); the Location OUTPUT cap remains 580 by construction.
+const LOCATION_INPUT_CAP = 1800;
 const MODE_OUTPUT_CAP = 300 as const;
 const OUTPUT_CAP = 600 as const;
 // Location output backstop. Stable SEMANTIC evidence ids (reviewer item 3) enlarge the
@@ -33,7 +38,10 @@ const OUTPUT_CAP = 600 as const;
 // (was ~557 with positional keys). The backstop is raised 580→700 so no schema-valid answer
 // is ever token-rejected; realistic answers are ~300–534. Per-field character caps remain
 // the primary bound; this token cap is the secondary abuse backstop.
-const LOCATION_OUTPUT_CAP = 700 as const;
+// Founder Decision B: Location is <= 580 tokens by construction. The SAME 580 is the provider
+// max_output_tokens, the runtime output measurement limit, and the rejection backstop — the
+// request is never issued with a different cap than the one we validate against.
+const LOCATION_OUTPUT_CAP = 580 as const;
 const SHARED_DEADLINE_MS = 12000;
 const PLANETS = new Set<string>(DICE_V05_PLANET_IDS);
 const SIGNS = new Set<string>(DICE_V05_SIGN_IDS);
@@ -106,7 +114,7 @@ export async function executeDiceV05FreeTextCase(
   adapterSource: DiceV05ProviderAdapter | (() => DiceV05ProviderAdapter),
   now: () => number = () => Date.now(),
 ): Promise<DiceV05CaseOutcome> {
-  const decision = classifyDiceQuestionRequest({ question: input.question });
+  const decision = classifyDiceV05QuestionRequest({ question: input.question });
   const language: DiceV05Language = decision.accepted ? decision.language : detectDiceQuestionLanguage(input.question);
   if (!decision.accepted) return hardGateOutcome(decision.code, language);
 
@@ -150,12 +158,13 @@ export async function executeDiceV05FreeTextCase(
   else if (s2mode === "location") { locationResolution = buildLocationResolution(language, planet, sign, house); stage2Input = buildProviderInput(DICE_V05_BLOCK.location, { ...locationResolution.envelope, question: q }); }
   else stage2Input = buildProviderInput(DICE_V05_BLOCK.level1, buildLevel1Envelope(mode as "person" | "reason" | "thing_or_situation", language, q, planet, sign, house));
 
-  if (!measureDiceTokenLimit(stage2Input, INPUT_CAP).within_limit) return fallback("DICE_INPUT_TOKEN_CAP", language, mode, calls);
+  const inCap = s2mode === "location" ? LOCATION_INPUT_CAP : INPUT_CAP;
+  if (!measureDiceTokenLimit(stage2Input, inCap).within_limit) return fallback("DICE_INPUT_TOKEN_CAP", language, mode, calls);
   const outCap = s2mode === "location" ? LOCATION_OUTPUT_CAP : OUTPUT_CAP;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     if (now() >= deadline) return providerFailure("timeout", language, mode, calls);
-    const s2 = await invokeStage(adapter, stage2Input, OUTPUT_CAP, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
+    const s2 = await invokeStage(adapter, stage2Input, outCap, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
     calls += 1;
     if (s2.kind !== "success") {
       if (["authentication", "permission", "content_filter"].includes(s2.kind) || attempt === 2 || now() >= deadline) return providerFailure(s2.kind, language, mode, calls);

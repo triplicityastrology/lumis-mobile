@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import vm from "node:vm";
 import {
   HOUSE_OPTIONS, PLANET_OPTIONS, SIGN_OPTIONS, createLabServer, deterministicPresentation, executeLabFreeTextRequest, executeLabRequest,
@@ -206,10 +206,25 @@ assert.equal(v05Live.body.metadata.units_consumed, 0, "metadata carries units_co
 const v05Review = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
 assert.equal(v05Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
 assert.equal(v05Review.body.presentation.kind, "route_review");
-// Test 6 (§20) — the specific bundled-question member copy is rendered for a bundled outcome.
-const v05Bundled = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "bundled", code: "DICE_BUNDLED_QUESTION", metadata: null }) }) });
-assert.equal(v05Bundled.body.code, "DICE_BUNDLED_QUESTION", "Test 6 bundled code");
-assert.equal(v05Bundled.body.presentation.message, "This contains more than one question. Each Dice throw can interpret only one clear question. Please choose one question and try again.", "Test 6 exact bundled member copy (en)");
+// Test 6 (§20 workbook) — the EXACT bundled question driven through the REAL v5 Stage-0 gate
+// (the compiled window), NOT a manually forced bundled outcome. The provider adapter is a call
+// counter that must never be invoked; the lab then renders the specific bundled member copy.
+const windowMod = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-window.js")).href);
+const executeDiceV05FreeTextCase = windowMod.executeDiceV05FreeTextCase ?? windowMod.default?.executeDiceV05FreeTextCase;
+const parseDiceV05FreeTextRequest = windowMod.parseDiceV05FreeTextRequest ?? windowMod.default?.parseDiceV05FreeTextRequest;
+assert.ok(typeof executeDiceV05FreeTextCase === "function" && typeof parseDiceV05FreeTextRequest === "function",
+  "compiled v5 window available (test:dice-v05-web-lab compiles it first)");
+const TEST6_QUESTION = "我個application會唔會批？幾時會批？"; // will it be approved? when will it be approved?
+let test6AdapterCalls = 0;
+const realGateGateway = () => ({ run: async (body) => {
+  const req = parseDiceV05FreeTextRequest(body);
+  return executeDiceV05FreeTextCase(req, { invoke: async () => { test6AdapterCalls += 1; return { kind: "network" }; } }, () => 1000);
+} });
+const v05Bundled = await executeLabFreeTextV05Request({ question: TEST6_QUESTION, planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" }, { providerEnabled: true, gatewayFactory: realGateGateway });
+assert.equal(test6AdapterCalls, 0, "Test 6: the real Stage-0 gate made ZERO provider calls (adapter never invoked)");
+assert.equal(v05Bundled.body.provider_calls, 0, "Test 6: lab reports 0 provider calls");
+assert.equal(v05Bundled.body.code, "DICE_BUNDLED_QUESTION", "Test 6 bundled code (from the real gate)");
+assert.equal(v05Bundled.body.presentation.message, "這裡包含多於一個問題。每次擲骰只適用於一個清晰問題，請選擇其中一個問題後再試。", "Test 6 exact bundled member copy (zh, driven by the real gate)");
 const v05Timing = { ...v05Judgment, question_mode: "timing", planet_side: null, house_side: null, synthesis: "Slow by nature but externally assisted, so gradual overall. The house lifts an otherwise slow pace.", timing_summary: "Slow by nature but externally assisted, gradual overall.", watch_out: "Do not expect a sudden jump.", practical_step: null, suggested_followups: [] };
 const v05TimingPresentation = presentLabV05Result(validateLabV05Result(v05Timing, "en"), { planet: { en: "Pluto", zh: "冥王星", id: "pluto" }, sign: { en: "Sagittarius", zh: "人馬座", id: "sagittarius" }, house: { en: "1st House", zh: "第一宮", id: "house_1" } });
 assert.deepEqual(v05TimingPresentation.sections.map((s) => s.heading), ["Timing", "Reading", "One thing to watch"], "timing renders Timing + Reading + Watch, no Practical step");

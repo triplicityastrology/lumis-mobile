@@ -1,7 +1,8 @@
-/** v5 Routing fixtures (§20.1) — all 19 RT rows run through the REAL Stage-0 gate and,
- * for pass rows, through the window with a mocked Stage-1; plus Stage-1 schema/pairing.
- * Findings: the reused v3 Stage-0 classifier diverges from §20.1 for RT-17/18/19 (recorded). */
-import { classifyDiceQuestionRequest } from "../../../packages/shared/src/config/dice-question-boundary.ts";
+/** v5 Routing fixtures (§20.1) — all 19 RT rows run through the REAL v5 Stage-0 gate as
+ * FAIL-FAST assertions (no non-fatal "findings"), plus Stage-1 schema/pairing and, for pass
+ * rows, the window with a mocked Stage-1 proving the routed mode and provider-call count.
+ * The v5 gate (dice-v0-5-question-gate.ts) wraps the shared v3 classifier without editing it. */
+import { classifyDiceV05QuestionRequest } from "./dice-v0-5-question-gate.ts";
 import {
   parseDiceV05Stage1, matchedRuleOf, stage2ModeOf, diceV05Stage1Schema,
   DICE_V05_ROUTE_REVIEW_LITERAL, type DiceV05Mode,
@@ -10,7 +11,6 @@ import { executeDiceV05FreeTextCase, parseDiceV05FreeTextRequest, type DiceV05Pr
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
-const FINDINGS: string[] = [];
 
 /* ---- Stage-1 schema + pairing (deterministic) ---- */
 const rows: Array<[string, string, string]> = [
@@ -30,7 +30,7 @@ ok(parseDiceV05Stage1(JSON.stringify({ mode: "timing", matched_rule: "STEP_1_TIM
 const sc: any = diceV05Stage1Schema();
 eq(sc.additionalProperties, false, "stage1 schema closed");
 
-/* ---- The 19 RT rows: real Stage-0 + (pass rows) mocked window routing ---- */
+/* ---- The 19 RT rows: real v5 Stage-0 + (pass rows) mocked window routing ---- */
 type S0 = "pass" | "unclear" | "bundled" | "safety";
 type Row = { id: string; q: string; lang: "en" | "zh-Hant"; s0: S0; mode: DiceV05Mode | "route_review_required" | null };
 const RT: Row[] = [
@@ -55,52 +55,75 @@ const RT: Row[] = [
   { id: "RT-19", q: "我想知呢件事會點發展，但又唔肯定係咪應該繼續", lang: "zh-Hant", s0: "pass", mode: "route_review_required" },
 ];
 
-// Map a Stage-0 decision to a coarse category for comparison with the proposal expectation.
+// Map a Stage-0 decision to a coarse category for the §20.1 expectation.
 function s0cat(code: string): S0 {
   if (code.includes("SAFETY") || code.includes("PROFESSIONAL")) return "safety";
   if (code.includes("BUNDLED") || code.includes("CHOICE") || code.includes("MULTIPLE")) return "bundled";
   return "unclear"; // UNCLEAR / EMPTY / OVERSIZED / SCOPE etc.
 }
+// A mocked adapter that replays Stage-1 then a Stage-2 literal (2 calls for a routed mode; a
+// route_review_required Stage-1 short-circuits so only 1 call is made).
 const mockRoute = (mode: string, rule: string, s2literal: unknown): DiceV05ProviderAdapter => {
   let i = 0; const seq = [JSON.stringify({ mode, matched_rule: rule }), JSON.stringify(s2literal)];
+  return { invoke: async () => { const c = seq[i++]; return c === undefined ? { kind: "network" as const } : { kind: "success" as const, content: c }; } };
+};
+const mockStage1RouteReview = (): DiceV05ProviderAdapter => {
+  let i = 0; const seq = [JSON.stringify({ mode: "route_review_required", matched_rule: "ROUTE_REVIEW" })];
   return { invoke: async () => { const c = seq[i++]; return c === undefined ? { kind: "network" as const } : { kind: "success" as const, content: c }; } };
 };
 
 async function main() {
 for (const r of RT) {
-  const d = classifyDiceQuestionRequest({ question: r.q });
+  const d = classifyDiceV05QuestionRequest({ question: r.q });
   const actual: S0 = d.accepted ? "pass" : s0cat(d.code);
-  if (actual !== r.s0) {
-    // Divergence between the reused v3 Stage-0 classifier and §20.1 — recorded, not faked.
-    FINDINGS.push(`${r.id}: Stage-0 expected '${r.s0}' but reused v3 classifier gives '${d.accepted ? "pass" : d.code}'.`);
-  }
-  // Assert the ACTUAL, deterministic Stage-0 behaviour (documents reality).
-  if (r.id === "RT-14") ok(!d.accepted && d.code === "DICE_QUESTION_UNCLEAR", "RT-14 actual: unclear");
-  if (r.id === "RT-15" || r.id === "RT-16") ok(!d.accepted && d.code === "DICE_QUESTION_BUNDLED", `${r.id} actual: bundled`);
-  if (r.id === "RT-17") ok(d.accepted, "RT-17 actual: accepted (FINDING: v3 gate misses this bundled zh question)");
-  if (r.id === "RT-18") ok(!d.accepted && d.code === "DICE_CHOICE_REQUIRES_SEPARATE_THROWS", "RT-18 actual: choice-reject (FINDING: §20.1 wants judgment)");
-  if (r.id === "RT-19") ok(!d.accepted && d.code === "DICE_QUESTION_UNCLEAR", "RT-19 actual: unclear (FINDING: §20.1 wants Stage-1 route_review)");
+  // FAIL-FAST: every RT row's Stage-0 category must equal the §20.1 expectation.
+  eq(actual, r.s0, `${r.id} Stage-0 category (${d.accepted ? "accepted" : (d as any).code})`);
+  // Exact stop codes for the deterministic rejections.
+  if (r.s0 === "unclear") ok(!d.accepted && (d as any).code === "DICE_QUESTION_UNCLEAR", `${r.id} exact UNCLEAR`);
+  if (r.s0 === "bundled") ok(!d.accepted && (d as any).code === "DICE_QUESTION_BUNDLED", `${r.id} exact BUNDLED`);
 
-  // For rows that pass Stage-0 AND expect a Stage-1 mode, run the window with a mocked Stage-1
-  // returning that mode; a route-review Stage-2 literal proves the pipeline routed to it (2 calls).
-  if (d.accepted && r.s0 === "pass" && r.mode && r.mode !== "route_review_required") {
+  if (r.s0 !== "pass") continue;
+  ok(d.accepted, `${r.id} accepted at Stage-0`);
+  const req = parseDiceV05FreeTextRequest({ question: r.q, planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" })!;
+
+  if (r.mode === "route_review_required") {
+    // RT-19: passes Stage-0, Stage-1 returns route_review_required → exactly ONE provider call.
+    const outcome = await executeDiceV05FreeTextCase(req, mockStage1RouteReview(), () => 1000);
+    ok(outcome.kind === "route_review" && outcome.provider_calls === 1, `${r.id} → Stage-1 route_review, 1 call`);
+  } else {
+    // Routed modes: Stage-1 selects the mode, Stage-2 literal proves the pipeline reached it (2 calls).
     const s2 = stage2ModeOf(r.mode as DiceV05Mode);
-    const req = parseDiceV05FreeTextRequest({ question: r.q, planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" })!;
-    const outcome = await (async () => executeDiceV05FreeTextCase(req, mockRoute(r.mode as string, matchedRuleOf(r.mode as DiceV05Mode), (DICE_V05_ROUTE_REVIEW_LITERAL as any)[s2]), () => 1000))();
+    const outcome = await executeDiceV05FreeTextCase(req, mockRoute(r.mode as string, matchedRuleOf(r.mode as DiceV05Mode), (DICE_V05_ROUTE_REVIEW_LITERAL as any)[s2]), () => 1000);
     ok(outcome.metadata.question_mode === r.mode && outcome.provider_calls === 2, `${r.id} window routed to ${r.mode} (2 calls)`);
   }
 }
 
-// Comparison assertions that ARE deterministic (§20.1): RT-14 (Stage-0, 0 calls) vs the pass rows.
+// RT-14 is a Stage-0 rejection with zero provider calls; RT-08 reaches Stage-1.
 {
-  const rt14 = classifyDiceQuestionRequest({ question: "唔知呀" });
-  ok(!rt14.accepted, "RT-14 is a Stage-0 rejection (0 provider calls)");
-  const rt08 = classifyDiceQuestionRequest({ question: "Will my visa be approved this year?" });
-  ok(rt08.accepted, "RT-08 passes Stage-0 (yes/no with timeframe reaches Stage-1)");
+  const rt14 = classifyDiceV05QuestionRequest({ question: "唔知呀" });
+  ok(!rt14.accepted && rt14.effects.provider_calls === 0, "RT-14 is a Stage-0 rejection (0 provider calls)");
+  ok(classifyDiceV05QuestionRequest({ question: "Will my visa be approved this year?" }).accepted, "RT-08 passes Stage-0");
 }
 
-// Emit findings (non-fatal) so the divergences are visible in the run output.
-if (FINDINGS.length) { console.log("dice-v0-5 routing FINDINGS (Stage-0 vs §20.1):"); for (const f of FINDINGS) console.log("  - " + f); }
+// The v5 gate must not change v3 behaviour for a genuine A-or-B choice (distinct options) or a
+// real multi-"？" bundle: both stay rejected.
+ok(!classifyDiceV05QuestionRequest({ question: "Should I take job A or job B?" }).accepted, "genuine A-or-B choice still rejected");
+ok(!classifyDiceV05QuestionRequest({ question: "我個application會唔會批？幾時會批？" }).accepted, "multi-？ bundle still rejected");
+
+// Test 6 (§20 workbook) — the EXACT bundled question driven through the REAL v5 pipeline
+// (executeDiceV05FreeTextCase), NOT a manually forced bundled outcome. The provider adapter is a
+// call counter: it must NEVER be invoked, proving the Stage-0 hard gate rejects before Stage-1.
+{
+  const TEST6_Q = "我個application會唔會批？幾時會批？";
+  let adapterCalls = 0;
+  const counting: DiceV05ProviderAdapter = { invoke: async () => { adapterCalls += 1; return { kind: "network" as const }; } };
+  const req = parseDiceV05FreeTextRequest({ question: TEST6_Q, planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" })!;
+  const outcome = await executeDiceV05FreeTextCase(req, counting, () => 1000);
+  ok(outcome.kind === "bundled" && (outcome as any).code === "DICE_QUESTION_BUNDLED", "Test 6 real gate: bundled hard-gate outcome");
+  ok(outcome.provider_calls === 0 && adapterCalls === 0, "Test 6 real gate: ZERO provider calls (adapter never invoked)");
+  ok(outcome.metadata.units_consumed === 0 && outcome.metadata.persistence_writes === 0, "Test 6 real gate: no units / no persistence");
+}
+
 console.log("dice-v0-5 routing fixtures passed");
 }
 void main();

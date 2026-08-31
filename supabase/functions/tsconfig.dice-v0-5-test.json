@@ -7,6 +7,7 @@
   },
   "include": [
     "_shared/dice-v0-5-fixed-data.ts",
+    "_shared/dice-v0-5-question-gate.ts",
     "_shared/dice-v0-5-interpretation-contract.ts",
     "_shared/dice-v0-5-presentation.ts",
     "_shared/dice-v0-5-judgment.fixtures.ts",

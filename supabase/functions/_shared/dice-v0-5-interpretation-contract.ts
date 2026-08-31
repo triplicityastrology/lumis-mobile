@@ -129,7 +129,10 @@ export function buildLanding(planet: DiceV05PlanetId, sign: DiceV05SignId, house
 const nul = (base: object) => ({ anyOf: [base, { type: "null" }] });
 const str = (min: number, max: number) => ({ type: "string", minLength: min, maxLength: max });
 // Evidence keys are stable semantic ids (e.g. "p.related.family_documents"); cap length generously.
-const EVIDENCE_KEY_MAX = 48;
+// Evidence keys and the extension src are COMPACT wire codes (pt/px/ht/hx = 2 chars,
+// p01/h03/e02 = 3 chars). Bounding the schema string to 3 keeps the echoed keys tiny so the
+// largest schema-valid Location output stays <= 580 tokens by construction (Founder Decision B).
+const EVIDENCE_KEY_MAX = 3;
 const keyArr = () => ({ type: "array", minItems: 0, maxItems: 2, uniqueItems: true, items: str(1, EVIDENCE_KEY_MAX) });
 
 export function buildStage2Schema(mode: DiceV05Stage2Mode, language: DiceV05Language) {
@@ -402,7 +405,17 @@ export function validateDiceV05FinalResult(obj: unknown): "OK" | string {
   }
   for (const k of ["most_likely_area", "synthesis", "timing_summary", "watch_out", "practical_step"]) if (!strOrNull(obj[k])) return "DICE_FINAL_TEXT_TYPE:" + k;
 
-  if (obj.status === DICE_V05_ROUTE_REVIEW) return "OK"; // route-review final: content fields null (already type-checked)
+  if (obj.status === DICE_V05_ROUTE_REVIEW) {
+    // Closed route-review envelope (§12.5): EVERY content field MUST be null and suggested_followups
+    // MUST be exactly []. The type checks above only permit null; here we REQUIRE it, so a
+    // route-review object carrying a synthesis, candidates, side data, a practical step, or any
+    // follow-up is rejected rather than passed.
+    const mustBeNull = ["planet_side", "house_side", "most_likely_area", "location_candidates",
+      "location_extension", "location_search_order", "synthesis", "timing_summary", "watch_out", "practical_step"];
+    if (!mustBeNull.every((k) => obj[k] === null)) return "DICE_FINAL_ROUTE_REVIEW_NOT_EMPTY";
+    if ((obj.suggested_followups as unknown[]).length !== 0) return "DICE_FINAL_ROUTE_REVIEW_FOLLOWUPS";
+    return "OK";
+  }
 
   // Per-mode presence (§12.4 note).
   const nulls = (keys: string[]) => keys.every((k) => isNul(obj[k]));

@@ -1,0 +1,114 @@
+/**
+ * v5-specific Stage-0 question-boundary gate (§20.1).
+ *
+ * This wraps the shared v3 classifier WITHOUT modifying it or changing v3 behaviour: the
+ * v3 module (`packages/shared/src/config/dice-question-boundary.ts`) is imported read-only and
+ * remains the gate for the v3 default path. The v5 free-text window calls THIS gate instead.
+ *
+ * It corrects three v3/v5 divergences that are settled by §20.1 (not new Founder decisions):
+ *   1. Bundled (RT-17): a genuine second appended question in Cantonese —
+ *      "<decision> …，其實我又想知 <interrogative>" — is rejected as bundled at Stage-0 with
+ *      zero provider calls. The v3 gate misses this because the connective is "又想知" (not
+ *      an English "and also …" and not a second "？").
+ *   2. Single judgment restated as an evaluative either/or (RT-18): "…, or is it a bad idea?"
+ *      / "… or not?" is ONE decision, so it is accepted and left for Stage-1 to route to
+ *      judgment — not rejected as two separate choices.
+ *   3. Meaningful but genuinely route-ambiguous (RT-19): a substantive question that does not
+ *      end in "？" and does not open with a recognised interrogative is accepted so Stage-1 can
+ *      return route_review_required — not rejected as unclear.
+ *
+ * Everything else (input validation, empty, oversize, safety, professional, scope, the
+ * English "and also …" bundle, the multi-"？" bundle, genuine A-or-B choices, real unclear
+ * inputs) is delegated to v3 unchanged.
+ */
+import {
+  classifyDiceQuestionRequest,
+  normalizeDiceQuestionText,
+  detectDiceQuestionLanguage,
+  DICE_QUESTION_BOUNDARY_VERSION,
+  type DiceQuestionDecision,
+  type DiceInterpretationRoute,
+  type DiceQuestionShape,
+} from "../../../packages/shared/src/config/dice-question-boundary.ts";
+
+export const DICE_V05_QUESTION_GATE_VERSION = "dice-v0-5-question-gate-1" as const;
+
+const NO_EFFECTS = Object.freeze({ provider_calls: 0 as const, persistence_writes: 0 as const, units_consumed: 0 as const });
+
+/**
+ * A second, appended "(and) also I want to know <interrogative>" clause — a genuine second
+ * question stacked onto the first. Requires BOTH an additive "want to know/ask" connective AND
+ * a distinct interrogative focus, so a single clause expressing doubt about the SAME matter
+ * ("但…唔肯定係咪應該繼續") does NOT count as bundled.
+ */
+const V05_ADDITIONAL_ASK_CONNECTIVE = /(?:又|亦|仲|另外|同埋)\s*(?:想|要)(?:知|問)/u;
+const V05_SECOND_INTERROGATIVE = /(?:幾時|何時|幾耐|幾類|邊度|邊個|邊間|點解|幾多|係咪應該|應唔應該|會唔會)/u;
+
+/** "…, or is it a bad idea / or not / 好唔好 / 定唔定" — an evaluative restatement of ONE decision. */
+const V05_EVALUATIVE_EITHER_OR: readonly RegExp[] = [
+  /,?\s*or\s+(?:is\s+(?:it|that)\s+)?(?:really\s+)?(?:a\s+)?(?:bad|good|wrong|right|unwise|wise|foolish|risky|smart|dumb|stupid|ok|okay|fine|mistake)\b/iu,
+  /,?\s*or\s+(?:not|should\s+i\s+not|shouldn'?t\s+i)\b/iu,
+  /(?:好唔好|定唔定|得唔得|啱唔啱|值唔值得)\s*呢?\s*[?？]?$/u,
+];
+
+/** A substantive question that carries a clear intent/topic even without terminal "？". */
+const V05_SUBSTANTIVE_MARKER = /(?:想知|想問|會點|會唔會|應該|應唔應該|係咪|點算|如何|點樣|發展|繼續|可唔可以|值唔值得|應唔應|下一步)/u;
+
+function isV05Bundled(question: string): boolean {
+  return V05_ADDITIONAL_ASK_CONNECTIVE.test(question) && V05_SECOND_INTERROGATIVE.test(question);
+}
+function isV05EvaluativeEitherOr(question: string): boolean {
+  const lowered = question.toLocaleLowerCase("en-US");
+  return V05_EVALUATIVE_EITHER_OR.some((re) => re.test(lowered) || re.test(question));
+}
+function isV05Substantive(question: string): boolean {
+  return [...question].length >= 10 && V05_SUBSTANTIVE_MARKER.test(question);
+}
+
+function acceptedDecision(
+  question: string,
+  route: DiceInterpretationRoute,
+  shape: DiceQuestionShape,
+): DiceQuestionDecision {
+  return {
+    accepted: true,
+    boundary_version: DICE_QUESTION_BOUNDARY_VERSION,
+    effects: NO_EFFECTS,
+    language: detectDiceQuestionLanguage(question),
+    normalized_question: question,
+    route,
+    shape,
+  };
+}
+function bundledDecision(): DiceQuestionDecision {
+  return { accepted: false, boundary_version: DICE_QUESTION_BOUNDARY_VERSION, code: "DICE_QUESTION_BUNDLED", effects: NO_EFFECTS };
+}
+
+export function classifyDiceV05QuestionRequest(input: unknown): DiceQuestionDecision {
+  const base = classifyDiceQuestionRequest(input);
+
+  // Only reinterpret when the raw input is a well-formed { question: string }; anything the v3
+  // gate rejected for a structural/safety/scope reason is returned exactly as-is.
+  const raw = isRecord(input) && typeof input.question === "string" ? normalizeDiceQuestionText(input.question) : null;
+  if (raw === null || raw === "") return base;
+
+  // (1) v5 bundled override — a genuine appended second question the v3 gate accepts (RT-17).
+  if (base.accepted && isV05Bundled(raw)) return bundledDecision();
+
+  if (!base.accepted) {
+    // (2) A single judgment restated as an evaluative either/or was rejected as a choice (RT-18).
+    if (base.code === "DICE_CHOICE_REQUIRES_SEPARATE_THROWS" && !isV05Bundled(raw) && isV05EvaluativeEitherOr(raw)) {
+      return acceptedDecision(raw, "judgment", "judgment");
+    }
+    // (3) A meaningful, genuinely route-ambiguous question was rejected as unclear (RT-19):
+    //     accept it so Stage-1 can return route_review_required. Still exclude real bundles.
+    if (base.code === "DICE_QUESTION_UNCLEAR" && !isV05Bundled(raw) && isV05Substantive(raw)) {
+      return acceptedDecision(raw, "descriptive_reflection", "open_reflection");
+    }
+  }
+  return base;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}

@@ -41,11 +41,12 @@ async function main() {
   ok(tm.kind === "completed" && tm.question_mode === "timing" && tm.provider_calls === 2, "timing completed");
   ok((tm as any).result.timing_summary && (tm as any).result.planet_side === null, "timing result shape");
 
-  // Location (validateLocation gate) — real semantic evidence keys for Moon/Leo/House 4.
+  // Location (validateLocation gate) — compact wire codes for Moon/Leo/House 4
+  // (p01=family_home, p02=bedroom_private, p03=kitchen_food; h01/h02/h03 house related; e01 element).
   const cand = (rank: number, p: string[], h: string[], e: string[]) => ({ rank, place: "a specific place", evidence: { p, h, e } });
-  const P1 = "p_family_home", P2 = "p_bedroom_private", P3 = "p_kitchen_food";
-  const H1 = "h_family_property", H2 = "h_household_room", H3 = "h_under_furniture";
-  const E1 = "e_heat_or_fire";
+  const P1 = "p01", P2 = "p02", P3 = "p03";
+  const H1 = "h01", H2 = "h02", H3 = "h03";
+  const E1 = "e01";
   const loc = await run({ question: "Where did I leave my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" },
     [s1("location", "STEP_2_LOCATION"), JSON.stringify({ status: "ok", most_likely_area: "at home",
       synthesis: "Home first, then narrower spots, then the heat side.",

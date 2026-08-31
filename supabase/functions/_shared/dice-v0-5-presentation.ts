@@ -58,27 +58,37 @@ export type LocationResolution = Readonly<{
   selectedKeys: LocationSelectedKeys;
   gid: Readonly<Record<string, string>>; // short key -> global id
 }>;
+// Two-digit compact index, e.g. 1 -> "01". The index is the place's canonical position in the
+// fixed bank definition, so a place's wire code is PERMANENT and never depends on the order in
+// which the model echoes keys (Founder Decision B: keep echoed evidence keys short so the largest
+// schema-valid Location output stays <= 580 tokens).
+const cc = (n: number) => String(n).padStart(2, "0");
 export function buildLocationResolution(language: DiceV05Language, planet: DiceV05PlanetId, sign: DiceV05SignId, house: number): LocationResolution {
   const zh = language === "zh-Hant";
   const pb = LOCATION_PLANET_BANK[planet], hb = LOCATION_HOUSE_BANK[house], el = SIGN_ELEMENT[sign], et = ELEMENT_TABLE[el], hr = HOUSE_TABLE[house];
   const gid: Record<string, string> = {};
-  // Stable semantic evidence ids: wire key = p.theme / p.context / p.related.<slug>
-  // (planet), h.setting / h.context / h.related.<slug> (house), e.<slug> (element);
-  // gid = planet.<id>.(theme|context|related.<slug>), house.<n>.(setting|context|
-  // related.<slug>), element.<element>.<slug>. Reordering a list never changes an id.
-  const pRelated = pb.related.map((r) => { const k = `p_${r.slug}`; gid[k] = `planet.${planet}.related.${r.slug}`; return { k, t: zh ? r.zh : r.en }; });
-  const hRelated = hb.related.map((r) => { const k = `h_${r.slug}`; gid[k] = `house.${house}.related.${r.slug}`; return { k, t: zh ? r.zh : r.en }; });
-  const ePlaces = et.places.map((r) => { const k = `e_${r.slug}`; gid[k] = `element.${el.toLowerCase()}.${r.slug}`; return { k, t: zh ? r.zh : r.en }; });
-  gid["p_theme"] = `planet.${planet}.theme`; gid["p_context"] = `planet.${planet}.context`;
-  gid["h_setting"] = `house.${house}.setting`; gid["h_context"] = `house.${house}.context`;
+  // Compact permanent wire codes -> stable semantic global ids. The code carries no astrology;
+  // the gid is the reader-facing id the server expands to. planet: pt=theme, px=context,
+  // p01..=related (canonical bank index); house: ht=setting, hx=context, h01..=related;
+  // element: e01..=places. Codes come from the bank index, never the runtime list order.
+  // LOSSLESS COMPACT WIRE ENCODING: related places / element places are serialised as a single
+  // { code: text } map per group (not an array of {k,t} objects), which removes the per-place key
+  // scaffolding while keeping every place, its permanent code, and its full text. theme/context/
+  // setting keep their explicit role labels. Nothing controlled is dropped or shortened.
+  const pKeys: string[] = [], hKeys: string[] = [], eKeys: string[] = [];
+  const pRelated: Record<string, string> = {}; pb.related.forEach((r, i) => { const k = `p${cc(i + 1)}`; gid[k] = `planet.${planet}.related.${r.slug}`; pRelated[k] = zh ? r.zh : r.en; pKeys.push(k); });
+  const hRelated: Record<string, string> = {}; hb.related.forEach((r, i) => { const k = `h${cc(i + 1)}`; gid[k] = `house.${house}.related.${r.slug}`; hRelated[k] = zh ? r.zh : r.en; hKeys.push(k); });
+  const ePlaces: Record<string, string> = {}; et.places.forEach((r, i) => { const k = `e${cc(i + 1)}`; gid[k] = `element.${el.toLowerCase()}.${r.slug}`; ePlaces[k] = zh ? r.zh : r.en; eKeys.push(k); });
+  gid["pt"] = `planet.${planet}.theme`; gid["px"] = `planet.${planet}.context`;
+  gid["ht"] = `house.${house}.setting`; gid["hx"] = `house.${house}.context`;
   const envelope = { language, question: "", mode: "location", given: {
-    planet_place: { id: planet, theme: { k: "p_theme", t: zh ? pb.theme_zh : pb.theme_en }, related: pRelated, context: { k: "p_context", t: zh ? pb.context_zh : pb.context_en } },
-    house_place: { id: `house_${house}`, distance: hr.distance, setting: { k: "h_setting", t: zh ? hb.setting_zh : hb.setting_en }, related: hRelated, context: { k: "h_context", t: zh ? hb.context_zh : hb.context_en } },
+    planet_place: { id: planet, theme: { k: "pt", t: zh ? pb.theme_zh : pb.theme_en }, related: pRelated, context: { k: "px", t: zh ? pb.context_zh : pb.context_en } },
+    house_place: { id: `house_${house}`, distance: hr.distance, setting: { k: "ht", t: zh ? hb.setting_zh : hb.setting_en }, related: hRelated, context: { k: "hx", t: zh ? hb.context_zh : hb.context_en } },
     sign_element: { element: el, direction: et.direction, places: ePlaces },
   } };
   return Object.freeze({
     envelope,
-    selectedKeys: Object.freeze({ p: ["p_theme", "p_context", ...pRelated.map((r) => r.k)], h: ["h_setting", "h_context", ...hRelated.map((r) => r.k)], e: ePlaces.map((r) => r.k) }),
+    selectedKeys: Object.freeze({ p: ["pt", "px", ...pKeys], h: ["ht", "hx", ...hKeys], e: eKeys }),
     gid: Object.freeze(gid),
   });
 }

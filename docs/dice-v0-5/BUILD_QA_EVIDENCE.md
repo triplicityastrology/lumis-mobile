@@ -22,16 +22,25 @@ production-enable decision.
   byte-exact token sizes), strict `buildStage2Schema(mode,language)`, Stage-1/Stage-2 parsers,
   `validateLandingIdentity` (§12.0), `validateLocation` (§16), route-review literals, and the
   secondary leak heuristics (timing Level-1 + date leak; Location dignity/fortune leak).
-- `_shared/dice-v0-5-presentation.ts` — `given`-envelope builders, the system assembler
-  (`lumis_dice_interpretation_v5`), short-key→global-id expansion, and the §18 presentation.
-- `_shared/dice-v0-5-window.ts` — two-stage orchestration (Stage-0 hard gates → Stage-1
-  mode select → Stage-2 interpretation → assembler), landing validation before Stage 2,
-  Location structural gate, metadata-only outcomes; the provider adapter is injected (testable).
+- `_shared/dice-v0-5-question-gate.ts` — **v5-specific Stage-0 question-boundary gate**
+  (`classifyDiceV05QuestionRequest`) that WRAPS the shared v3 classifier without editing it:
+  it adds the appended-second-question (bundled) case the v3 gate misses (RT-17), accepts a single
+  judgment restated as an evaluative either/or instead of rejecting it as two choices (RT-18), and
+  accepts a meaningful-but-ambiguous question so Stage-1 can route-review it instead of rejecting it
+  as unclear (RT-19). The v3 module and v3 behaviour are untouched.
+- `_shared/dice-v0-5-presentation.ts` — `given`-envelope builders (lossless compact wire encoding:
+  related/element places as `{code:text}` maps), the system assembler (`lumis_dice_interpretation_v5`),
+  compact-code→global-id expansion, and the §18 presentation.
+- `_shared/dice-v0-5-window.ts` — two-stage orchestration (Stage-0 hard gates via the v5 gate →
+  Stage-1 mode select → Stage-2 interpretation → assembler), landing validation before Stage 2,
+  Location structural gate, the final-result validator (route-review closed-envelope enforced),
+  metadata-only outcomes; input cap 1600 (Location Stage-2: 1800) / Location output cap 580; the
+  provider adapter is injected (testable).
 - `_shared/azure-dice-adapter-v5.ts` — Azure Responses API strict-Structured-Outputs adapter
   (same reviewed deployment identity as v1/v4), returning the window's result union.
 - Fixtures: `dice-v0-5-{routing,judgment,timing,location,level1,schema,length,privacy,tokenizer,adapter}.fixtures.ts`
   and `dice-synthetic/founder-window-edge-v5.fixtures.ts`; test tsconfig `tsconfig.dice-v0-5-test.json`
-  (now also compiles `azure-dice-adapter-v5.ts` + the adapter fixture).
+  (also compiles `dice-v0-5-question-gate.ts`, `azure-dice-adapter-v5.ts` + the adapter fixture).
 
 **Modified:**
 - `dice-synthetic/edge-handler-v1.ts` — header gate: `x-lumis-dice-interpretation: v5` → v5
@@ -54,24 +63,28 @@ production-enable decision.
 - The five `supabase/tests/*v4*.schema.json` audit records are **retained** (Founder decision §8.4).
 - The two `apps/mobile/src/dev/` v4 dev fixtures are **deferred** (Mobile-surface cascade; §5 item 2).
 
-## 2. Automated test evidence — ALL MOCKED (no live provider calls)
+## 2. Automated test evidence — DETERMINISTIC / STRUCTURAL, ALL MOCKED (no live provider calls)
 
-Run: `npm run test:dice-v05` and `npm run test:dice-v05-web-lab`.
+These fixtures verify the deterministic contract (routing gates, schema shapes, caps, assembly,
+traceability, token budgets) with mocked provider responses. Every deterministic §20 mismatch is a
+**fail-fast** assertion — there are no non-fatal "findings". They are **not** a substitute for
+semantic quality acceptance: whether a real model writes a good Timing/Location/Judgment reading is
+a **live-QA** judgement (§6, pending). Run: `npm run test:dice-v05` and `npm run test:dice-v05-web-lab`.
 
 | Suite | Coverage | Result |
 |---|---|---|
-| judgment | Appendix H.2/H.3 assembled deep-equality, RR literal, Node rule, cap/array rejections | PASS |
-| timing | v5 matrix (Test 7 = medium, Test 8 = fast), Appendix H.4/H.5, Level-1 & watch caps | PASS |
-| location | `validateLocation` §16 valid + 10 negatives, gid expansion, assembler | PASS |
-| routing | Stage-1 pairing (all modes), route-review, mismatch/enum/extra-key rejections | PASS |
-| level1 | Appendix H.7/H.8/H.9 envelope + assembled equality, element-direction leak | PASS |
-| schema | `buildStage2Schema` shapes/caps, landing identity, RR mode-specificity, §12.4 key contract, SC-18/SC-19 leaks | PASS |
+| judgment | Appendix H.2/H.3 assembled deep-equality, RR literal, Node rule, cap/array rejections, blended-grade rejection | PASS |
+| timing | v5 matrix (Test 7 = medium, Test 8 = fast) + full 15 cells, Appendix H.4/H.5, band-only (TM-02b) rejection, **TM-08 Jupiter/Sagittarius vs Jupiter/Gemini** (same band, dignity differs) | PASS |
+| location | `validateLocation` §16 valid + 10 negatives, compact-code→gid expansion (permanent, order-independent), assembler, all 12 planets/houses + 4 elements complete | PASS |
+| routing | **v5 gate: all 19 RT rows fail-fast** (RT-17 bundled, RT-18→judgment, RT-19→route_review); **Test 6 through the REAL gate (0 provider calls)**; Stage-1 pairing, route-review, mismatch/enum/extra-key rejections | PASS |
+| level1 | Appendix H.7/H.8/H.9 envelope + assembled equality, element-direction leak, Saturn/Virgo neutral, SIGN_BANK source-check | PASS |
+| schema | `buildStage2Schema` shapes/caps, landing identity, RR mode-specificity, §12.4 key contract, **route-review closed-envelope negatives (12)**, SC-18/SC-19 leaks | PASS |
 | length | per-mode/language char-cap boundaries, followup counts, complete-input structure | PASS |
 | tokenizer | **production `js-tiktoken@1.0.21` / o200k_base** (see §3) | PASS |
 | privacy | metadata-only outcomes, call accounting 0/1/2, units 0 / persistence 0, no raw text | PASS |
 | founder-window-edge | per-mode two-stage orchestration, Location §16 gate, provider accounting | PASS |
 | adapter | `createDiceV05Adapter` Azure Responses request shape (strict Structured Outputs: `json_schema`/`strict`/schema name, `reasoning.effort`, `store`, `text.verbosity`) + full HTTP/provider status mapping (200/401/403/429/500/400/incomplete/content_filter/throw→network/abort→timeout/past-deadline) via mocked `fetch` | PASS |
-| Web Lab contract | v5 judgment/timing/location rendering, toggle/route, metadata-only | PASS |
+| Web Lab contract | v5 judgment/timing/location rendering, toggle/route, metadata-only; **Test 6 driven through the REAL compiled window → exact zh bundled copy, 0 provider calls** | PASS |
 
 **Edge handler & adapter coverage (reviewer item 13).** The v5 Azure adapter
 (`_shared/azure-dice-adapter-v5.ts`) is compiled into the v5 test surface and integration-tested by
@@ -89,17 +102,28 @@ Same encoder as the runtime `_shared/dice-tokenizer-v1.ts`. Measured this sessio
 **Static prompt blocks — exact match to §11:** Stage-1 322, Judgment 464, Timing 437,
 Location 577, Level-1 311 (all EXACT — proves the block text is byte-faithful).
 
-**Complete provider inputs (block + delimiter + envelope JSON) ≤ 1600:** judgment 680/705,
-timing 579/581, level1 478/495, location 1194/1346 (en/zh) — all within cap. Location grew from
-the earlier ~1.0k after restoring the full Appendix C Planet/House banks (reviewer item 4);
-still comfortably within the 1600 input cap.
+**Complete provider inputs — non-Location modes ≤ 1600 (unchanged cap):** judgment 680/705,
+timing 579/581, level1 478/495 (en/zh) — all within 1600.
 
-**Cap-saturated Stage-2 outputs at zh density (1 token/char, the binding bound):** judgment 517,
-timing 293, level1 398. Location now serialises **semantic** evidence keys (reviewer item 3): the
-schema-permitted pathological maximum (4 candidates × 2 long keys in all 3 arrays, every field at
-cap) = **658 ≤ 700** backstop; a realistic maximal answer (1 evidence key per candidate) =
-**488 ≤ 580** (Founder Decision B). The strict earlier "≤ 580 by construction" held only for the
-short positional keys of the pre-restore draft; the 700 cap is the new hard backstop.
+**Location input — genuine worst case, exhaustively measured (reviewer item 3).** The Location
+Stage-2 input carries the COMPLETE Planet + House + Element banks (all context hints) plus a
+full-length 280-code-point question, so its input cap is **1800** (Founder-approved; all other
+modes stay 1600). Every Planet × House × Sign/Element combination in both languages was measured
+with a genuine maximum-length question (sign enters only via its element, proven, so 4 element
+representatives cover all 12 signs): the **actual worst case is 1668 tokens at
+Mercury / House 12 / Air (gemini) / zh-Hant — 132 headroom to 1800**. Representative
+Moon/Leo/House-4 input (no question) is 1085/1237 en/zh. The prior "1,420 ≤ 1,600" figure was
+measured on a lighter, non-worst-case envelope and is **replaced** by this exhaustive measurement.
+Nothing was trimmed and no question shortened; the lossless compact wire encoding (below) offsets
+part of the growth.
+
+**Cap-saturated Location OUTPUT ≤ 580 by construction (Founder Decision B, item 2).** Location
+echoes **compact wire codes** (`pt`/`px`/`ht`/`hx`, `p01`/`h03`/`e02`) rather than long slugs, and
+the schema bounds each evidence key to ≤ 3 chars. The schema-permitted **pathological maximum**
+(4 candidates × 2 codes in all 3 arrays + every field at cap) = **zh 574 / en 381 — both ≤ 580**.
+The single 580 is the provider `max_output_tokens`, the runtime output measurement limit, and the
+rejection backstop (no 600/700 split). Other cap-saturated outputs: judgment 517, timing 293,
+level1 398 (≤ 600).
 
 ## 4. Founder-decision conformance
 
@@ -107,12 +131,11 @@ short positional keys of the pre-restore draft; the 700 cap is the new hard back
   differs from the shared v3 `combinedPace` helper ONLY at that cell; **the v3 helper is not edited**.
 - **Decision B (F1 closed)** — single root `extension` object, evidence arrays 0–2 unique keys,
   every candidate cites ≥1 direct key, rank-1 cites ≥1 planet key, structured `search_order`;
-  zh synthesis cap 110→100. Location output cap `LOCATION_OUTPUT_CAP = 700` (schema/window max);
-  the restored full Appendix C bank now serialises **semantic** evidence keys (`p_<slug>` /
-  `h_<slug>` / `e_<slug>`) rather than the short positional keys of the earlier draft, so the
-  "≤ 580 by construction" bound (which depended on those short keys) no longer holds; a fixture
-  asserts a realistic maximal Location object stays **≤ 580** (measured 534) and the schema hard
-  cap is 700.
+  zh synthesis cap 110→100. **Location output ≤ 580 by construction** (`LOCATION_OUTPUT_CAP = 580`):
+  compact wire codes (`p01`/`h03`/`e02`, keys bounded to ≤ 3 chars by the schema) keep the
+  schema-permitted pathological maximum at zh 574 / en 381 (§3). The stable semantic global ids the
+  reader sees (`planet.moon.related.family_home`) are recovered server-side from the compact code by
+  a permanent, bank-position-derived mapping — never dependent on the model's echo order.
 
 ## 5. Surfaced items
 
@@ -160,7 +183,24 @@ short positional keys of the pre-restore draft; the 700 cap is the new hard back
    audit tooling next to the retained s2-t289 schema. Not executed here — it edits Mobile and
    retained-audit tooling, both outside this branch's stop line.
 
-3. **Mobile v5 deferred** (production blocker, per the proposal): `diceLiveResultAdapter.ts`
+3. **Correction-pass changes (this round).**
+   - **v5 Stage-0 question gate** (`dice-v0-5-question-gate.ts`) resolves the three settled §20.1
+     divergences the reused v3 classifier produced (RT-17 bundled, RT-18 → judgment, RT-19 →
+     route_review) **without editing the v3 classifier**. All 19 RT rows are now fail-fast; the
+     earlier non-fatal "findings" mechanism is removed.
+   - **Location output ≤ 580 by construction** restored via compact wire codes (the unauthorised 700
+     backstop is gone); the Location provider limit, runtime limit and backstop are all 580.
+   - **Location Stage-2 input cap raised 1600 → 1800 (Founder-approved this round; all other modes
+     stay 1600).** The genuine worst case, measured exhaustively over every Planet × House ×
+     Sign/Element in both languages with a full 280-code-point question, is **1668 (Mercury/House
+     12/Air/zh), 132 headroom** — no controlled content trimmed, no question shortened.
+   - **Route-review final envelope is now fully closed**: the validator requires every content field
+     null and `suggested_followups` exactly `[]` before returning OK (12 negative tests).
+   - **Acceptance evidence corrected**: Test 6 runs the exact bundled question through the REAL gate
+     (0 provider calls, exact bundled copy); TM-08 is Jupiter/Sagittarius vs Jupiter/Gemini (same
+     band, dignity differs); deterministic §20 mismatches all fail-fast.
+
+4. **Mobile v5 deferred** (production blocker, per the proposal): `diceLiveResultAdapter.ts`
    and `diceCustomerInterpretationController.ts` are not migrated in this Web-first pass.
 
 ## 6. Known gaps / not performed
