@@ -99,10 +99,11 @@ function saturate(mode: "judgment" | "timing" | "level1" | "location"): Record<s
   const cand = (r: number) => ({ rank: r, place: fill(c.place), evidence: { p: ["p07", "p08"], h: ["h04", "h05"], e: ["e04", "e05"] } });
   return { status: "ok", most_likely_area: fill(c.area), synthesis: fill(c.syn), location_candidates: [cand(1), cand(2), cand(3), cand(4)], extension: { candidate_rank: 1, src: "p07", relationship: fill(c.ext) }, search_order: [1, 2, 3, 4], watch_out: fill(c.watch), practical_step: fill(c.pract) };
 }
-// Founder Decision B: Location <= 580 tokens by construction. With compact wire codes the
-// schema-permitted PATHOLOGICAL maximum (4 candidates × 2 codes in all 3 arrays + every field at
-// cap) is within 580 — the SAME 580 used as the provider max_output_tokens and the runtime
-// backstop (dice-v0-5-window LOCATION_OUTPUT_CAP). No 600/700 split.
+// Founder Decision B: the member-VISIBLE Location JSON is <= 580 tokens by construction. With
+// compact wire codes the schema-permitted PATHOLOGICAL maximum (4 candidates × 2 codes in all 3
+// arrays + every field at cap) is within 580 — the runtime measures the RETURNED visible JSON
+// against this 580 (dice-v0-5-window LOCATION_OUTPUT_CAP). The provider generation allowance is a
+// SEPARATE, larger budget (window STAGE2_GENERATION_CAP = 2000) that also covers hidden reasoning.
 const OUT_CAP = { judgment: 600, timing: 600, level1: 600, location: 580 } as const;
 for (const m of ["judgment", "timing", "level1", "location"] as const) {
   const t = n(JSON.stringify(saturate(m)));

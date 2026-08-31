@@ -117,13 +117,21 @@ measured on a lighter, non-worst-case envelope and is **replaced** by this exhau
 Nothing was trimmed and no question shortened; the lossless compact wire encoding (below) offsets
 part of the growth.
 
-**Cap-saturated Location OUTPUT ≤ 580 by construction (Founder Decision B, item 2).** Location
+**Member-VISIBLE Location OUTPUT ≤ 580 by construction (Founder Decision B, item 2).** Location
 echoes **compact wire codes** (`pt`/`px`/`ht`/`hx`, `p01`/`h03`/`e02`) rather than long slugs, and
 the schema bounds each evidence key to ≤ 3 chars. The schema-permitted **pathological maximum**
-(4 candidates × 2 codes in all 3 arrays + every field at cap) = **zh 574 / en 381 — both ≤ 580**.
-The single 580 is the provider `max_output_tokens`, the runtime output measurement limit, and the
-rejection backstop (no 600/700 split). Other cap-saturated outputs: judgment 517, timing 293,
-level1 398 (≤ 600).
+returned visible JSON (4 candidates × 2 codes in all 3 arrays + every field at cap) =
+**zh 574 / en 381 — both ≤ 580**. Other cap-saturated visible outputs: judgment 517, timing 293,
+level1 398 (≤ 600). The runtime measures the **returned visible JSON** against 580 (Location) / 600
+(other).
+
+**Provider generation allowance is SEPARATE from the visible cap (corrected this round).** Azure
+Responses counts hidden reasoning + visible output + formatting toward `max_output_tokens`, so
+setting it to 580 could truncate a valid ≤ 580-token answer before it is emitted. The Stage-2
+request therefore uses `max_output_tokens = 2000` (`STAGE2_GENERATION_CAP`, provisional; larger
+than any visible cap), with `reasoning.effort: "minimal"`. The returned visible JSON is still
+validated and rejected against 580/600. A window integration test captures the Location request and
+asserts the provider receives **2000** while an oversized (> 580-token) returned JSON is rejected.
 
 ## 4. Founder-decision conformance
 
@@ -131,11 +139,15 @@ level1 398 (≤ 600).
   differs from the shared v3 `combinedPace` helper ONLY at that cell; **the v3 helper is not edited**.
 - **Decision B (F1 closed)** — single root `extension` object, evidence arrays 0–2 unique keys,
   every candidate cites ≥1 direct key, rank-1 cites ≥1 planet key, structured `search_order`;
-  zh synthesis cap 110→100. **Location output ≤ 580 by construction** (`LOCATION_OUTPUT_CAP = 580`):
-  compact wire codes (`p01`/`h03`/`e02`, keys bounded to ≤ 3 chars by the schema) keep the
-  schema-permitted pathological maximum at zh 574 / en 381 (§3). The stable semantic global ids the
-  reader sees (`planet.moon.related.family_home`) are recovered server-side from the compact code by
-  a permanent, bank-position-derived mapping — never dependent on the model's echo order.
+  zh synthesis cap 110→100. **Member-visible Location output ≤ 580 by construction**
+  (`LOCATION_OUTPUT_CAP = 580`): compact wire codes (`p01`/`h03`/`e02`, keys bounded to ≤ 3 chars by
+  the schema) keep the schema-permitted pathological maximum at zh 574 / en 381 (§3). Each code is
+  an **explicit value STORED on the controlled bank entry** (`LocPlace.code` in
+  `dice-v0-5-fixed-data.ts`), validated at module load for uniqueness / ≤ 3 chars / correct prefix;
+  the stable semantic global id (`planet.moon.related.family_home`) is recovered from the stored
+  code, so reordering or inserting a bank entry never changes an existing code's meaning (proved by
+  a reverse-the-list test). The provider generation allowance (2000) is separate from this 580
+  visible cap (§3).
 
 ## 5. Surfaced items
 
@@ -188,9 +200,16 @@ level1 398 (≤ 600).
      divergences the reused v3 classifier produced (RT-17 bundled, RT-18 → judgment, RT-19 →
      route_review) **without editing the v3 classifier**. All 19 RT rows are now fail-fast; the
      earlier non-fatal "findings" mechanism is removed.
-   - **Location output ≤ 580 by construction** restored via compact wire codes (the unauthorised 700
-     backstop is gone); the Location provider limit, runtime limit and backstop are all 580.
-   - **Location Stage-2 input cap raised 1600 → 1800 (Founder-approved this round; all other modes
+   - **Member-visible Location output ≤ 580 by construction** restored via compact wire codes (the
+     unauthorised 700 backstop is gone). Codes are now **explicit values stored on each controlled
+     bank entry** (`LocPlace.code`), not derived from array position — validated at load for
+     uniqueness / ≤ 3 chars / prefix, and proved order-independent by a reverse-the-list test.
+   - **Provider generation allowance separated from the visible cap**: Stage-2 `max_output_tokens`
+     is 2000 (covers hidden reasoning + output + formatting; `reasoning.effort: "minimal"`), while
+     the returned visible JSON is still validated against 580 (Location) / 600 (other). A window
+     integration test captures the Location request → provider gets 2000; an oversized returned JSON
+     is rejected.
+   - **Location Stage-2 input cap raised 1600 → 1800 (Founder-approved; all other modes
      stay 1600).** The genuine worst case, measured exhaustively over every Planet × House ×
      Sign/Element in both languages with a full 280-code-point question, is **1668 (Mercury/House
      12/Air/zh), 132 headroom** — no controlled content trimmed, no question shortened.

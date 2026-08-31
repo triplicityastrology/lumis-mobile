@@ -1,7 +1,7 @@
 /** v5 Location fixtures — validateLocation (§16, 12 cases), compact-code -> semantic gid expansion, assembler. */
 import { parseDiceV05Stage2, validateLocation, type LocationResponse, type LocationSelectedKeys } from "./dice-v0-5-interpretation-contract.ts";
 import { buildLocationResolution, assembleLocation } from "./dice-v0-5-presentation.ts";
-import { DICE_V05_PLANET_IDS, DICE_V05_SIGN_IDS, LOCATION_PLANET_BANK, LOCATION_HOUSE_BANK, ELEMENT_TABLE, SIGN_ELEMENT } from "./dice-v0-5-fixed-data.ts";
+import { DICE_V05_PLANET_IDS, DICE_V05_SIGN_IDS, LOCATION_PLANET_BANK, LOCATION_HOUSE_BANK, ELEMENT_TABLE, SIGN_ELEMENT, locationCodeGidPairs, assertAllLocationCodes } from "./dice-v0-5-fixed-data.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
@@ -27,6 +27,24 @@ eq(res.gid["ht"], "house.4.setting", "ht -> house.4.setting");
 { const r2 = buildLocationResolution("zh-Hant", "moon", "leo", 4);
   eq(r2.gid["p01"], res.gid["p01"], "p01 stable across rebuild/language");
   eq(r2.gid["h03"], res.gid["h03"], "h03 stable across rebuild/language"); }
+
+/* ---- Codes are EXPLICITLY STORED, not index-derived: reordering/reversing a bank list must NOT
+ * change any code→gid mapping (reviewer follow-up). Also: unique + <=3 chars within every bank. ---- */
+assertAllLocationCodes(); // uniqueness + <=3-char + correct prefix across every bank (throws on violation)
+for (const [kind, id, places] of [
+  ["planet", "moon", LOCATION_PLANET_BANK.moon.related],
+  ["house", "4", LOCATION_HOUSE_BANK[4].related],
+  ["element", "fire", ELEMENT_TABLE.Fire.places],
+] as const) {
+  const forward = locationCodeGidPairs(kind as any, id, places);
+  const reversed = locationCodeGidPairs(kind as any, id, [...places].reverse());
+  // Same set of codes, and each code maps to the SAME gid regardless of list order (compared
+  // per-code so insertion order is irrelevant — that is exactly the property under test).
+  eq(Object.keys(reversed).sort(), Object.keys(forward).sort(), `${kind} ${id}: reversal preserves the code set`);
+  for (const code of Object.keys(forward)) eq(reversed[code], forward[code], `${kind} ${id}: code ${code} maps to the same gid after reversal`);
+}
+// A defensive check that codes are genuinely stored per entry (not recomputed from position):
+ok(LOCATION_PLANET_BANK.moon.related.every((r) => /^p\d\d$/u.test(r.code)) && ELEMENT_TABLE.Water.places.every((r) => /^e\d\d$/u.test(r.code)), "every bank entry carries an explicit stored code");
 
 const cand = (rank: number, p: string[], h: string[], e: string[]) => ({ rank, place: "a place", evidence: { p, h, e } });
 const base: LocationResponse = { location_candidates: [cand(1, [P1], [H3], []), cand(2, [P2], [H1], [E1]), cand(3, [P3], [H2], [])], extension: null, search_order: [1, 2, 3] };

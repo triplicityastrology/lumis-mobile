@@ -74,6 +74,31 @@ async function main() {
     [s1("location", "STEP_2_LOCATION"), badLocJson, badLocJson]);
   ok(badLoc.kind === "fallback" && badLoc.code === "DICE_LOCATION_PLANET_NOT_PRIMARY", "location §16 gate rejects rank-1 without planet");
 
+  // Provider GENERATION allowance is SEPARATE from visible-output validation: the Stage-2 request
+  // carries max_output_tokens = 2000 (room for reasoning + output + formatting), while the returned
+  // visible JSON is still measured against the 580-token Location cap.
+  const captured: Array<Record<string, unknown>> = [];
+  const capturingSeq = (responses: string[]): DiceV05ProviderAdapter => {
+    let i = 0;
+    return { invoke: async (inp: any) => { captured.push({ max_output_tokens: inp.max_output_tokens, schema_name: inp.schema_name }); const c = responses[i++]; return c === undefined ? { kind: "network" as const } : { kind: "success" as const, content: c }; } };
+  };
+  const goodLoc = JSON.stringify({ status: "ok", most_likely_area: "at home", synthesis: "Home first, then narrower spots.",
+    location_candidates: [cand(1, [P1], [H3], []), cand(2, [P2], [H1], [E1])], extension: null, search_order: [1, 2],
+    watch_out: "Do not check only the obvious spots.", practical_step: "Start with the bedroom." });
+  const reqLoc = parseDiceV05FreeTextRequest({ question: "Where did I leave my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" })!;
+  const okLoc = await executeDiceV05FreeTextCase(reqLoc, capturingSeq([s1("location", "STEP_2_LOCATION"), goodLoc]), () => 1000);
+  ok(okLoc.kind === "completed" && okLoc.question_mode === "location", "location completed with the generation allowance");
+  ok(captured.length === 2, "two provider calls captured (Stage-1 + Stage-2)");
+  ok(captured[1].schema_name === "lumis_dice_location_v5_stage2" && captured[1].max_output_tokens === 2000, "Stage-2 Location request carries max_output_tokens=2000 (generation allowance, NOT the 580 visible cap)");
+  // A returned visible JSON that exceeds 580 tokens is still rejected against the visible cap.
+  // Use DISTINCT tokens (numbers) so the string genuinely tokenises above 580 (repeated single
+  // chars BPE-merge below it); the token-cap check runs on the raw content before schema parse.
+  const heavy = Array.from({ length: 800 }, (_, i) => `w${i}`).join(" ");
+  const oversizeLoc = JSON.stringify({ status: "ok", most_likely_area: heavy, synthesis: heavy,
+    location_candidates: [cand(1, [P1], [], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2], watch_out: "z", practical_step: "w" });
+  const bigLoc = await executeDiceV05FreeTextCase(reqLoc, capturingSeq([s1("location", "STEP_2_LOCATION"), oversizeLoc]), () => 1000);
+  ok(bigLoc.kind === "fallback" && bigLoc.code === "DICE_OUTPUT_TOKEN_CAP", "returned visible JSON > 580 tokens is rejected (visible cap enforced independently of the 2000 allowance)");
+
   console.log("dice-v0-5 founder-window-edge fixtures passed");
 }
 void main();

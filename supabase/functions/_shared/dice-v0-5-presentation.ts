@@ -58,27 +58,22 @@ export type LocationResolution = Readonly<{
   selectedKeys: LocationSelectedKeys;
   gid: Readonly<Record<string, string>>; // short key -> global id
 }>;
-// Two-digit compact index, e.g. 1 -> "01". The index is the place's canonical position in the
-// fixed bank definition, so a place's wire code is PERMANENT and never depends on the order in
-// which the model echoes keys (Founder Decision B: keep echoed evidence keys short so the largest
-// schema-valid Location output stays <= 580 tokens).
-const cc = (n: number) => String(n).padStart(2, "0");
 export function buildLocationResolution(language: DiceV05Language, planet: DiceV05PlanetId, sign: DiceV05SignId, house: number): LocationResolution {
   const zh = language === "zh-Hant";
   const pb = LOCATION_PLANET_BANK[planet], hb = LOCATION_HOUSE_BANK[house], el = SIGN_ELEMENT[sign], et = ELEMENT_TABLE[el], hr = HOUSE_TABLE[house];
   const gid: Record<string, string> = {};
-  // Compact permanent wire codes -> stable semantic global ids. The code carries no astrology;
-  // the gid is the reader-facing id the server expands to. planet: pt=theme, px=context,
-  // p01..=related (canonical bank index); house: ht=setting, hx=context, h01..=related;
-  // element: e01..=places. Codes come from the bank index, never the runtime list order.
-  // LOSSLESS COMPACT WIRE ENCODING: related places / element places are serialised as a single
-  // { code: text } map per group (not an array of {k,t} objects), which removes the per-place key
-  // scaffolding while keeping every place, its permanent code, and its full text. theme/context/
-  // setting keep their explicit role labels. Nothing controlled is dropped or shortened.
+  // Compact permanent wire codes -> stable semantic global ids. The code carries no astrology; the
+  // gid is the reader-facing id the server expands to. planet: pt=theme, px=context, p01..=related;
+  // house: ht=setting, hx=context, h01..=related; element: e01..=places. Each related/element code
+  // is the EXPLICIT `code` STORED on the bank entry (dice-v0-5-fixed-data.ts) — never derived from
+  // list position, so reordering or inserting a bank entry never changes an existing code's meaning.
+  // LOSSLESS COMPACT WIRE ENCODING: related/element places are serialised as a single {code:text}
+  // map per group (not an array of {k,t} objects), removing per-place key scaffolding while keeping
+  // every place, its permanent code and full text; theme/context/setting keep their role labels.
   const pKeys: string[] = [], hKeys: string[] = [], eKeys: string[] = [];
-  const pRelated: Record<string, string> = {}; pb.related.forEach((r, i) => { const k = `p${cc(i + 1)}`; gid[k] = `planet.${planet}.related.${r.slug}`; pRelated[k] = zh ? r.zh : r.en; pKeys.push(k); });
-  const hRelated: Record<string, string> = {}; hb.related.forEach((r, i) => { const k = `h${cc(i + 1)}`; gid[k] = `house.${house}.related.${r.slug}`; hRelated[k] = zh ? r.zh : r.en; hKeys.push(k); });
-  const ePlaces: Record<string, string> = {}; et.places.forEach((r, i) => { const k = `e${cc(i + 1)}`; gid[k] = `element.${el.toLowerCase()}.${r.slug}`; ePlaces[k] = zh ? r.zh : r.en; eKeys.push(k); });
+  const pRelated: Record<string, string> = {}; pb.related.forEach((r) => { const k = r.code; gid[k] = `planet.${planet}.related.${r.slug}`; pRelated[k] = zh ? r.zh : r.en; pKeys.push(k); });
+  const hRelated: Record<string, string> = {}; hb.related.forEach((r) => { const k = r.code; gid[k] = `house.${house}.related.${r.slug}`; hRelated[k] = zh ? r.zh : r.en; hKeys.push(k); });
+  const ePlaces: Record<string, string> = {}; et.places.forEach((r) => { const k = r.code; gid[k] = `element.${el.toLowerCase()}.${r.slug}`; ePlaces[k] = zh ? r.zh : r.en; eKeys.push(k); });
   gid["pt"] = `planet.${planet}.theme`; gid["px"] = `planet.${planet}.context`;
   gid["ht"] = `house.${house}.setting`; gid["hx"] = `house.${house}.context`;
   const envelope = { language, question: "", mode: "location", given: {

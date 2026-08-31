@@ -31,17 +31,17 @@ const INPUT_CAP = 1600;
 // (all other mode inputs stay at 1600); the Location OUTPUT cap remains 580 by construction.
 const LOCATION_INPUT_CAP = 1800;
 const MODE_OUTPUT_CAP = 300 as const;
+// Member-VISIBLE output caps — the returned JSON is measured and rejected against these:
+// 600 for every mode, 580 for Location (≤ 580 by construction, Founder Decision B). Compact wire
+// codes keep the schema-permitted maximum visible JSON at zh 574 / en 381 for Location.
 const OUTPUT_CAP = 600 as const;
-// Location output backstop. Stable SEMANTIC evidence ids (reviewer item 3) enlarge the
-// keys the model echoes, so the schema-permitted pathological maximum (4 candidates each
-// citing 2 long keys in all three arrays + every field at its char cap) is ~658 zh tokens
-// (was ~557 with positional keys). The backstop is raised 580→700 so no schema-valid answer
-// is ever token-rejected; realistic answers are ~300–534. Per-field character caps remain
-// the primary bound; this token cap is the secondary abuse backstop.
-// Founder Decision B: Location is <= 580 tokens by construction. The SAME 580 is the provider
-// max_output_tokens, the runtime output measurement limit, and the rejection backstop — the
-// request is never issued with a different cap than the one we validate against.
 const LOCATION_OUTPUT_CAP = 580 as const;
+// Provider GENERATION allowance (Stage-2 `max_output_tokens`). Azure Responses counts hidden
+// reasoning + visible output + formatting toward this budget, so it MUST be larger than the visible
+// cap or a valid ≤580-token answer can be truncated before it is emitted. 2000 is provisional and
+// is NOT the visible limit; the returned visible JSON is still validated against 580/600 above.
+// (reasoning.effort stays "minimal" in the adapter.)
+const STAGE2_GENERATION_CAP = 2000 as const;
 const SHARED_DEADLINE_MS = 12000;
 const PLANETS = new Set<string>(DICE_V05_PLANET_IDS);
 const SIGNS = new Set<string>(DICE_V05_SIGN_IDS);
@@ -164,7 +164,9 @@ export async function executeDiceV05FreeTextCase(
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     if (now() >= deadline) return providerFailure("timeout", language, mode, calls);
-    const s2 = await invokeStage(adapter, stage2Input, outCap, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
+    // The provider is given the larger generation allowance (reasoning + output + formatting);
+    // the RETURNED visible JSON is measured against outCap (580 Location / 600 other) below.
+    const s2 = await invokeStage(adapter, stage2Input, STAGE2_GENERATION_CAP, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
     calls += 1;
     if (s2.kind !== "success") {
       if (["authentication", "permission", "content_filter"].includes(s2.kind) || attempt === 2 || now() >= deadline) return providerFailure(s2.kind, language, mode, calls);

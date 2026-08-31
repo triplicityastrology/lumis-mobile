@@ -110,6 +110,19 @@ for (const r of RT) {
 ok(!classifyDiceV05QuestionRequest({ question: "Should I take job A or job B?" }).accepted, "genuine A-or-B choice still rejected");
 ok(!classifyDiceV05QuestionRequest({ question: "我個application會唔會批？幾時會批？" }).accepted, "multi-？ bundle still rejected");
 
+// The bundled detector is STRUCTURAL: an additive "又想知 / 仲想問" connective is bundled ONLY when a
+// complete first intention precedes it AND a distinct interrogative follows it. Single questions
+// that merely OPEN with such a connective must PASS Stage 0 (not tailored to RT-17).
+const bundledCode = (q: string) => { const d = classifyDiceV05QuestionRequest({ question: q }); return d.accepted ? "pass" : (d as any).code; };
+// (a) single questions that open with the connective — MUST pass.
+for (const q of ["我又想知佢會唔會返嚟？", "其實我仲想問幾時會有結果？", "我又想知本護照喺邊度？"]) {
+  ok(classifyDiceV05QuestionRequest({ question: q }).accepted, `single-question control passes Stage-0: ${q}`);
+}
+// (b) genuine two-question variants beyond RT-17 — MUST be bundled (first intention + connective + second interrogative).
+for (const q of ["我應唔應該轉工，又想知幾時轉最好？", "佢會唔會鍾意我，同埋我想知幾時應該表白？"]) {
+  eq(bundledCode(q), "DICE_QUESTION_BUNDLED", `genuine two-question variant bundled: ${q}`);
+}
+
 // Test 6 (§20 workbook) — the EXACT bundled question driven through the REAL v5 pipeline
 // (executeDiceV05FreeTextCase), NOT a manually forced bundled outcome. The provider adapter is a
 // call counter: it must NEVER be invoked, proving the Stage-0 hard gate rejects before Stage-1.

@@ -36,13 +36,23 @@ export const DICE_V05_QUESTION_GATE_VERSION = "dice-v0-5-question-gate-1" as con
 const NO_EFFECTS = Object.freeze({ provider_calls: 0 as const, persistence_writes: 0 as const, units_consumed: 0 as const });
 
 /**
- * A second, appended "(and) also I want to know <interrogative>" clause — a genuine second
- * question stacked onto the first. Requires BOTH an additive "want to know/ask" connective AND
- * a distinct interrogative focus, so a single clause expressing doubt about the SAME matter
- * ("但…唔肯定係咪應該繼續") does NOT count as bundled.
+ * A genuine second, appended question ("<complete first question>, …又想知 <second question>").
+ * Bundling is decided STRUCTURALLY, not by searching the whole sentence: an additive "also want
+ * to know/ask" connective must SEPARATE a complete substantive first intention (before it) from a
+ * genuinely different interrogative intention (after it). A single question that merely opens with
+ * such a connective ("我又想知佢會唔會返嚟？") has no first intention before the connective and is
+ * therefore NOT bundled; a clause expressing doubt about the SAME matter ("但…唔肯定係咪應該繼續")
+ * has no additive "want to know/ask" connective and is not bundled either.
  */
-const V05_ADDITIONAL_ASK_CONNECTIVE = /(?:又|亦|仲|另外|同埋)\s*(?:想|要)(?:知|問)/u;
+const V05_ADDITIONAL_ASK_CONNECTIVE = /(?:又|亦|仲|另外|同埋)(?:\s*(?:我|你|佢))?\s*(?:想|要)(?:知|問)/u;
+// A distinct interrogative focus (checked ONLY in the text AFTER the connective).
 const V05_SECOND_INTERROGATIVE = /(?:幾時|何時|幾耐|幾類|邊度|邊個|邊間|點解|幾多|係咪應該|應唔應該|會唔會)/u;
+// Markers that a clause is itself a substantive question/decision (checked in the text BEFORE the
+// connective, to confirm a complete FIRST intention already stands there).
+const V05_FIRST_INTENTION_MARKER = /(?:應唔應該|應該|會唔會|係咪|定係|使唔使|值唔值得|好唔好|得唔得|可唔可以|幾時|何時|邊度|邊個|點解|點算|[?？])/u;
+// Leading filler / pronouns / additive adverbs that do NOT by themselves constitute a first
+// intention; stripped from the prefix so a bare "我" / "其實我" reads as empty.
+const V05_LEADING_FILLER = /^(?:其實|另外|不過|但係|咁|而家|我|你|佢|又|亦|仲|想|要|知|問|請問|唔該|，|,|、|\s)+/u;
 
 /** "…, or is it a bad idea / or not / 好唔好 / 定唔定" — an evaluative restatement of ONE decision. */
 const V05_EVALUATIVE_EITHER_OR: readonly RegExp[] = [
@@ -54,8 +64,20 @@ const V05_EVALUATIVE_EITHER_OR: readonly RegExp[] = [
 /** A substantive question that carries a clear intent/topic even without terminal "？". */
 const V05_SUBSTANTIVE_MARKER = /(?:想知|想問|會點|會唔會|應該|應唔應該|係咪|點算|如何|點樣|發展|繼續|可唔可以|值唔值得|應唔應|下一步)/u;
 
+// A complete substantive first intention: after stripping leading filler/pronouns, real content
+// remains AND it carries its own question/decision marker.
+function isCompleteFirstIntention(before: string): boolean {
+  const core = before.replace(V05_LEADING_FILLER, "");
+  return [...core].length >= 2 && V05_FIRST_INTENTION_MARKER.test(before);
+}
 function isV05Bundled(question: string): boolean {
-  return V05_ADDITIONAL_ASK_CONNECTIVE.test(question) && V05_SECOND_INTERROGATIVE.test(question);
+  const m = V05_ADDITIONAL_ASK_CONNECTIVE.exec(question);
+  if (!m) return false;
+  const before = question.slice(0, m.index);
+  const after = question.slice(m.index + m[0].length);
+  // Bundled ONLY when a complete first intention precedes the connective AND a distinct
+  // interrogative follows it. The second interrogative is searched in `after` only.
+  return isCompleteFirstIntention(before) && V05_SECOND_INTERROGATIVE.test(after);
 }
 function isV05EvaluativeEitherOr(question: string): boolean {
   const lowered = question.toLocaleLowerCase("en-US");
