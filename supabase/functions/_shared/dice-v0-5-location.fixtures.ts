@@ -17,7 +17,7 @@ ok(/^p\d\d$/u.test(P1) && /^h\d\d$/u.test(H1) && /^e\d\d$/u.test(E1), "compact w
 ok(!sel.p.includes("p99"), "unselected code truly absent");
 
 // Reviewer item 2: compact codes map deterministically to stable semantic gids, and the code for
-// a place is PERMANENT (bank-position derived, never echo-order dependent).
+// a place is PERMANENT (an explicit value STORED on the bank entry, never echo-order or position dependent).
 eq(res.gid["p01"], "planet.moon.related.family_home", "p01 -> planet.moon.related.family_home");
 eq(res.gid["h03"], "house.4.related.under_furniture", "h03 -> house.4 related #3");
 ok(typeof res.gid["e02"] === "string" && res.gid["e02"].startsWith("element.fire."), "e02 -> element.fire.<place #2>");

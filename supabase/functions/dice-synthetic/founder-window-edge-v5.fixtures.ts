@@ -74,9 +74,9 @@ async function main() {
     [s1("location", "STEP_2_LOCATION"), badLocJson, badLocJson]);
   ok(badLoc.kind === "fallback" && badLoc.code === "DICE_LOCATION_PLANET_NOT_PRIMARY", "location §16 gate rejects rank-1 without planet");
 
-  // Provider GENERATION allowance is SEPARATE from visible-output validation: the Stage-2 request
-  // carries max_output_tokens = 2000 (room for reasoning + output + formatting), while the returned
-  // visible JSON is still measured against the 580-token Location cap.
+  // Provider GENERATION allowance is SEPARATE from visible-output validation, for BOTH stages: each
+  // request carries max_output_tokens = 2000 (room for reasoning + output + formatting), while the
+  // returned visible JSON is still measured against its visible cap (Stage-1 300, Location 580).
   const captured: Array<Record<string, unknown>> = [];
   const capturingSeq = (responses: string[]): DiceV05ProviderAdapter => {
     let i = 0;
@@ -89,15 +89,21 @@ async function main() {
   const okLoc = await executeDiceV05FreeTextCase(reqLoc, capturingSeq([s1("location", "STEP_2_LOCATION"), goodLoc]), () => 1000);
   ok(okLoc.kind === "completed" && okLoc.question_mode === "location", "location completed with the generation allowance");
   ok(captured.length === 2, "two provider calls captured (Stage-1 + Stage-2)");
+  ok(captured[0].schema_name === "lumis_dice_mode_selection_v5" && captured[0].max_output_tokens === 2000, "Stage-1 request carries max_output_tokens=2000 (generation allowance, NOT the 300 visible cap)");
   ok(captured[1].schema_name === "lumis_dice_location_v5_stage2" && captured[1].max_output_tokens === 2000, "Stage-2 Location request carries max_output_tokens=2000 (generation allowance, NOT the 580 visible cap)");
-  // A returned visible JSON that exceeds 580 tokens is still rejected against the visible cap.
-  // Use DISTINCT tokens (numbers) so the string genuinely tokenises above 580 (repeated single
-  // chars BPE-merge below it); the token-cap check runs on the raw content before schema parse.
+  // Returned visible JSON that exceeds its cap is still rejected. DISTINCT tokens (numbers) are used
+  // so the string genuinely tokenises above the cap (repeated single chars BPE-merge below it); the
+  // token-cap check runs on the raw content before schema parse.
   const heavy = Array.from({ length: 800 }, (_, i) => `w${i}`).join(" ");
+  // Stage-1: an oversized mode-selection JSON (> 300 visible tokens) is rejected before parse.
+  const oversizeS1 = JSON.stringify({ mode: "timing", matched_rule: "STEP_1_TIMING", pad: heavy });
+  const bigS1 = await executeDiceV05FreeTextCase(reqLoc, capturingSeq([oversizeS1]), () => 1000);
+  ok(bigS1.kind === "fallback" && bigS1.code === "DICE_OUTPUT_TOKEN_CAP", "returned Stage-1 JSON > 300 visible tokens is rejected (visible cap enforced independently of the 2000 allowance)");
+  // Stage-2 Location: an oversized returned JSON (> 580 visible tokens) is rejected.
   const oversizeLoc = JSON.stringify({ status: "ok", most_likely_area: heavy, synthesis: heavy,
     location_candidates: [cand(1, [P1], [], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2], watch_out: "z", practical_step: "w" });
   const bigLoc = await executeDiceV05FreeTextCase(reqLoc, capturingSeq([s1("location", "STEP_2_LOCATION"), oversizeLoc]), () => 1000);
-  ok(bigLoc.kind === "fallback" && bigLoc.code === "DICE_OUTPUT_TOKEN_CAP", "returned visible JSON > 580 tokens is rejected (visible cap enforced independently of the 2000 allowance)");
+  ok(bigLoc.kind === "fallback" && bigLoc.code === "DICE_OUTPUT_TOKEN_CAP", "returned Stage-2 Location JSON > 580 visible tokens is rejected (visible cap enforced independently of the 2000 allowance)");
 
   console.log("dice-v0-5 founder-window-edge fixtures passed");
 }

@@ -30,18 +30,19 @@ const INPUT_CAP = 1600;
 // code-point) question, so its input is materially larger than the other modes. Its cap is 1800
 // (all other mode inputs stay at 1600); the Location OUTPUT cap remains 580 by construction.
 const LOCATION_INPUT_CAP = 1800;
-const MODE_OUTPUT_CAP = 300 as const;
 // Member-VISIBLE output caps — the returned JSON is measured and rejected against these:
-// 600 for every mode, 580 for Location (≤ 580 by construction, Founder Decision B). Compact wire
-// codes keep the schema-permitted maximum visible JSON at zh 574 / en 381 for Location.
+// Stage-1 mode selection 300; Stage-2 600 for every mode, 580 for Location (≤ 580 by construction,
+// Founder Decision B). Compact wire codes keep the schema-permitted maximum visible Location JSON
+// at zh 574 / en 381.
+const MODE_OUTPUT_CAP = 300 as const;
 const OUTPUT_CAP = 600 as const;
 const LOCATION_OUTPUT_CAP = 580 as const;
-// Provider GENERATION allowance (Stage-2 `max_output_tokens`). Azure Responses counts hidden
-// reasoning + visible output + formatting toward this budget, so it MUST be larger than the visible
-// cap or a valid ≤580-token answer can be truncated before it is emitted. 2000 is provisional and
-// is NOT the visible limit; the returned visible JSON is still validated against 580/600 above.
-// (reasoning.effort stays "minimal" in the adapter.)
-const STAGE2_GENERATION_CAP = 2000 as const;
+// Provider GENERATION allowance (`max_output_tokens`) for BOTH provider stages. Azure Responses
+// counts hidden reasoning + visible output + formatting toward this budget, so it MUST be larger
+// than the visible cap or a valid answer (even a tiny Stage-1 routing JSON) can be truncated before
+// it is emitted. 2000 is provisional and is NOT the visible limit; each stage's returned visible
+// JSON is still validated against its cap above. (reasoning.effort stays "minimal" in the adapter.)
+const PROVIDER_GENERATION_CAP = 2000 as const;
 const SHARED_DEADLINE_MS = 12000;
 const PLANETS = new Set<string>(DICE_V05_PLANET_IDS);
 const SIGNS = new Set<string>(DICE_V05_SIGN_IDS);
@@ -134,9 +135,12 @@ export async function executeDiceV05FreeTextCase(
   // Stage 1 — semantic mode selection.
   const stage1Input = buildProviderInput(DICE_V05_BLOCK.stage1, { language, question: decision.normalized_question });
   if (!measureDiceTokenLimit(stage1Input, INPUT_CAP).within_limit) return fallback("DICE_INPUT_TOKEN_CAP", language, null, calls);
-  const s1 = await invokeStage(adapter, stage1Input, MODE_OUTPUT_CAP, "lumis_dice_mode_selection_v5", diceV05Stage1Schema(), deadline, now);
+  // The provider gets the full generation allowance (reasoning + output + formatting); the RETURNED
+  // visible mode-selection JSON is measured against the 300-token Stage-1 visible cap before parse.
+  const s1 = await invokeStage(adapter, stage1Input, PROVIDER_GENERATION_CAP, "lumis_dice_mode_selection_v5", diceV05Stage1Schema(), deadline, now);
   calls += 1;
   if (s1.kind !== "success") return providerFailure(s1.kind, language, null, calls);
+  if (!measureDiceTokenLimit(s1.content, MODE_OUTPUT_CAP).within_limit) return fallback("DICE_OUTPUT_TOKEN_CAP", language, null, calls);
   const sel = parseDiceV05Stage1(s1.content);
   if (!sel) return fallback("DICE_MODE_SELECTION_INVALID", language, null, calls);
   if (sel.kind === "route_review") return routeReview(language, null, calls);
@@ -164,9 +168,9 @@ export async function executeDiceV05FreeTextCase(
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     if (now() >= deadline) return providerFailure("timeout", language, mode, calls);
-    // The provider is given the larger generation allowance (reasoning + output + formatting);
+    // The provider is given the same generation allowance (reasoning + output + formatting);
     // the RETURNED visible JSON is measured against outCap (580 Location / 600 other) below.
-    const s2 = await invokeStage(adapter, stage2Input, STAGE2_GENERATION_CAP, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
+    const s2 = await invokeStage(adapter, stage2Input, PROVIDER_GENERATION_CAP, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
     calls += 1;
     if (s2.kind !== "success") {
       if (["authentication", "permission", "content_filter"].includes(s2.kind) || attempt === 2 || now() >= deadline) return providerFailure(s2.kind, language, mode, calls);

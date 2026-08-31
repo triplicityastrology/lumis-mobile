@@ -122,6 +122,13 @@ for (const q of ["我又想知佢會唔會返嚟？", "其實我仲想問幾時�
 for (const q of ["我應唔應該轉工，又想知幾時轉最好？", "佢會唔會鍾意我，同埋我想知幾時應該表白？"]) {
   eq(bundledCode(q), "DICE_QUESTION_BUNDLED", `genuine two-question variant bundled: ${q}`);
 }
+// (c) the SECOND question can appear at a LATER connective, and the second interrogative may be a
+// how/what-kind form (點樣/如何/…): the detector scans EVERY connective, not just the first.
+for (const q of ["我又想知佢會唔會返嚟，另外我想知幾時返？", "我應唔應該轉工，又想知新工作會係點樣？"]) {
+  const d = classifyDiceV05QuestionRequest({ question: q });
+  eq(bundledCode(q), "DICE_QUESTION_BUNDLED", `later-connective / how-form bundled: ${q}`);
+  ok(!d.accepted && d.effects.provider_calls === 0, `${q}: zero provider calls`);
+}
 
 // Test 6 (§20 workbook) — the EXACT bundled question driven through the REAL v5 pipeline
 // (executeDiceV05FreeTextCase), NOT a manually forced bundled outcome. The provider adapter is a

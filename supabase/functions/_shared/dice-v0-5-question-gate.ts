@@ -44,12 +44,14 @@ const NO_EFFECTS = Object.freeze({ provider_calls: 0 as const, persistence_write
  * therefore NOT bundled; a clause expressing doubt about the SAME matter ("但…唔肯定係咪應該繼續")
  * has no additive "want to know/ask" connective and is not bundled either.
  */
-const V05_ADDITIONAL_ASK_CONNECTIVE = /(?:又|亦|仲|另外|同埋)(?:\s*(?:我|你|佢))?\s*(?:想|要)(?:知|問)/u;
-// A distinct interrogative focus (checked ONLY in the text AFTER the connective).
-const V05_SECOND_INTERROGATIVE = /(?:幾時|何時|幾耐|幾類|邊度|邊個|邊間|點解|幾多|係咪應該|應唔應該|會唔會)/u;
-// Markers that a clause is itself a substantive question/decision (checked in the text BEFORE the
+// GLOBAL so we can scan EVERY additive connective in the question (matchAll), not just the first.
+const V05_ADDITIONAL_ASK_CONNECTIVE = /(?:又|亦|仲|另外|同埋)(?:\s*(?:我|你|佢))?\s*(?:想|要)(?:知|問)/gu;
+// A distinct interrogative focus (checked ONLY in the text AFTER a connective). Covers when/where/
+// who/why/how/what-kind forms across written Chinese and Cantonese.
+const V05_SECOND_INTERROGATIVE = /(?:幾時|何時|幾耐|幾類|邊度|邊個|邊間|點解|幾多|係咪應該|應唔應該|會唔會|點樣|如何|咩|乜|什麼|甚麼|哪裡|何處|誰|為何|怎樣)/u;
+// Markers that a clause is itself a substantive question/decision (checked in the text BEFORE a
 // connective, to confirm a complete FIRST intention already stands there).
-const V05_FIRST_INTENTION_MARKER = /(?:應唔應該|應該|會唔會|係咪|定係|使唔使|值唔值得|好唔好|得唔得|可唔可以|幾時|何時|邊度|邊個|點解|點算|[?？])/u;
+const V05_FIRST_INTENTION_MARKER = /(?:應唔應該|應該|會唔會|係咪|定係|使唔使|值唔值得|好唔好|得唔得|可唔可以|幾時|何時|邊度|邊個|點解|點算|點樣|如何|咩|乜|什麼|甚麼|哪裡|何處|誰|為何|怎樣|[?？])/u;
 // Leading filler / pronouns / additive adverbs that do NOT by themselves constitute a first
 // intention; stripped from the prefix so a bare "我" / "其實我" reads as empty.
 const V05_LEADING_FILLER = /^(?:其實|另外|不過|但係|咁|而家|我|你|佢|又|亦|仲|想|要|知|問|請問|唔該|，|,|、|\s)+/u;
@@ -71,13 +73,17 @@ function isCompleteFirstIntention(before: string): boolean {
   return [...core].length >= 2 && V05_FIRST_INTENTION_MARKER.test(before);
 }
 function isV05Bundled(question: string): boolean {
-  const m = V05_ADDITIONAL_ASK_CONNECTIVE.exec(question);
-  if (!m) return false;
-  const before = question.slice(0, m.index);
-  const after = question.slice(m.index + m[0].length);
-  // Bundled ONLY when a complete first intention precedes the connective AND a distinct
-  // interrogative follows it. The second interrogative is searched in `after` only.
-  return isCompleteFirstIntention(before) && V05_SECOND_INTERROGATIVE.test(after);
+  // Scan EVERY additive connective; the question is bundled if ANY split has a complete first
+  // intention before it AND a distinct interrogative after it (a later "另外我想知 …" can be the real
+  // second question even when the first connective's prefix is only a pronoun). matchAll is
+  // non-stateful per call here because the regex is used only inside this loop.
+  for (const m of question.matchAll(V05_ADDITIONAL_ASK_CONNECTIVE)) {
+    const idx = m.index ?? 0;
+    const before = question.slice(0, idx);
+    const after = question.slice(idx + m[0].length);
+    if (isCompleteFirstIntention(before) && V05_SECOND_INTERROGATIVE.test(after)) return true;
+  }
+  return false;
 }
 function isV05EvaluativeEitherOr(question: string): boolean {
   const lowered = question.toLocaleLowerCase("en-US");

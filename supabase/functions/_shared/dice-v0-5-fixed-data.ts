@@ -91,8 +91,9 @@ export const SIGN_ESSENCE: Readonly<Record<DiceV05SignId, SignEssenceRow>> = Obj
   pisces: { essence_en: "Intuition and empathy", detail_en: "Imagination, acceptance, artistic feeling", essence_zh: "直覺與同理心", detail_zh: "想像力、包容、藝術感" },
 });
 
-/* A controlled place: a stable semantic `slug` (the evidence id leaf, unaffected by
- * list order) plus its bilingual text. Wire key + gid derive from `slug` (§16). */
+/* A controlled place: an explicit stored wire `code`, a stable semantic `slug` (the evidence id
+ * leaf, unaffected by list order), and bilingual text. The gid derives from `slug`; the wire key is
+ * the STORED `code` (never derived from the slug or from list position) (§16). */
 // `code` is the PERMANENT payload-local wire code (planet p01.., house h01.., element e01..),
 // stored explicitly per entry — NOT derived from array position, so reordering or inserting a bank
 // entry never changes an existing code's meaning. `slug` is the stable semantic id the code maps to.
@@ -275,11 +276,11 @@ export function combinedPaceV05(planetSpeed: DiceV05Speed, houseSpeed: DiceV05Ho
 
 /* ---------------- Location bank (Appendix C; COMPLETE normalized transcription) ----------------
  * Every controlled related place from proposal Appendix C is present; nothing is
- * summarised or omitted. Each place carries a stable semantic `slug` (LocPlace);
- * the wire key is `p.related.<slug>` / `h.related.<slug>` / `e.<slug>` (plus the
- * fixed `p.theme`,`p.context`,`h.setting`,`h.context`), and the gid is
+ * summarised or omitted. Each place carries an explicit STORED wire `code` (p01/h01/e01..) and a
+ * stable semantic `slug` (LocPlace); the wire key sent to / echoed by the model is the stored
+ * `code` (plus the fixed `pt`,`px`,`ht`,`hx` for theme/context/setting), and the gid is
  * planet.<id>.(theme|context|related.<slug>), house.<n>.(setting|context|related.<slug>),
- * element.<element>.<slug> (§16). Semantic ids are stable under list reordering.
+ * element.<element>.<slug> (§16). Both code and gid are stable under list reordering.
  * (Related-place expansions are Founder-directed reviewing-AI content per Appendix C.) */
 export type LocationPlanetBank = Readonly<{ theme_en: string; theme_zh: string; context_en: string; context_zh: string; related: readonly LocPlace[] }>;
 export type LocationHouseBank = Readonly<{ setting_en: string; setting_zh: string; context_en: string; context_zh: string; related: readonly LocPlace[] }>;

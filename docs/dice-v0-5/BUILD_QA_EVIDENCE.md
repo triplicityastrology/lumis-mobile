@@ -125,13 +125,15 @@ returned visible JSON (4 candidates × 2 codes in all 3 arrays + every field at 
 level1 398 (≤ 600). The runtime measures the **returned visible JSON** against 580 (Location) / 600
 (other).
 
-**Provider generation allowance is SEPARATE from the visible cap (corrected this round).** Azure
-Responses counts hidden reasoning + visible output + formatting toward `max_output_tokens`, so
-setting it to 580 could truncate a valid ≤ 580-token answer before it is emitted. The Stage-2
-request therefore uses `max_output_tokens = 2000` (`STAGE2_GENERATION_CAP`, provisional; larger
-than any visible cap), with `reasoning.effort: "minimal"`. The returned visible JSON is still
-validated and rejected against 580/600. A window integration test captures the Location request and
-asserts the provider receives **2000** while an oversized (> 580-token) returned JSON is rejected.
+**Provider generation allowance is SEPARATE from the visible cap — for BOTH provider stages.**
+Azure Responses counts hidden reasoning + visible output + formatting toward `max_output_tokens`,
+so setting it to a small visible size could truncate a valid answer (even the tiny Stage-1 routing
+JSON) before it is emitted. Both stages therefore request `max_output_tokens = 2000`
+(`PROVIDER_GENERATION_CAP`, provisional), with `reasoning.effort: "minimal"`. The returned visible
+JSON is still validated and rejected against its cap: **Stage-1 300**, Stage-2 **580** (Location) /
+**600** (other). Input caps unchanged: 1800 (Location) / 1600 (other). Window integration tests
+capture each request (Stage-1 → 2000, Stage-2 → 2000) and prove an oversized returned Stage-1 JSON
+(> 300 visible tokens) and an oversized returned Location JSON (> 580) are both rejected.
 
 ## 4. Founder-decision conformance
 
@@ -199,16 +201,21 @@ asserts the provider receives **2000** while an oversized (> 580-token) returned
    - **v5 Stage-0 question gate** (`dice-v0-5-question-gate.ts`) resolves the three settled §20.1
      divergences the reused v3 classifier produced (RT-17 bundled, RT-18 → judgment, RT-19 →
      route_review) **without editing the v3 classifier**. All 19 RT rows are now fail-fast; the
-     earlier non-fatal "findings" mechanism is removed.
+     earlier non-fatal "findings" mechanism is removed. The bundled detector is STRUCTURAL and scans
+     **every** additive connective (`matchAll`), not just the first, so a later `另外我想知 …` is
+     caught; the second-question forms include when/where/who/why/how/what-kind
+     (`點樣`/`如何`/`咩`/`什麼`/`哪裡`/`誰`/`怎樣`/…). Single questions that merely open with such a
+     connective stay accepted.
    - **Member-visible Location output ≤ 580 by construction** restored via compact wire codes (the
      unauthorised 700 backstop is gone). Codes are now **explicit values stored on each controlled
      bank entry** (`LocPlace.code`), not derived from array position — validated at load for
      uniqueness / ≤ 3 chars / prefix, and proved order-independent by a reverse-the-list test.
-   - **Provider generation allowance separated from the visible cap**: Stage-2 `max_output_tokens`
-     is 2000 (covers hidden reasoning + output + formatting; `reasoning.effort: "minimal"`), while
-     the returned visible JSON is still validated against 580 (Location) / 600 (other). A window
-     integration test captures the Location request → provider gets 2000; an oversized returned JSON
-     is rejected.
+   - **Provider generation allowance separated from the visible cap, for BOTH stages**: Stage-1 and
+     Stage-2 request `PROVIDER_GENERATION_CAP` = 2000 `max_output_tokens` (covers hidden reasoning +
+     output + formatting; `reasoning.effort: "minimal"`), while the returned visible JSON is still
+     validated against Stage-1 300, Stage-2 580 (Location) / 600 (other). Window integration tests
+     capture both requests (2000) and reject an oversized returned Stage-1 (> 300) and Location
+     (> 580) JSON.
    - **Location Stage-2 input cap raised 1600 → 1800 (Founder-approved; all other modes
      stay 1600).** The genuine worst case, measured exhaustively over every Planet × House ×
      Sign/Element in both languages with a full 280-code-point question, is **1668 (Mercury/House
