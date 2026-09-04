@@ -178,17 +178,19 @@ export function createFounderDiceFreeTextGatewayClient({ functionUrl, anonKey, a
   });
 }
 
-// v4 (Dice AI Interpretation Prompt v3) free-text client: sends the opt-in
-// header and parses the two-stage edge response {result, question_mode, metadata}.
-export function createFounderDiceV04FreeTextGatewayClient({ functionUrl, anonKey, accessKey, fetchImpl = fetch }) {
+// v5 free-text client (technical identity for "Dice AI Interpretation Prompt
+// v3"). Sends the opt-in header `x-lumis-dice-interpretation: v5` and parses the
+// two-stage edge response {result, question_mode, metadata}. The retired v4 client
+// is removed; the edge now answers a v4 header with DICE_INTERPRETATION_VERSION_UNSUPPORTED.
+export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey, accessKey, fetchImpl = fetch }) {
   const expectedOrigin = "https://bmqhwofmdgebpcihjlnb.supabase.co";
   const parsed = new URL(functionUrl);
   if (parsed.origin !== expectedOrigin || parsed.pathname !== "/functions/v1/dice-synthetic" || parsed.search || parsed.hash || !anonKey?.trim() || !accessKey?.trim() || accessKey.length < 32) {
-    throw new Error("LAB_V04_GATEWAY_CONFIGURATION_INVALID");
+    throw new Error("LAB_V05_GATEWAY_CONFIGURATION_INVALID");
   }
   return Object.freeze({
     async run(request) {
-      if (!exactKeys(request, FOUNDER_FREE_TEXT_REQUEST_FIELDS)) throw new Error("LAB_V04_GATEWAY_REQUEST_INVALID");
+      if (!exactKeys(request, FOUNDER_FREE_TEXT_REQUEST_FIELDS)) throw new Error("LAB_V05_GATEWAY_REQUEST_INVALID");
       const response = await fetchImpl(parsed.href, {
         method: "POST",
         headers: {
@@ -196,7 +198,7 @@ export function createFounderDiceV04FreeTextGatewayClient({ functionUrl, anonKey
           apikey: anonKey,
           "content-type": "application/json",
           "x-lumis-founder-free-text-access": accessKey,
-          "x-lumis-dice-interpretation": "v4",
+          "x-lumis-dice-interpretation": "v5",
         },
         body: JSON.stringify(request),
         signal: AbortSignal.timeout(14_000),
@@ -213,16 +215,19 @@ export function createFounderDiceV04FreeTextGatewayClient({ functionUrl, anonKey
           metadata: payload?.metadata ?? null,
         });
       }
-      if (!exactKeys(payload, ["result", "question_mode", "metadata"])) throw new Error("LAB_V04_GATEWAY_RESPONSE_INVALID");
+      if (!exactKeys(payload, ["result", "question_mode", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
       return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, metadata: payload.metadata });
     },
   });
 }
 
-export function redactV04Metadata(value) {
-  const allowed = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket"];
+// v5 metadata is strictly metadata-only and carries units_consumed / persistence_writes
+// = 0 alongside the v4 fields (§20.6). No raw question or provider text is present.
+export function redactV05Metadata(value) {
+  const allowed = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket", "units_consumed", "persistence_writes"];
   if (!exactKeys(value, allowed)) return null;
   if (value.request_mode !== "founder_free_text" || !["en", "zh-Hant"].includes(value.language) || typeof value.result_class !== "string" || !Number.isInteger(value.provider_calls)) return null;
+  if (value.units_consumed !== 0 || value.persistence_writes !== 0) return null;
   return Object.freeze({ ...value });
 }
 

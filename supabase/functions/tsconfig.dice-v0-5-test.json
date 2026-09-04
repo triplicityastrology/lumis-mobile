@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS", "moduleResolution": "Node", "ignoreDeprecations": "5.0",
+    "rewriteRelativeImportExtensions": true, "noEmit": false, "skipLibCheck": true,
+    "outDir": "../../.tmp/dice-v0-5-tests", "rootDir": "../.."
+  },
+  "include": [
+    "_shared/dice-v0-5-fixed-data.ts",
+    "_shared/dice-v0-5-question-gate.ts",
+    "_shared/dice-v0-5-interpretation-contract.ts",
+    "_shared/dice-v0-5-presentation.ts",
+    "_shared/dice-v0-5-judgment.fixtures.ts",
+    "_shared/dice-v0-5-timing.fixtures.ts",
+    "_shared/dice-v0-5-location.fixtures.ts",
+    "_shared/dice-v0-5-routing.fixtures.ts",
+    "_shared/dice-v0-5-level1.fixtures.ts",
+    "_shared/dice-v0-5-schema.fixtures.ts",
+    "_shared/dice-v0-5-length.fixtures.ts",
+    "_shared/dice-v0-5-tokenizer.fixtures.ts",
+    "_shared/dice-v0-5-window.ts",
+    "_shared/dice-v0-5-privacy.fixtures.ts",
+    "_shared/azure-dice-adapter-v5.ts",
+    "_shared/dice-v0-5-adapter.fixtures.ts",
+    "dice-synthetic/founder-window-edge-v5.fixtures.ts"
+  ]
+}
