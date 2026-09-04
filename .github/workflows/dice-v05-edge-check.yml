@@ -1,0 +1,28 @@
+name: Dice v5 edge type-check
+
+# Isolated Deno type-check for the v5 Supabase Edge handler + its v5 dependencies.
+# Runs the existing `check:dice-v05-edge` npm script (deno check ...) so the pre-merge Deno gate
+# produces a real pass/fail result in CI. Deno cannot run in the offline dev sandbox, so this job
+# is the authoritative gate. It touches no product code.
+on:
+  push:
+    branches: ["claude/dice-v5-result-card"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dice-v05-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Deno type-check the v5 edge handler
+        run: npm run check:dice-v05-edge
