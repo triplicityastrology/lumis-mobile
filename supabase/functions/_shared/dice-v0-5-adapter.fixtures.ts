@@ -60,6 +60,11 @@ async function main() {
   eq((await createDiceV05Adapter(config, mockFetch(200, {})).invoke(invokeInput())).kind, "malformed", "no content → malformed");
   eq((await createDiceV05Adapter(config, mockFetch(200, { status: "content_filter", output: [] })).invoke(invokeInput())).kind, "content_filter", "content_filter status → content_filter");
   eq((await createDiceV05Adapter(config, mockFetch(200, { incomplete_details: { reason: "content_filter" }, output: [] })).invoke(invokeInput())).kind, "content_filter", "incomplete content_filter → content_filter");
+  // MB-2 (test 1): an HTTP-error content-filter ENVELOPE must be recognized BEFORE the generic
+  // non-OK → malformed path, so it is non-retryable. This is the exact QA-reproduced body.
+  eq((await createDiceV05Adapter(config, mockFetch(400, { error: { code: "content_filter", status: 400 } })).invoke(invokeInput())).kind, "content_filter", "HTTP 400 error.code=content_filter → content_filter (not malformed)");
+  // A non-content-filter HTTP 400 error stays malformed — a plain 400 is NOT misread as filtered.
+  eq((await createDiceV05Adapter(config, mockFetch(400, { error: { code: "invalid_request_error", status: 400 } })).invoke(invokeInput())).kind, "malformed", "HTTP 400 non-content-filter error → malformed");
 
   // A thrown fetch → network; an aborted fetch → timeout.
   const throwing = createDiceV05Adapter(config, (async () => { throw new Error("boom"); }) as any);

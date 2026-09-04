@@ -45,8 +45,11 @@ export function createDiceV05Adapter(config: DiceAzureServerConfig, fetchImpl: t
         if (response.status === 429) return { kind: "server" };
         if (response.status >= 500) return { kind: "server" };
         const body = await response.json().catch(() => null) as Record<string, unknown> | null;
-        if (!response.ok) return { kind: "malformed" };
+        // A recognized content-filter rejection is NON-retryable and must be classified before the
+        // generic non-OK -> malformed fallback (which Stage 2 would otherwise retry). This covers
+        // both the success-body forms and the HTTP-error envelope {"error":{"code":"content_filter"}}.
         if (isContentFiltered(body)) return { kind: "content_filter" };
+        if (!response.ok) return { kind: "malformed" };
         if (body?.status === "incomplete") return { kind: "malformed" };
         const content = assistantText(body);
         if (content === null) return { kind: "malformed" };
@@ -62,7 +65,16 @@ function isContentFiltered(body: Record<string, unknown> | null): boolean {
   if (!body) return false;
   const details = (body as { incomplete_details?: { reason?: unknown } }).incomplete_details;
   if (details?.reason === "content_filter") return true;
-  return (body as { status?: unknown }).status === "content_filter";
+  if ((body as { status?: unknown }).status === "content_filter") return true;
+  // HTTP-error envelope form: { "error": { "code": "content_filter", ... } }. Keyed on the explicit
+  // content-filter code (NOT the HTTP status), so an ordinary non-OK 400 is not misread as filtered.
+  const error = (body as { error?: unknown }).error;
+  if (error && typeof error === "object") {
+    const code = (error as { code?: unknown }).code;
+    const reason = (error as { status?: unknown }).status;
+    if (code === "content_filter" || reason === "content_filter") return true;
+  }
+  return false;
 }
 
 function assistantText(body: Record<string, unknown> | null): string | null {

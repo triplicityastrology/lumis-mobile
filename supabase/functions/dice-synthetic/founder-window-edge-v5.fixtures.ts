@@ -6,6 +6,7 @@
 import {
   executeDiceV05FreeTextCase, parseDiceV05FreeTextRequest, type DiceV05ProviderAdapter,
 } from "../_shared/dice-v0-5-window.ts";
+import { createDiceV05Adapter } from "../_shared/azure-dice-adapter-v5.ts";
 import { DICE_V05_RESULT_SCHEMA } from "../_shared/dice-v0-5-fixed-data.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
@@ -104,6 +105,42 @@ async function main() {
     location_candidates: [cand(1, [P1], [], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2], watch_out: "z", practical_step: "w" });
   const bigLoc = await executeDiceV05FreeTextCase(reqLoc, capturingSeq([s1("location", "STEP_2_LOCATION"), oversizeLoc]), () => 1000);
   ok(bigLoc.kind === "fallback" && bigLoc.code === "DICE_OUTPUT_TOKEN_CAP", "returned Stage-2 Location JSON > 580 visible tokens is rejected (visible cap enforced independently of the 2000 allowance)");
+
+  // ---- MB-2: content-filter rejection is recognized (via the REAL v5 adapter over a mock fetch)
+  // and is NEVER retried. Full pipeline: window → createDiceV05Adapter → injected fetch. No network. ----
+  const CF_CONFIG = Object.freeze({ endpoint: "https://lumis-foundry-stg-sea-20260731.services.ai.azure.com", deployment: "lumis-ai-chat-stg", routeFamily: "v1" as const, apiKey: "TEST_KEY_NOT_A_SECRET" } as any);
+  const seqFetch = (responses: Array<{ status: number; body: unknown }>) => {
+    let n = 0;
+    const impl = (async () => { const r = responses[Math.min(n, responses.length - 1)]; n += 1; return { status: r.status, ok: r.status >= 200 && r.status < 300, json: async () => r.body } as any; }) as any;
+    return { impl, count: () => n };
+  };
+  const stage1Ok = { status: 200, body: { output_text: s1("judgment", "STEP_3_JUDGMENT") } };
+  const cf400 = { status: 400, body: { error: { code: "content_filter", status: 400 } } };            // QA-reproduced envelope
+  const bad400 = { status: 400, body: { error: { code: "invalid_request_error", status: 400 } } };     // ordinary non-OK → malformed (retryable)
+  const cfReq = () => parseDiceV05FreeTextRequest({ question: "Will my visa be approved this year?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" })!;
+
+  // (test 2) Stage-1 success, Stage-2 content-filter → safety, EXACTLY 2 provider calls, no retry.
+  const t2 = seqFetch([stage1Ok, cf400]);
+  const cf2 = await executeDiceV05FreeTextCase(cfReq(), createDiceV05Adapter(CF_CONFIG, t2.impl));
+  ok(cf2.kind === "safety" && (cf2 as any).code === "DICE_CONTENT_FILTER", "MB-2 pipeline: Stage-2 content-filter → safety (non-retryable)");
+  ok(cf2.provider_calls === 2 && t2.count() === 2, "MB-2 pipeline: exactly 2 provider calls / 2 adapter invocations (Stage-2 NOT retried)");
+
+  // (test 3) Stage-1 content-filter → safety, EXACTLY 1 provider call, no Stage-2.
+  const t3 = seqFetch([cf400]);
+  const cf3 = await executeDiceV05FreeTextCase(cfReq(), createDiceV05Adapter(CF_CONFIG, t3.impl));
+  ok(cf3.kind === "safety" && (cf3 as any).code === "DICE_CONTENT_FILTER", "MB-2 pipeline: Stage-1 content-filter → safety");
+  ok(cf3.provider_calls === 1 && t3.count() === 1, "MB-2 pipeline: exactly 1 provider call, no Stage 2");
+
+  // (test 6 contrast) an ORDINARY malformed Stage-2 STILL retries once → 3 provider calls, then fallback.
+  const t6 = seqFetch([stage1Ok, bad400, bad400]);
+  const mal = await executeDiceV05FreeTextCase(cfReq(), createDiceV05Adapter(CF_CONFIG, t6.impl));
+  ok(mal.kind === "fallback" && (mal as any).code === "DICE_MALFORMED", "MB-2 contrast: ordinary malformed Stage-2 → fallback");
+  ok(mal.provider_calls === 3 && t6.count() === 3, "MB-2 contrast: malformed retried once → 3 provider calls (transient-retry behaviour preserved)");
+
+  // (test 7) no raw question / provider body / credential leaks into the metadata of a filtered outcome.
+  const meta = JSON.stringify((cf2 as any).metadata);
+  ok(!meta.includes("Will my visa") && !meta.includes("TEST_KEY_NOT_A_SECRET") && !meta.includes("content_filter") && !meta.includes("error"), "MB-2 privacy: content-filter metadata leaks no question / credential / provider body");
+  ok((cf2 as any).metadata.units_consumed === 0 && (cf2 as any).metadata.persistence_writes === 0, "MB-2 privacy: filtered outcome consumes no units / writes nothing");
 
   console.log("dice-v0-5 founder-window-edge fixtures passed");
 }
