@@ -191,18 +191,32 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
   return Object.freeze({
     async run(request) {
       if (!exactKeys(request, FOUNDER_FREE_TEXT_REQUEST_FIELDS)) throw new Error("LAB_V05_GATEWAY_REQUEST_INVALID");
-      const response = await fetchImpl(parsed.href, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${anonKey}`,
-          apikey: anonKey,
-          "content-type": "application/json",
-          "x-lumis-founder-free-text-access": accessKey,
-          "x-lumis-dice-interpretation": "v5",
-        },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(14_000),
-      });
+      let response;
+      try {
+        response = await fetchImpl(parsed.href, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${anonKey}`,
+            apikey: anonKey,
+            "content-type": "application/json",
+            "x-lumis-founder-free-text-access": accessKey,
+            "x-lumis-dice-interpretation": "v5",
+          },
+          body: JSON.stringify(request),
+          signal: AbortSignal.timeout(14_000),
+        });
+      } catch (error) {
+        // A timeout/abort (AbortSignal.timeout -> TimeoutError; a caller abort -> AbortError) or any
+        // other transport failure resolves to a CLOSED, typed result so the Lab renders a deterministic
+        // unavailable presentation. It never escapes as an uncaught exception that the outer route would
+        // otherwise collapse into a generic 400 with no presentation ("Request stopped safely").
+        const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+        return Object.freeze({
+          kind: timedOut ? "timeout" : "unavailable",
+          code: timedOut ? "DICE_INTERPRETATION_TIMEOUT" : "DICE_FOUNDER_GATEWAY_UNAVAILABLE",
+          metadata: null,
+        });
+      }
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         const code = payload?.error?.code;
@@ -215,7 +229,14 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
           metadata: payload?.metadata ?? null,
         });
       }
-      if (!exactKeys(payload, ["result", "question_mode", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
+      // Strict v5 success envelope only. A DIFFERENT successful envelope — e.g. the deployed v3 success
+      // shape {classification, metadata, protected_metadata, result} returned by a staging dice-synthetic
+      // function that has not yet been redeployed with the v5 two-stage branch — is NOT accepted as v5 and
+      // is NOT thrown into a generic local 400. It resolves to a closed, typed version-unavailable result
+      // so the Lab shows fixed "engine unavailable" copy while the v3 (checkbox-off) path keeps working.
+      if (!exactKeys(payload, ["result", "question_mode", "metadata"])) {
+        return Object.freeze({ kind: "version_unavailable", code: "DICE_INTERPRETATION_VERSION_UNAVAILABLE", metadata: null });
+      }
       return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, metadata: payload.metadata });
     },
   });
