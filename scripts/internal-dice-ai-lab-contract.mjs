@@ -8,6 +8,7 @@ import {
   labStatus, loadFixtures, parseControlledHouseWatchBank, presentLabResult, redactExportRecord, renderLabPage, validateLabFreeTextRunRequest, validateLabResult, validateLabRunRequest,
   executeLabFreeTextV05Request, presentLabV05Result, validateLabV05Result,
 } from "../tools/internal-dice-ai-lab/server.mjs";
+import { createFounderDiceV05FreeTextGatewayClient } from "../tools/internal-dice-ai-lab/founder-live-window.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverSource = await readFile(path.join(root, "tools/internal-dice-ai-lab/server.mjs"), "utf8");
@@ -206,6 +207,68 @@ assert.equal(v05Live.body.metadata.units_consumed, 0, "metadata carries units_co
 const v05Review = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
 assert.equal(v05Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
 assert.equal(v05Review.body.presentation.kind, "route_review");
+
+// --- Deploy-skew + transport hardening for the v5 gateway CLIENT (mocked fetch; no network). ---
+// The staging dice-synthetic function may still run the OLD v3 code, which answers HTTP-200 with the
+// v3 success envelope {classification, metadata, protected_metadata, result}. The v5 client must treat
+// that as a closed, typed version-unavailable result — never throw LAB_V05_GATEWAY_RESPONSE_INVALID into
+// the outer route's generic 400 (which the browser renders as "Request stopped safely").
+const V05_GATEWAY_CONFIG = { functionUrl: "https://bmqhwofmdgebpcihjlnb.supabase.co/functions/v1/dice-synthetic", anonKey: "anon-key-not-a-secret", accessKey: "founder-free-text-access-key-not-a-secret-0" };
+const v05GatewayRequest = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
+const jsonFetch = (status, body) => async () => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+const throwingFetch = (name) => async () => { const e = new Error("aborted"); e.name = name; throw e; };
+
+// (fixture 1) HTTP-200 v3 envelope -> closed version-unavailable, no throw.
+const v3Envelope = { classification: { question_mode: "reason" }, metadata: { fixture_id: "synthetic", language: "en", result_class: "completed", attempt_count: 1, latency_bucket: "lt_12s", input_token_bucket: "lt_800", output_token_bucket: "lt_300", cost_bucket: "within_cap" }, protected_metadata: { provider_disposition: "responses_completed_valid" }, result: { schema: "lumis_dice_v0_3_result_v3" } };
+const v3Resolved = await createFounderDiceV05FreeTextGatewayClient({ ...V05_GATEWAY_CONFIG, fetchImpl: jsonFetch(200, v3Envelope) }).run(v05GatewayRequest);
+assert.equal(v3Resolved.kind, "version_unavailable", "HTTP-200 v3 envelope resolves to a closed version-unavailable result (never throws)");
+assert.equal(v3Resolved.code, "DICE_INTERPRETATION_VERSION_UNAVAILABLE");
+assert.equal(v3Resolved.metadata, null, "version-unavailable carries closed (null) metadata");
+
+// (fixture 2) fetch timeout / abort -> closed timeout, no throw.
+const timeoutResolved = await createFounderDiceV05FreeTextGatewayClient({ ...V05_GATEWAY_CONFIG, fetchImpl: throwingFetch("TimeoutError") }).run(v05GatewayRequest);
+assert.equal(timeoutResolved.kind, "timeout", "fetch TimeoutError resolves to a closed timeout result (never throws)");
+assert.equal(timeoutResolved.code, "DICE_INTERPRETATION_TIMEOUT");
+assert.equal((await createFounderDiceV05FreeTextGatewayClient({ ...V05_GATEWAY_CONFIG, fetchImpl: throwingFetch("AbortError") }).run(v05GatewayRequest)).kind, "timeout", "fetch AbortError is handled by the same closed-result discipline");
+
+// (fixture 3) the EXACT valid v5 envelope is still accepted (strict validation preserved).
+const validV05Envelope = { result: v05Judgment, question_mode: "judgment", metadata: v05Metadata };
+const validResolved = await createFounderDiceV05FreeTextGatewayClient({ ...V05_GATEWAY_CONFIG, fetchImpl: jsonFetch(200, validV05Envelope) }).run(v05GatewayRequest);
+assert.equal(validResolved.kind, "completed", "exact v5 envelope {result, question_mode, metadata} is still accepted");
+assert.equal(validResolved.question_mode, "judgment");
+// A superset of the v5 envelope is NOT silently accepted as v5 (no loosening of the strict shape).
+const supersetResolved = await createFounderDiceV05FreeTextGatewayClient({ ...V05_GATEWAY_CONFIG, fetchImpl: jsonFetch(200, { ...validV05Envelope, extra: true }) }).run(v05GatewayRequest);
+assert.equal(supersetResolved.kind, "version_unavailable", "a superset of the v5 envelope is not treated as v5");
+
+// --- End-to-end through executeLabFreeTextV05Request: closed 200 with fixed presentation, never a 400. ---
+const v05VersionUnavail = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => v3Resolved }) });
+assert.equal(v05VersionUnavail.status, 200, "version-unavailable returns a closed 200, never a generic 400");
+assert.equal(v05VersionUnavail.body.code, "DICE_INTERPRETATION_VERSION_UNAVAILABLE");
+assert.equal(v05VersionUnavail.body.presentation.kind, "version_unavailable");
+assert.ok(typeof v05VersionUnavail.body.presentation.message === "string" && v05VersionUnavail.body.presentation.message.length > 0, "closed presentation carries fixed copy (not blank, not 'Request stopped safely')");
+assert.equal(v05VersionUnavail.body.classification, null);
+assert.equal(v05VersionUnavail.body.provider_calls, 0);
+assert.equal(v05VersionUnavail.body.persistence_writes, 0);
+assert.equal(v05VersionUnavail.body.units_charged, 0);
+const v05TimeoutExec = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "timeout", code: "DICE_INTERPRETATION_TIMEOUT", metadata: null }) }) });
+assert.equal(v05TimeoutExec.status, 200, "timeout returns a closed 200 with presentation");
+assert.equal(v05TimeoutExec.body.code, "DICE_INTERPRETATION_TIMEOUT");
+assert.equal(v05TimeoutExec.body.presentation.kind, "timeout");
+assert.ok(v05TimeoutExec.body.presentation.message.length > 0, "timeout carries a deterministic unavailable presentation");
+assert.equal(v05TimeoutExec.body.persistence_writes, 0);
+assert.equal(v05TimeoutExec.body.units_charged, 0);
+
+// v3 checkbox-OFF path is unchanged by this correction: the v3 free-text handler still completes.
+// (executeLabFreeTextRequest is exercised in full at the top of this file; here we re-confirm it is
+// independent of the v5 hardening above.)
+const v3StillWorks = await executeLabFreeTextRequest(freeTextRequest, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", classification: { accepted: true, language: "en", route: "descriptive_reflection", shape: "descriptive" }, result: {
+  schema: "lumis_dice_v0_3_result_v3", language: "en", planet_layer: "Mercury centers interpretation and exchange.",
+  sign_element_layer: "Virgo and Earth express this through careful practical detail.", house_layer: "The 6th House places it in the external environment of routines and service.",
+  synthesis: "On changing direction, Mercury's clear thinking works through Virgo's practical care and lands in the everyday 6th House of routines, so the shift is best understood through small, testable adjustments rather than one large leap. What is being asked is how your daily habits, not a single decision, will carry the change.",
+  timing_or_pace: null, judgment: null, watch_out: "Over-refining the plan can become a reason to keep postponing the first real change.", practical_direction: "Choose one routine to test before making a wider change.",
+}, metadata: { request_mode: "founder_free_text", language: "en", result_class: "completed", attempt_count: 1, latency_bucket: "lt_12s", input_token_bucket: "lt_800", output_token_bucket: "lt_300", cost_bucket: "within_cap" }, provider_disposition: "responses_completed_valid" }) }) });
+assert.equal(v3StillWorks.status, 200, "v3 checkbox-OFF free-text still completes after the v5 hardening");
+assert.equal(v3StillWorks.body.presentation.kind, "reading");
 // Test 6 (§20 workbook) — the EXACT bundled question driven through the REAL v5 Stage-0 gate
 // (the compiled window), NOT a manually forced bundled outcome. The provider adapter is a call
 // counter that must never be invoked; the lab then renders the specific bundled member copy.
