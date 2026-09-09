@@ -137,7 +137,7 @@ const server = http.createServer((req, res) => {
         // Strip optional session fields before validation (the LabRequest schema is closed).
         const p = (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
         const sessionId = typeof p.session_id === "string" ? p.session_id : null;
-        const labReq = { schema_version: p.schema_version, role_code: p.role_code, chart: p.chart, message: p.message, app_language_preference: p.app_language_preference, context: p.context };
+        const labReq = { schema_version: p.schema_version, role_code: p.role_code, chart: p.chart, message: p.message, app_language_preference: p.app_language_preference, context: p.context, prompt_override: p.prompt_override };
         const out = await handleConversationTurn(labReq, { environment: process.env, recordTelemetry });
         const body = out.body as Record<string, unknown>;
         if (sessionId) {

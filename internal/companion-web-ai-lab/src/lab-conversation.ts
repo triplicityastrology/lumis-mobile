@@ -60,8 +60,14 @@ export async function handleConversationTurn(raw: unknown, ctx: ConversationCont
   // (routing/classification/Chart Composition/fixed safety copy) with zero provider calls.
   const liveProvider = auth.ok
     ? async (args: { plan: LabPlan; request: LabRequest; language: LabLanguage }): Promise<LabGenerativeOutcome> => {
-        const kbGrounding = buildKnowledgeGrounding(retrieveNatalFacts(args.request.chart));
-        const promptInput = serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition, kbGrounding, args.request.chart);
+        // Founder testing override (internal Lab only): a non-blank prompt_override on this generative
+        // route is sent to the model verbatim instead of the composed persona prompt. Safety/crisis/
+        // out-of-scope/handoff routes never reach this runner, so those gates are unaffected.
+        const override = typeof args.request.prompt_override === "string" && args.request.prompt_override.trim().length > 0
+          ? args.request.prompt_override
+          : null;
+        const promptInput = override
+          ?? serializePersonaPrompt(args.plan.personaPromptPayload, args.request.message, args.language, args.request.context, args.plan.composition, buildKnowledgeGrounding(retrieveNatalFacts(args.request.chart)), args.request.chart);
         const outcome = await runGenerative(auth.runtime, promptInput, args.language, nowMs);
         providerDisposition = outcome.providerDisposition;
         switch (outcome.kind) {

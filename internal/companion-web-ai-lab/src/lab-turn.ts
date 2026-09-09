@@ -151,10 +151,18 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
   const kbGrounding = buildKnowledgeGrounding(kbRetrieval);
   // Founder-internal assembly of the persona prompt (blocks + Character Voice Card) for generative
   // routes. Never shipped to the customer UI.
-  const personaAssembly = (plan.generative && plan.personaPromptAssembled)
+  // Founder testing override (internal Lab only): on a GENERATIVE route, an explicit prompt_override
+  // replaces the composed persona prompt — both what is previewed and what is sent to the model. It is
+  // never present on non-generative routes, so the deterministic safety/crisis/out-of-scope/handoff
+  // gates above are untouched and always fire first.
+  const overridePrompt: string | null =
+    plan.generative && typeof request.prompt_override === "string" && request.prompt_override.trim().length > 0
+      ? request.prompt_override
+      : null;
+  const personaAssembly = (plan.generative && plan.personaPromptAssembled && !overridePrompt)
     ? assemblePersona(plan.personaPromptPayload, request.message, plan.language, request.context, plan.composition, kbGrounding, request.chart)
     : null;
-  const generativePromptPreview: string | null = personaAssembly ? personaAssembly.prompt : null;
+  const generativePromptPreview: string | null = overridePrompt ?? (personaAssembly ? personaAssembly.prompt : null);
 
   if (!plan.generative) {
     // Deterministic (no provider) states.
@@ -298,7 +306,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
     usage_metadata: {
       internal_route_units: units.units,
       internal_units_note: units.note,
-      prompt_token_estimate: estimateTokens(plan.generative ? serializePersonaPromptSafe(plan, request) : (assistantMessage ?? "")),
+      prompt_token_estimate: estimateTokens(plan.generative ? (overridePrompt ?? serializePersonaPromptSafe(plan, request)) : (assistantMessage ?? "")),
       output_token_estimate: outputTokenEstimate,
       customer_cost_display: "suppressed_by_preview_hold",
     },
@@ -316,6 +324,7 @@ export async function handleLabTurn(raw: unknown, ctx: LabTurnContext): Promise<
     fixed_template: fixedTemplate,
     handoff: plan.handoff,
     generative_prompt_preview: generativePromptPreview,
+    prompt_override_applied: overridePrompt !== null,
     error_code: errorCode,
     persistence: "not_committed",
     units_charged: 0,
