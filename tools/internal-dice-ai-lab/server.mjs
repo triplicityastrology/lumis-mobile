@@ -22,6 +22,10 @@ const V05_HEAD = { reading: { en: "Reading", "zh-Hant": "解讀" }, watch: { en:
 const V05_FOLLOWUP_INTRO = { en: "If you want to explore this further, choose one question for a separate throw.", "zh-Hant": "如果你想進一步了解，可以選擇以下其中一個問題，另行擲骰。" };
 const V05_ROUTE_REVIEW_COPY = { en: "This question isn’t clear enough for one Dice reading. Please ask one clear question and try again.", "zh-Hant": "這個問題未夠清晰，無法作一次擲骰解讀。請提出一個清晰的問題後再試。" };
 const V05_BUNDLED_COPY = { en: "This contains more than one question. Each Dice throw can interpret only one clear question. Please choose one question and try again.", "zh-Hant": "這裡包含多於一個問題。每次擲骰只適用於一個清晰問題，請選擇其中一個問題後再試。" };
+// Closed copy for the two-stage engine being unavailable — the staging function returned a
+// non-v5 (older) successful envelope, or the request timed out / the gateway was unreachable.
+// The v3 (checkbox-off) path is unaffected; this is a specific safe state, not a generic stop.
+const V05_UNAVAILABLE_COPY = { en: "The two-stage Dice engine isn’t available for this request right now. Please try again later.", "zh-Hant": "雙階段擲骰引擎暫時無法處理這個請求，請稍後再試。" };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const registryPath = path.join(root, "apps/mobile/src/services/diceFounderFixtureRegistry.ts");
@@ -220,7 +224,11 @@ export function presentLabV05Result(result, selection) {
 }
 
 export function deterministicV05Presentation(kind, language) {
-  const copy = kind === "safety" ? SAFETY_COPY : kind === "bundled" ? V05_BUNDLED_COPY : kind === "route_review" ? V05_ROUTE_REVIEW_COPY : FALLBACK_COPY;
+  const copy = kind === "safety" ? SAFETY_COPY
+    : kind === "bundled" ? V05_BUNDLED_COPY
+    : kind === "route_review" ? V05_ROUTE_REVIEW_COPY
+    : (kind === "version_unavailable" || kind === "timeout" || kind === "unavailable") ? V05_UNAVAILABLE_COPY
+    : FALLBACK_COPY;
   return Object.freeze({ kind, language, message: copy[language] });
 }
 
@@ -233,8 +241,23 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   const response = await gatewayFactory().run({ question: selection.question, planet_id: selection.planet.id, sign_id: selection.sign.id, house_id: selection.house.id });
   const metadata = redactV05Metadata(response.metadata);
   if (response.kind !== "completed") {
-    const kind = response.kind === "safety" ? "safety" : response.kind === "bundled" ? "bundled" : response.kind === "route_review" ? "route_review" : "fallback";
-    const code = kind === "safety" ? "DICE_SAFETY_REDIRECT" : kind === "bundled" ? "DICE_BUNDLED_QUESTION" : kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
+    // Every non-completed disposition resolves to a closed 200 body carrying a deterministic
+    // presentation — never a thrown generic 400. version_unavailable/timeout/unavailable are the
+    // deploy-skew + transport safe states added for staging acceptance.
+    const kind = response.kind === "safety" ? "safety"
+      : response.kind === "bundled" ? "bundled"
+      : response.kind === "route_review" ? "route_review"
+      : response.kind === "version_unavailable" ? "version_unavailable"
+      : response.kind === "timeout" ? "timeout"
+      : response.kind === "unavailable" ? "unavailable"
+      : "fallback";
+    const code = kind === "safety" ? "DICE_SAFETY_REDIRECT"
+      : kind === "bundled" ? "DICE_BUNDLED_QUESTION"
+      : kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED"
+      : kind === "version_unavailable" ? "DICE_INTERPRETATION_VERSION_UNAVAILABLE"
+      : kind === "timeout" ? "DICE_INTERPRETATION_TIMEOUT"
+      : kind === "unavailable" ? "DICE_FOUNDER_GATEWAY_UNAVAILABLE"
+      : "DICE_FIXED_FALLBACK";
     return Object.freeze({ status: 200, body: { code, presentation: deterministicV05Presentation(kind, language), classification: null, metadata, provider_calls: metadata?.provider_calls ?? 0, persistence_writes: 0, units_charged: 0 } });
   }
   const result = validateLabV05Result(response.result, language);
