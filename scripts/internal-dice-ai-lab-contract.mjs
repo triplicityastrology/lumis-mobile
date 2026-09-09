@@ -8,7 +8,7 @@ import {
   labStatus, loadFixtures, parseControlledHouseWatchBank, presentLabResult, redactExportRecord, renderLabPage, validateLabFreeTextRunRequest, validateLabResult, validateLabRunRequest,
   executeLabFreeTextV05Request, presentLabV05Result, validateLabV05Result,
 } from "../tools/internal-dice-ai-lab/server.mjs";
-import { createFounderDiceV05FreeTextGatewayClient } from "../tools/internal-dice-ai-lab/founder-live-window.mjs";
+import { createFounderDiceFreeTextGatewayClient, createFounderDiceV05FreeTextGatewayClient } from "../tools/internal-dice-ai-lab/founder-live-window.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverSource = await readFile(path.join(root, "tools/internal-dice-ai-lab/server.mjs"), "utf8");
@@ -97,6 +97,33 @@ assert.equal(freeTextLive.body.presentation.sections[1].body, "Over-refining the
 assert.notEqual(freeTextLive.body.presentation.sections[1].body, "The 6th House places it in the external environment of routines and service.", "descriptive readings must not reuse the house layer as the watch-out");
 assert.equal(freeTextLive.body.persistence_writes, 0);
 assert.equal(freeTextLive.body.units_charged, 0);
+
+// --- v3 checkbox-OFF provider schema-invalid must stay a CLOSED, typed fixed presentation. ---
+// A live v3 call can complete at the provider yet fail the strict v3 Structured-Outputs schema; the
+// (unchanged) v3 path classifies that as a closed fallback and the staging function returns HTTP 422
+// { error:{code:"DICE_FIXED_FALLBACK", redacted_failure_code:"DICE_INVALID_OUTPUT"},
+//   protected_metadata:{provider_disposition:"responses_completed_schema_invalid"} }.
+// The Lab must render a deterministic fixed presentation for it — never blank, never a generic 400,
+// never "Request stopped safely" — with zero persistence and zero units. This is the exact staging
+// smoke outcome; it is a permitted provider fallback, not a v3 regression.
+const v3GatewayConfig = { functionUrl: "https://bmqhwofmdgebpcihjlnb.supabase.co/functions/v1/dice-synthetic", anonKey: "anon-key-not-a-secret", accessKey: "founder-free-text-access-key-not-a-secret-0" };
+const schemaInvalid422 = { error: { code: "DICE_FIXED_FALLBACK", redacted_failure_code: "DICE_INVALID_OUTPUT" }, classification: { accepted: true, language: "en", code: "DICE_ACCEPTED" }, metadata: { request_mode: "founder_free_text", language: "en", result_class: "fallback", attempt_count: 2, latency_bucket: "lt_12s", input_token_bucket: "lt_1600", output_token_bucket: "lt_600", cost_bucket: "within_cap" }, protected_metadata: { provider_disposition: "responses_completed_schema_invalid" } };
+// (client) a 422 schema-invalid envelope resolves to a closed typed fallback — it does not throw.
+const v3ClientFallback = await createFounderDiceFreeTextGatewayClient({ ...v3GatewayConfig, fetchImpl: async () => ({ ok: false, status: 422, json: async () => schemaInvalid422 }) }).run({ question: "Should I focus on steady routines this month?", planet_id: "mercury", sign_id: "virgo", house_id: "house_6" });
+assert.equal(v3ClientFallback.kind, "fallback", "v3 client: HTTP 422 schema-invalid resolves to a closed fallback (no throw)");
+assert.equal(v3ClientFallback.code, "DICE_FIXED_FALLBACK");
+assert.equal(v3ClientFallback.provider_disposition, "responses_completed_schema_invalid", "v3 client surfaces the schema-invalid disposition");
+// (end-to-end) executeLabFreeTextRequest renders a closed deterministic presentation, zero persist/units.
+const v3SchemaInvalid = await executeLabFreeTextRequest(freeTextRequest, { providerEnabled: true, gatewayFactory: () => ({ run: async () => v3ClientFallback }) });
+assert.equal(v3SchemaInvalid.status, 200, "v3 schema-invalid returns a closed 200, never a generic 400");
+assert.equal(v3SchemaInvalid.body.code, "DICE_FIXED_FALLBACK");
+assert.equal(v3SchemaInvalid.body.presentation.kind, "fallback", "closed fixed presentation (non-reading), not a generic stop");
+assert.notEqual(v3SchemaInvalid.body.presentation.kind, "reading", "schema-invalid never renders as a reading");
+assert.ok(typeof v3SchemaInvalid.body.presentation.message === "string" && v3SchemaInvalid.body.presentation.message.length > 0, "closed presentation carries fixed copy (not blank, not 'Request stopped safely')");
+assert.equal(v3SchemaInvalid.body.provider_disposition, "responses_completed_schema_invalid");
+assert.equal(v3SchemaInvalid.body.provider_calls, 0);
+assert.equal(v3SchemaInvalid.body.persistence_writes, 0);
+assert.equal(v3SchemaInvalid.body.units_charged, 0);
 assert.equal(freeTextConstructions, 1);
 
 const enResult = {
