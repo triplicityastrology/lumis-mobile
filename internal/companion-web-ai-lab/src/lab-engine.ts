@@ -81,6 +81,10 @@ export type LabRequest = {
   message: string;
   app_language_preference: AppLanguagePreference | null;
   context: ConversationTurn[];
+  // Founder-only testing override (internal Lab only). When present on a GENERATIVE route, this exact
+  // string is sent to the model instead of the composed persona prompt. It never bypasses the
+  // deterministic pre-provider safety/crisis/out-of-scope/handoff gates, which still fire first.
+  prompt_override?: string;
 };
 
 export type CanonicalState =
@@ -187,7 +191,10 @@ export type LabResponse = {
   fixed_template: { template_id: string; family: FixedTemplateFamilyId; status: string; clinical_review_required: boolean } | null;
   handoff: { kind: "dice" | "astro_timing"; requires_explicit_confirmation: true; note: string; date_comparison_max?: 3 } | null;
   // Founder-internal preview of the assembled persona prompt (generative routes only); null otherwise.
+  // When a testing prompt override is applied, this shows the exact override that was sent instead.
   generative_prompt_preview: string | null;
+  // True when a Founder testing prompt override replaced the composed persona prompt for this turn.
+  prompt_override_applied: boolean;
   error_code: string | null;
   persistence: "not_committed";
   units_charged: 0;
@@ -215,13 +222,14 @@ export type ValidationResult =
   | { ok: false; error_code: string; detail: string };
 
 const MAX_MESSAGE_LENGTH = 1200;
+const MAX_PROMPT_OVERRIDE_LENGTH = 20000;
 
 export function validateLabRequest(raw: unknown): ValidationResult {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return { ok: false, error_code: "LAB_REQUEST_INVALID", detail: "request must be a JSON object" };
   }
   const r = raw as Record<string, unknown>;
-  const allowed = new Set(["schema_version", "role_code", "chart", "message", "app_language_preference", "context"]);
+  const allowed = new Set(["schema_version", "role_code", "chart", "message", "app_language_preference", "context", "prompt_override"]);
   const keys = Object.keys(r);
   if (keys.some((k) => !allowed.has(k))) {
     return { ok: false, error_code: "LAB_REQUEST_UNKNOWN_FIELD", detail: `unexpected field(s): ${keys.filter((k) => !allowed.has(k)).join(", ")}` };
@@ -277,6 +285,19 @@ export function validateLabRequest(raw: unknown): ValidationResult {
       context.push({ role: t.role, text: t.text.normalize("NFC") });
     }
   }
+  // Optional Founder-only testing prompt override (internal Lab only). Blank/whitespace is treated as
+  // absent so an empty box never suppresses the composed prompt.
+  let promptOverride: string | undefined;
+  if (r.prompt_override !== undefined && r.prompt_override !== null) {
+    if (typeof r.prompt_override !== "string") {
+      return { ok: false, error_code: "LAB_PROMPT_OVERRIDE_INVALID", detail: "prompt_override must be a string" };
+    }
+    if (r.prompt_override.length > MAX_PROMPT_OVERRIDE_LENGTH) {
+      return { ok: false, error_code: "LAB_PROMPT_OVERRIDE_TOO_LONG", detail: `prompt_override exceeds ${MAX_PROMPT_OVERRIDE_LENGTH} chars` };
+    }
+    const normalized = r.prompt_override.normalize("NFC");
+    if (normalized.trim().length > 0) promptOverride = normalized;
+  }
   return {
     ok: true,
     request: {
@@ -286,6 +307,7 @@ export function validateLabRequest(raw: unknown): ValidationResult {
       message,
       app_language_preference: (r.app_language_preference as AppLanguagePreference | null),
       context,
+      prompt_override: promptOverride,
     },
   };
 }

@@ -106,10 +106,13 @@ async function send() {
   const priorContext = conversation.slice(-MAX_CONTEXT);
   appendBubble("user", message); $("message").value = "";
   const langSel = $("language").value;
+  const useOverride = $("use-override") && $("use-override").checked;
+  const overrideText = $("override-prompt") ? $("override-prompt").value : "";
   const req = {
     schema_version: REQUEST_SCHEMA, role_code: $("role").value, chart: chart(),
     message, app_language_preference: langSel === "auto" ? null : langSel, context: priorContext,
     session_id: sessionId,
+    ...(useOverride && overrideText.trim() ? { prompt_override: overrideText } : {}),
   };
   $("loading").hidden = false; $("send").disabled = true;
   let body;
@@ -174,6 +177,8 @@ async function calculate() {
   else { $("composition").className = "composition"; $("composition").textContent = `cannot derive: ${body.error_code || "error"}`; }
   renderKB($("compose-kb"), body.knowledge_bank);
   renderPrompt($("compose-prompt"), body.generative_prompt_preview, body.canonical_state);
+  // Load the freshly composed prompt into the editable override box so it can be tweaked and sent.
+  const ov = $("override-prompt"); if (ov) ov.value = body.generative_prompt_preview || "";
 }
 
 function line(k, v) { return el("div", { class: "line" }, el("span", { class: "k", text: k }), el("span", { class: "v", text: String(v) })); }

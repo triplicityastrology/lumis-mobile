@@ -56,6 +56,10 @@
 
       <h2>Assembled prompt <span class="muted">(Founder-internal preview)</span></h2>
       <div id="compose-prompt" class="trace muted">Press <b>Calculate</b> to preview the persona prompt that would be sent.</div>
+
+      <h2>Prompt override <span class="muted">(testing only)</span></h2>
+      <div class="row"><label><input type="checkbox" id="use-override"> Use this exact prompt for the next message <span class="muted">— replaces the composed prompt for normal-chat routes. Safety / crisis / out-of-scope / handoff routes still apply.</span></label></div>
+      <textarea id="override-prompt" class="trace" rows="8" style="width:100%; box-sizing:border-box; font-family:monospace; white-space:pre-wrap" placeholder="Press Calculate to load the assembled prompt here, then edit it. When the box above is ticked, this exact text is sent to the model."></textarea>
     </section>
 
     <section class="panel conversation-panel" aria-label="Conversation">
