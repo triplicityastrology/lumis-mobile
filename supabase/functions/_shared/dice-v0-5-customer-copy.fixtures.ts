@@ -20,6 +20,11 @@ function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y 
 // Build a status-"ok" copy object (adds status + schema so tests stay terse).
 const copyOk = (o: Partial<DiceV05CustomerCopy> & Pick<DiceV05CustomerCopy, "language" | "question_mode" | "headline" | "reading">): DiceV05CustomerCopy =>
   Object.freeze({ schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", watch_out: null, practical_step: null, suggested_followups: [], ...o });
+// Mirror of the module's ensureTerminal (adds a full stop when a field has no terminal punctuation).
+const ensureTerminalLike = (s: string): string => {
+  const t = String(s).trim();
+  return /[.!?。！？…]["'”』」）)\]]?\s*$/u.test(t) ? t : t + ".";
+};
 
 /* ---- representative, schema-valid canonical Stage-2 finals (§12.4) ---- */
 const judgmentCanonical = Object.freeze({
@@ -112,6 +117,8 @@ eq(completenessCheck(cleanPerson), "OK", "clean copy passes completeness");
 // judgment: dropping the supplied caution is rejected; inventing follow-ups changes the count.
 ok(sourceParityCheck({ ...deterministicCustomerCopy(judgmentCanonical as any), watch_out: null }, judgmentCanonical as any) === "DICE_COPY_CAUTION_DROPPED", "C06: dropped caution rejected");
 ok(sourceParityCheck({ ...deterministicCustomerCopy(judgmentCanonical as any), suggested_followups: ["a?", "b?"] }, judgmentCanonical as any) === "DICE_COPY_FOLLOWUPS_COUNT_DRIFT", "C06: follow-up count drift rejected");
+// S02: an equal-count REPLACEMENT/REORDER of follow-ups is rejected (not just a count change).
+ok(sourceParityCheck({ ...deterministicCustomerCopy(judgmentCanonical as any), suggested_followups: ["完全不同的問題？"] }, judgmentCanonical as any) === "DICE_COPY_FOLLOWUPS_ORDER_OR_TEXT", "S02: equal-count follow-up replacement rejected");
 // timing: inventing a caution the source did not supply is rejected.
 ok(sourceParityCheck({ ...deterministicCustomerCopy(timingCanonical as any), watch_out: "Invented." }, timingCanonical as any) === "DICE_COPY_CAUTION_INVENTED", "C06: invented caution rejected");
 // person (level-1): dropping the supplied practical step is rejected.
@@ -132,26 +139,46 @@ const oversizeJudgment = { ...judgmentCanonical, planet_side: { ...(judgmentCano
 const oversizeFb = buildValidatedFallback(oversizeJudgment as any);
 ok(!oversizeFb.ok, "C01: an over-cap judgment fallback is rejected (not sliced to fit)");
 
-/* ---- execution: mock adapter returning valid copy → source stage3 ---- */
+/* ---- execution (gated provider-editor path): controlled meaning is ALWAYS canonical ---- */
 const copyAdapter = (content: string, kind: DiceV05ProviderResult["kind"] = "success"): DiceV05ProviderAdapter => ({
   invoke: async () => (kind === "success" ? { kind: "success", content } : { kind } as DiceV05ProviderResult),
 });
+// A valid judgment provider copy (conclusion-bearing mode): provider prose is NOT used, so the
+// display is the deterministic assembly and the source is honestly "deterministic" (S05).
 const goodJudgmentCopy = JSON.stringify(copyOk({
   language: "zh-Hant", question_mode: "judgment",
   headline: "外在條件較有利，但你的處理方式是關鍵。", reading: "對方有合作空間，環境對你有利。不過火星這一面較急，太強硬或會帶來磨擦，兩者需要分開理解。",
-  watch_out: "跟進時保持主動，但不要催逼對方。", suggested_followups: ["我可以點樣調整語氣？"],
+  watch_out: "跟進時保持主動，但不要催逼對方。", suggested_followups: ["我可以點樣改善溝通？"],
 }));
 const r1 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "我個application會唔會批？", copyAdapter(goodJudgmentCopy), { now: () => 1000 });
-eq(r1.source, "stage3", "valid judgment copy accepted from Stage 3");
+eq(r1.source, "deterministic", "valid judgment provider copy → deterministic display (conclusion-bearing mode)");
 eq(r1.provider_calls, 1, "one Stage-3 provider call");
 ok(r1.copy && r1.copy.practical_step === null, "judgment copy keeps practical_step null");
+ok(r1.copy && r1.copy.reading.includes("整體而言"), "judgment display uses the canonical synthesis, not provider prose");
+// A valid Level-1 provider copy: its explanatory prose IS used (source stage3); controlled fields
+// (watch/practical/follow-ups) still come from the canonical result.
+const goodPersonCopy = JSON.stringify(copyOk({
+  language: "en", question_mode: "person",
+  headline: "They are steady and reliable.", reading: "They earn trust slowly through consistent, dependable actions.",
+  watch_out: "Ignore me.", practical_step: "Ignore me too.",
+}));
+const rL = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(goodPersonCopy), { now: () => 1000 });
+eq(rL.source, "stage3", "valid Level-1 provider prose is used");
+ok(rL.copy && rL.copy.reading.includes("consistent"), "Level-1 display uses provider reading");
+ok(rL.copy && rL.copy.watch_out === ensureTerminalLike((personCanonical as any).watch_out), "Level-1 watch_out stays canonical, not the provider's");
+ok(rL.copy && rL.copy.practical_step === ensureTerminalLike((personCanonical as any).practical_step), "Level-1 practical_step stays canonical, not the provider's");
 
-/* ---- execution: prohibited term in copy → validated deterministic fallback (no throw) ---- */
-const rankyCopy = JSON.stringify(copyOk({ language: "zh-Hant", question_mode: "judgment", headline: "排名第一，大吉。", reading: "第三順位。", watch_out: "留意。", suggested_followups: ["問題？"] }));
+/* ---- execution: a judgment provider copy is never displayed → deterministic (clean) regardless ---- */
+const rankyCopy = JSON.stringify(copyOk({ language: "zh-Hant", question_mode: "judgment", headline: "排名第一，大吉。", reading: "第三順位。", watch_out: "留意。", suggested_followups: ["我可以點樣改善溝通？"] }));
 const r2 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", copyAdapter(rankyCopy), { now: () => 1000 });
-eq(r2.source, "fallback", "prohibited-term copy falls back deterministically");
-ok(r2.failure_code != null && r2.failure_code.startsWith("DICE_COPY_PROHIBITED"), "fallback records prohibited-term failure code");
-ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "fallback copy itself is clean");
+eq(r2.source, "deterministic", "a conclusion-bearing (judgment) provider copy is never displayed → deterministic");
+ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "the displayed judgment copy is clean (canonical, not the prohibited provider prose)");
+
+/* ---- execution: a Level-1 provider copy whose PROSE is prohibited → fallback ---- */
+const rankyPersonCopy = JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They rank first.", reading: "This sits on rank 7 of the houses." }));
+const rLbad = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(rankyPersonCopy), { now: () => 1000 });
+eq(rLbad.source, "fallback", "Level-1 provider copy with prohibited prose falls back deterministically");
+ok(rLbad.copy && prohibitedLanguageCheck(rLbad.copy) === "OK", "the Level-1 fallback is clean");
 
 /* ---- execution: provider network error → fallback; legal unpresentable → fallback/unavailable ---- */
 const r3 = await executeDiceV05CustomerCopy(timingCanonical as any, "幾時批？", copyAdapter("", "network"), { now: () => 1000 });
@@ -175,6 +202,21 @@ let clock = 1000;
 const retry = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", twoThenStop, { now: () => clock, deadlineAtMs: 12000 });
 eq(attempts, 2, "C03: one controlled retry → exactly two attempts within the shared deadline");
 eq(retry.provider_calls, 2, "C03: two provider calls recorded for the retry path");
+
+/* ---- D02: the RAW provider output is measured before parse/normalization (real tokenizer) ---- */
+// A valid person copy padded with whitespace so the RAW string exceeds the 700-token cap while the
+// NORMALIZED object stays well within it. The raw guard must reject it (→ fallback), proving that
+// whitespace/escape padding cannot slip a huge raw response past measurement.
+const paddedRaw = JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They are steady.", reading: "They build trust slowly." })) + " \n".repeat(1500);
+ok(!measureDiceTokenLimit(paddedRaw, CUSTOMER_COPY_OUTPUT_CAP).within_limit, "D02: the padded RAW string exceeds the 700-token cap");
+const rawRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(paddedRaw), { now: () => 1000 });
+eq(rawRes.source, "fallback", "D02: an over-cap RAW response is rejected before parse → deterministic fallback");
+ok(rawRes.failure_code === "DICE_COPY_RAW_OUTPUT_TOKEN_CAP", "D02: raw-output cap failure code recorded");
+
+/* ---- S06: a dangling fragment (with a trailing period) from the provider is rejected, not laundered ---- */
+const fragRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They are steady.", reading: "They tend to be careful and." }))), { now: () => 1000 });
+eq(fragRes.source, "fallback", "S06: 'They tend to be careful and.' provider copy is rejected → fallback");
+ok(fragRes.copy && completenessCheck(fragRes.copy) === "OK", "S06: the resulting fallback is itself complete");
 
 /* ---- production-tokenizer max-sample envelope measurement (report + assert within cap) ---- */
 const maxEnvelope = (mode: DiceV05Mode, language: "en" | "zh-Hant") => {

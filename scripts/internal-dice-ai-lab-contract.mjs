@@ -187,46 +187,65 @@ const v05Judgment = { schema: "lumis_dice_interpretation_v5", status: "ok", lang
   most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
   synthesis: "Both fixed sides are favourable and remain separate. A strong major benefic sits inside the most supportive house.",
   timing_summary: null, watch_out: "Keep optimism realistic even with strong support.", practical_step: null, suggested_followups: ["What most needs preparing first?"] };
-// Completed metadata now carries the actual three-stage call breakdown + copy_source (C04):
-// provider_calls is the TOTAL, with astrology/copy counts as separate unambiguous fields.
-const v05MetaStage3 = { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 3, astrology_provider_calls: 2, copy_provider_calls: 1, copy_source: "stage3", latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 };
+// The Web boundary now validates copy with the AUTHORITATIVE compiled module. Build the mocked
+// success copy AS the deterministic assembly of the canonical, so it passes that validation.
+const CP = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-customer-copy.js")).href);
+const v05Deterministic = CP.deterministicCustomerCopy(v05Judgment);
+const v05Meta = (over = {}) => ({ request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, astrology_provider_calls: 2, copy_provider_calls: 0, copy_source: "deterministic", latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0, ...over });
 const v05FreeText = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
+const v05Gateway = (resp) => ({ providerEnabled: true, gatewayFactory: () => ({ run: async () => resp }) });
 assert.equal((await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: false })).status, 503, "v5 default-off returns disabled");
-// Stage 3 present: the completed envelope carries a validated customer_copy (status "ok"); the Web
-// Lab renders it as separate §12 sections. The headline is a DEDICATED field (never a spliced first
-// sentence); Location candidates stay sourced from the canonical result.
-const v05Copy = { schema: "lumis_dice_customer_copy_v1", status: "ok", language: "en", question_mode: "judgment",
-  headline: "The conditions support stepping forward.", reading: "The wider situation favours you and keeps the choice in your hands; the caution is practical rather than about the opportunity.",
-  watch_out: "Stay optimistic, but keep preparing properly.", practical_step: null, suggested_followups: ["What should I prepare first?"] };
-const v05WithCopy = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async (body) => { assert.deepEqual(Object.keys(body), ["question", "planet_id", "sign_id", "house_id"]); return { kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, metadata: v05MetaStage3 }; } }) });
-assert.equal(v05WithCopy.status, 200);
-assert.equal(v05WithCopy.body.code, "DICE_COMPLETED");
-assert.equal(v05WithCopy.body.classification.copy_source, "stage3", "web lab reports the Stage-3 copy source FROM METADATA");
-assert.equal(v05WithCopy.body.provider_calls, 3, "normal success reports the three-stage total (1+1+1)");
-assert.deepEqual(v05WithCopy.body.presentation.sections.map((s) => s.heading), ["Short answer", "Why", "Watch out", "Follow-up questions"], "Stage-3 judgment renders the customer-copy sections in §12 order");
-assert.equal(v05WithCopy.body.presentation.sections[0].body, v05Copy.headline, "short answer is the dedicated headline field, not a spliced first sentence");
-assert.equal(v05WithCopy.body.presentation.sections[1].body, v05Copy.reading, "Why holds the customer reading");
-assert.equal(v05WithCopy.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening stays landing-only under Stage 3");
-assert.equal(v05WithCopy.body.metadata.units_consumed, 0, "metadata carries units_consumed 0");
-// A single Stage-3 retry reports four total calls; deterministic fallback is labelled "fallback".
-const v05MetaFallback = { ...v05MetaStage3, provider_calls: 4, copy_provider_calls: 2, copy_source: "fallback" };
-const v05Fallback = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, metadata: v05MetaFallback }) }) });
-assert.equal(v05Fallback.body.code, "DICE_COMPLETED");
-assert.equal(v05Fallback.body.classification.copy_source, "fallback", "deterministic fallback is labelled fallback, not stage3");
-assert.equal(v05Fallback.body.provider_calls, 4, "a single Stage-3 retry reports four total calls");
-// Copy unavailable: customer_copy is null and copy_source is "unavailable" — the fixed
-// copy-unavailable message is shown through the failure path, NEVER old technical prose.
-const v05MetaUnavailable = { ...v05MetaStage3, provider_calls: 4, copy_provider_calls: 2, copy_source: "unavailable" };
-const v05Unavailable = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, metadata: v05MetaUnavailable }) }) });
+// Deterministic success: DICE_COMPLETED, copy_source from metadata, follow-ups preserved from canonical.
+const v05Ok = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Deterministic, metadata: v05Meta() }));
+assert.equal(v05Ok.status, 200);
+assert.equal(v05Ok.body.code, "DICE_COMPLETED");
+assert.equal(v05Ok.body.classification.copy_source, "deterministic", "web lab reports copy_source FROM METADATA");
+assert.equal(v05Ok.body.provider_calls, 2, "deterministic success reports two provider calls (Stage 1 + Stage 2)");
+assert.deepEqual(v05Ok.body.presentation.sections.map((s) => s.heading), ["Short answer", "Why", "Watch out", "Follow-up questions"], "judgment renders the §12 sections");
+assert.deepEqual(v05Ok.body.presentation.sections[3].items, v05Deterministic.suggested_followups, "follow-ups render exactly the canonical sequence");
+assert.equal(v05Ok.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening stays landing-only");
+// S03 Web MUTATION MATRIX through the REAL server path: every malformed copy → DICE_COPY_UNAVAILABLE.
+for (const [label, mutate] of [
+  ["extra-key", (c) => ({ ...c, extra: "x" })],
+  ["judgment-practical", (c) => ({ ...c, practical_step: "Take a new action." })],
+  ["judgment-no-warning", (c) => ({ ...c, watch_out: null })],
+  ["judgment-zero-followups", (c) => ({ ...c, suggested_followups: [] })],
+  ["followups-replaced", (c) => ({ ...c, suggested_followups: ["Should I quit my job?"] })],
+  ["over-headline", (c) => ({ ...c, headline: "a".repeat(200) + "." })],
+  ["prohibited", (c) => ({ ...c, reading: "This sits on rank 7 of the houses." })],
+]) {
+  const bad = mutate(v05Deterministic);
+  const res = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: bad, metadata: v05Meta() }));
+  assert.equal(res.body.code, "DICE_COPY_UNAVAILABLE", `S03 Web rejects malformed copy: ${label}`);
+  assert.ok(!("sections" in res.body.presentation), `S03 ${label}: no reading sections shown`);
+}
+// S01 Web: a substituted Location search step never reaches the customer (canonical step rendered).
+const v05Loc = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null,
+  most_likely_area: "A quiet place at home.", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { planet_ids: ["p"], house_ids: [], element_ids: [] } }, { rank: 2, place: "the kitchen", evidence: { planet_ids: [], house_ids: ["h"], element_ids: [] } }],
+  location_extension: null, location_search_order: [1, 2], synthesis: "Look in a private domestic setting.", timing_summary: null,
+  watch_out: "Do not assume it is permanently lost.", practical_step: "Search the bedroom first.", suggested_followups: [] };
+const v05LocCopy = { ...CP.deterministicCustomerCopy(v05Loc), practical_step: "Go to the airport first." };
+const v05LocRes = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Gateway({ kind: "completed", result: v05Loc, question_mode: "location", customer_copy: v05LocCopy, metadata: v05Meta({ question_mode: "location", language: "en" }) }));
+// The airport copy fails authoritative validation (parity) → unavailable; even the canonical render uses the bedroom step.
+assert.equal(v05LocRes.body.code, "DICE_COPY_UNAVAILABLE", "S01 Web rejects a substituted Location search step");
+// S03 malformed Location projection ([1,1] + leaked term) → rejected before any render.
+const v05BadLoc = { ...v05Loc, location_search_order: [1, 1], location_candidates: [{ ...v05Loc.location_candidates[0], place: "planet_speed internal clue" }, v05Loc.location_candidates[1]] };
+const v05BadLocRes = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Gateway({ kind: "completed", result: v05BadLoc, question_mode: "location", customer_copy: CP.deterministicCustomerCopy(v05Loc), metadata: v05Meta({ question_mode: "location", language: "en" }) }));
+assert.equal(v05BadLocRes.body.code, "DICE_FIXED_FALLBACK", "S03 malformed Location projection rejected");
+assert.ok(!("sections" in v05BadLocRes.body.presentation), "S03 malformed Location shows no candidate sections");
+// Copy unavailable transport: null copy + copy_source "unavailable" → fixed message, no sections.
+const v05Unavailable = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, metadata: v05Meta({ copy_source: "unavailable" }) }));
 assert.equal(v05Unavailable.body.code, "DICE_COPY_UNAVAILABLE", "copy-unavailable is not a successful reading");
 assert.equal(v05Unavailable.body.presentation.kind, "copy_unavailable");
-assert.equal(v05Unavailable.body.classification.copy_source, "unavailable");
-assert.ok(!("sections" in v05Unavailable.body.presentation), "unavailable shows a fixed message, not canonical technical sections");
-// Missing source metadata must NOT be reported as Stage 3 (no default): treated as unavailable.
-const v05MetaNoCopy = { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 };
-const v05NoSource = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, metadata: v05MetaNoCopy }) }) });
-assert.equal(v05NoSource.body.code, "DICE_COPY_UNAVAILABLE", "missing copy_source metadata is not reported as Stage 3");
-assert.notEqual(v05NoSource.body.classification.copy_source, "stage3", "no default to stage3 when source metadata is absent");
+assert.ok(!("sections" in v05Unavailable.body.presentation), "unavailable shows a fixed message, not canonical sections");
+// Missing source metadata must NOT be reported as a valid source (no default): treated as unavailable.
+const v05NoSource = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Deterministic, metadata: { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 } }));
+assert.equal(v05NoSource.body.code, "DICE_COPY_UNAVAILABLE", "missing copy_source metadata is not a valid display source");
+// D05 honest totals: metadata valid but canonical malformed → PRESERVE provider_calls, disposition measured.
+const v05D05 = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: { ...v05Judgment, synthesis: null }, question_mode: "judgment", customer_copy: v05Deterministic, metadata: v05Meta({ provider_calls: 3, copy_provider_calls: 1, copy_source: "stage3" }) }));
+assert.equal(v05D05.body.code, "DICE_FIXED_FALLBACK", "D05 malformed canonical → failure code");
+assert.equal(v05D05.body.provider_calls, 3, "D05 preserves the real provider-call total on presentation failure");
+assert.equal(v05D05.body.provider_calls_disposition, "measured", "D05 marks the total as measured, not a false 0");
 const v05Review = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
 assert.equal(v05Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
 assert.equal(v05Review.body.presentation.kind, "route_review");
