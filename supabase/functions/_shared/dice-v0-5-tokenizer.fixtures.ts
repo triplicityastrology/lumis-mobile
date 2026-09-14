@@ -17,8 +17,10 @@ const n = (s: string) => enc.encode(s).length;
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error("FAIL " + l); }
 
-/* (1) Block token sizes — exact match to §11 (Stage-1 322, Judgment 464, Timing 437, Location 577, Level-1 311). */
-const BLOCK_TOKENS = { stage1: 322, judgment: 464, timing: 437, location: 577, level1: 311 } as const;
+/* (1) Block token sizes — exact match to §11 (Judgment 464, Timing 437, Location 577, Level-1 311).
+ * Stage-1 is 462 after the Test-9 routing correction added the should/應該 requested-answer contrast
+ * and its four example questions (was 322); still far under the 1600 Stage-1 input cap. */
+const BLOCK_TOKENS = { stage1: 462, judgment: 464, timing: 437, location: 577, level1: 311 } as const;
 for (const k of Object.keys(BLOCK_TOKENS) as (keyof typeof BLOCK_TOKENS)[]) {
   ok(n(DICE_V05_BLOCK[k]) === BLOCK_TOKENS[k], `block ${k} == ${BLOCK_TOKENS[k]} tokens (got ${n(DICE_V05_BLOCK[k])})`);
 }
