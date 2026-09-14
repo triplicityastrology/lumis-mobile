@@ -117,7 +117,13 @@ export async function executeDiceV05FreeTextCase(
   input: DiceV05FreeTextRequest,
   adapterSource: DiceV05ProviderAdapter | (() => DiceV05ProviderAdapter),
   now: () => number = () => Date.now(),
+  deadlineAtMs?: number,
 ): Promise<DiceV05CaseOutcome> {
+  // ONE absolute deadline for the whole request (D01). When the caller supplies it (the three-stage
+  // composition), Stage 1, Stage 2 and Stage 3 all share the SAME value. A standalone two-stage
+  // caller captures the default HERE, before any preprocessing (gate, landing, adapter build), so
+  // the budget is not silently extended by δ preprocessing time.
+  const deadline = deadlineAtMs ?? (now() + SHARED_DEADLINE_MS);
   const decision = classifyDiceV05QuestionRequest({ question: input.question });
   const language: DiceV05Language = decision.accepted ? decision.language : detectDiceQuestionLanguage(input.question);
   if (!decision.accepted) return hardGateOutcome(decision.code, language);
@@ -132,7 +138,6 @@ export async function executeDiceV05FreeTextCase(
   if (!validateLandingIdentity(landing, { planet, sign, house })) return fallback("DICE_LANDING_VALUE_MISMATCH", language, null, 0);
 
   const adapter = typeof adapterSource === "function" ? adapterSource() : adapterSource;
-  const deadline = now() + SHARED_DEADLINE_MS;
   let calls = 0;
 
   // Stage 1 — semantic mode selection.

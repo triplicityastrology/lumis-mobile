@@ -1,34 +1,39 @@
 /**
  * Dice v5 three-stage composition (Stage 1 + Stage 2 + Stage 3).
  *
- * Thin orchestrator that runs the UNCHANGED two-stage astrology window
- * (`executeDiceV05FreeTextCase`) and, only on a completed canonical result,
- * runs the Stage-3 customer-language editor (`executeDiceV05CustomerCopy`).
- * The astrology core (dice-v0-5-window.ts / -interpretation-contract.ts /
- * -presentation.ts) is not touched here, so this composition — and the Stage-3
- * module — cherry-picks cleanly onto a later WHERE-corrected base.
+ * Runs the UNCHANGED two-stage astrology window (`executeDiceV05FreeTextCase`) and, on a
+ * completed canonical result, produces the customer copy. The astrology core is not touched
+ * here, so this composition — and the Stage-3 module — cherry-picks cleanly onto a later
+ * WHERE-corrected base. A non-completed outcome passes through unchanged with no customer copy.
  *
- * A non-completed outcome (route-review / safety / fallback / bundled) passes
- * through unchanged and carries no customer copy.
+ * ONE end-to-end deadline (D01/C03): the composition captures a single absolute deadline BEFORE
+ * calling the window and passes that exact value into the window (so Stage 1 and Stage 2 use it,
+ * not a fresh capture after preprocessing) and into Stage 3. There is no second window; if the
+ * budget is spent, Stage 3 makes zero provider calls. Retries share the same absolute deadline.
+ * 12 s budget and the 14 s transport margin are unchanged; a different coordinated budget is a
+ * separate Founder/Architect decision.
  *
- * ONE end-to-end budget (C03): the composition captures a single absolute deadline
- * (`startedAt + SHARED_DEADLINE_MS`) and shares it with Stage 3 — Stage 3 does NOT get a
- * fresh second window. If Stage 1+2 consume the budget, Stage 3 makes zero provider calls
- * and the composition returns the validated fallback / controlled copy-unavailable outcome.
- * A Stage-3 retry runs against the same absolute deadline; it never resets it. This is a
- * conservative correction to the previous mismatch, not a claim that 12 s is sufficient for
- * good three-stage performance; a different coordinated budget may be approved after later
- * timing tests.
+ * COPY MODE (S01/S02/S04/S05): the DEFAULT is "deterministic" — the displayed customer copy is
+ * assembled entirely from the validated canonical result (warning, practical/search step,
+ * follow-up sequence, timing band, judgment axes + synthesis, Location projection), so no provider
+ * text can substitute a Location step, reorder follow-ups, negate a warning, drop synthesis, or
+ * reverse a timing band / judgment orientation. The provider LANGUAGE editor ("provider" mode) is
+ * gated OFF pending the deferred Founder live-language + semantic-fidelity acceptance (L02–L04);
+ * even when enabled it can only influence Level-1 explanatory prose (controlled fields stay
+ * canonical — see mergeProviderProse). This keeps the customer answer faithful to the approved
+ * interpretation for this candidate while the language editor is validated separately.
  */
 import {
   executeDiceV05FreeTextCase, SHARED_DEADLINE_MS,
   type DiceV05FreeTextRequest, type DiceV05CaseOutcome, type DiceV05ProviderAdapter,
 } from "./dice-v0-5-window.ts";
 import {
-  executeDiceV05CustomerCopy, CUSTOMER_COPY_UNAVAILABLE_MESSAGE,
+  executeDiceV05CustomerCopy, buildValidatedFallback, CUSTOMER_COPY_UNAVAILABLE_MESSAGE,
   type DiceV05CustomerCopy,
 } from "./dice-v0-5-customer-copy.ts";
 import type { DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
+
+export type DiceV05CopyMode = "deterministic" | "provider";
 
 export type DiceV05ThreeStageOutcome =
   | Readonly<{
@@ -37,7 +42,9 @@ export type DiceV05ThreeStageOutcome =
       result: Record<string, unknown>;
       // The validated customer copy, or null when copy is unavailable (fixed message shown instead).
       customer_copy: DiceV05CustomerCopy | null;
-      copy_source: "stage3" | "fallback" | "unavailable";
+      // "deterministic": assembled from canonical (default). "stage3"/"fallback": provider mode.
+      // "unavailable": no valid copy could be produced; the fixed message is shown.
+      copy_source: "deterministic" | "stage3" | "fallback" | "unavailable";
       copy_unavailable_message: string | null;
       copy_failure_code: string | null;
       provider_calls: number;            // Stage 1 + Stage 2 + Stage 3 (actual)
@@ -46,26 +53,44 @@ export type DiceV05ThreeStageOutcome =
     }>
   | Exclude<DiceV05CaseOutcome, { kind: "completed" }>;
 
-/** Run the full three-stage flow under ONE absolute end-to-end deadline. */
+/** Run the full flow under ONE absolute end-to-end deadline. Default copy is deterministic. */
 export async function executeDiceV05FreeTextCaseWithCopy(
   input: DiceV05FreeTextRequest,
   adapterSource: DiceV05ProviderAdapter | (() => DiceV05ProviderAdapter),
   now: () => number = () => Date.now(),
+  opts: Readonly<{ copyMode?: DiceV05CopyMode }> = {},
 ): Promise<DiceV05ThreeStageOutcome> {
-  // One absolute deadline for the whole request; the two-stage window captures the same value
-  // at its own start (called immediately below), and Stage 3 is handed this exact deadline.
+  const copyMode: DiceV05CopyMode = opts.copyMode ?? "deterministic";
+  // One absolute deadline for the whole request, captured before the window's preprocessing and
+  // passed in unchanged (D01), then reused by Stage 3.
   const deadlineAtMs = now() + SHARED_DEADLINE_MS;
-  const canonical = await executeDiceV05FreeTextCase(input, adapterSource, now);
+  const canonical = await executeDiceV05FreeTextCase(input, adapterSource, now, deadlineAtMs);
   if (canonical.kind !== "completed") return canonical;
 
-  const copy = await executeDiceV05CustomerCopy(canonical.result, input.question, adapterSource, {
-    now, deadlineAtMs,
-  });
+  const astrologyCalls = canonical.provider_calls; // Stage 1 + Stage 2
+  let customerCopy: DiceV05CustomerCopy | null;
+  let copySource: "deterministic" | "stage3" | "fallback" | "unavailable";
+  let copyFailure: string | null;
+  let copyCalls: number;
 
-  const astrologyCalls = canonical.provider_calls;         // Stage 1 + Stage 2
-  const copyCalls = copy.provider_calls;                   // Stage 3 (0, 1 or 2)
+  if (copyMode === "provider") {
+    // Gated language-editor path (controlled fields still forced from canonical inside).
+    const copy = await executeDiceV05CustomerCopy(canonical.result, input.question, adapterSource, { now, deadlineAtMs });
+    customerCopy = copy.copy;
+    copySource = copy.source;
+    copyFailure = copy.failure_code;
+    copyCalls = copy.provider_calls;
+  } else {
+    // Default: deterministic assembly from the validated canonical result. No provider call.
+    const built = buildValidatedFallback(canonical.result);
+    customerCopy = built.ok ? built.copy : null;
+    copySource = built.ok ? "deterministic" : "unavailable";
+    copyFailure = built.ok ? null : built.reason;
+    copyCalls = 0;
+  }
+
   const totalCalls = astrologyCalls + copyCalls;
-  const unavailableMessage = copy.source === "unavailable"
+  const unavailableMessage = copySource === "unavailable"
     ? CUSTOMER_COPY_UNAVAILABLE_MESSAGE[canonical.result.language as "en" | "zh-Hant"]
     : null;
 
@@ -73,22 +98,21 @@ export async function executeDiceV05FreeTextCaseWithCopy(
     kind: "completed",
     question_mode: canonical.question_mode,
     result: canonical.result,
-    customer_copy: copy.copy,
-    copy_source: copy.source,
+    customer_copy: customerCopy,
+    copy_source: copySource,
     copy_unavailable_message: unavailableMessage,
-    copy_failure_code: copy.failure_code,
+    copy_failure_code: copyFailure,
     astrology_provider_calls: astrologyCalls,
     provider_calls: totalCalls,
-    // metadata.provider_calls is the ACTUAL total across all three stages (C04); the separate
-    // astrology-only and copy-only counts travel alongside it under unambiguous keys, and
-    // copy_source travels here so the presentation layer never has to guess it. Units/persistence
-    // stay 0 (charging untouched); provider calls are not customer charges.
+    // metadata.provider_calls is the ACTUAL total across all stages; the separate astrology-only
+    // and copy-only counts travel alongside it, and copy_source travels here so the presentation
+    // layer never guesses it. Units/persistence stay 0 (charging untouched).
     metadata: {
       ...canonical.metadata,
       provider_calls: totalCalls,
       astrology_provider_calls: astrologyCalls,
       copy_provider_calls: copyCalls,
-      copy_source: copy.source,
+      copy_source: copySource,
     },
   }) as DiceV05ThreeStageOutcome;
 }
