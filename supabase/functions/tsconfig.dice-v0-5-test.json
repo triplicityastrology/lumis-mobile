@@ -19,9 +19,13 @@
     "_shared/dice-v0-5-length.fixtures.ts",
     "_shared/dice-v0-5-tokenizer.fixtures.ts",
     "_shared/dice-v0-5-window.ts",
+    "_shared/dice-v0-5-customer-copy.ts",
+    "_shared/dice-v0-5-window-with-copy.ts",
+    "_shared/dice-v0-5-customer-copy.fixtures.ts",
     "_shared/dice-v0-5-privacy.fixtures.ts",
     "_shared/azure-dice-adapter-v5.ts",
     "_shared/dice-v0-5-adapter.fixtures.ts",
-    "dice-synthetic/founder-window-edge-v5.fixtures.ts"
+    "dice-synthetic/founder-window-edge-v5.fixtures.ts",
+    "dice-synthetic/founder-window-edge-v5-customer-copy.fixtures.ts"
   ]
 }
