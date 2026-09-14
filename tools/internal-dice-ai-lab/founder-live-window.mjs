@@ -215,8 +215,9 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
           metadata: payload?.metadata ?? null,
         });
       }
-      if (!exactKeys(payload, ["result", "question_mode", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
-      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, metadata: payload.metadata });
+      // Three-stage envelope: the completed v5 response now also carries the Stage-3 customer copy.
+      if (!exactKeys(payload, ["result", "question_mode", "customer_copy", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
+      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, customer_copy: payload.customer_copy, metadata: payload.metadata });
     },
   });
 }

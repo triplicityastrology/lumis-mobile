@@ -203,6 +203,19 @@ assert.equal(v05Live.body.presentation.sections[1].body, v05Judgment.synthesis, 
 assert.equal(v05Live.body.presentation.sections[3].items.length, 1, "follow-up questions rendered as items");
 assert.equal(v05Live.body.provider_calls, 2, "two provider calls recorded (mode + interpret)");
 assert.equal(v05Live.body.metadata.units_consumed, 0, "metadata carries units_consumed 0");
+// Stage 3 present: the completed envelope carries a validated customer_copy; the Web Lab renders it
+// as separate §12 sections. The headline is a DEDICATED field (never the spliced first sentence of
+// another field); candidates for Location stay sourced from the canonical result.
+const v05Copy = { schema: "lumis_dice_customer_copy_v1", language: "en", question_mode: "judgment",
+  headline: "The conditions support stepping forward.", reading: "The wider situation favours you and keeps the choice in your hands; the caution is practical rather than about the opportunity.",
+  watch_out: "Stay optimistic, but keep preparing properly.", practical_step: null, suggested_followups: ["What should I prepare first?"] };
+const v05WithCopy = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, copy_source: "stage3", metadata: v05Metadata }) }) });
+assert.equal(v05WithCopy.status, 200);
+assert.equal(v05WithCopy.body.classification.copy_source, "stage3", "web lab reports the Stage-3 copy source");
+assert.deepEqual(v05WithCopy.body.presentation.sections.map((s) => s.heading), ["Short answer", "Why", "Watch out", "Follow-up questions"], "Stage-3 judgment renders the customer-copy sections in §12 order");
+assert.equal(v05WithCopy.body.presentation.sections[0].body, v05Copy.headline, "short answer is the dedicated headline field, not a spliced first sentence");
+assert.equal(v05WithCopy.body.presentation.sections[1].body, v05Copy.reading, "Why holds the customer reading");
+assert.equal(v05WithCopy.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening stays landing-only under Stage 3");
 const v05Review = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
 assert.equal(v05Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
 assert.equal(v05Review.body.presentation.kind, "route_review");

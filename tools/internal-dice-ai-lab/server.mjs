@@ -224,6 +224,74 @@ export function deterministicV05Presentation(kind, language) {
   return Object.freeze({ kind, language, message: copy[language] });
 }
 
+// Stage-3 customer-copy section headings (§12). Separate readable sections; the headline is a
+// DEDICATED customer-copy field (never extracted from another field's first sentence).
+const COPY_HEAD = {
+  short: { en: "Short answer", "zh-Hant": "簡單答案" }, why: { en: "Why", "zh-Hant": "為甚麼" },
+  explanation: { en: "Explanation", "zh-Hant": "解釋" }, timing: { en: "Timing", "zh-Hant": "時間節奏" },
+  watch: { en: "Watch out", "zh-Hant": "需要留意" }, practical: { en: "Practical step", "zh-Hant": "實際一步" },
+  followups: { en: "Follow-up questions", "zh-Hant": "延伸問題" }, area: { en: "Most likely area", "zh-Hant": "最可能的位置" },
+  clues: { en: "Location clues", "zh-Hant": "位置線索" }, candidates: { en: "Where to look", "zh-Hant": "建議尋找位置" },
+  search: { en: "Search step", "zh-Hant": "搜尋建議" },
+};
+const COPY_DIRECT_TITLE = {
+  person: { en: "The person", "zh-Hant": "這個人" }, reason: { en: "The reason", "zh-Hant": "原因" },
+  thing_or_situation: { en: "The situation", "zh-Hant": "情況" },
+};
+
+// Render the validated Stage-3 customer copy as separate mobile-readable sections (§12). Location
+// candidates come from the CANONICAL result (Stage 3 never touches them). A field is only rendered
+// when present; nothing is spliced together without its own section boundary.
+export function presentCustomerCopyV05(copy, canonical, selection) {
+  const lang = copy.language;
+  const zh = lang === "zh-Hant";
+  const opening = zh
+    ? `你抽到${selection.planet.zh}落在${selection.sign.zh}及${selection.house.zh}。`
+    : `You drew ${selection.planet.en} in ${selection.sign.en} in the ${selection.house.en}.`;
+  const H = (k) => COPY_HEAD[k][lang];
+  const sections = [];
+  const mode = copy.question_mode;
+  if (mode === "judgment") {
+    sections.push({ heading: H("short"), body: copy.headline });
+    sections.push({ heading: H("why"), body: copy.reading });
+    if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
+    sections.push({ heading: H("followups"), body: "", items: copy.suggested_followups });
+  } else if (mode === "timing") {
+    sections.push({ heading: H("timing"), body: copy.headline });
+    sections.push({ heading: H("why"), body: copy.reading });
+    if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
+  } else if (mode === "location") {
+    sections.push({ heading: H("area"), body: copy.headline });
+    sections.push({ heading: H("clues"), body: copy.reading });
+    const byRank = new Map((canonical.location_candidates || []).map((c) => [c.rank, c]));
+    const ext = canonical.location_extension;
+    const sep = zh ? "——相關：" : " — related: ";
+    const items = (canonical.location_search_order || [])
+      .map((r) => { const place = byRank.get(r)?.place; if (!place) return null; return ext && ext.candidate_rank === r ? `${place}${sep}${ext.relationship}` : place; })
+      .filter(Boolean);
+    sections.push({ heading: H("candidates"), body: "", items });
+    if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
+    if (copy.practical_step) sections.push({ heading: H("search"), body: copy.practical_step });
+  } else {
+    sections.push({ heading: COPY_DIRECT_TITLE[mode][lang], body: copy.headline });
+    sections.push({ heading: H("explanation"), body: copy.reading });
+    if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
+    if (copy.practical_step) sections.push({ heading: H("practical"), body: copy.practical_step });
+  }
+  return Object.freeze({ kind: "reading", language: lang, question_mode: mode, opening, sections: Object.freeze(sections) });
+}
+
+// Minimal server-side shape guard for a Stage-3 copy envelope arriving from the gateway.
+function isCustomerCopyShape(copy, language, mode) {
+  return copy && typeof copy === "object" && copy.schema === "lumis_dice_customer_copy_v1"
+    && copy.language === language && copy.question_mode === mode
+    && typeof copy.headline === "string" && copy.headline.trim() !== ""
+    && typeof copy.reading === "string" && copy.reading.trim() !== ""
+    && (copy.watch_out === null || typeof copy.watch_out === "string")
+    && (copy.practical_step === null || typeof copy.practical_step === "string")
+    && Array.isArray(copy.suggested_followups);
+}
+
 export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory } = {}) {
   const selection = validateLabFreeTextRunRequest(raw);
   if (!selection) return Object.freeze({ status: 400, body: { code: "LAB_V05_FREE_TEXT_SELECTION_INVALID", provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
@@ -239,7 +307,15 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   }
   const result = validateLabV05Result(response.result, language);
   if (!result || !metadata || metadata.language !== language) return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("fallback", language), classification: null, metadata: null, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
-  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation: presentLabV05Result(result, selection), classification: { question_mode: result.question_mode }, metadata, provider_calls: metadata.provider_calls, persistence_writes: 0, units_charged: 0 } });
+  // Stage 3 present: render the validated customer copy as sections (candidates stay canonical).
+  // If the copy envelope is missing/malformed, fall back to the canonical Stage-2 presentation so
+  // the member still sees the validated reading (never a broken card).
+  const copy = response.customer_copy;
+  const presentation = isCustomerCopyShape(copy, language, result.question_mode)
+    ? presentCustomerCopyV05(copy, result, selection)
+    : presentLabV05Result(result, selection);
+  const copySource = presentation && copy ? (response.copy_source || "stage3") : "canonical";
+  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, persistence_writes: 0, units_charged: 0 } });
 }
 
 export async function executeLabRequest(raw, { fixtures, providerEnabled = false, gatewayFactory } = {}) {

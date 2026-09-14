@@ -2,7 +2,8 @@ import { createAzureDiceAdapter, readDiceAzureServerConfig } from "../_shared/az
 import { createPostgresDiceAuthorityStore, type DiceAuthorityRpcClient } from "../_shared/dice-authority-store-v1.ts";
 import { DiceGatewayStop, DiceSyntheticGatewayPortV1 } from "../_shared/dice-synthetic-gateway-port-v1.ts";
 import { executeFounderDiceCase, executeFounderDiceFreeTextCase, parseFounderDiceFreeTextRequest, parseFounderDiceRequest, verifyFounderWindowReceipt } from "../_shared/dice-founder-window-v1.ts";
-import { executeDiceV05FreeTextCase, parseDiceV05FreeTextRequest } from "../_shared/dice-v0-5-window.ts";
+import { parseDiceV05FreeTextRequest } from "../_shared/dice-v0-5-window.ts";
+import { executeDiceV05FreeTextCaseWithCopy } from "../_shared/dice-v0-5-window-with-copy.ts";
 import { createDiceV05Adapter } from "../_shared/azure-dice-adapter-v5.ts";
 import { handleCorsPreflight, jsonResponse } from "../_shared/cors.ts";
 
@@ -62,12 +63,16 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
       if (interpretationHeader === "v5") {
         const v5Request = parseDiceV05FreeTextRequest(freeTextRequest);
         if (!v5Request) return errorResponse("DICE_FOUNDER_FREE_TEXT_SCHEMA_INVALID", 400);
-        const v5 = await executeDiceV05FreeTextCase(v5Request, () => createDiceV05Adapter(providerConfig.config, dependencies.fetchImpl));
+        // Three-stage flow: unchanged two-stage astrology window + Stage-3 customer-language
+        // editor on a completed result. Stage 3 uses the same injected adapter; on any Stage-3
+        // failure the composition returns a deterministic, astrology-free customer copy built
+        // from the validated canonical result (never a broken sentence, never a second charge).
+        const v5 = await executeDiceV05FreeTextCaseWithCopy(v5Request, () => createDiceV05Adapter(providerConfig.config, dependencies.fetchImpl));
         if (v5.kind !== "completed") {
           const code = v5.kind === "safety" ? "DICE_SAFETY_REDIRECT" : v5.kind === "bundled" ? "DICE_BUNDLED_QUESTION" : v5.kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
           return jsonResponse({ error: { code, redacted_failure_code: v5.code }, metadata: v5.metadata }, { status: 422 });
         }
-        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, metadata: v5.metadata }, { status: 200 });
+        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, customer_copy: v5.customer_copy, metadata: v5.metadata }, { status: 200 });
       }
       const outcome = await executeFounderDiceFreeTextCase(freeTextRequest, () => createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl));
       if (outcome.kind !== "completed") {
