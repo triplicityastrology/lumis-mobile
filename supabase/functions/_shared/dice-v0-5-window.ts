@@ -43,7 +43,10 @@ const LOCATION_OUTPUT_CAP = 580 as const;
 // it is emitted. 2000 is provisional and is NOT the visible limit; each stage's returned visible
 // JSON is still validated against its cap above. (reasoning.effort stays "minimal" in the adapter.)
 const PROVIDER_GENERATION_CAP = 2000 as const;
-const SHARED_DEADLINE_MS = 12000;
+// One overall budget for the whole request. The three-stage composition captures this once at
+// the start and shares the SAME absolute deadline with Stage 3 (C03) — there is no fresh second
+// window. Exported so the composition uses the identical value.
+export const SHARED_DEADLINE_MS = 12000;
 const PLANETS = new Set<string>(DICE_V05_PLANET_IDS);
 const SIGNS = new Set<string>(DICE_V05_SIGN_IDS);
 const HOUSES = new Set(Array.from({ length: 12 }, (_, i) => `house_${i + 1}`));
