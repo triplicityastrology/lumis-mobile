@@ -1,0 +1,16 @@
+
+> lumis-mobile@0.1.0 test:dice-v05 /Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work
+> tsc -p supabase/functions/tsconfig.dice-v0-5-test.json && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-judgment.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-timing.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-location.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-routing.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-level1.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-schema.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-length.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-tokenizer.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-privacy.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-adapter.fixtures.js && node .tmp/dice-v0-5-tests/supabase/functions/dice-synthetic/founder-window-edge-v5.fixtures.js
+
+dice-v0-5 judgment fixtures passed
+dice-v0-5 timing fixtures passed
+dice-v0-5 location fixtures passed
+dice-v0-5 routing fixtures passed
+dice-v0-5 level1 fixtures passed
+dice-v0-5 schema fixtures passed
+dice-v0-5 length fixtures passed
+  location worst-case input (exhaustive Planet×House×Element, both languages) = 1668 at mercury/house12/Air/zh-Hant (<= 1800, headroom 132)
+dice-v0-5 tokenizer fixtures passed
+dice-v0-5 privacy fixtures passed
+dice-v0-5 adapter fixtures passed
+dice-v0-5 founder-window-edge fixtures passed

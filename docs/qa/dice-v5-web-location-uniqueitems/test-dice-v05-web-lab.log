@@ -1,0 +1,5 @@
+
+> lumis-mobile@0.1.0 test:dice-v05-web-lab /Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work
+> tsc -p supabase/functions/tsconfig.dice-v0-5-test.json && node scripts/internal-dice-ai-lab-contract.mjs
+
+internal Dice AI Lab contract passed: bootstrap, dual modes, 36 closed faces, v3 synthesis presentation, route-mismatch copy, metadata-only, provider_calls=0, v5 judgment/timing/location rendering

@@ -1,0 +1,13 @@
+
+> lumis-mobile@0.1.0 typecheck /Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work
+> pnpm -r typecheck
+
+Scope: 4 of 5 workspace projects
+packages/shared typecheck$ tsc --noEmit
+packages/shared typecheck: Done
+packages/astrology typecheck$ tsc --noEmit
+packages/billing typecheck$ tsc --noEmit
+packages/billing typecheck: Done
+packages/astrology typecheck: Done
+apps/mobile typecheck$ tsc --noEmit
+apps/mobile typecheck: Done

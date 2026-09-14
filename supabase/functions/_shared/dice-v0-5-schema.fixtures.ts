@@ -29,9 +29,13 @@ for (const lang of ["en", "zh-Hant"] as const) {
 
   const l: any = buildStage2Schema("location", lang);
   eq(keys(l.properties), ["extension", "location_candidates", "most_likely_area", "practical_step", "search_order", "status", "synthesis", "watch_out"], `location/${lang} keys`);
-  // Evidence arrays: 0–2 unique keys.
+  // Evidence arrays remain capped at 0–2. Azure Structured Outputs rejects
+  // `uniqueItems`; duplicate rejection remains enforced by validateLocation.
   const evP = l.properties.location_candidates.anyOf[0].items.properties.evidence.properties.p;
-  eq([evP.minItems, evP.maxItems, evP.uniqueItems], [0, 2, true], `location/${lang} evidence array bounds`);
+  eq([evP.minItems, evP.maxItems], [0, 2], `location/${lang} evidence array bounds`);
+  ok(!("uniqueItems" in evP), `location/${lang} evidence omits unsupported Azure uniqueItems`);
+  const searchOrder = l.properties.search_order.anyOf[0];
+  ok(!("uniqueItems" in searchOrder), `location/${lang} search order omits unsupported Azure uniqueItems`);
   eq(l.properties.location_candidates.anyOf[0].maxItems, 4, `location/${lang} 2–4 candidates max`);
   eq(l.properties.location_candidates.anyOf[0].minItems, 2, `location/${lang} 2–4 candidates min`);
   eq(l.properties.extension.anyOf[0].properties.relationship.maxLength, CAPS.location[lang].ext, `location/${lang} extension cap`);

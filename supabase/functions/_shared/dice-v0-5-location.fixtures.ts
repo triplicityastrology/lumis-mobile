@@ -1,10 +1,15 @@
-/** v5 Location fixtures — validateLocation (§16, 12 cases), compact-code -> semantic gid expansion, assembler. */
-import { parseDiceV05Stage2, validateLocation, type LocationResponse, type LocationSelectedKeys } from "./dice-v0-5-interpretation-contract.ts";
+/** v5 Location fixtures — validateLocation (§16), compact-code -> semantic gid expansion, assembler. */
+import { buildStage2Schema, parseDiceV05Stage2, validateLocation, type LocationResponse, type LocationSelectedKeys } from "./dice-v0-5-interpretation-contract.ts";
 import { buildLocationResolution, assembleLocation } from "./dice-v0-5-presentation.ts";
 import { DICE_V05_PLANET_IDS, DICE_V05_SIGN_IDS, LOCATION_PLANET_BANK, LOCATION_HOUSE_BANK, ELEMENT_TABLE, SIGN_ELEMENT, locationCodeGidPairs, assertAllLocationCodes } from "./dice-v0-5-fixed-data.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
+
+// Azure strict Structured Outputs rejects the otherwise-standard `uniqueItems`
+// keyword. Runtime validation below remains the authority for duplicate keys
+// and search-order uniqueness.
+ok(!JSON.stringify(buildStage2Schema("location", "en")).includes('"uniqueItems"'), "Azure Location schema uses only supported keywords");
 
 // Moon / Leo (Fire) / House 4 — the controlled selected key set (stable semantic ids).
 const res = buildLocationResolution("en", "moon", "leo", 4);
@@ -58,12 +63,15 @@ eq(validateLocation({ location_candidates: [cand(1, [P1], [], []), cand(2, [], [
 eq(validateLocation({ location_candidates: [cand(1, [P1], [], []), cand(2, [], [], [])], extension: { candidate_rank: 1, src: P1, relationship: "r" }, search_order: [1, 2] }, sel), "DICE_LOCATION_NO_DIRECT_EVIDENCE", "N: empty evidence even with extension");
 eq(validateLocation({ location_candidates: [cand(1, [], [H1], []), cand(2, [P1], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_PLANET_NOT_PRIMARY", "N: rank1 no planet");
 eq(validateLocation({ location_candidates: [cand(1, ["p99"], [], []), cand(2, [P1], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_UNSELECTED_SOURCE", "N: unselected key");
-eq(validateLocation({ location_candidates: [cand(1, [P1, P1], [], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_DUPLICATE_EVIDENCE_KEY", "N: duplicate key");
+eq(validateLocation({ location_candidates: [cand(1, [P1, P1], [], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_DUPLICATE_EVIDENCE_KEY", "N: duplicate planet evidence key");
+eq(validateLocation({ location_candidates: [cand(1, [P1], [H1, H1], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_DUPLICATE_EVIDENCE_KEY", "N: duplicate house evidence key");
+eq(validateLocation({ location_candidates: [cand(1, [P1], [], [E1, E1]), cand(2, [P2], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_DUPLICATE_EVIDENCE_KEY", "N: duplicate element evidence key");
 eq(validateLocation({ location_candidates: [cand(1, [P1, P2, P3], [], []), cand(2, [P2], [], [])], extension: null, search_order: [1, 2] }, sel), "DICE_LOCATION_EVIDENCE_ARRAY_TOO_LONG", "N: 3 keys");
 eq(validateLocation({ ...base, extension: { candidate_rank: 9, src: P1, relationship: "r" } }, sel), "DICE_LOCATION_EXTENSION_RANK_NOT_FOUND", "N: extension rank missing");
 eq(validateLocation({ ...base, extension: { candidate_rank: 1, src: P2, relationship: "r" } }, sel), "DICE_LOCATION_EXTENSION_PARENT_NOT_CITED", "N: extension src not cited by target");
 eq(validateLocation({ ...base, extension: { candidate_rank: 1, src: "p99", relationship: "r" } }, sel), "DICE_LOCATION_EXTENSION_PARENT_NOT_CITED", "N: extension src unselected");
 eq(validateLocation({ ...base, search_order: [2, 1] }, sel), "DICE_LOCATION_SEARCH_ORDER", "N: search_order out of order");
+eq(validateLocation({ ...base, search_order: [1, 1, 3] }, sel), "DICE_LOCATION_SEARCH_ORDER", "N: duplicate search_order entry");
 eq(validateLocation({ location_candidates: [cand(1, [P1], [], [])], extension: null, search_order: [1] } as any, sel), "DICE_LOCATION_CANDIDATE_COUNT", "N: candidate count 1");
 
 // Assembler expands compact wire codes to stable semantic global ids.

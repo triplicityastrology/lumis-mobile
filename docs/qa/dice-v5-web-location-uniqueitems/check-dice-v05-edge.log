@@ -1,0 +1,8 @@
+
+> lumis-mobile@0.1.0 check:dice-v05-edge /Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work
+> deno check --config supabase/functions/dice-synthetic/deno.json supabase/functions/dice-synthetic/index.ts supabase/functions/dice-synthetic/edge-handler-v1.ts supabase/functions/_shared/azure-dice-adapter-v5.ts supabase/functions/_shared/dice-v0-5-window.ts
+
+Check file:///Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work/supabase/functions/dice-synthetic/index.ts
+Check file:///Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work/supabase/functions/dice-synthetic/edge-handler-v1.ts
+Check file:///Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work/supabase/functions/_shared/azure-dice-adapter-v5.ts
+Check file:///Users/rubyku/Documents/Mobile App/lumis-dice-v5-web-location-fix-work/supabase/functions/_shared/dice-v0-5-window.ts

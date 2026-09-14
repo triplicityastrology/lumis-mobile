@@ -133,7 +133,10 @@ const str = (min: number, max: number) => ({ type: "string", minLength: min, max
 // p01/h03/e02 = 3 chars). Bounding the schema string to 3 keeps the echoed keys tiny so the
 // largest schema-valid Location output stays <= 580 tokens by construction (Founder Decision B).
 const EVIDENCE_KEY_MAX = 3;
-const keyArr = () => ({ type: "array", minItems: 0, maxItems: 2, uniqueItems: true, items: str(1, EVIDENCE_KEY_MAX) });
+// Azure strict Structured Outputs does not accept JSON Schema's `uniqueItems`.
+// Keep the provider schema within its supported subset; validateLocation below
+// still rejects duplicate evidence keys before any result is assembled.
+const keyArr = () => ({ type: "array", minItems: 0, maxItems: 2, items: str(1, EVIDENCE_KEY_MAX) });
 
 export function buildStage2Schema(mode: DiceV05Stage2Mode, language: DiceV05Language) {
   if (mode === "judgment") {
@@ -165,7 +168,8 @@ export function buildStage2Schema(mode: DiceV05Stage2Mode, language: DiceV05Lang
             evidence: { type: "object", additionalProperties: false, required: ["p", "h", "e"], properties: { p: keyArr(), h: keyArr(), e: keyArr() } } } } }),
         extension: nul({ type: "object", additionalProperties: false, required: ["candidate_rank", "src", "relationship"],
           properties: { candidate_rank: { type: "integer", minimum: 1, maximum: 4 }, src: str(1, EVIDENCE_KEY_MAX), relationship: str(1, c.ext) } }),
-        search_order: nul({ type: "array", minItems: 2, maxItems: 4, uniqueItems: true, items: { type: "integer", minimum: 1, maximum: 4 } }),
+        // Exact, duplicate-free ordering remains enforced by validateLocation.
+        search_order: nul({ type: "array", minItems: 2, maxItems: 4, items: { type: "integer", minimum: 1, maximum: 4 } }),
         watch_out: nul(str(1, c.watch)), practical_step: nul(str(1, c.pract)),
       } } as const);
   }
