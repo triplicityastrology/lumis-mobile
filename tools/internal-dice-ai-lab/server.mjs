@@ -34,6 +34,9 @@ const RESULT_SCHEMA = "lumis_dice_v0_3_result_v3";
 const PROMPT_VERSION = "lumis_dice_v0_3_prompt_v3";
 const SAFETY_COPY = Object.freeze({ en: "Lumis can’t help with that request, but it can offer a safer, general reflection instead.", "zh-Hant": "Lumis 無法協助這項要求，但可以改為提供較安全、概括的反思。" });
 const FALLBACK_COPY = Object.freeze({ en: "Lumis couldn’t complete that reflection just now. Please try again.", "zh-Hant": "Lumis 暫時未能完成這次反思，請再試一次。" });
+// Fixed non-interpretive copy-unavailable message. MUST match CUSTOMER_COPY_UNAVAILABLE_MESSAGE
+// in dice-v0-5-customer-copy.ts (kept in sync manually; server.mjs cannot import the TS module).
+const V05_COPY_UNAVAILABLE_COPY = Object.freeze({ en: "We couldn’t prepare a clear version of this reading. Please try again later.", "zh-Hant": "暫時未能整理好這次解讀，請稍後再試。" });
 const ROUTE_MISMATCH_COPY = Object.freeze({ en: "Lumis couldn’t confirm the correct reading type for this question, so no interpretation was generated. Please rephrase the question clearly and try again.", "zh-Hant": "Lumis 暫時未能確認這個問題適用的解讀方式，因此沒有生成解讀。請清晰地改寫問題後再試。" });
 
 export const PLANET_OPTIONS = Object.freeze([
@@ -220,7 +223,11 @@ export function presentLabV05Result(result, selection) {
 }
 
 export function deterministicV05Presentation(kind, language) {
-  const copy = kind === "safety" ? SAFETY_COPY : kind === "bundled" ? V05_BUNDLED_COPY : kind === "route_review" ? V05_ROUTE_REVIEW_COPY : FALLBACK_COPY;
+  const copy = kind === "safety" ? SAFETY_COPY
+    : kind === "bundled" ? V05_BUNDLED_COPY
+    : kind === "route_review" ? V05_ROUTE_REVIEW_COPY
+    : kind === "copy_unavailable" ? V05_COPY_UNAVAILABLE_COPY
+    : FALLBACK_COPY;
   return Object.freeze({ kind, language, message: copy[language] });
 }
 
@@ -261,7 +268,9 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
     sections.push({ heading: H("why"), body: copy.reading });
     if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
   } else if (mode === "location") {
-    sections.push({ heading: H("area"), body: copy.headline });
+    // The most-likely area is a canonical fact: render it from the canonical result, never from
+    // the Stage-3 headline, so a rewritten headline can never replace the approved area (C06).
+    sections.push({ heading: H("area"), body: canonical.most_likely_area });
     sections.push({ heading: H("clues"), body: copy.reading });
     const byRank = new Map((canonical.location_candidates || []).map((c) => [c.rank, c]));
     const ext = canonical.location_extension;
@@ -281,15 +290,29 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
   return Object.freeze({ kind: "reading", language: lang, question_mode: mode, opening, sections: Object.freeze(sections) });
 }
 
-// Minimal server-side shape guard for a Stage-3 copy envelope arriving from the gateway.
+// Per-language field caps at the rendering boundary. Kept in sync with COPY_CAPS in
+// dice-v0-5-customer-copy.ts (server.mjs cannot import the TS module). The authoritative
+// validation already ran in the backend composition; this is defense-in-depth so the Web
+// surface never renders arbitrary follow-up items or unchecked over-limit text (C04).
+const COPY_BOUNDARY_CAPS = {
+  headline: { en: 140, "zh-Hant": 48 }, reading: { en: 620, "zh-Hant": 220 },
+  watch_out: { en: 240, "zh-Hant": 80 }, practical_step: { en: 280, "zh-Hant": 110 }, followup: { en: 80, "zh-Hant": 30 },
+};
+const within = (v, cap) => typeof v === "string" && v.trim() !== "" && [...v].length <= cap;
+const nullOrWithin = (v, cap) => v === null || within(v, cap);
+
+// Server-side shape + rule guard for a Stage-3 copy envelope arriving from the gateway. Enforces
+// status "ok", identity, non-empty capped prose, and follow-ups as ≤3 non-empty capped strings.
 function isCustomerCopyShape(copy, language, mode) {
-  return copy && typeof copy === "object" && copy.schema === "lumis_dice_customer_copy_v1"
+  if (!copy || typeof copy !== "object") return false;
+  const c = COPY_BOUNDARY_CAPS;
+  return copy.status === "ok" && copy.schema === "lumis_dice_customer_copy_v1"
     && copy.language === language && copy.question_mode === mode
-    && typeof copy.headline === "string" && copy.headline.trim() !== ""
-    && typeof copy.reading === "string" && copy.reading.trim() !== ""
-    && (copy.watch_out === null || typeof copy.watch_out === "string")
-    && (copy.practical_step === null || typeof copy.practical_step === "string")
-    && Array.isArray(copy.suggested_followups);
+    && within(copy.headline, c.headline[language]) && within(copy.reading, c.reading[language])
+    && nullOrWithin(copy.watch_out, c.watch_out[language])
+    && nullOrWithin(copy.practical_step, c.practical_step[language])
+    && Array.isArray(copy.suggested_followups) && copy.suggested_followups.length <= 3
+    && copy.suggested_followups.every((f) => within(f, c.followup[language]));
 }
 
 export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory } = {}) {
@@ -307,14 +330,26 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   }
   const result = validateLabV05Result(response.result, language);
   if (!result || !metadata || metadata.language !== language) return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("fallback", language), classification: null, metadata: null, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
-  // Stage 3 present: render the validated customer copy as sections (candidates stay canonical).
-  // If the copy envelope is missing/malformed, fall back to the canonical Stage-2 presentation so
-  // the member still sees the validated reading (never a broken card).
+  // copy_source is carried in metadata (edge → gateway → server); it is NOT inferred from the
+  // mere presence of a copy object and NEVER defaults to "stage3" (C04).
   const copy = response.customer_copy;
-  const presentation = isCustomerCopyShape(copy, language, result.question_mode)
-    ? presentCustomerCopyV05(copy, result, selection)
-    : presentLabV05Result(result, selection);
-  const copySource = presentation && copy ? (response.copy_source || "stage3") : "canonical";
+  const copySource = metadata.copy_source;
+  const unavailable = Object.freeze({
+    status: 200,
+    body: {
+      code: "DICE_COPY_UNAVAILABLE",
+      presentation: deterministicV05Presentation("copy_unavailable", language),
+      classification: { question_mode: result.question_mode, copy_source: "unavailable" },
+      metadata, provider_calls: metadata.provider_calls, persistence_writes: 0, units_charged: 0,
+    },
+  });
+  // Controlled copy-unavailable: the backend produced no valid copy, OR the source metadata is
+  // missing/invalid, OR the copy fails the boundary guard. In every case show the fixed
+  // copy-unavailable message through the failure-presentation path — NEVER unchecked canonical
+  // technical prose, and never a successful-reading label (C01/C04).
+  if (copySource === "unavailable" || copy === null) return unavailable;
+  if ((copySource !== "stage3" && copySource !== "fallback") || !isCustomerCopyShape(copy, language, result.question_mode)) return unavailable;
+  const presentation = presentCustomerCopyV05(copy, result, selection);
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, persistence_writes: 0, units_charged: 0 } });
 }
 

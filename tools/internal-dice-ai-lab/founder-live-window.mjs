@@ -224,11 +224,30 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
 
 // v5 metadata is strictly metadata-only and carries units_consumed / persistence_writes
 // = 0 alongside the v4 fields (§20.6). No raw question or provider text is present.
+//
+// A completed three-stage response also carries the call-count breakdown and copy_source
+// (C04): provider_calls is the ACTUAL Stage-1+2+3 total, with astrology_provider_calls and
+// copy_provider_calls as unambiguous separate fields, and copy_source ∈ stage3|fallback|
+// unavailable. These three travel together (all-or-none) and must reconcile with the total.
+// Non-completed responses (route-review / safety / fallback / bundled) carry only the base
+// keys, so they stay valid too.
 export function redactV05Metadata(value) {
-  const allowed = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket", "units_consumed", "persistence_writes"];
-  if (!exactKeys(value, allowed)) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const base = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket", "units_consumed", "persistence_writes"];
+  const copyKeys = ["astrology_provider_calls", "copy_provider_calls", "copy_source"];
+  const keys = Object.keys(value);
+  if (!base.every((k) => keys.includes(k))) return null;
+  if (keys.some((k) => !base.includes(k) && !copyKeys.includes(k))) return null;
   if (value.request_mode !== "founder_free_text" || !["en", "zh-Hant"].includes(value.language) || typeof value.result_class !== "string" || !Number.isInteger(value.provider_calls)) return null;
   if (value.units_consumed !== 0 || value.persistence_writes !== 0) return null;
+  const copyPresent = copyKeys.some((k) => keys.includes(k));
+  if (copyPresent) {
+    if (!copyKeys.every((k) => keys.includes(k))) return null; // all-or-none
+    if (!Number.isInteger(value.astrology_provider_calls) || value.astrology_provider_calls < 0) return null;
+    if (!Number.isInteger(value.copy_provider_calls) || value.copy_provider_calls < 0) return null;
+    if (!["stage3", "fallback", "unavailable"].includes(value.copy_source)) return null;
+    if (value.astrology_provider_calls + value.copy_provider_calls !== value.provider_calls) return null;
+  }
   return Object.freeze({ ...value });
 }
 

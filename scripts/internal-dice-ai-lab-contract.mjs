@@ -187,35 +187,46 @@ const v05Judgment = { schema: "lumis_dice_interpretation_v5", status: "ok", lang
   most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
   synthesis: "Both fixed sides are favourable and remain separate. A strong major benefic sits inside the most supportive house.",
   timing_summary: null, watch_out: "Keep optimism realistic even with strong support.", practical_step: null, suggested_followups: ["What most needs preparing first?"] };
-const v05Metadata = { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 };
+// Completed metadata now carries the actual three-stage call breakdown + copy_source (C04):
+// provider_calls is the TOTAL, with astrology/copy counts as separate unambiguous fields.
+const v05MetaStage3 = { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 3, astrology_provider_calls: 2, copy_provider_calls: 1, copy_source: "stage3", latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 };
 const v05FreeText = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
 assert.equal((await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: false })).status, 503, "v5 default-off returns disabled");
-const v05Live = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async (body) => { assert.deepEqual(Object.keys(body), ["question", "planet_id", "sign_id", "house_id"]); return { kind: "completed", result: v05Judgment, question_mode: "judgment", metadata: v05Metadata }; } }) });
-assert.equal(v05Live.status, 200);
-assert.equal(v05Live.body.presentation.kind, "reading");
-assert.equal(v05Live.body.classification.question_mode, "judgment", "v5 surfaces the selected mode");
-assert.deepEqual(v05Live.body.presentation.sections.map((s) => s.heading), ["Result", "Reading", "One thing to watch", "Suggested follow-up questions"], "judgment renders Result (planet+house prose) + follow-ups, no Practical step");
-assert.equal(v05Live.body.presentation.sections[0].body, "Jupiter is a major benefic at full strength here. House 1 is the most supportive setting, with the matter in your hands.", "Result body joins the two fixed sides");
-// Opening identifies the dice landing ONLY (no first sentence of synthesis spliced in).
-assert.equal(v05Live.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening is landing-only, no synthesis splice");
-// The complete synthesis stays intact under Reading (not truncated by an opening splice).
-assert.equal(v05Live.body.presentation.sections[1].body, v05Judgment.synthesis, "Reading holds the complete synthesis");
-assert.equal(v05Live.body.presentation.sections[3].items.length, 1, "follow-up questions rendered as items");
-assert.equal(v05Live.body.provider_calls, 2, "two provider calls recorded (mode + interpret)");
-assert.equal(v05Live.body.metadata.units_consumed, 0, "metadata carries units_consumed 0");
-// Stage 3 present: the completed envelope carries a validated customer_copy; the Web Lab renders it
-// as separate §12 sections. The headline is a DEDICATED field (never the spliced first sentence of
-// another field); candidates for Location stay sourced from the canonical result.
-const v05Copy = { schema: "lumis_dice_customer_copy_v1", language: "en", question_mode: "judgment",
+// Stage 3 present: the completed envelope carries a validated customer_copy (status "ok"); the Web
+// Lab renders it as separate §12 sections. The headline is a DEDICATED field (never a spliced first
+// sentence); Location candidates stay sourced from the canonical result.
+const v05Copy = { schema: "lumis_dice_customer_copy_v1", status: "ok", language: "en", question_mode: "judgment",
   headline: "The conditions support stepping forward.", reading: "The wider situation favours you and keeps the choice in your hands; the caution is practical rather than about the opportunity.",
   watch_out: "Stay optimistic, but keep preparing properly.", practical_step: null, suggested_followups: ["What should I prepare first?"] };
-const v05WithCopy = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, copy_source: "stage3", metadata: v05Metadata }) }) });
+const v05WithCopy = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async (body) => { assert.deepEqual(Object.keys(body), ["question", "planet_id", "sign_id", "house_id"]); return { kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, metadata: v05MetaStage3 }; } }) });
 assert.equal(v05WithCopy.status, 200);
-assert.equal(v05WithCopy.body.classification.copy_source, "stage3", "web lab reports the Stage-3 copy source");
+assert.equal(v05WithCopy.body.code, "DICE_COMPLETED");
+assert.equal(v05WithCopy.body.classification.copy_source, "stage3", "web lab reports the Stage-3 copy source FROM METADATA");
+assert.equal(v05WithCopy.body.provider_calls, 3, "normal success reports the three-stage total (1+1+1)");
 assert.deepEqual(v05WithCopy.body.presentation.sections.map((s) => s.heading), ["Short answer", "Why", "Watch out", "Follow-up questions"], "Stage-3 judgment renders the customer-copy sections in §12 order");
 assert.equal(v05WithCopy.body.presentation.sections[0].body, v05Copy.headline, "short answer is the dedicated headline field, not a spliced first sentence");
 assert.equal(v05WithCopy.body.presentation.sections[1].body, v05Copy.reading, "Why holds the customer reading");
 assert.equal(v05WithCopy.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening stays landing-only under Stage 3");
+assert.equal(v05WithCopy.body.metadata.units_consumed, 0, "metadata carries units_consumed 0");
+// A single Stage-3 retry reports four total calls; deterministic fallback is labelled "fallback".
+const v05MetaFallback = { ...v05MetaStage3, provider_calls: 4, copy_provider_calls: 2, copy_source: "fallback" };
+const v05Fallback = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, metadata: v05MetaFallback }) }) });
+assert.equal(v05Fallback.body.code, "DICE_COMPLETED");
+assert.equal(v05Fallback.body.classification.copy_source, "fallback", "deterministic fallback is labelled fallback, not stage3");
+assert.equal(v05Fallback.body.provider_calls, 4, "a single Stage-3 retry reports four total calls");
+// Copy unavailable: customer_copy is null and copy_source is "unavailable" — the fixed
+// copy-unavailable message is shown through the failure path, NEVER old technical prose.
+const v05MetaUnavailable = { ...v05MetaStage3, provider_calls: 4, copy_provider_calls: 2, copy_source: "unavailable" };
+const v05Unavailable = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, metadata: v05MetaUnavailable }) }) });
+assert.equal(v05Unavailable.body.code, "DICE_COPY_UNAVAILABLE", "copy-unavailable is not a successful reading");
+assert.equal(v05Unavailable.body.presentation.kind, "copy_unavailable");
+assert.equal(v05Unavailable.body.classification.copy_source, "unavailable");
+assert.ok(!("sections" in v05Unavailable.body.presentation), "unavailable shows a fixed message, not canonical technical sections");
+// Missing source metadata must NOT be reported as Stage 3 (no default): treated as unavailable.
+const v05MetaNoCopy = { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 };
+const v05NoSource = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Copy, metadata: v05MetaNoCopy }) }) });
+assert.equal(v05NoSource.body.code, "DICE_COPY_UNAVAILABLE", "missing copy_source metadata is not reported as Stage 3");
+assert.notEqual(v05NoSource.body.classification.copy_source, "stage3", "no default to stage3 when source metadata is absent");
 const v05Review = await executeLabFreeTextV05Request(v05FreeText, { providerEnabled: true, gatewayFactory: () => ({ run: async () => ({ kind: "route_review", code: "DICE_ROUTE_REVIEW_REQUIRED", metadata: null }) }) });
 assert.equal(v05Review.body.code, "DICE_ROUTE_REVIEW_REQUIRED");
 assert.equal(v05Review.body.presentation.kind, "route_review");
