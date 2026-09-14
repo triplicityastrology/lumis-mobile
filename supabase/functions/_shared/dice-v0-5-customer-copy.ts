@@ -13,7 +13,12 @@
  * Location provider schema with it.
  *
  * Source of truth: LUMIS_DICE_PROMPT_V3_THREE_STAGE_LANGUAGE_QUALITY_IMPLEMENTATION_HANDOFF.md
- * (§3–§11). No raw question or provider body leaves this module.
+ * (§3–§11). Privacy note: the customer question IS sent to the provider inside the
+ * Stage-3 input (it has to be, so the editor can phrase a direct answer). This module
+ * does not newly log, persist, or expose that question or any provider body in redacted
+ * metadata or diagnostic evidence; it returns only the validated customer copy and a
+ * source/failure code. Provider transport privacy (Azure retention) is configured
+ * elsewhere and is out of scope for this module.
  */
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 import type { DiceV05Language } from "./dice-v0-5-fixed-data.ts";
@@ -22,8 +27,12 @@ import type { DiceV05ProviderAdapter } from "./dice-v0-5-window.ts";
 
 export const DICE_V05_CUSTOMER_COPY_SCHEMA = "lumis_dice_customer_copy_v1" as const;
 
+// A displayed customer copy always carries status "ok". The provider may also return
+// status "unpresentable" (all prose null, follow-ups []), which never becomes a displayed
+// copy — it routes to the controlled copy-unavailable path (C01/C02).
 export type DiceV05CustomerCopy = Readonly<{
   schema: typeof DICE_V05_CUSTOMER_COPY_SCHEMA;
+  status: "ok";
   language: DiceV05Language;
   question_mode: DiceV05Mode;
   headline: string;
@@ -33,9 +42,19 @@ export type DiceV05CustomerCopy = Readonly<{
   suggested_followups: readonly string[];
 }>;
 
-/* Stage-3 VISIBLE per-language caps (measured against the production tokenizer in the
- * fixtures). These bound only the customer-visible copy; the provider GENERATION allowance
- * (reasoning + output + formatting) stays separate and larger, owned by the window. */
+// Non-interpretive, fixed customer message shown when no valid customer copy (neither a
+// Stage-3 response nor a deterministic fallback) can be produced. Rendered through the
+// existing failure-presentation mechanism, never as a successful polished reading (C01).
+export const CUSTOMER_COPY_UNAVAILABLE_MESSAGE: Readonly<Record<DiceV05Language, string>> = Object.freeze({
+  en: "We couldn’t prepare a clear version of this reading. Please try again later.",
+  "zh-Hant": "暫時未能整理好這次解讀，請稍後再試。",
+});
+
+/* Stage-3 per-field character caps (code points), enforced by the runtime parser and used
+ * to build the strict provider schema. These bound individual customer-visible fields; the
+ * provider GENERATION allowance (reasoning + output + formatting) stays separate and larger,
+ * owned by the window. The serialized whole-envelope token cap below is a distinct outer
+ * bound, not one of these per-field limits. */
 export const COPY_CAPS = Object.freeze({
   headline: { en: 140, "zh-Hant": 48 },
   reading: { en: 620, "zh-Hant": 220 },
@@ -44,8 +63,12 @@ export const COPY_CAPS = Object.freeze({
   followup: { en: 80, "zh-Hant": 30 },
 } as const);
 
-// Stage-3 visible-output token cap (the returned customer-copy JSON is measured and rejected
-// against this before it is shown). Distinct from the provider generation allowance (§6).
+// Stage-3 serialized-output token cap: the whole returned customer-copy JSON envelope is
+// measured against this and rejected if it exceeds it, BEFORE it is shown — and the same
+// check is applied to any deterministic fallback intended for display (C01). This is an
+// outer envelope bound (all fields + JSON structure combined), NOT a per-prose-field limit,
+// and NOT the Stage-2 580/600 serialized-output limits. 700 is PROVISIONAL: it has not been
+// separately approved and this correction does not reduce it to 600. See the cap report.
 export const CUSTOMER_COPY_OUTPUT_CAP = 700 as const;
 
 type Stage3Family = "judgment" | "timing" | "location" | "level1";
@@ -69,7 +92,7 @@ NON-NEGOTIABLE CONTENT RULES
 4. For Judgment, preserve the Planet-side and House-side findings as two distinct factors. Never average them into a new overall grade.
 5. Do not add a date, time unit, probability, event, person, place, warning, recommendation or astrology meaning that is not supplied.
 6. Do not omit an unfavourable factor merely to make the answer sound positive.
-7. If the supplied source is incomplete or contradictory, do not guess; return status "unpresentable" with empty fields.
+7. If the supplied source is incomplete or contradictory, do not guess; return the legal unpresentable object (status "unpresentable", every prose field null, follow-ups []).
 
 CUSTOMER-LANGUAGE RULES
 1. Begin with the direct answer or most useful conclusion in the headline.
@@ -88,14 +111,14 @@ LANGUAGE
 PROHIBITED CUSTOMER-FACING LANGUAGE — never show raw implementation or scoring expressions such as: dignity_emphasis; planet_speed; house_speed; planet_speed x house_speed; fastest x fast -> fast; schema, enum, validator, evidence key or internal mode family (level1); rank, ranking, 排名, 排位, 順位 or a House rank number; 行星面向 / 宮位側面 as unexplained system labels; 兩邊不需互相折衝; 速度帶; 建設性面向. Astrology names may be mentioned only when they help the customer, and their meaning must be explained in ordinary language.
 
 MODE PRESENTATION
-- Judgment: state the practical orientation first, then explain the favourable factor and the difficult factor separately in natural language. Do not state a newly blended overall grade. No practical step.
+- Judgment: Explain the supplied Planet-side and House-side findings as two distinct factors in ordinary language. Preserve the actual orientation of each: both may be favourable, both may be difficult, or they may differ. Do not invent an opposing factor to create balance. Do not average them into an overall grade. Preserve the supplied caution and degree of uncertainty. No practical step.
 - Timing: state the relative pace first. Explain naturally how the Planet's inherent pace and the House environment affect the process. Do not show a formula. Dignity may describe smoothness or friction only, never the speed band.
 - Location: keep the approved most-likely area and the supplied Planet-first candidate logic. Do not invent or replace candidates. Preserve the approved search step.
 - Person: answer what the person is like directly.
 - Reason: answer why directly.
 - Thing/situation: answer what the thing, role or situation is like directly. Do not convert it into a Judgment answer merely because the question contains "should" or 應該.
 
-Return only valid JSON matching the supplied customer-copy schema: keys schema, language, question_mode, headline, reading, watch_out, practical_step, suggested_followups. Set a field to null only where the mode permits it. If you cannot comply, return status "unpresentable" with headline "", reading "", watch_out null, practical_step null and suggested_followups [].`;
+Return only valid JSON matching the supplied customer-copy schema. Required keys: status, schema, language, question_mode, headline, reading, watch_out, practical_step, suggested_followups. When you can comply, set status "ok", keep schema/language/question_mode exactly as supplied, write headline and reading as non-empty complete sentences, set watch_out and practical_step to a non-empty sentence or null exactly as the mode and the supplied source require, and provide suggested_followups as the mode requires. If you cannot comply, return exactly this legal unpresentable object: {"status":"unpresentable","schema":"lumis_dice_customer_copy_v1","language":<supplied>,"question_mode":<supplied>,"headline":null,"reading":null,"watch_out":null,"practical_step":null,"suggested_followups":[]}. Never return an empty string for any field; use null instead.`;
 
 /* ------------------------------------------------------------------ *
  * Stage-3 strict output schema (per mode + language).
@@ -104,32 +127,29 @@ const nullType = { type: "null" } as const;
 const nul = (base: object) => ({ anyOf: [base, nullType] });
 const str = (max: number) => ({ type: "string", minLength: 1, maxLength: max } as const);
 
+// One closed provider object (C02). `status` is a required enum; every prose field is
+// nullable so the legal unpresentable object is representable; follow-ups permit []. The
+// exact per-mode required/non-null, cap and follow-up rules for status "ok" are enforced by
+// the runtime parser (parseCustomerCopy), not by the strict schema — a strict JSON Schema
+// cannot express the status-conditional shape, so the parser is the authority.
 export function buildCustomerCopySchema(mode: DiceV05Mode, language: DiceV05Language) {
-  const fam = familyOf(mode);
   const c = COPY_CAPS;
-  const base = {
-    schema: { const: DICE_V05_CUSTOMER_COPY_SCHEMA },
-    language: { const: language },
-    question_mode: { const: mode },
-    headline: str(c.headline[language]),
-    reading: str(c.reading[language]),
-  } as Record<string, unknown>;
-
-  // watch_out: required (non-null) for judgment + location; nullable for timing/level-1.
-  base.watch_out = (fam === "judgment" || fam === "location") ? str(c.watch_out[language]) : nul(str(c.watch_out[language]));
-  // practical_step: null for judgment + timing; required for location; nullable for level-1.
-  if (fam === "judgment" || fam === "timing") base.practical_step = nullType;
-  else if (fam === "location") base.practical_step = str(c.practical_step[language]);
-  else base.practical_step = nul(str(c.practical_step[language]));
-  // suggested_followups: judgment carries 1..3; every other mode carries none.
-  base.suggested_followups = fam === "judgment"
-    ? { type: "array", minItems: 1, maxItems: 3, items: str(c.followup[language]) }
-    : { type: "array", minItems: 0, maxItems: 0, items: str(c.followup[language]) };
-
+  const nstr = (max: number) => nul(str(max)); // nullable, non-empty-when-present, capped string
   return Object.freeze({
     type: "object", additionalProperties: false,
-    required: ["schema", "language", "question_mode", "headline", "reading", "watch_out", "practical_step", "suggested_followups"],
-    properties: base,
+    required: ["status", "schema", "language", "question_mode", "headline", "reading", "watch_out", "practical_step", "suggested_followups"],
+    properties: {
+      status: { enum: ["ok", "unpresentable"] },
+      schema: { const: DICE_V05_CUSTOMER_COPY_SCHEMA },
+      language: { const: language },
+      question_mode: { const: mode },
+      headline: nstr(c.headline[language]),
+      reading: nstr(c.reading[language]),
+      watch_out: nstr(c.watch_out[language]),
+      practical_step: nstr(c.practical_step[language]),
+      // Items are non-empty capped strings; the 0..3 count band is narrowed per mode by the parser.
+      suggested_followups: { type: "array", minItems: 0, maxItems: 3, items: str(c.followup[language]) },
+    },
   });
 }
 
@@ -250,7 +270,7 @@ function exactKeys(v: Record<string, unknown>, keys: readonly string[]): boolean
   const a = Object.keys(v).sort(); const e = [...keys].sort();
   return a.length === e.length && a.every((k, i) => k === e[i]);
 }
-const COPY_KEYS = ["schema", "language", "question_mode", "headline", "reading", "watch_out", "practical_step", "suggested_followups"] as const;
+const COPY_KEYS = ["status", "schema", "language", "question_mode", "headline", "reading", "watch_out", "practical_step", "suggested_followups"] as const;
 const cp = (v: unknown, max: number): v is string => typeof v === "string" && v.trim().length > 0 && [...v].length <= max;
 
 export type CustomerCopyParse =
@@ -258,17 +278,36 @@ export type CustomerCopyParse =
   | Readonly<{ kind: "unpresentable" }>
   | Readonly<{ kind: "invalid"; code: string }>;
 
-/** Strict contract validation of a parsed Stage-3 object against mode + language. */
+/**
+ * Strict contract validation of a parsed Stage-3 object against mode + language.
+ *
+ * Exact keys and identity (schema/language/question_mode) are validated BEFORE the status
+ * branch, so an object carrying status "unpresentable" can no longer bypass key/identity
+ * checks (C02). status "unpresentable" then requires all prose null + follow-ups []; status
+ * "ok" applies the per-mode required/non-null, cap and follow-up-count rules.
+ */
 export function parseCustomerCopy(mode: DiceV05Mode, language: DiceV05Language, rawContent: string): CustomerCopyParse {
   let raw: unknown;
   try { raw = JSON.parse(rawContent); } catch { return { kind: "invalid", code: "DICE_COPY_JSON" }; }
   if (!isRecord(raw)) return { kind: "invalid", code: "DICE_COPY_SHAPE" };
-  // Provider-signalled "cannot comply" — an explicit, closed unpresentable disposition.
-  if (raw.status === "unpresentable") return { kind: "unpresentable" };
+  // Exact keys + identity FIRST — before any status-conditional branch.
   if (!exactKeys(raw, COPY_KEYS)) return { kind: "invalid", code: "DICE_COPY_EXTRA_OR_MISSING_KEY" };
+  if (raw.status !== "ok" && raw.status !== "unpresentable") return { kind: "invalid", code: "DICE_COPY_STATUS" };
   if (raw.schema !== DICE_V05_CUSTOMER_COPY_SCHEMA) return { kind: "invalid", code: "DICE_COPY_SCHEMA_ID" };
   if (raw.language !== language) return { kind: "invalid", code: "DICE_COPY_LANGUAGE" };
   if (raw.question_mode !== mode) return { kind: "invalid", code: "DICE_COPY_MODE_CHANGED" };
+  if (!Array.isArray(raw.suggested_followups)) return { kind: "invalid", code: "DICE_COPY_FOLLOWUPS_TYPE" };
+
+  // status "unpresentable": every prose field null, follow-ups exactly []. Identity already matched.
+  if (raw.status === "unpresentable") {
+    if (raw.headline !== null || raw.reading !== null || raw.watch_out !== null || raw.practical_step !== null) {
+      return { kind: "invalid", code: "DICE_COPY_UNPRESENTABLE_PROSE" };
+    }
+    if (raw.suggested_followups.length !== 0) return { kind: "invalid", code: "DICE_COPY_UNPRESENTABLE_FOLLOWUPS" };
+    return { kind: "unpresentable" };
+  }
+
+  // status "ok": full per-mode contract.
   const fam = familyOf(mode);
   const c = COPY_CAPS;
   if (!cp(raw.headline, c.headline[language])) return { kind: "invalid", code: "DICE_COPY_HEADLINE" };
@@ -281,7 +320,6 @@ export function parseCustomerCopy(mode: DiceV05Mode, language: DiceV05Language, 
   else if (fam === "location") { if (!cp(raw.practical_step, c.practical_step[language])) return { kind: "invalid", code: "DICE_COPY_PRACTICAL_REQUIRED" }; }
   else if (raw.practical_step !== null && !cp(raw.practical_step, c.practical_step[language])) return { kind: "invalid", code: "DICE_COPY_PRACTICAL" };
   // suggested_followups
-  if (!Array.isArray(raw.suggested_followups)) return { kind: "invalid", code: "DICE_COPY_FOLLOWUPS_TYPE" };
   if (fam === "judgment") { if (raw.suggested_followups.length < 1 || raw.suggested_followups.length > 3) return { kind: "invalid", code: "DICE_COPY_FOLLOWUPS_COUNT" }; }
   else if (raw.suggested_followups.length !== 0) return { kind: "invalid", code: "DICE_COPY_FOLLOWUPS_FORBIDDEN" };
   for (const f of raw.suggested_followups) if (!cp(f, c.followup[language])) return { kind: "invalid", code: "DICE_COPY_FOLLOWUP_ITEM" };
@@ -315,7 +353,9 @@ export function prohibitedLanguageCheck(copy: DiceV05CustomerCopy): "OK" | strin
 }
 
 /* ------------------------------------------------------------------ *
- * Complete-sentence / no-fragment check.
+ * Complete-ending HEURISTIC (not a proof of grammatical completeness).
+ * It rejects known truncated tails and obvious dangling endings; it cannot prove that an
+ * arbitrary sentence is grammatically complete. Full language quality is a later human task.
  * ------------------------------------------------------------------ */
 // Known truncated tails observed in the Founder workbook — reject verbatim.
 const KNOWN_FRAGMENT_TAILS: readonly string[] = Object.freeze([
@@ -323,6 +363,8 @@ const KNOWN_FRAGMENT_TAILS: readonly string[] = Object.freeze([
 ]);
 // A complete visible field ends on terminal punctuation (or a closing quote/bracket after it).
 const TERMINAL_END = /[.!?。！？…]["'”』」）)\]]?\s*$/u;
+// Trailing terminal punctuation + optional closing quote/bracket, for normalization.
+const TRAILING_TERMINATOR = /[.!?。！？…]+["'”』」）)\]]?\s*$/u;
 // Obvious dangling connectors / mid-clause commas at the very end.
 const DANGLING_END = /[,;:，、；：]\s*$|\b(?:and|or|but|with|the|to|of|for|a|an|in|on)\s*$/iu;
 
@@ -336,7 +378,14 @@ export function completenessCheck(copy: DiceV05CustomerCopy): "OK" | string {
     if (v === null) continue;
     const t = v.trim();
     if (!t) return `DICE_COPY_EMPTY_FIELD:${name}`;
-    for (const frag of KNOWN_FRAGMENT_TAILS) if (t.endsWith(frag)) return `DICE_COPY_KNOWN_FRAGMENT:${name}`;
+    // Check known truncated tails AFTER stripping any trailing terminal punctuation/closing
+    // quote, so appending "." (e.g. via a normalizer) cannot smuggle "Beware of overex" past
+    // this check as "Beware of overex." (C01).
+    const normalized = t.replace(TRAILING_TERMINATOR, "").trimEnd();
+    for (const frag of KNOWN_FRAGMENT_TAILS) {
+      const bareFrag = frag.replace(TRAILING_TERMINATOR, "").trimEnd();
+      if (t.endsWith(frag) || normalized.endsWith(bareFrag)) return `DICE_COPY_KNOWN_FRAGMENT:${name}`;
+    }
     if (DANGLING_END.test(t)) return `DICE_COPY_DANGLING_END:${name}`;
     if (!TERMINAL_END.test(t)) return `DICE_COPY_NO_TERMINAL_PUNCT:${name}`;
   }
@@ -344,8 +393,12 @@ export function completenessCheck(copy: DiceV05CustomerCopy): "OK" | string {
 }
 
 /* ------------------------------------------------------------------ *
- * Meaning-preservation invariants (deterministic subset; semantic quality is
- * the separate human/QA rubric §15).
+ * Structural + limited prohibited-content checks (NOT a semantic-fidelity proof).
+ * These catch mode/language mutation, a language leak, an invented timing date and a blended
+ * judgment grade. They do NOT prove that arbitrary paraphrased prose preserves meaning — that
+ * (and natural Traditional Chinese) is a later human/QA evaluation (§15). Source-field
+ * presence and follow-up count/order are enforced separately by sourceParityCheck; Location
+ * candidates, area and order are protected by keeping them canonical at presentation time.
  * ------------------------------------------------------------------ */
 const CHINESE = /[㐀-鿿豈-﫿]/u;
 // Reuse the astrology-core leak intent for Stage-3 too: Timing copy must not leak a date.
@@ -362,22 +415,43 @@ export function preservationCheck(copy: DiceV05CustomerCopy, canonical: Canonica
   if (copy.language === "zh-Hant" && !CHINESE.test(all)) return "DICE_COPY_LANG_LEAK_ZH";
   if (fam === "timing" && COPY_TIMING_DATE.test(all)) return "DICE_COPY_TIMING_DATE_INVENTED";
   if (fam === "judgment" && COPY_JUDGMENT_BLENDED.test(all)) return "DICE_COPY_JUDGMENT_BLENDED";
-  // Location: every candidate place the copy shows must come from the canonical candidates
-  // (Stage 3 must not invent or replace candidates). The rendered candidates come from the
-  // canonical result at presentation time; here we forbid the copy prose from introducing a
-  // place string that is a canonical candidate under a changed identity — the strong check is
-  // that we never DROP a required most-likely area. Full candidate rendering stays canonical.
-  if (fam === "location") {
-    const area = String(canonical.most_likely_area ?? "");
-    // most-likely area must remain represented (headline is the customer area statement).
-    if (area && !copy.headline && !copy.reading) return "DICE_COPY_LOCATION_AREA_DROPPED";
-  }
+  // Location facts (most-likely area, candidates, extension, search order) are NOT guarded by a
+  // prose test here — the previous "area dropped" check could not detect a dropped or changed
+  // area. They are protected structurally instead: presentation renders area, candidates,
+  // extension and order from the CANONICAL result, and a Stage-3 headline never replaces the
+  // canonical most-likely area (C06). No ineffective prose check is asserted in its place.
   return "OK";
 }
 
 /* ------------------------------------------------------------------ *
- * Deterministic fallback — used when Stage 3 fails/validation rejects.
- * Reuses ONLY validated canonical prose; invents no astrology; never a fragment.
+ * Source-field presence + follow-up parity (C06). Deterministic structural checks against the
+ * validated canonical result — not a semantic equivalence system.
+ * ------------------------------------------------------------------ */
+export function sourceParityCheck(copy: DiceV05CustomerCopy, canonical: Canonical): "OK" | string {
+  // A supplied caution must not be dropped, and a null caution must not be invented.
+  const canonicalWatch = canonical.watch_out == null ? null : String(canonical.watch_out);
+  if (canonicalWatch !== null && copy.watch_out === null) return "DICE_COPY_CAUTION_DROPPED";
+  if (canonicalWatch === null && copy.watch_out !== null) return "DICE_COPY_CAUTION_INVENTED";
+  // Level-1 + Location practical step: presence parity with the canonical field.
+  const fam = familyOf(copy.question_mode);
+  if (fam === "location" || fam === "level1") {
+    const canonicalStep = canonical.practical_step == null ? null : String(canonical.practical_step);
+    if (canonicalStep !== null && copy.practical_step === null) return "DICE_COPY_PRACTICAL_DROPPED";
+    if (canonicalStep === null && copy.practical_step !== null) return "DICE_COPY_PRACTICAL_INVENTED";
+  }
+  // Follow-ups: count parity with the canonical source; no drift, no invented extras, no duplicates.
+  const sourceFollow = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.map(String) : [];
+  if (copy.suggested_followups.length !== sourceFollow.length) return "DICE_COPY_FOLLOWUPS_COUNT_DRIFT";
+  if (new Set(copy.suggested_followups).size !== copy.suggested_followups.length) return "DICE_COPY_FOLLOWUPS_DUPLICATE";
+  return "OK";
+}
+
+/* ------------------------------------------------------------------ *
+ * Deterministic fallback candidate — used when a Stage-3 response is unavailable or rejected.
+ * Reuses ONLY validated canonical prose and invents no astrology. It is a CANDIDATE: it must
+ * pass the same shared display validation as provider copy (validateDisplayCopy) before it can
+ * be shown; if it fails, the caller returns the controlled copy-unavailable outcome instead.
+ * It is never truncated to force acceptance.
  * ------------------------------------------------------------------ */
 function ensureTerminal(s: string, zh: boolean): string {
   const t = s.trim();
@@ -396,20 +470,21 @@ export function deterministicCustomerCopy(canonical: Canonical): DiceV05Customer
   const mode = canonical.question_mode as DiceV05Mode;
   const fam = familyOf(mode);
   const zh = language === "zh-Hant";
-  const clampReading = (s: string) => {
-    const cap = COPY_CAPS.reading[language];
-    const arr = [...s];
-    return arr.length <= cap ? s : s; // canonical prose is already within Stage-2 caps; never slice mid-word
-  };
   let headline = FALLBACK_HEADLINE[fam][language];
   let reading = "";
   let watch: string | null = null;
   let practical: string | null = null;
+  // Follow-ups are reused UNCHANGED from the validated canonical source (no rewrite), so their
+  // count and order match the source by construction (C06). Judgment supplies 1..3; others [].
   const follow = fam === "judgment" && Array.isArray(canonical.suggested_followups) ? [...canonical.suggested_followups] : [];
 
   if (fam === "judgment") {
-    reading = [canonical.planet_side?.prose, canonical.house_side?.prose, canonical.synthesis].filter(Boolean).map(String).join(zh ? "\n\n" : "\n\n");
-    watch = canonical.watch_out ? String(canonical.watch_out) : "";
+    // Keep BOTH distinct factors (planet side + house side). The separate synthesis is omitted
+    // here so the combined reading stays within the reading cap WITHOUT any truncation; both
+    // required factors are still present. If this candidate still exceeds the cap it is rejected
+    // by validateDisplayCopy and the caller returns copy-unavailable (never a sliced sentence).
+    reading = [canonical.planet_side?.prose, canonical.house_side?.prose].filter(Boolean).map(String).join("\n\n");
+    watch = canonical.watch_out ? String(canonical.watch_out) : null;
   } else if (fam === "timing") {
     headline = canonical.timing_summary ? String(canonical.timing_summary) : headline;
     reading = String(canonical.synthesis ?? canonical.timing_summary ?? "");
@@ -417,8 +492,8 @@ export function deterministicCustomerCopy(canonical: Canonical): DiceV05Customer
   } else if (fam === "location") {
     headline = canonical.most_likely_area ? String(canonical.most_likely_area) : headline;
     reading = String(canonical.synthesis ?? "");
-    watch = canonical.watch_out ? String(canonical.watch_out) : "";
-    practical = canonical.practical_step ? String(canonical.practical_step) : "";
+    watch = canonical.watch_out ? String(canonical.watch_out) : null;
+    practical = canonical.practical_step ? String(canonical.practical_step) : null;
   } else {
     reading = String(canonical.synthesis ?? "");
     watch = canonical.watch_out ? String(canonical.watch_out) : null;
@@ -426,25 +501,69 @@ export function deterministicCustomerCopy(canonical: Canonical): DiceV05Customer
   }
 
   return Object.freeze({
-    schema: DICE_V05_CUSTOMER_COPY_SCHEMA, language, question_mode: mode,
+    schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language, question_mode: mode,
     headline: ensureTerminal(headline, zh),
-    reading: ensureTerminal(clampReading(reading), zh),
-    watch_out: watch === null ? null : (watch === "" ? null : ensureTerminal(watch, zh)),
-    practical_step: practical === null ? null : (practical === "" ? null : ensureTerminal(practical, zh)),
+    reading: ensureTerminal(reading, zh),
+    watch_out: watch ? ensureTerminal(watch, zh) : null,
+    practical_step: practical ? ensureTerminal(practical, zh) : null,
     suggested_followups: Object.freeze(follow.map((f) => ensureTerminal(String(f), zh))),
   });
 }
 
 /* ------------------------------------------------------------------ *
- * Stage-3 execution — the third provider call, with one controlled retry and a
- * deterministic fallback. Never invents astrology; never a second customer charge.
+ * ONE shared display-validation path (C01). Applied identically to provider copy AND to every
+ * deterministic fallback before it can be displayed: strict contract (exact schema/keys,
+ * identity, per-mode null rules, field caps, follow-up count) + prohibited terms + complete-
+ * ending heuristic + structural preservation + source parity + serialized-envelope token cap.
+ * Returns "OK" or a failure code.
+ * ------------------------------------------------------------------ */
+export function validateDisplayCopy(copy: DiceV05CustomerCopy, canonical: Canonical): "OK" | string {
+  const serialized = JSON.stringify(copy);
+  const parsed = parseCustomerCopy(copy.question_mode, copy.language, serialized);
+  if (parsed.kind !== "ok") return parsed.kind === "unpresentable" ? "DICE_COPY_UNPRESENTABLE" : parsed.code;
+  if (!measureDiceTokenLimit(serialized, CUSTOMER_COPY_OUTPUT_CAP).within_limit) return "DICE_COPY_OUTPUT_TOKEN_CAP";
+  const checks = [
+    prohibitedLanguageCheck(parsed.value),
+    completenessCheck(parsed.value),
+    preservationCheck(parsed.value, canonical),
+    sourceParityCheck(parsed.value, canonical),
+  ];
+  return checks.find((c) => c !== "OK") ?? "OK";
+}
+
+/** A validated fallback, or the controlled copy-unavailable outcome when none can be produced. */
+export function buildValidatedFallback(canonical: Canonical):
+  | Readonly<{ ok: true; copy: DiceV05CustomerCopy }>
+  | Readonly<{ ok: false; reason: string }> {
+  const candidate = deterministicCustomerCopy(canonical);
+  const verdict = validateDisplayCopy(candidate, canonical);
+  return verdict === "OK" ? Object.freeze({ ok: true, copy: candidate }) : Object.freeze({ ok: false, reason: verdict });
+}
+
+/* ------------------------------------------------------------------ *
+ * Stage-3 execution — the third provider call, with one controlled retry, a validated
+ * deterministic fallback, and a controlled copy-unavailable outcome when no valid copy can be
+ * produced. Never invents astrology; never truncates; never a second customer charge.
+ *
+ * `source`:
+ *  - "stage3"      → the provider copy passed the full shared validation.
+ *  - "fallback"    → the deterministic fallback passed the full shared validation.
+ *  - "unavailable" → neither could be validly produced; `copy` is null and the caller shows the
+ *                    fixed CUSTOMER_COPY_UNAVAILABLE_MESSAGE through the failure-presentation path.
  * ------------------------------------------------------------------ */
 export type CustomerCopyOutcome = Readonly<{
-  copy: DiceV05CustomerCopy;
-  source: "stage3" | "fallback";
+  copy: DiceV05CustomerCopy | null;
+  source: "stage3" | "fallback" | "unavailable";
   provider_calls: number;
   failure_code: string | null;
 }>;
+
+// Resolve a validated fallback or the unavailable outcome, carrying the failure code through.
+function fallbackOrUnavailable(canonical: Canonical, calls: number, failureCode: string): CustomerCopyOutcome {
+  const fb = buildValidatedFallback(canonical);
+  if (fb.ok) return Object.freeze({ copy: fb.copy, source: "fallback", provider_calls: calls, failure_code: failureCode });
+  return Object.freeze({ copy: null, source: "unavailable", provider_calls: calls, failure_code: `${failureCode}|FALLBACK_${fb.reason}` });
+}
 
 export async function executeDiceV05CustomerCopy(
   canonical: Canonical,
@@ -460,7 +579,7 @@ export async function executeDiceV05CustomerCopy(
 
   // A route-review / non-ok canonical result has no customer copy to write.
   if (canonical.status && canonical.status !== "ok") {
-    return Object.freeze({ copy: deterministicCustomerCopy(canonical), source: "fallback", provider_calls: 0, failure_code: "DICE_COPY_SOURCE_NOT_OK" });
+    return fallbackOrUnavailable(canonical, 0, "DICE_COPY_SOURCE_NOT_OK");
   }
 
   const input = buildCustomerCopyInput(canonical, customerQuestion);
@@ -472,6 +591,7 @@ export async function executeDiceV05CustomerCopy(
   let calls = 0;
   let lastFailure = "DICE_COPY_UNAVAILABLE";
   for (let attempt = 1; attempt <= 2; attempt += 1) {
+    // No time left on the single end-to-end deadline: skip the provider call entirely (C03).
     if (now() >= deadline) { lastFailure = "DICE_COPY_TIMEOUT"; break; }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.max(0, deadline - now()));
@@ -487,15 +607,15 @@ export async function executeDiceV05CustomerCopy(
       if (["authentication", "permission", "content_filter"].includes(res.kind) || attempt === 2 || now() >= deadline) break;
       continue;
     }
-    if (!measureDiceTokenLimit(res.content, CUSTOMER_COPY_OUTPUT_CAP).within_limit) { lastFailure = "DICE_COPY_OUTPUT_TOKEN_CAP"; if (attempt < 2 && now() < deadline) continue; break; }
+    // Parse the contract first (this also rejects a non-legal unpresentable object), then run the
+    // full shared display validation so provider copy and fallback pass through the SAME checks.
     const parsed = parseCustomerCopy(mode, language, res.content);
     if (parsed.kind === "unpresentable") { lastFailure = "DICE_COPY_UNPRESENTABLE"; break; }
     if (parsed.kind === "invalid") { lastFailure = parsed.code; if (attempt < 2 && now() < deadline) continue; break; }
-    const checks = [prohibitedLanguageCheck(parsed.value), completenessCheck(parsed.value), preservationCheck(parsed.value, canonical)];
-    const failed = checks.find((c) => c !== "OK");
-    if (failed) { lastFailure = failed; if (attempt < 2 && now() < deadline) continue; break; }
+    const verdict = validateDisplayCopy(parsed.value, canonical);
+    if (verdict !== "OK") { lastFailure = verdict; if (attempt < 2 && now() < deadline) continue; break; }
     return Object.freeze({ copy: parsed.value, source: "stage3", provider_calls: calls, failure_code: null });
   }
-  // Deterministic, complete, astrology-free fallback from validated canonical content.
-  return Object.freeze({ copy: deterministicCustomerCopy(canonical), source: "fallback", provider_calls: calls, failure_code: lastFailure });
+  // No valid Stage-3 copy: validated deterministic fallback, or controlled copy-unavailable.
+  return fallbackOrUnavailable(canonical, calls, lastFailure);
 }
