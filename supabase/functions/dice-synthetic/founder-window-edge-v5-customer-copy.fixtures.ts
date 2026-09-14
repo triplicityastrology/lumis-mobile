@@ -23,14 +23,14 @@ const stage2Judgment = JSON.stringify({
   suggested_followups: ["What should I prepare first?"],
 });
 const goodCopy = JSON.stringify({
-  schema: DICE_V05_CUSTOMER_COPY_SCHEMA, language: "en", question_mode: "judgment",
+  schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
   headline: "The conditions clearly support stepping forward.",
   reading: "The wider situation favours you and keeps the choice in your own hands. The main caution is practical rather than about the opportunity itself.",
   watch_out: "Stay optimistic, but do not skip the practical preparation.",
   practical_step: null, suggested_followups: ["What should I prepare first?"],
 });
 const rankyCopy = JSON.stringify({
-  schema: DICE_V05_CUSTOMER_COPY_SCHEMA, language: "en", question_mode: "judgment",
+  schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
   headline: "This is rank 1, a strong result.", reading: "The overall grade is favourable.",
   watch_out: "Watch the ranking.", practical_step: null, suggested_followups: ["What next?"],
 });
@@ -55,11 +55,18 @@ async function main() {
   eq(good.astrology_provider_calls, 2, "Stage 1 + Stage 2 = 2 astrology calls");
   eq(good.provider_calls, 3, "Stage 1 + Stage 2 + Stage 3 = 3 provider calls");
   eq(good.copy_source, "stage3", "customer copy came from Stage 3");
-  eq(good.customer_copy.schema, DICE_V05_CUSTOMER_COPY_SCHEMA, "envelope carries the customer-copy schema");
-  eq(good.customer_copy.question_mode, "judgment", "copy keeps the mode");
-  eq(good.customer_copy.practical_step, null, "judgment copy has no practical step");
+  ok(good.customer_copy, "stage3 copy present");
+  eq(good.customer_copy!.schema, DICE_V05_CUSTOMER_COPY_SCHEMA, "envelope carries the customer-copy schema");
+  eq(good.customer_copy!.status, "ok", "displayed copy carries status ok");
+  eq(good.customer_copy!.question_mode, "judgment", "copy keeps the mode");
+  eq(good.customer_copy!.practical_step, null, "judgment copy has no practical step");
   eq((good.result as any).question_mode, "judgment", "canonical Stage-2 result retained separately");
   eq((good.result as any).planet_side !== null && (good.result as any).house_side !== null, true, "canonical judgment keeps both axes");
+  // C04: metadata carries the ACTUAL three-stage total plus the separate call counts and copy_source.
+  eq(good.metadata.provider_calls, 3, "metadata.provider_calls is the three-stage total");
+  eq(good.metadata.astrology_provider_calls, 2, "metadata keeps the separate astrology-call count");
+  eq(good.metadata.copy_provider_calls, 1, "metadata keeps the separate copy-call count");
+  eq(good.metadata.copy_source, "stage3", "metadata carries copy_source for the transport");
   eq(good.metadata.units_consumed, 0, "units stay 0"); eq(good.metadata.persistence_writes, 0, "persistence stays 0");
 
   // (2) Stage-3 emits a prohibited term (rank/overall grade) -> deterministic fallback, no throw.
@@ -67,8 +74,12 @@ async function main() {
   ok(fb.kind === "completed", "prohibited Stage-3 copy still completes (fallback)");
   if (fb.kind !== "completed") throw new Error("unreachable");
   eq(fb.copy_source, "fallback", "prohibited copy falls back to deterministic customer copy");
-  eq(prohibitedLanguageCheck(fb.customer_copy), "OK", "fallback copy carries no prohibited term");
-  eq(completenessCheck(fb.customer_copy), "OK", "fallback copy has no fragment");
+  ok(fb.customer_copy, "fallback copy present");
+  eq(prohibitedLanguageCheck(fb.customer_copy!), "OK", "fallback copy carries no prohibited term");
+  eq(completenessCheck(fb.customer_copy!), "OK", "fallback copy has no fragment");
+  // The prohibited copy is rejected on both attempts, so Stage 3 made two calls (one retry) → total 4.
+  eq(fb.provider_calls, 4, "a single Stage-3 retry reports four total provider calls");
+  eq(fb.metadata.copy_source, "fallback", "metadata labels the deterministic fallback");
   eq((fb.result as any).synthesis, (good.result as any).synthesis, "canonical Stage-2 result is unchanged by Stage-3 outcome");
 
   // (3) Route-review passes through unchanged, with no customer copy.
