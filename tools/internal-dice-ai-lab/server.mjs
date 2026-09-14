@@ -2,7 +2,7 @@
 /** Loopback-only Founder Dice Lab. Live credentials remain server-side; raw content is session-only. */
 import http from "node:http";
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import {
   createFounderDiceGatewayClient,
@@ -25,6 +25,23 @@ const V05_BUNDLED_COPY = { en: "This contains more than one question. Each Dice 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const registryPath = path.join(root, "apps/mobile/src/services/diceFounderFixtureRegistry.ts");
+
+// AUTHORITATIVE customer-copy validation for the Web boundary (S03). The Web runtime does not
+// re-implement a weaker duplicate validator; it loads the SAME compiled module the backend uses
+// (parseCustomerCopy + validateDisplayCopy + validateLocationProjection). The compiled artifact is
+// produced by `tsc -p supabase/functions/tsconfig.dice-v0-5-test.json` (the web-lab test builds it
+// first); if it is missing we fail closed rather than fall back to a shallow check.
+const COMPILED_COPY_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-customer-copy.js");
+let _copyValidatorPromise = null;
+function loadAuthoritativeCopyValidator() {
+  if (!_copyValidatorPromise) {
+    _copyValidatorPromise = import(pathToFileURL(COMPILED_COPY_MODULE).href).catch((error) => {
+      _copyValidatorPromise = null;
+      throw new Error(`LAB_V05_AUTHORITATIVE_VALIDATOR_UNAVAILABLE: build the v5 test output first (tsc -p supabase/functions/tsconfig.dice-v0-5-test.json). ${error?.message ?? error}`);
+    });
+  }
+  return _copyValidatorPromise;
+}
 const interpretationBankPath = path.join(root, "apps/mobile/src/features/dice/interpretationBank.ts");
 const BANNER = "Synthetic staging only — no member data.";
 const PORT = Number(process.env.LUMIS_INTERNAL_DICE_LAB_PORT || 8147);
@@ -279,8 +296,12 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
       .map((r) => { const place = byRank.get(r)?.place; if (!place) return null; return ext && ext.candidate_rank === r ? `${place}${sep}${ext.relationship}` : place; })
       .filter(Boolean);
     sections.push({ heading: H("candidates"), body: "", items });
-    if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
-    if (copy.practical_step) sections.push({ heading: H("search"), body: copy.practical_step });
+    // The warning and the SEARCH STEP are canonical facts: render them from the canonical result,
+    // never from provider prose, so a rewritten step ("Go to the airport first.") can never replace
+    // the approved instruction ("Search the bedroom first.") (S01). The boundary guard also requires
+    // copy.watch_out / copy.practical_step to equal the canonical values, so these are consistent.
+    if (canonical.watch_out) sections.push({ heading: H("watch"), body: canonical.watch_out });
+    if (canonical.practical_step) sections.push({ heading: H("search"), body: canonical.practical_step });
   } else {
     sections.push({ heading: COPY_DIRECT_TITLE[mode][lang], body: copy.headline });
     sections.push({ heading: H("explanation"), body: copy.reading });
@@ -290,30 +311,10 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
   return Object.freeze({ kind: "reading", language: lang, question_mode: mode, opening, sections: Object.freeze(sections) });
 }
 
-// Per-language field caps at the rendering boundary. Kept in sync with COPY_CAPS in
-// dice-v0-5-customer-copy.ts (server.mjs cannot import the TS module). The authoritative
-// validation already ran in the backend composition; this is defense-in-depth so the Web
-// surface never renders arbitrary follow-up items or unchecked over-limit text (C04).
-const COPY_BOUNDARY_CAPS = {
-  headline: { en: 140, "zh-Hant": 48 }, reading: { en: 620, "zh-Hant": 220 },
-  watch_out: { en: 240, "zh-Hant": 80 }, practical_step: { en: 280, "zh-Hant": 110 }, followup: { en: 80, "zh-Hant": 30 },
-};
-const within = (v, cap) => typeof v === "string" && v.trim() !== "" && [...v].length <= cap;
-const nullOrWithin = (v, cap) => v === null || within(v, cap);
-
-// Server-side shape + rule guard for a Stage-3 copy envelope arriving from the gateway. Enforces
-// status "ok", identity, non-empty capped prose, and follow-ups as ≤3 non-empty capped strings.
-function isCustomerCopyShape(copy, language, mode) {
-  if (!copy || typeof copy !== "object") return false;
-  const c = COPY_BOUNDARY_CAPS;
-  return copy.status === "ok" && copy.schema === "lumis_dice_customer_copy_v1"
-    && copy.language === language && copy.question_mode === mode
-    && within(copy.headline, c.headline[language]) && within(copy.reading, c.reading[language])
-    && nullOrWithin(copy.watch_out, c.watch_out[language])
-    && nullOrWithin(copy.practical_step, c.practical_step[language])
-    && Array.isArray(copy.suggested_followups) && copy.suggested_followups.length <= 3
-    && copy.suggested_followups.every((f) => within(f, c.followup[language]));
-}
+// (The former shallow `isCustomerCopyShape` boundary guard is removed. The Web boundary now uses
+// the AUTHORITATIVE compiled validator — parseCustomerCopy + validateDisplayCopy — loaded via
+// loadAuthoritativeCopyValidator(), plus validateLocationProjection for the canonical Location
+// projection. See executeLabFreeTextV05Request below (S03).)
 
 export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory } = {}) {
   const selection = validateLabFreeTextRunRequest(raw);
@@ -328,8 +329,20 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
     const code = kind === "safety" ? "DICE_SAFETY_REDIRECT" : kind === "bundled" ? "DICE_BUNDLED_QUESTION" : kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
     return Object.freeze({ status: 200, body: { code, presentation: deterministicV05Presentation(kind, language), classification: null, metadata, provider_calls: metadata?.provider_calls ?? 0, persistence_writes: 0, units_charged: 0 } });
   }
+  const cp = await loadAuthoritativeCopyValidator();
   const result = validateLabV05Result(response.result, language);
-  if (!result || !metadata || metadata.language !== language) return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("fallback", language), classification: null, metadata: null, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
+  // D05: honest provider-call reporting on a presentation failure.
+  //  - metadata UNTRUSTED (redaction failed or language mismatch): we cannot assert a call total,
+  //    so report provider_calls null with disposition "unknown" — never a false 0.
+  //  - metadata TRUSTED but the canonical result is malformed (incl. a bad Location projection):
+  //    the provider calls really happened, so PRESERVE metadata.provider_calls (disposition
+  //    "measured"); show the fixed failure message, never the old canonical technical renderer.
+  if (!metadata || metadata.language !== language) {
+    return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("fallback", language), classification: null, metadata: null, provider_calls: null, provider_calls_disposition: "unknown", persistence_writes: 0, units_charged: 0 } });
+  }
+  if (!result || cp.validateLocationProjection(result) !== "OK") {
+    return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("copy_unavailable", language), classification: { question_mode: null, copy_source: "unavailable" }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
+  }
   // copy_source is carried in metadata (edge → gateway → server); it is NOT inferred from the
   // mere presence of a copy object and NEVER defaults to "stage3" (C04).
   const copy = response.customer_copy;
@@ -340,17 +353,19 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
       code: "DICE_COPY_UNAVAILABLE",
       presentation: deterministicV05Presentation("copy_unavailable", language),
       classification: { question_mode: result.question_mode, copy_source: "unavailable" },
-      metadata, provider_calls: metadata.provider_calls, persistence_writes: 0, units_charged: 0,
+      metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0,
     },
   });
-  // Controlled copy-unavailable: the backend produced no valid copy, OR the source metadata is
-  // missing/invalid, OR the copy fails the boundary guard. In every case show the fixed
-  // copy-unavailable message through the failure-presentation path — NEVER unchecked canonical
-  // technical prose, and never a successful-reading label (C01/C04).
+  // Controlled copy-unavailable: no valid copy, an unrecognized source, OR a copy that fails the
+  // AUTHORITATIVE boundary validation (S03) — the SAME parser + shared validation the backend uses
+  // (exact keys, per-mode required/null rules, follow-up count, caps, prohibited terms, completeness,
+  // preservation/parity and the serialized token cap). No shallow duplicate check; no unchecked
+  // canonical technical prose; never a successful-reading label.
   if (copySource === "unavailable" || copy === null) return unavailable;
-  if ((copySource !== "stage3" && copySource !== "fallback") || !isCustomerCopyShape(copy, language, result.question_mode)) return unavailable;
+  const displayable = copySource === "deterministic" || copySource === "stage3" || copySource === "fallback";
+  if (!displayable || cp.validateDisplayCopy(copy, result) !== "OK") return unavailable;
   const presentation = presentCustomerCopyV05(copy, result, selection);
-  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, persistence_writes: 0, units_charged: 0 } });
+  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
 }
 
 export async function executeLabRequest(raw, { fixtures, providerEnabled = false, gatewayFactory } = {}) {

@@ -245,7 +245,7 @@ export function redactV05Metadata(value) {
     if (!copyKeys.every((k) => keys.includes(k))) return null; // all-or-none
     if (!Number.isInteger(value.astrology_provider_calls) || value.astrology_provider_calls < 0) return null;
     if (!Number.isInteger(value.copy_provider_calls) || value.copy_provider_calls < 0) return null;
-    if (!["stage3", "fallback", "unavailable"].includes(value.copy_source)) return null;
+    if (!["deterministic", "stage3", "fallback", "unavailable"].includes(value.copy_source)) return null;
     if (value.astrology_provider_calls + value.copy_provider_calls !== value.provider_calls) return null;
   }
   return Object.freeze({ ...value });
