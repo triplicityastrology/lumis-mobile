@@ -330,8 +330,16 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   const language = /[㐀-鿿豈-﫿]/u.test(selection.question) ? "zh-Hant" : "en";
   if (!providerEnabled) return Object.freeze({ status: 503, body: { code: "DICE_AI_DISABLED", presentation: deterministicV05Presentation("fallback", language), classification: null, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
   if (typeof gatewayFactory !== "function") throw new Error("LAB_V05_GATEWAY_NOT_CONFIGURED");
+  // G03: the request has already been validated as a legal user request. Everything below is
+  // gateway TRANSPORT + downstream execution: a fetch rejection, a timeout, a malformed upstream
+  // success envelope or a validator/assembler throw is a SERVICE failure, never an invalid-user
+  // request. Catch it here and return a controlled 502 with an HONEST call total (the trusted
+  // metadata total if we already have it, otherwise null/"unknown" — never a fabricated 0), so it
+  // can never fall through to the outer HTTP catch and be relabelled LAB_..._REQUEST_INVALID.
+  let metadata = null;
+  try {
   const response = await gatewayFactory().run({ question: selection.question, planet_id: selection.planet.id, sign_id: selection.sign.id, house_id: selection.house.id });
-  const metadata = redactV05Metadata(response.metadata);
+  metadata = redactV05Metadata(response.metadata);
   if (response.kind !== "completed") {
     const kind = response.kind === "safety" ? "safety" : response.kind === "bundled" ? "bundled" : response.kind === "route_review" ? "route_review" : "fallback";
     const code = kind === "safety" ? "DICE_SAFETY_REDIRECT" : kind === "bundled" ? "DICE_BUNDLED_QUESTION" : kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
@@ -366,10 +374,14 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   // canonical Location projection guard. validateDiceV05FinalResult rejects a non-record first, so
   // the result.language / result.question_mode reads below are safe. Any failure is a controlled
   // copy-unavailable; the provider calls really happened, so PRESERVE the measured total (never 0).
+  // G02: the Location projection is validated against the TRUSTED landed selection (the physical
+  // throw from the validated request), so evidence provenance — not just shape — is enforced at the
+  // Web boundary using the production resolver authority.
+  const landing = { planet: selection.planet.id, sign: selection.sign.id, house: Number(String(selection.house.id).slice("house_".length)) };
   if (cp.validateDiceV05FinalResult(result) !== "OK"
       || result.language !== language
       || metadata.question_mode !== result.question_mode
-      || cp.validateLocationProjection(result) !== "OK") {
+      || cp.validateLocationProjection(result, landing) !== "OK") {
     return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("copy_unavailable", language), classification: { question_mode: null, copy_source: "unavailable" }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   }
   const unavailable = Object.freeze({
@@ -402,13 +414,29 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
       && (result.question_mode === "person" || result.question_mode === "reason" || result.question_mode === "thing_or_situation")) {
     const supplied = response.customer_copy;
     if (!supplied || typeof supplied !== "object" || Array.isArray(supplied)) return unavailable;
-    const merged = cp.mergeProviderProse(result, supplied);
+    // G04-A: run the COMPLETE supplied object through the authoritative parser with the TRUSTED
+    // canonical mode + language BEFORE merging. A missing/extra field, a wrong schema/status/mode/
+    // language, or a legal-unpresentable object is rejected here — never coerced (mergeProviderProse
+    // would otherwise turn a missing headline into the literal "undefined." via String(...)).
+    const suppliedSerialized = JSON.stringify(supplied);
+    const parsedSupplied = cp.parseCustomerCopy(result.question_mode, result.language, suppliedSerialized);
+    if (parsedSupplied.kind !== "ok") return unavailable;
+    const merged = cp.mergeProviderProse(result, parsedSupplied.value);
     if (cp.validateDisplayCopy(merged, result) !== "OK") return unavailable;
     displayCopy = merged;
     copySource = "stage3";
   }
   const presentation = presentCustomerCopyV05(displayCopy, result, selection);
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
+  } catch {
+    // Gateway/transport or downstream execution failure on a VALID request → controlled 502 service
+    // result. Preserve a trusted total if metadata was already redacted; otherwise the count is
+    // genuinely unknown (an attempt is not proof a provider request completed) — never a false 0,
+    // and never LAB_..._REQUEST_INVALID. No raw upstream exception text is exposed.
+    const disp = metadata ? { provider_calls: metadata.provider_calls, provider_calls_disposition: "measured" } : { provider_calls: null, provider_calls_disposition: "unknown" };
+    const language2 = /[㐀-鿿豈-﫿]/u.test(selection.question) ? "zh-Hant" : "en";
+    return Object.freeze({ status: 502, body: { code: "DICE_SERVICE_UNAVAILABLE", presentation: deterministicV05Presentation("fallback", language2), classification: null, metadata: metadata ?? null, ...disp, persistence_writes: 0, units_charged: 0 } });
+  }
 }
 
 export async function executeLabRequest(raw, { fixtures, providerEnabled = false, gatewayFactory } = {}) {

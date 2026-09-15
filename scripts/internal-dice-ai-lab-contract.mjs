@@ -190,6 +190,10 @@ const v05Judgment = { schema: "lumis_dice_interpretation_v5", status: "ok", lang
 // The Web boundary now validates copy with the AUTHORITATIVE compiled module. Build the mocked
 // success copy AS the deterministic assembly of the canonical, so it passes that validation.
 const CP = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-customer-copy.js")).href);
+// Real production Location authority (resolver + wire validator + assembler) and the final-result
+// validator, so Location controls/mutations are built from genuine selected IDs (G02), not fakes.
+const PRESENT = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-presentation.js")).href);
+const CONTRACT = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-interpretation-contract.js")).href);
 const v05Deterministic = CP.deterministicCustomerCopy(v05Judgment);
 const v05Meta = (over = {}) => ({ request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, astrology_provider_calls: 2, copy_provider_calls: 0, copy_source: "deterministic", latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0, ...over });
 const v05FreeText = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
@@ -258,30 +262,18 @@ for (const [label, brokenCanonical] of [
   assert.equal(res.body.code, "DICE_COPY_UNAVAILABLE", `F03 broken component → controlled unavailable: ${label}`);
   assert.ok(!("sections" in res.body.presentation), `F03 ${label}: no reading sections shown`);
 }
-// F02 (P05–P11, P21): the authoritative final-result validator AND the full Location projection guard
-// run at the Web boundary. Each invariant is exercised IN ISOLATION on an otherwise-valid baseline;
-// every failure returns the controlled DICE_FIXED_FALLBACK with the measured provider total preserved.
-const v05LocBase = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null,
-  most_likely_area: "at home", location_candidates: [
-    { rank: 1, place: "the bedroom", evidence: { planet_ids: ["planet.moon.related.1"], house_ids: [], element_ids: [] } },
-    { rank: 2, place: "the kitchen", evidence: { planet_ids: ["planet.moon.related.2"], house_ids: [], element_ids: [] } }],
-  location_extension: { candidate_rank: 1, source_id: "planet.moon.related.1", relationship: "A document pouch is a direct container for a passport." }, location_search_order: [1, 2],
-  synthesis: "Start at home, then narrower spots.", timing_summary: null, watch_out: "Do not check only the obvious spots.", practical_step: "Begin with the bedroom.", suggested_followups: [] };
-const locMut = (over) => ({ ...v05LocBase, ...over });
-const cand = (over) => [{ ...v05LocBase.location_candidates[0], ...over }, v05LocBase.location_candidates[1]];
-const v05LocSel = { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" };
-const locMeta = () => v05Meta({ question_mode: "location", language: "en" });
+// F02 (P05–P07, P11, P21): the authoritative FINAL-result validator + envelope mode/language
+// consistency at the Web boundary. Each of these fails at validateDiceV05FinalResult or the metadata
+// mode check (independent of Location provenance, which is covered by the real-resolver G02 block
+// below). Every failure returns DICE_FIXED_FALLBACK with the measured provider total preserved.
 for (const [label, badCanonical, sel, meta] of [
-  ["P05 numeric planet evidence id", locMut({ location_candidates: cand({ evidence: { planet_ids: [99], house_ids: [], element_ids: [] } }) }), v05LocSel, locMeta()],
-  ["P06 extension missing source_id", locMut({ location_extension: { candidate_rank: 1, relationship: "x is a direct container for a passport." } }), v05LocSel, locMeta()],
-  ["P07 negative ranks and order", locMut({ location_candidates: [{ ...v05LocBase.location_candidates[0], rank: -1 }, { ...v05LocBase.location_candidates[1], rank: -2 }], location_search_order: [-1, -2], location_extension: null }), v05LocSel, locMeta()],
-  ["P08 extension source not cited", locMut({ location_extension: { candidate_rank: 1, source_id: "planet.moon.related.9", relationship: "A pouch is a direct container for a passport." } }), v05LocSel, locMeta()],
-  ["P09 rank-1 has no evidence", locMut({ location_candidates: cand({ evidence: { planet_ids: [], house_ids: [], element_ids: [] } }), location_extension: null }), v05LocSel, locMeta()],
-  ["P10 Chinese place in English list", locMut({ location_candidates: cand({ place: "睡房" }), location_extension: null }), v05LocSel, locMeta()],
+  ["P05 numeric planet evidence id", { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null, most_likely_area: "at home", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { planet_ids: [99], house_ids: [], element_ids: [] } }, { rank: 2, place: "the kitchen", evidence: { planet_ids: ["x"], house_ids: [], element_ids: [] } }], location_extension: null, location_search_order: [1, 2], synthesis: "s.", timing_summary: null, watch_out: "w.", practical_step: "p.", suggested_followups: [] }, { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Meta({ question_mode: "location", language: "en" })],
+  ["P06 extension missing source_id key", { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null, most_likely_area: "at home", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { planet_ids: ["x"], house_ids: [], element_ids: [] } }, { rank: 2, place: "the kitchen", evidence: { planet_ids: ["y"], house_ids: [], element_ids: [] } }], location_extension: { candidate_rank: 1, relationship: "x." }, location_search_order: [1, 2], synthesis: "s.", timing_summary: null, watch_out: "w.", practical_step: "p.", suggested_followups: [] }, { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Meta({ question_mode: "location", language: "en" })],
+  ["P07 negative candidate ranks", { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null, most_likely_area: "at home", location_candidates: [{ rank: -1, place: "the bedroom", evidence: { planet_ids: ["x"], house_ids: [], element_ids: [] } }, { rank: -2, place: "the kitchen", evidence: { planet_ids: ["y"], house_ids: [], element_ids: [] } }], location_extension: null, location_search_order: [-1, -2], synthesis: "s.", timing_summary: null, watch_out: "w.", practical_step: "p.", suggested_followups: [] }, { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Meta({ question_mode: "location", language: "en" })],
   ["P11 invalid Judgment dignity enum", { ...v05Judgment, planet_side: { ...v05Judgment.planet_side, dignity: "sovereign" } }, v05FreeText, v05Meta()],
   ["P21 metadata mode contradicts result", v05Judgment, v05FreeText, v05Meta({ question_mode: "timing" })],
 ]) {
-  const res = await executeLabFreeTextV05Request(sel, v05Gateway({ kind: "completed", result: badCanonical, question_mode: badCanonical.question_mode, customer_copy: CP.deterministicCustomerCopy(v05LocBase), metadata: meta }));
+  const res = await executeLabFreeTextV05Request(sel, v05Gateway({ kind: "completed", result: badCanonical, question_mode: badCanonical.question_mode, customer_copy: v05Deterministic, metadata: meta }));
   assert.equal(res.body.code, "DICE_FIXED_FALLBACK", `F02 authoritative canonical rejection: ${label}`);
   assert.ok(!("sections" in res.body.presentation), `F02 ${label}: no sections shown`);
   assert.equal(res.body.provider_calls, meta.provider_calls, `F02 ${label}: measured provider total preserved`);
@@ -324,27 +316,106 @@ const v05JudgeStage3 = await executeLabFreeTextV05Request(v05FreeText, { ...v05G
 assert.equal(v05JudgeStage3.body.code, "DICE_COMPLETED", "Judgment under editor-ON still renders");
 assert.equal(v05JudgeStage3.body.classification.copy_source, "deterministic", "Judgment stays deterministic even with the editor enabled (conclusion-bearing)");
 assert.equal(JSON.stringify(v05JudgeStage3.body.presentation.sections), v05OkSections, "Judgment editor attempt has NO effect on the displayed conclusion");
-// S01 Web: a substituted Location search step never reaches the customer (canonical step rendered).
-const v05Loc = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null,
-  most_likely_area: "A quiet place at home.", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { planet_ids: ["p"], house_ids: [], element_ids: [] } }, { rank: 2, place: "the kitchen", evidence: { planet_ids: [], house_ids: ["h"], element_ids: [] } }],
-  location_extension: null, location_search_order: [1, 2], synthesis: "Look in a private domestic setting.", timing_summary: null,
-  watch_out: "Do not assume it is permanently lost.", practical_step: "Search the bedroom first.", suggested_followups: [] };
-const v05LocCopy = { ...CP.deterministicCustomerCopy(v05Loc), practical_step: "Go to the airport first." };
-const v05LocRes = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Gateway({ kind: "completed", result: v05Loc, question_mode: "location", customer_copy: v05LocCopy, metadata: v05Meta({ question_mode: "location", language: "en" }) }));
-// P04/S01: the substituted airport step is IGNORED — the Web regenerates the Location copy from the
-// validated canonical, so the customer sees the canonical bedroom step and never the airport step.
-assert.equal(v05LocRes.body.code, "DICE_COMPLETED", "S01 renders the canonical Location reading");
-assert.equal(v05LocRes.body.classification.copy_source, "deterministic", "S01 reports the actual deterministic path");
-{
-  const shown = JSON.stringify(v05LocRes.body.presentation);
-  assert.ok(!/airport/i.test(shown), "S01: the substituted airport step never reaches the customer");
-  assert.ok(shown.includes("Search the bedroom first"), "S01: the canonical bedroom step is shown");
+// ---- G02: Location provenance at the Web boundary, built from the REAL resolver (no fake IDs). ----
+// Valid baseline via the production resolver + wire validator + assembler for the Moon/Leo/H4 throw.
+const locSel = { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" };
+const locResolution = PRESENT.buildLocationResolution("en", "moon", "leo", 4);
+const locKeys = locResolution.selectedKeys;
+const locWire = { status: "ok", most_likely_area: "A quiet place at home.", synthesis: "Look in a private domestic setting.",
+  location_candidates: [
+    { rank: 1, place: "the bedroom", evidence: { p: [locKeys.p[0]], h: [], e: [] } },
+    { rank: 2, place: "the kitchen", evidence: { p: [], h: [locKeys.h[0]], e: [] } }],
+  extension: null, search_order: [1, 2], watch_out: "Do not assume it is permanently lost.", practical_step: "Search the bedroom first." };
+assert.equal(CONTRACT.validateLocation(locWire, locKeys), "OK", "G02: the real Location wire baseline validates against selected keys");
+const locCanonical = PRESENT.assembleLocation("en", locWire, locResolution.gid);
+assert.equal(CONTRACT.validateDiceV05FinalResult(locCanonical), "OK", "G02: the assembled Location canonical is a valid final result");
+const locMeta = () => v05Meta({ question_mode: "location", language: "en" });
+const runLoc = (canonical, copy = CP.deterministicCustomerCopy(canonical)) => executeLabFreeTextV05Request(locSel, v05Gateway({ kind: "completed", result: canonical, question_mode: "location", customer_copy: copy, metadata: locMeta() }));
+// Valid control renders through the REAL customer-copy handler.
+const locOk = await runLoc(locCanonical);
+assert.equal(locOk.body.code, "DICE_COMPLETED", "G02 control: a genuine Location canonical renders");
+assert.equal(locOk.body.classification.copy_source, "deterministic", "G02 control: deterministic Location render");
+assert.ok(JSON.stringify(locOk.body.presentation).includes("Search the bedroom first"), "G02 control: canonical search step is shown");
+// P04/S01: a substituted airport step in the SUPPLIED copy is ignored (regeneration); never displayed.
+const locAirport = await runLoc(locCanonical, { ...CP.deterministicCustomerCopy(locCanonical), practical_step: "Go to the airport first." });
+assert.equal(locAirport.body.code, "DICE_COMPLETED", "S01 renders the canonical Location reading");
+assert.ok(!/airport/i.test(JSON.stringify(locAirport.body.presentation)), "S01: the substituted airport step never reaches the customer");
+assert.ok(JSON.stringify(locAirport.body.presentation).includes("Search the bedroom first"), "S01: the canonical bedroom step is shown");
+// The seven G02 mutations, each applied IN ISOLATION to the real baseline → all DICE_FIXED_FALLBACK.
+const venusResolution = PRESENT.buildLocationResolution("en", "venus", "leo", 4);
+const venusPlanetGid = venusResolution.gid[venusResolution.selectedKeys.p[2]]; // a genuine Venus source id
+const p0 = locCanonical.location_candidates[0].evidence.planet_ids[0]; // the real Moon planet gid
+const realPlanetGids = locKeys.p.map((k) => locResolution.gid[k]);
+const locMut = (fn) => { const c = structuredClone(locCanonical); fn(c); return c; };
+const locMutations = [
+  ["invented_source", locMut((c) => { c.location_candidates[0].evidence.planet_ids = ["invented.source"]; c.location_extension = { candidate_rank: 1, source_id: "invented.source", relationship: "A document pouch near the bed." }; })],
+  ["wrong_planet_source", locMut((c) => { c.location_candidates[0].evidence.planet_ids = [venusPlanetGid]; })],
+  ["second_candidate_no_evidence", locMut((c) => { c.location_candidates[1].evidence = { planet_ids: [], house_ids: [], element_ids: [] }; })],
+  ["duplicate_evidence", locMut((c) => { c.location_candidates[0].evidence.planet_ids = [p0, p0]; })],
+  ["three_evidence_keys", locMut((c) => { c.location_candidates[0].evidence.planet_ids = realPlanetGids.slice(0, 3); })],
+  ["missing_rank1", locMut((c) => { c.location_candidates[0].rank = 2; c.location_candidates[1].rank = 3; c.location_search_order = [2, 3]; })],
+  ["reversed_order", locMut((c) => { c.location_search_order = [2, 1]; })],
+];
+for (const [label, canonical] of locMutations) {
+  assert.equal(CONTRACT.validateDiceV05FinalResult(canonical), "OK", `G02 ${label}: final schema still passes (defect is a provenance/order one)`);
+  const res = await runLoc(canonical);
+  assert.equal(res.body.code, "DICE_FIXED_FALLBACK", `G02 Web rejects Location mutation: ${label}`);
+  assert.ok(!("sections" in res.body.presentation), `G02 ${label}: no Location sections shown`);
+  assert.equal(res.body.provider_calls, 2, `G02 ${label}: measured provider total preserved`);
 }
-// S03 malformed Location projection ([1,1] + leaked term) → rejected before any render.
-const v05BadLoc = { ...v05Loc, location_search_order: [1, 1], location_candidates: [{ ...v05Loc.location_candidates[0], place: "planet_speed internal clue" }, v05Loc.location_candidates[1]] };
-const v05BadLocRes = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Gateway({ kind: "completed", result: v05BadLoc, question_mode: "location", customer_copy: CP.deterministicCustomerCopy(v05Loc), metadata: v05Meta({ question_mode: "location", language: "en" }) }));
-assert.equal(v05BadLocRes.body.code, "DICE_FIXED_FALLBACK", "S03 malformed Location projection rejected");
-assert.ok(!("sections" in v05BadLocRes.body.presentation), "S03 malformed Location shows no candidate sections");
+// A leaked internal term in a displayed candidate is still rejected.
+const locLeak = locMut((c) => { c.location_candidates[0].place = "planet_speed internal clue"; });
+assert.equal((await runLoc(locLeak)).body.code, "DICE_FIXED_FALLBACK", "G02: a leaked internal term in a Location candidate is rejected");
+// A Chinese place in an English Location list is rejected (displayed-language leak).
+const locLangLeak = locMut((c) => { c.location_candidates[0].place = "睡房"; });
+assert.equal((await runLoc(locLangLeak)).body.code, "DICE_FIXED_FALLBACK", "G02: a Chinese place in an English Location list is rejected");
+
+// ---- G05: a valid canonical Location whose most_likely_area lacks terminal punctuation STILL
+// renders (terminal-only normalization adds the period); a genuine fragment still fails. ----
+const locNoPunct = locMut((c) => { c.most_likely_area = "A quiet place at home"; });
+assert.equal(CONTRACT.validateDiceV05FinalResult(locNoPunct), "OK", "G05: an unpunctuated area is a valid final result");
+const locNoPunctRes = await runLoc(locNoPunct);
+assert.equal(locNoPunctRes.body.code, "DICE_COMPLETED", "G05: an unpunctuated but complete area renders (no longer forced unavailable)");
+assert.equal(locNoPunctRes.body.presentation.sections.find((s) => s.heading === "Most likely area")?.body, "A quiet place at home", "G05: the complete area is displayed (canonical fact, verbatim)");
+// A genuinely dangling area is still rejected even without punctuation.
+const locDangling = locMut((c) => { c.most_likely_area = "It is probably somewhere in the"; });
+assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G05: a genuinely dangling area ('…in the') is still rejected");
+
+// ---- G03: a gateway/service exception on a VALID request is a controlled 502 service failure —
+// NOT an HTTP 400 invalid-user request, and NEVER a fabricated provider_calls: 0. Driven through the
+// REAL packaged HTTP server with a gateway that throws. ----
+const throwingServer = await createLabServer({ runtime: { v05FreeTextGatewayFactory: () => ({ run: async () => { throw new Error("synthetic gateway transport failure"); } }) } });
+await new Promise((resolve) => throwingServer.listen(0, "127.0.0.1", resolve));
+try {
+  const port = throwingServer.address().port;
+  const httpRes = await fetch(`http://127.0.0.1:${port}/api/run/free-text-v5`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(v05FreeText) });
+  const httpBody = await httpRes.json();
+  assert.equal(httpRes.status, 502, "G03: a gateway exception on a valid request returns HTTP 502 (service failure)");
+  assert.notEqual(httpBody.code, "LAB_V05_FREE_TEXT_REQUEST_INVALID", "G03: a service failure is NOT relabelled as an invalid user request");
+  assert.equal(httpBody.code, "DICE_SERVICE_UNAVAILABLE", "G03: controlled service-unavailable code");
+  assert.equal(httpBody.provider_calls, null, "G03: unknown provider total is null, never a fabricated 0");
+  assert.equal(httpBody.provider_calls_disposition, "unknown", "G03: disposition is unknown (an attempt is not proof a request completed)");
+  assert.ok(!/synthetic gateway transport failure/.test(JSON.stringify(httpBody)), "G03: raw upstream exception text is not exposed");
+  // A genuinely invalid incoming request still returns its normal 400 / zero-call result.
+  const badReqRes = await fetch(`http://127.0.0.1:${port}/api/run/free-text-v5`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: "hi", planet_id: "not_a_planet", sign_id: "leo", house_id: "house_1" }) });
+  const badReqBody = await badReqRes.json();
+  assert.equal(badReqRes.status, 400, "G03: a genuinely invalid request still returns 400");
+  assert.equal(badReqBody.code, "LAB_V05_FREE_TEXT_SELECTION_INVALID", "G03: invalid selection is classified as a bad request");
+} finally {
+  await new Promise((resolve, reject) => throwingServer.close((error) => error ? reject(error) : resolve()));
+}
+
+// ---- G04-A: with the Level-1 editor ENABLED, a malformed supplied editor object is REJECTED by the
+// authoritative parser before any merge — never coerced (a missing headline must never display as
+// "undefined."). ----
+for (const [label, supplied] of [
+  ["empty object {}", {}],
+  ["wrong identity + unpresentable", { schema: "wrong", status: "unpresentable", language: "zh-Hant", question_mode: "timing", headline: "A careful person.", reading: "They value clear commitments." }],
+]) {
+  const res = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: supplied, metadata: stage3Meta }), level1EditorEnabled: true });
+  assert.equal(res.body.code, "DICE_COPY_UNAVAILABLE", `G04-A editor rejects malformed supplied copy: ${label}`);
+  assert.ok(!JSON.stringify(res.body.presentation).includes("undefined."), `G04-A ${label}: no coerced "undefined." text is shown`);
+}
 // Copy unavailable transport: null copy + copy_source "unavailable" → fixed message, no sections.
 const v05Unavailable = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, metadata: v05Meta({ copy_source: "unavailable" }) }));
 assert.equal(v05Unavailable.body.code, "DICE_COPY_UNAVAILABLE", "copy-unavailable is not a successful reading");

@@ -21,9 +21,10 @@
  * elsewhere and is out of scope for this module.
  */
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
-import type { DiceV05Language } from "./dice-v0-5-fixed-data.ts";
+import type { DiceV05Language, DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 import type { DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
 import type { DiceV05ProviderAdapter } from "./dice-v0-5-window.ts";
+import { buildLocationResolution } from "./dice-v0-5-presentation.ts";
 
 export const DICE_V05_CUSTOMER_COPY_SCHEMA = "lumis_dice_customer_copy_v1" as const;
 
@@ -368,11 +369,14 @@ const TERMINAL_END = /[.!?。！？…]["'”』」）)\]]?\s*$/u;
 const TRAILING_TERMINATOR = /[.!?。！？…]+["'”』」）)\]]?\s*$/u;
 // High-confidence dangling connectors / mid-clause commas at the very end (English). Restricted
 // to words that essentially never validly END customer copy — the coordinating conjunctions
-// (and/or/but/nor) and the articles (the/a/an). Prepositions are DELIBERATELY excluded: the review
-// (F04) notes that "to" and "with" can legitimately end a sentence ("what the symbols point to."),
-// and the same is true of of/in/on/for/as/at and phrasal-verb tails ("settle in"), so treating them
-// as dangling produces false positives. The heuristic is conservative and cannot prove grammar.
-const DANGLING_END_EN = /[,;:]\s*$|\b(?:and|or|but|nor|the|a|an)\s*$/iu;
+// (and/or/but/nor), the articles (the/a/an) and the high-confidence subordinating conjunctions
+// (because/unless/although/whereas), which reliably signal an unfinished clause wherever they are
+// the last word (G05: so a genuine "…because" fragment fails by dangling detection alone, not by
+// the terminal-punctuation rule that terminal-only normalization now satisfies). Prepositions are
+// DELIBERATELY excluded: the review (F04) notes "to"/"with" can legitimately end a sentence
+// ("what the symbols point to."), as can of/in/on/for/as/at and phrasal-verb tails ("settle in"),
+// so treating them as dangling produces false positives. The heuristic is conservative, not a proof.
+const DANGLING_END_EN = /[,;:]\s*$|\b(?:and|or|but|nor|the|a|an|because|unless|although|whereas)\s*$/iu;
 // Analogous Chinese dangling connectors / mid-clause punctuation at the very end. Only MULTI-
 // character connectors and trailing mid-clause punctuation are treated as dangling: a single
 // trailing character such as 同/和/及/與/或/但/因/而/並 cannot be reliably distinguished from the
@@ -385,7 +389,16 @@ const isDangling = (s: string): boolean => DANGLING_END_EN.test(s) || DANGLING_E
 // text as-is AND with any trailing terminal punctuation/closing quote stripped, so appending "."
 // cannot smuggle a known truncated tail or a dangling connector past it (S06/C01). `name` labels
 // the failing field in the returned code.
-export function fieldCompleteness(value: string, name: string): "OK" | string {
+//
+// G05: fragment detection (known truncated tails + dangling connectors) is SEPARATE from the
+// terminal-punctuation requirement. `requireTerminal` controls only the latter:
+//   - at the DISPLAY boundary (true, the default) a finished visible field must end on terminal
+//     punctuation — by then `ensureTerminal` has run, so a real complete phrase already passes;
+//   - at the SOURCE-COMPONENT boundary (false) a complete but as-yet-unpunctuated canonical phrase
+//     (e.g. `most_likely_area: "at home"`) is NOT a fragment — the deterministic assembly will add
+//     the period — while a genuine known/dangling fragment STILL fails, with or without punctuation.
+// Adding a period can therefore never turn a genuine broken component into a reading.
+export function fieldCompleteness(value: string, name: string, requireTerminal = true): "OK" | string {
   const t = value.trim();
   if (!t) return `DICE_COPY_EMPTY_FIELD:${name}`;
   const normalized = t.replace(TRAILING_TERMINATOR, "").trimEnd();
@@ -394,7 +407,7 @@ export function fieldCompleteness(value: string, name: string): "OK" | string {
     if (t.endsWith(frag) || normalized.endsWith(bareFrag)) return `DICE_COPY_KNOWN_FRAGMENT:${name}`;
   }
   if (isDangling(t) || isDangling(normalized)) return `DICE_COPY_DANGLING_END:${name}`;
-  if (!TERMINAL_END.test(t)) return `DICE_COPY_NO_TERMINAL_PUNCT:${name}`;
+  if (requireTerminal && !TERMINAL_END.test(t)) return `DICE_COPY_NO_TERMINAL_PUNCT:${name}`;
   return "OK";
 }
 
@@ -438,7 +451,11 @@ export function canonicalProseComplete(canonical: Canonical): "OK" | string {
   for (const [name, v] of parts) {
     if (v === null || v === undefined) continue; // presence/null rules are enforced elsewhere
     if (typeof v !== "string") return `DICE_COPY_SOURCE_PROSE_TYPE:${name}`;
-    const verdict = fieldCompleteness(v, `source.${name}`);
+    // G05: component-stage check is FRAGMENT detection only (known tails + dangling connectors,
+    // before and after terminal-punctuation stripping). A complete but as-yet-unpunctuated source
+    // phrase is not a fragment — the deterministic assembly's ensureTerminal adds the period, and
+    // the final display still enforces terminal punctuation through validateDisplayCopy.
+    const verdict = fieldCompleteness(v, `source.${name}`, false);
     if (verdict !== "OK") return verdict;
   }
   return "OK";
@@ -611,24 +628,46 @@ export function buildValidatedFallback(canonical: Canonical):
 /* ------------------------------------------------------------------ *
  * Authoritative validation of the canonical Location projection that the presentation renders
  * directly (area, candidates, search order, extension). The customer-copy parser cannot see these
- * — they live on the canonical result — so this guard is applied at the display boundary (S03):
- * unique candidate ranks, search order an exact permutation of those ranks, well-formed candidate
- * places + evidence arrays, a valid extension linkage, and no leaked internal/prohibited term in
- * any displayed Location string. Returns "OK" or a failure code.
+ * — they live on the canonical result — so this guard is applied at the display boundary (S03/G02).
+ *
+ * When the trusted `landing` (the physical Planet/Sign/House throw) is supplied, the check reuses
+ * the production `buildLocationResolution` authority to derive the APPROVED selected global-id set
+ * and enforces the full set of existing Location invariants against the DISPLAYED canonical, exactly
+ * as the wire-side `validateLocation` does for the Stage-2 response:
+ *   - every evidence id belongs to the selected Planet / House / Element bank for THIS throw
+ *     (an invented id, or a genuine id from a different planet's resolver, is rejected);
+ *   - every candidate carries at least one direct evidence id, each evidence array is unique and
+ *     holds at most two keys, and the rank-1 candidate carries a direct Planet id;
+ *   - candidate ranks are contiguous starting at 1, and the search order is the approved ascending
+ *     canonical order (not merely some permutation);
+ *   - a valid extension links to a cited source on its candidate that is itself an approved id;
+ *   - no displayed Location string leaks the wrong language or a prohibited internal term.
+ * Without `landing` only the structural (throw-independent) subset runs. Returns "OK" or a code.
  * ------------------------------------------------------------------ */
 const PLACE_CAP = 120;
 const RELATIONSHIP_CAP = 160;
-export function validateLocationProjection(canonical: Canonical): "OK" | string {
+export function validateLocationProjection(
+  canonical: Canonical,
+  landing?: Readonly<{ planet: DiceV05PlanetId; sign: DiceV05SignId; house: number }>,
+): "OK" | string {
   if (familyOf(canonical.question_mode as DiceV05Mode) !== "location") return "OK";
   const language = canonical.language as DiceV05Language;
   const area = canonical.most_likely_area;
   if (!cp(area, COPY_CAPS.headline[language] * 3)) return "DICE_LOCATION_AREA";
   const candidates = canonical.location_candidates;
-  if (!Array.isArray(candidates) || candidates.length === 0) return "DICE_LOCATION_CANDIDATES_MISSING";
+  if (!Array.isArray(candidates) || candidates.length < 2 || candidates.length > 4) return "DICE_LOCATION_CANDIDATES_MISSING";
+  // Approved selected-id set for THIS throw, from the production resolver (G02 provenance).
+  let approved: Readonly<{ p: Set<string>; h: Set<string>; e: Set<string> }> | null = null;
+  if (landing) {
+    const res = buildLocationResolution(language, landing.planet, landing.sign, landing.house);
+    const gids = (keys: readonly string[]) => new Set(keys.map((k) => res.gid[k]).filter((x): x is string => typeof x === "string"));
+    approved = { p: gids(res.selectedKeys.p), h: gids(res.selectedKeys.h), e: gids(res.selectedKeys.e) };
+  }
   const ranks: number[] = [];
   const displayed: string[] = [String(area)];
   const evidenceByRank = new Map<number, string[]>();
   const isStrArr = (a: unknown): a is string[] => Array.isArray(a) && a.every((x) => typeof x === "string");
+  const within = (arr: string[], set: Set<string>) => arr.every((x) => set.has(x));
   for (const c of candidates) {
     // Positive, bounded, integer ranks only (1..4) — negative/out-of-range ranks are rejected here,
     // not just by the final-result validator.
@@ -639,22 +678,27 @@ export function validateLocationProjection(canonical: Canonical): "OK" | string 
     const ev = c.evidence;
     // Evidence must be three arrays OF STRINGS (a numeric/leaked id is rejected).
     if (!isRecord(ev) || !isStrArr(ev.planet_ids) || !isStrArr(ev.house_ids) || !isStrArr(ev.element_ids)) return "DICE_LOCATION_EVIDENCE_TYPE";
-    evidenceByRank.set(c.rank as number, [...(ev.planet_ids as string[]), ...(ev.house_ids as string[]), ...(ev.element_ids as string[])]);
+    const p = ev.planet_ids as string[], h = ev.house_ids as string[], e = ev.element_ids as string[];
+    // Each evidence array holds at most two keys and no duplicate (existing wire rule).
+    if (p.length > 2 || h.length > 2 || e.length > 2) return "DICE_LOCATION_EVIDENCE_ARRAY_TOO_LONG";
+    for (const a of [p, h, e]) if (new Set(a).size !== a.length) return "DICE_LOCATION_DUPLICATE_EVIDENCE_KEY";
+    // Every candidate needs at least one direct evidence id (not only rank 1).
+    if (p.length + h.length + e.length < 1) return "DICE_LOCATION_NO_DIRECT_EVIDENCE";
     // Planet-primary rule: the rank-1 candidate must carry at least one direct Planet evidence id.
-    if ((c.rank as number) === 1 && (ev.planet_ids as string[]).length === 0) return "DICE_LOCATION_RANK1_NO_PLANET_EVIDENCE";
+    if ((c.rank as number) === 1 && p.length === 0) return "DICE_LOCATION_RANK1_NO_PLANET_EVIDENCE";
+    // Provenance: every id must belong to the SELECTED bank for this exact throw, by category.
+    if (approved && !(within(p, approved.p) && within(h, approved.h) && within(e, approved.e))) return "DICE_LOCATION_UNSELECTED_SOURCE";
+    evidenceByRank.set(c.rank as number, [...p, ...h, ...e]);
   }
   if (new Set(ranks).size !== ranks.length) return "DICE_LOCATION_RANKS_NOT_UNIQUE";
+  // Ranks must be CONTIGUOUS starting at 1 (1,2,…,n) — a set that skips rank 1 is rejected.
+  const sortedRanks = ranks.slice().sort((a, b) => a - b);
+  for (let i = 0; i < sortedRanks.length; i++) if (sortedRanks[i] !== i + 1) return "DICE_LOCATION_RANKS_NOT_CONTIGUOUS";
   const order = canonical.location_search_order;
   if (!Array.isArray(order)) return "DICE_LOCATION_ORDER_MISSING";
-  // search order must be an exact permutation of the candidate ranks (no missing, extra or repeated).
-  if (order.length !== ranks.length) return "DICE_LOCATION_ORDER_LENGTH";
+  // Search order must be the APPROVED ascending canonical order (1,2,…,n), not merely a permutation.
+  if (order.length !== sortedRanks.length || order.some((v, i) => v !== sortedRanks[i])) return "DICE_LOCATION_ORDER_NOT_ASCENDING";
   const rankSet = new Set(ranks);
-  const seen = new Set<number>();
-  for (const r of order) {
-    if (!Number.isInteger(r) || !rankSet.has(r as number)) return "DICE_LOCATION_ORDER_UNKNOWN_RANK";
-    if (seen.has(r as number)) return "DICE_LOCATION_ORDER_DUPLICATE_RANK";
-    seen.add(r as number);
-  }
   const ext = canonical.location_extension;
   if (ext !== null && ext !== undefined) {
     if (!isRecord(ext) || !Number.isInteger(ext.candidate_rank) || !rankSet.has(ext.candidate_rank as number)) return "DICE_LOCATION_EXTENSION_RANK";
@@ -664,6 +708,8 @@ export function validateLocationProjection(canonical: Canonical): "OK" | string 
     // (not an id from elsewhere or invented) — semantic linkage, beyond rank membership.
     const citedByRef = evidenceByRank.get(ext.candidate_rank as number) ?? [];
     if (!citedByRef.includes(ext.source_id as string)) return "DICE_LOCATION_EXTENSION_SOURCE_NOT_CITED";
+    // …and, when the throw is known, that cited source must itself be an approved selected id.
+    if (approved && !(approved.p.has(ext.source_id as string) || approved.h.has(ext.source_id as string) || approved.e.has(ext.source_id as string))) return "DICE_LOCATION_EXTENSION_UNSELECTED_SOURCE";
     displayed.push(String(ext.relationship));
   }
   // Every customer-visible Location string must be in the request language (no CJK in an English
@@ -766,13 +812,16 @@ export async function executeDiceV05CustomerCopy(
     if (now() >= deadline) { lastFailure = "DICE_COPY_TIMEOUT"; break; }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.max(0, deadline - now()));
-    let res: { kind: string; content?: string };
+    let res: { kind: string; content?: string; transported?: boolean };
     try {
       res = await adapter.invoke({ prompt: providerInput, deadline_at_ms: deadline, max_output_tokens: genCap, schema_name: schemaName, schema, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
     } finally {
       clearTimeout(timer);
     }
-    calls += 1;
+    // G04-B: count a provider call ONLY for a real TRANSPORT request. An attempt the adapter
+    // short-circuited before any network call (transported === false — e.g. its pre-fetch deadline
+    // check) is not a provider request, on the first attempt OR the retry.
+    if (res.kind === "success" || res.transported !== false) calls += 1;
     if (res.kind !== "success" || typeof res.content !== "string") {
       lastFailure = `DICE_COPY_${res.kind.toUpperCase()}`;
       if (["authentication", "permission", "content_filter"].includes(res.kind) || attempt === 2 || now() >= deadline) break;

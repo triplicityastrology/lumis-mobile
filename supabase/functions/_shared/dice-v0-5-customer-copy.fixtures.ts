@@ -209,6 +209,24 @@ const retry = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", tw
 eq(attempts, 2, "C03: one controlled retry → exactly two attempts within the shared deadline");
 eq(retry.provider_calls, 2, "C03: two provider calls recorded for the retry path");
 
+/* ---- G04-B: Stage-3 counts only real TRANSPORT requests, on the first attempt AND the retry. ---- */
+// Both attempts short-circuit before any network call (transported:false) → zero provider calls.
+let g04Attempts = 0;
+const noTransport: DiceV05ProviderAdapter = { invoke: async () => { g04Attempts += 1; return { kind: "timeout", transported: false } as DiceV05ProviderResult; } };
+const g04NoTransport = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", noTransport, { now: () => 1000, deadlineAtMs: 20000 });
+eq(g04Attempts, 2, "G04-B: both Stage-3 attempts were made (budget available)");
+eq(g04NoTransport.provider_calls, 0, "G04-B: a non-transported attempt is NOT counted, on either attempt");
+// One real transport (network failure) then a non-transported retry → exactly one provider call.
+let g04Seq = 0;
+const oneThenNone: DiceV05ProviderAdapter = { invoke: async () => { g04Seq += 1; return (g04Seq === 1 ? { kind: "network" } : { kind: "timeout", transported: false }) as DiceV05ProviderResult; } };
+const g04Mixed = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", oneThenNone, { now: () => 1000, deadlineAtMs: 20000 });
+eq(g04Mixed.provider_calls, 1, "G04-B: one real transport + one non-transported retry → exactly one provider call");
+// A genuine transported failure on both attempts IS counted twice (contrast control).
+let g04Real = 0;
+const realFail: DiceV05ProviderAdapter = { invoke: async () => { g04Real += 1; return { kind: "network" } as DiceV05ProviderResult; } };
+const g04RealRes = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", realFail, { now: () => 1000, deadlineAtMs: 20000 });
+eq(g04RealRes.provider_calls, 2, "G04-B: two genuine transported failures are counted as two provider calls");
+
 /* ---- D02: the RAW provider output is measured before parse/normalization (real tokenizer) ---- */
 // A valid person copy padded with whitespace so the RAW string exceeds the 700-token cap while the
 // NORMALIZED object stays well within it. The raw guard must reject it (→ fallback), proving that

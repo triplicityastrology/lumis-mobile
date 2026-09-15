@@ -13,7 +13,8 @@ import {
 } from "../_shared/dice-v0-5-customer-copy.ts";
 import { executeDiceV05FreeTextCaseWithCopy } from "../_shared/dice-v0-5-window-with-copy.ts";
 import { executeDiceV05FreeTextCase, parseDiceV05FreeTextRequest, type DiceV05ProviderAdapter } from "../_shared/dice-v0-5-window.ts";
-import { validateDiceV05FinalResult, type DiceV05Mode } from "../_shared/dice-v0-5-interpretation-contract.ts";
+import { validateDiceV05FinalResult, validateLocation, type DiceV05Mode } from "../_shared/dice-v0-5-interpretation-contract.ts";
+import { buildLocationResolution, assembleLocation } from "../_shared/dice-v0-5-presentation.ts";
 import { dignityOf } from "../_shared/dice-v0-5-fixed-data.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
@@ -161,23 +162,32 @@ async function main() {
   eq((bundled as any).provider_calls, 0, "T6 zero provider calls");
   rec("T6", "bundled" as DiceV05Mode);
 
-  // T12 / T12.1 / T12.2 Location — MOCK canonical only; real end-to-end BLOCKED_BY_SEPARATE_WHERE_BASE.
-  const locCanonical = {
-    schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location",
-    planet_side: null, house_side: null, most_likely_area: "Most likely a quiet storage spot at home.",
-    location_candidates: [
-      { rank: 1, place: "the bedroom", evidence: { planet_ids: ["planet.moon.related.bedroom"], house_ids: [], element_ids: [] } },
-      { rank: 2, place: "the kitchen", evidence: { planet_ids: [], house_ids: ["house.4.related.kitchen"], element_ids: [] } },
-    ],
-    location_extension: null, location_search_order: [1, 2],
+  // T12 / T12.1 / T12.2 Location — MOCK canonical built from the REAL resolver + wire validator +
+  // assembler (no fabricated placeholder IDs, per G02); real end-to-end still BLOCKED_BY_SEPARATE_WHERE_BASE.
+  const locThrow = { planet: "moon", sign: "leo", house: 4 } as const;
+  const locResolution = buildLocationResolution("en", locThrow.planet, locThrow.sign, locThrow.house);
+  const locKeys = locResolution.selectedKeys;
+  const locWire = { status: "ok", most_likely_area: "Most likely a quiet storage spot at home.",
     synthesis: "The Moon points to a private, domestic setting, so begin indoors.",
-    timing_summary: null, watch_out: "Do not assume it is permanently lost.", practical_step: "Start with the bedroom, then the kitchen.", suggested_followups: [],
-  };
-  eq(validateLocationProjection(locCanonical as any), "OK", "T12* MOCK Location projection is well-formed (unique ranks, order permutation)");
+    location_candidates: [
+      { rank: 1, place: "the bedroom", evidence: { p: [locKeys.p[0]], h: [], e: [] } },
+      { rank: 2, place: "the kitchen", evidence: { p: [], h: [locKeys.h[0]], e: [] } },
+    ],
+    extension: null, search_order: [1, 2],
+    watch_out: "Do not assume it is permanently lost.", practical_step: "Start with the bedroom, then the kitchen." };
+  eq(validateLocation(locWire as any, locKeys), "OK", "T12* real Location wire baseline validates against selected keys");
+  const locCanonical = assembleLocation("en", locWire, locResolution.gid);
+  eq(validateDiceV05FinalResult(locCanonical), "OK", "T12* assembled Location canonical passes the final validator");
+  // Projection validated WITH the trusted landing → provenance is exercised on real IDs.
+  eq(validateLocationProjection(locCanonical as any, locThrow), "OK", "T12* Location projection passes with the trusted landing (approved selected IDs)");
   const locFb = buildValidatedFallback(locCanonical as any);
   ok(locFb.ok, "T12* location deterministic copy valid");
   ok(locFb.ok && sourceParityCheck(locFb.copy, locCanonical as any) === "OK", "T12* location copy preserves caution/step/follow-ups");
-  for (const id of ["T12", "T12.1", "T12.2"]) { rec(id, "location"); console.log(`${id}: Stage-3 Location copy checked on MOCK canonical — real end-to-end BLOCKED_BY_SEPARATE_WHERE_BASE`); }
+  // A wrong-planet source is rejected by the provenance check even in the MOCK workbook.
+  const venusGid = buildLocationResolution("en", "venus", "leo", 4);
+  const locBadProv = { ...locCanonical, location_candidates: [{ ...(locCanonical as any).location_candidates[0], evidence: { planet_ids: [venusGid.gid[venusGid.selectedKeys.p[2]]], house_ids: [], element_ids: [] } }, (locCanonical as any).location_candidates[1]] };
+  ok(validateLocationProjection(locBadProv as any, locThrow) !== "OK", "T12* a wrong-planet source is rejected by the trusted-landing provenance check");
+  for (const id of ["T12", "T12.1", "T12.2"]) { rec(id, "location"); console.log(`${id}: Stage-3 Location copy checked on MOCK canonical (real resolver IDs) — real end-to-end BLOCKED_BY_SEPARATE_WHERE_BASE`); }
 
   console.log("question_mode recorded per row:", recorded.join(" "));
   console.log("dice-v0-5 workbook customer-copy fixtures passed");
