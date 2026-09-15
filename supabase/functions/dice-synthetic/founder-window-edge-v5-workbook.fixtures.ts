@@ -36,6 +36,47 @@ async function realCanonical(mode: DiceV05Mode, req: any, stage2: Record<string,
   return out.result;
 }
 
+// Parse the `given` envelope actually delivered to the Stage-2 provider from the captured prompt
+// (buildProviderInput serializes it after an "INPUT_JSON:\n" marker).
+function parseStage2Given(prompt: string): any {
+  const marker = "INPUT_JSON:\n";
+  const idx = prompt.indexOf(marker);
+  ok(idx >= 0, "captured Stage-2 prompt carries INPUT_JSON");
+  return JSON.parse(prompt.slice(idx + marker.length)).given;
+}
+
+// F07: drive the REAL window for a Timing landing while CAPTURING the exact Stage-2 request, then
+// assert the timing envelope (planet_speed / house_speed / combined_pace) the PRODUCTION resolver
+// actually delivered — not merely the mocked prose. `expected` is stated independently from the
+// approved authority (review C11); the mock band word is tied to `expected.combined_pace`, so a
+// deliberate swap of buildTimingEnvelope/combinedPaceV05 (Pluto medium→fast, Moon fast→medium)
+// makes this FAIL. Returns the assembled canonical.
+const PACE_BAND_ZH: Record<string, string> = { fast: "偏快", medium: "中等", slow: "偏慢" };
+async function realTimingCanonical(req: any, expected: { planet_speed: string; house_speed: string; combined_pace: string }, stage2: Record<string, unknown>): Promise<any> {
+  const parsed = parseDiceV05FreeTextRequest(req);
+  ok(parsed, `timing request parses for ${JSON.stringify(req)}`);
+  let capturedGiven: any = null;
+  const adapter: DiceV05ProviderAdapter = {
+    invoke: async (r) => {
+      if (r.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "timing", matched_rule: "STEP_1_TIMING" }) };
+      capturedGiven = parseStage2Given(r.prompt);
+      return { kind: "success", content: JSON.stringify(stage2) };
+    },
+  };
+  const out = await executeDiceV05FreeTextCase(parsed!, () => adapter, () => 1000);
+  ok(out.kind === "completed", "real timing window completes");
+  if (out.kind !== "completed") throw new Error("unreachable");
+  eq(validateDiceV05FinalResult(out.result), "OK", "real timing canonical passes validateDiceV05FinalResult");
+  ok(capturedGiven, "the real Stage-2 timing request was captured");
+  // The heart of F07: assert the ACTUAL envelope the production resolver delivered to Stage 2.
+  eq(capturedGiven.planet_speed, expected.planet_speed, `timing planet_speed is the production value '${expected.planet_speed}' (fails if the speed table is swapped)`);
+  eq(capturedGiven.house_speed, expected.house_speed, `timing house_speed is the production value '${expected.house_speed}'`);
+  eq(capturedGiven.combined_pace, expected.combined_pace, `timing combined_pace is the production value '${expected.combined_pace}' (fails if combinedPaceV05 is swapped)`);
+  // Tie the mocked band word to the approved combined_pace so the mock cannot silently disagree.
+  ok(String((stage2 as any).timing_summary).includes(PACE_BAND_ZH[expected.combined_pace]), `mocked timing prose carries the band '${PACE_BAND_ZH[expected.combined_pace]}' matching the production combined_pace`);
+  return out.result;
+}
+
 // A prohibited/fragment copy generator for the GENERIC "defect must be caught" rows.
 const copy = (language: "en" | "zh-Hant", mode: DiceV05Mode, o: Partial<DiceV05CustomerCopy>): DiceV05CustomerCopy => ({
   schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language, question_mode: mode, headline: "H.", reading: "R.", watch_out: null, practical_step: null, suggested_followups: mode === "judgment" ? ["Q?"] : [], ...o,
@@ -58,8 +99,10 @@ async function main() {
   ok(t5copy.ok && t5copy.copy.reading.includes("木星") && t5copy.copy.reading.includes("第一宮") && t5copy.copy.reading.includes("整體方向"), "T5 copy keeps both factors + synthesis");
   ok(t5copy.ok && prohibitedLanguageCheck(t5copy.copy) === "OK", "T5 copy leaks no raw dignity/fortune label (大吉/守護)");
 
-  // --- T7 EXACT: Pluto / Sagittarius / House 1 = MEDIUM. ---
-  const t7 = await realCanonical("timing", { question: "呢單生意幾時會有結果？", planet_id: "pluto", sign_id: "sagittarius", house_id: "house_1" }, {
+  // --- T7 EXACT: Pluto / Sagittarius / House 1 → planet slowest × house fast = MEDIUM (asserted on
+  //     the REAL captured Stage-2 envelope, so a speed/pace swap fails here). ---
+  const t7 = await realTimingCanonical({ question: "呢單生意幾時會有結果？", planet_id: "pluto", sign_id: "sagittarius", house_id: "house_1" },
+    { planet_speed: "slowest", house_speed: "fast", combined_pace: "medium" }, {
     status: "ok", timing_summary: "進度屬於中等，不會即時有結果，但亦不會長期停滯。",
     synthesis: "冥王星本身的節奏非常慢，但第一宮把事情放到你自己手上，會推動並加快整體進程，所以最終落在中等。", watch_out: null,
   });
@@ -67,8 +110,10 @@ async function main() {
   ok(t7copy.ok && t7copy.copy.headline.includes("中等"), "T7 copy preserves the MEDIUM band");
   ok(t7copy.ok && t7copy.copy.reading.includes("非常慢") && t7copy.copy.reading.includes("加快"), "T7 keeps very-slow inherent pace + accelerating House 1");
 
-  // --- T8 EXACT: Moon / Sagittarius / House 1 = FAST (DISTINCT from T7). ---
-  const t8 = await realCanonical("timing", { question: "我份新工幾時會有進展？", planet_id: "moon", sign_id: "sagittarius", house_id: "house_1" }, {
+  // --- T8 EXACT: Moon / Sagittarius / House 1 → planet fastest × house fast = FAST (DISTINCT from T7;
+  //     asserted on the REAL captured Stage-2 envelope). ---
+  const t8 = await realTimingCanonical({ question: "我份新工幾時會有進展？", planet_id: "moon", sign_id: "sagittarius", house_id: "house_1" },
+    { planet_speed: "fastest", house_speed: "fast", combined_pace: "fast" }, {
     status: "ok", timing_summary: "進度屬於偏快，通常會較早見到變化。",
     synthesis: "月亮本身節奏很快，第一宮亦讓事情由你主導，兩者相加令整體進展相對快。", watch_out: null,
   });

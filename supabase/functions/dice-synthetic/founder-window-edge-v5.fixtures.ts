@@ -142,6 +142,35 @@ async function main() {
   ok(!meta.includes("Will my visa") && !meta.includes("TEST_KEY_NOT_A_SECRET") && !meta.includes("content_filter") && !meta.includes("error"), "MB-2 privacy: content-filter metadata leaks no question / credential / provider body");
   ok((cf2 as any).metadata.units_consumed === 0 && (cf2 as any).metadata.persistence_writes === 0, "MB-2 privacy: filtered outcome consumes no units / writes nothing");
 
+  // ---- F05: honest failure accounting and unmeasured latency at the WINDOW boundary ----
+  const f05Req = () => parseDiceV05FreeTextRequest({ question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" })!;
+  // P18: an ALREADY-EXHAUSTED absolute deadline stops the window BEFORE Stage 1 — the adapter is never
+  // invoked and ZERO provider calls are reported (not a false 1). now() is well past the deadline.
+  let p18Invocations = 0;
+  const p18Adapter: DiceV05ProviderAdapter = { invoke: async () => { p18Invocations += 1; return { kind: "success", content: s1("judgment", "STEP_3_JUDGMENT") }; } };
+  const p18 = await executeDiceV05FreeTextCase(f05Req(), p18Adapter, () => 20000, 1000);
+  ok(p18Invocations === 0, "F05/P18: an expired deadline invokes the adapter ZERO times (stops before Stage 1)");
+  ok(p18.provider_calls === 0, "F05/P18: zero provider calls reported for an expired-deadline request");
+  ok(p18.kind === "fallback" && (p18 as any).code === "DICE_TIMEOUT", "F05/P18: expired deadline → controlled timeout fallback");
+  ok((p18 as any).metadata.latency_bucket === "unmeasured", "F05: latency is an EXPLICIT unmeasured label, never a measured-looking bucket");
+  ok((p18 as any).metadata.cost_bucket === "none", "F05: zero-call outcome reports cost 'none' (no policy_within_cap claim)");
+  // P20: even when the window believes there is time, an adapter attempt that short-circuits BEFORE any
+  // transport (transported:false) is NOT counted as a provider call. Here Stage 1 returns a
+  // transported:false timeout; the window reports zero calls and a controlled timeout.
+  let p20Attempts = 0;
+  const p20Adapter: DiceV05ProviderAdapter = { invoke: async () => { p20Attempts += 1; return { kind: "timeout", transported: false }; } };
+  const p20 = await executeDiceV05FreeTextCase(f05Req(), p20Adapter, () => 1000, 12000);
+  ok(p20Attempts === 1, "F05/P20: the adapter attempt was made (window had budget)");
+  ok(p20.provider_calls === 0, "F05/P20: a non-transported attempt is NOT counted as a provider call");
+  ok(p20.kind === "fallback" && (p20 as any).code === "DICE_TIMEOUT", "F05/P20: non-transported Stage-1 attempt → controlled timeout fallback");
+  // Contrast: a genuine transported network failure on Stage 1 (no transported flag) IS counted.
+  let p20bAttempts = 0;
+  const p20bAdapter: DiceV05ProviderAdapter = { invoke: async () => { p20bAttempts += 1; return { kind: "network" }; } };
+  const p20b = await executeDiceV05FreeTextCase(f05Req(), p20bAdapter, () => 1000, 12000);
+  ok(p20b.provider_calls === 1, "F05: a genuine transported Stage-1 failure IS counted as one provider call");
+  // A completed outcome reports the unmeasured latency label and the policy cost label (not lt_12s).
+  ok((jg as any).metadata.latency_bucket === "unmeasured" && (jg as any).metadata.cost_bucket === "policy_within_cap", "F05: a completed outcome reports unmeasured latency + explicit policy cost label");
+
   console.log("dice-v0-5 founder-window-edge fixtures passed");
 }
 void main();

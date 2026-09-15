@@ -367,14 +367,36 @@ const TERMINAL_END = /[.!?。！？…]["'”』」）)\]]?\s*$/u;
 // Trailing terminal punctuation + optional closing quote/bracket, for normalization.
 const TRAILING_TERMINATOR = /[.!?。！？…]+["'”』」）)\]]?\s*$/u;
 // High-confidence dangling connectors / mid-clause commas at the very end (English). Restricted
-// to words that essentially never validly END customer copy — coordinating conjunctions,
-// articles, and the connectors the review names (and/with/to) plus of. Prepositions that DO
-// legitimately end a clause (in/on/for/as/at, phrasal-verb tails like "settle in") are excluded
-// to avoid false positives; the heuristic is deliberately conservative and cannot prove grammar.
-const DANGLING_END_EN = /[,;:]\s*$|\b(?:and|or|but|nor|with|to|the|a|an|of)\s*$/iu;
-// Analogous Chinese dangling connectors / mid-clause punctuation at the very end.
-const DANGLING_END_ZH = /[，、；：]\s*$|(?:而且|並且|以及|因為|所以|如果|雖然|不過|但係|例如|而|並|及|和|與|同|或|但|因)$/u;
+// to words that essentially never validly END customer copy — the coordinating conjunctions
+// (and/or/but/nor) and the articles (the/a/an). Prepositions are DELIBERATELY excluded: the review
+// (F04) notes that "to" and "with" can legitimately end a sentence ("what the symbols point to."),
+// and the same is true of of/in/on/for/as/at and phrasal-verb tails ("settle in"), so treating them
+// as dangling produces false positives. The heuristic is conservative and cannot prove grammar.
+const DANGLING_END_EN = /[,;:]\s*$|\b(?:and|or|but|nor|the|a|an)\s*$/iu;
+// Analogous Chinese dangling connectors / mid-clause punctuation at the very end. Only MULTI-
+// character connectors and trailing mid-clause punctuation are treated as dangling: a single
+// trailing character such as 同/和/及/與/或/但/因/而/並 cannot be reliably distinguished from the
+// last character of an ordinary word (e.g. 不同, 溫和, 需要), so those single-char rules are removed
+// to avoid rejecting valid complete sentences (F04). Known truncated tails are handled separately.
+const DANGLING_END_ZH = /[，、；：]\s*$|(?:而且|並且|以及|因為|所以|如果|雖然|不過|但係|例如|於是|然後|不但|不僅)$/u;
 const isDangling = (s: string): boolean => DANGLING_END_EN.test(s) || DANGLING_END_ZH.test(s);
+
+// Complete-ending heuristic for a SINGLE visible string (not a proof of grammar). Evaluates the
+// text as-is AND with any trailing terminal punctuation/closing quote stripped, so appending "."
+// cannot smuggle a known truncated tail or a dangling connector past it (S06/C01). `name` labels
+// the failing field in the returned code.
+export function fieldCompleteness(value: string, name: string): "OK" | string {
+  const t = value.trim();
+  if (!t) return `DICE_COPY_EMPTY_FIELD:${name}`;
+  const normalized = t.replace(TRAILING_TERMINATOR, "").trimEnd();
+  for (const frag of KNOWN_FRAGMENT_TAILS) {
+    const bareFrag = frag.replace(TRAILING_TERMINATOR, "").trimEnd();
+    if (t.endsWith(frag) || normalized.endsWith(bareFrag)) return `DICE_COPY_KNOWN_FRAGMENT:${name}`;
+  }
+  if (isDangling(t) || isDangling(normalized)) return `DICE_COPY_DANGLING_END:${name}`;
+  if (!TERMINAL_END.test(t)) return `DICE_COPY_NO_TERMINAL_PUNCT:${name}`;
+  return "OK";
+}
 
 export function completenessCheck(copy: DiceV05CustomerCopy): "OK" | string {
   const visible: Array<[string, string | null]> = [
@@ -384,18 +406,40 @@ export function completenessCheck(copy: DiceV05CustomerCopy): "OK" | string {
   ];
   for (const [name, v] of visible) {
     if (v === null) continue;
-    const t = v.trim();
-    if (!t) return `DICE_COPY_EMPTY_FIELD:${name}`;
-    // Evaluate BOTH the text as-is and the text with any trailing terminal punctuation/closing
-    // quote stripped, so appending "." (e.g. via a normalizer) cannot smuggle a fragment past this
-    // check — neither a known truncated tail nor a generic dangling connector (S06/C01).
-    const normalized = t.replace(TRAILING_TERMINATOR, "").trimEnd();
-    for (const frag of KNOWN_FRAGMENT_TAILS) {
-      const bareFrag = frag.replace(TRAILING_TERMINATOR, "").trimEnd();
-      if (t.endsWith(frag) || normalized.endsWith(bareFrag)) return `DICE_COPY_KNOWN_FRAGMENT:${name}`;
-    }
-    if (isDangling(t) || isDangling(normalized)) return `DICE_COPY_DANGLING_END:${name}`;
-    if (!TERMINAL_END.test(t)) return `DICE_COPY_NO_TERMINAL_PUNCT:${name}`;
+    const verdict = fieldCompleteness(v, name);
+    if (verdict !== "OK") return verdict;
+  }
+  return "OK";
+}
+
+/* ------------------------------------------------------------------ *
+ * F03 — validate EVERY canonical prose COMPONENT the deterministic assembly consumes, BEFORE it is
+ * joined. Joining Planet prose + House prose + synthesis into one reading meant a broken earlier
+ * component was no longer the tail of the field, so `completenessCheck` on the assembled reading
+ * could not see it. This checks each component in isolation so a valid final synthesis can never
+ * conceal an earlier fragment; a broken component makes the deterministic copy unavailable rather
+ * than dropping the component.
+ * ------------------------------------------------------------------ */
+export function canonicalProseComplete(canonical: Canonical): "OK" | string {
+  const fam = familyOf(canonical.question_mode as DiceV05Mode);
+  const parts: Array<[string, unknown]> = [];
+  if (fam === "judgment") {
+    parts.push(["planet_prose", canonical.planet_side?.prose], ["house_prose", canonical.house_side?.prose], ["synthesis", canonical.synthesis], ["watch_out", canonical.watch_out]);
+  } else if (fam === "timing") {
+    parts.push(["timing_summary", canonical.timing_summary], ["synthesis", canonical.synthesis], ["watch_out", canonical.watch_out]);
+  } else if (fam === "location") {
+    parts.push(["most_likely_area", canonical.most_likely_area], ["synthesis", canonical.synthesis], ["watch_out", canonical.watch_out], ["practical_step", canonical.practical_step]);
+  } else {
+    parts.push(["synthesis", canonical.synthesis], ["watch_out", canonical.watch_out], ["practical_step", canonical.practical_step]);
+  }
+  if (Array.isArray(canonical.suggested_followups)) {
+    canonical.suggested_followups.forEach((f: unknown, i: number) => parts.push([`suggested_followups[${i}]`, f]));
+  }
+  for (const [name, v] of parts) {
+    if (v === null || v === undefined) continue; // presence/null rules are enforced elsewhere
+    if (typeof v !== "string") return `DICE_COPY_SOURCE_PROSE_TYPE:${name}`;
+    const verdict = fieldCompleteness(v, `source.${name}`);
+    if (verdict !== "OK") return verdict;
   }
   return "OK";
 }
@@ -554,6 +598,11 @@ export function validateDisplayCopy(copy: DiceV05CustomerCopy, canonical: Canoni
 export function buildValidatedFallback(canonical: Canonical):
   | Readonly<{ ok: true; copy: DiceV05CustomerCopy }>
   | Readonly<{ ok: false; reason: string }> {
+  // F03: validate every source prose COMPONENT before it is joined, so a broken Planet/House prose
+  // (or any consumed component) makes this unavailable instead of being hidden inside the assembled
+  // reading. A component is never dropped to make the remainder pass.
+  const componentVerdict = canonicalProseComplete(canonical);
+  if (componentVerdict !== "OK") return Object.freeze({ ok: false, reason: componentVerdict });
   const candidate = deterministicCustomerCopy(canonical);
   const verdict = validateDisplayCopy(candidate, canonical);
   return verdict === "OK" ? Object.freeze({ ok: true, copy: candidate }) : Object.freeze({ ok: false, reason: verdict });
@@ -578,13 +627,21 @@ export function validateLocationProjection(canonical: Canonical): "OK" | string 
   if (!Array.isArray(candidates) || candidates.length === 0) return "DICE_LOCATION_CANDIDATES_MISSING";
   const ranks: number[] = [];
   const displayed: string[] = [String(area)];
+  const evidenceByRank = new Map<number, string[]>();
+  const isStrArr = (a: unknown): a is string[] => Array.isArray(a) && a.every((x) => typeof x === "string");
   for (const c of candidates) {
-    if (!isRecord(c) || !Number.isInteger(c.rank)) return "DICE_LOCATION_RANK_TYPE";
+    // Positive, bounded, integer ranks only (1..4) — negative/out-of-range ranks are rejected here,
+    // not just by the final-result validator.
+    if (!isRecord(c) || !Number.isInteger(c.rank) || (c.rank as number) < 1 || (c.rank as number) > 4) return "DICE_LOCATION_RANK_TYPE";
     ranks.push(c.rank as number);
     if (!cp(c.place, PLACE_CAP)) return "DICE_LOCATION_PLACE";
     displayed.push(String(c.place));
     const ev = c.evidence;
-    if (!isRecord(ev) || !Array.isArray(ev.planet_ids) || !Array.isArray(ev.house_ids) || !Array.isArray(ev.element_ids)) return "DICE_LOCATION_EVIDENCE_SHAPE";
+    // Evidence must be three arrays OF STRINGS (a numeric/leaked id is rejected).
+    if (!isRecord(ev) || !isStrArr(ev.planet_ids) || !isStrArr(ev.house_ids) || !isStrArr(ev.element_ids)) return "DICE_LOCATION_EVIDENCE_TYPE";
+    evidenceByRank.set(c.rank as number, [...(ev.planet_ids as string[]), ...(ev.house_ids as string[]), ...(ev.element_ids as string[])]);
+    // Planet-primary rule: the rank-1 candidate must carry at least one direct Planet evidence id.
+    if ((c.rank as number) === 1 && (ev.planet_ids as string[]).length === 0) return "DICE_LOCATION_RANK1_NO_PLANET_EVIDENCE";
   }
   if (new Set(ranks).size !== ranks.length) return "DICE_LOCATION_RANKS_NOT_UNIQUE";
   const order = canonical.location_search_order;
@@ -601,8 +658,20 @@ export function validateLocationProjection(canonical: Canonical): "OK" | string 
   const ext = canonical.location_extension;
   if (ext !== null && ext !== undefined) {
     if (!isRecord(ext) || !Number.isInteger(ext.candidate_rank) || !rankSet.has(ext.candidate_rank as number)) return "DICE_LOCATION_EXTENSION_RANK";
+    if (typeof ext.source_id !== "string" || !ext.source_id.trim()) return "DICE_LOCATION_EXTENSION_SOURCE_SHAPE";
     if (!cp(ext.relationship, RELATIONSHIP_CAP)) return "DICE_LOCATION_EXTENSION_TEXT";
+    // The extension's source_id must be an evidence id actually cited by the candidate it links to
+    // (not an id from elsewhere or invented) — semantic linkage, beyond rank membership.
+    const citedByRef = evidenceByRank.get(ext.candidate_rank as number) ?? [];
+    if (!citedByRef.includes(ext.source_id as string)) return "DICE_LOCATION_EXTENSION_SOURCE_NOT_CITED";
     displayed.push(String(ext.relationship));
+  }
+  // Every customer-visible Location string must be in the request language (no CJK in an English
+  // projection; some CJK required in a Traditional-Chinese projection) — a mixed-language candidate
+  // list is rejected (P10).
+  for (const s of displayed) {
+    if (language === "en" && CHINESE.test(s)) return "DICE_LOCATION_LANG_LEAK_EN";
+    if (language === "zh-Hant" && !CHINESE.test(s)) return "DICE_LOCATION_LANG_LEAK_ZH";
   }
   // No leaked internal / prohibited term in any customer-visible Location string.
   const probe = Object.freeze({

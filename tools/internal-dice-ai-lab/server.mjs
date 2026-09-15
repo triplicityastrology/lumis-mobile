@@ -32,10 +32,18 @@ const registryPath = path.join(root, "apps/mobile/src/services/diceFounderFixtur
 // produced by `tsc -p supabase/functions/tsconfig.dice-v0-5-test.json` (the web-lab test builds it
 // first); if it is missing we fail closed rather than fall back to a shallow check.
 const COMPILED_COPY_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-customer-copy.js");
+const COMPILED_CONTRACT_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-interpretation-contract.js");
 let _copyValidatorPromise = null;
 function loadAuthoritativeCopyValidator() {
+  // Loads BOTH the compiled customer-copy module (parseCustomerCopy / validateDisplayCopy /
+  // buildValidatedFallback / deterministicCustomerCopy / mergeProviderProse / validateLocationProjection)
+  // AND the compiled interpretation-contract module (the AUTHORITATIVE validateDiceV05FinalResult) —
+  // so the Web boundary reuses the same canonical validator the engine uses, not a weaker duplicate.
   if (!_copyValidatorPromise) {
-    _copyValidatorPromise = import(pathToFileURL(COMPILED_COPY_MODULE).href).catch((error) => {
+    _copyValidatorPromise = Promise.all([
+      import(pathToFileURL(COMPILED_COPY_MODULE).href),
+      import(pathToFileURL(COMPILED_CONTRACT_MODULE).href),
+    ]).then(([copy, contract]) => ({ ...copy, validateDiceV05FinalResult: contract.validateDiceV05FinalResult })).catch((error) => {
       _copyValidatorPromise = null;
       throw new Error(`LAB_V05_AUTHORITATIVE_VALIDATOR_UNAVAILABLE: build the v5 test output first (tsc -p supabase/functions/tsconfig.dice-v0-5-test.json). ${error?.message ?? error}`);
     });
@@ -316,7 +324,7 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
 // loadAuthoritativeCopyValidator(), plus validateLocationProjection for the canonical Location
 // projection. See executeLabFreeTextV05Request below (S03).)
 
-export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory } = {}) {
+export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory, level1EditorEnabled = false } = {}) {
   const selection = validateLabFreeTextRunRequest(raw);
   if (!selection) return Object.freeze({ status: 400, body: { code: "LAB_V05_FREE_TEXT_SELECTION_INVALID", provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
   const language = /[㐀-鿿豈-﫿]/u.test(selection.question) ? "zh-Hant" : "en";
@@ -327,10 +335,22 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   if (response.kind !== "completed") {
     const kind = response.kind === "safety" ? "safety" : response.kind === "bundled" ? "bundled" : response.kind === "route_review" ? "route_review" : "fallback";
     const code = kind === "safety" ? "DICE_SAFETY_REDIRECT" : kind === "bundled" ? "DICE_BUNDLED_QUESTION" : kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
-    return Object.freeze({ status: 200, body: { code, presentation: deterministicV05Presentation(kind, language), classification: null, metadata, provider_calls: metadata?.provider_calls ?? 0, persistence_writes: 0, units_charged: 0 } });
+    // F05: untrusted metadata on a non-completed outcome cannot assert a total — unknown, never 0.
+    const nonCompleted = metadata
+      ? { provider_calls: metadata.provider_calls, provider_calls_disposition: "measured" }
+      : { provider_calls: null, provider_calls_disposition: "unknown" };
+    return Object.freeze({ status: 200, body: { code, presentation: deterministicV05Presentation(kind, language), classification: null, metadata, ...nonCompleted, persistence_writes: 0, units_charged: 0 } });
   }
-  const cp = await loadAuthoritativeCopyValidator();
-  const result = validateLabV05Result(response.result, language);
+  // F05: the authoritative validator is a build artifact; if it cannot load, that is a SERVICE
+  // failure — preserve any trusted metadata total, return a controlled failure, never relabel it as
+  // an invalid user request or throw to the outer catch.
+  let cp;
+  try { cp = await loadAuthoritativeCopyValidator(); }
+  catch {
+    const disp = metadata ? { provider_calls: metadata.provider_calls, provider_calls_disposition: "measured" } : { provider_calls: null, provider_calls_disposition: "unknown" };
+    return Object.freeze({ status: 503, body: { code: "DICE_COPY_VALIDATOR_UNAVAILABLE", presentation: deterministicV05Presentation("copy_unavailable", language), classification: { question_mode: null, copy_source: "unavailable" }, metadata: metadata ?? null, ...disp, persistence_writes: 0, units_charged: 0 } });
+  }
+  const result = response.result;
   // D05: honest provider-call reporting on a presentation failure.
   //  - metadata UNTRUSTED (redaction failed or language mismatch): we cannot assert a call total,
   //    so report provider_calls null with disposition "unknown" — never a false 0.
@@ -340,13 +360,18 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   if (!metadata || metadata.language !== language) {
     return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("fallback", language), classification: null, metadata: null, provider_calls: null, provider_calls_disposition: "unknown", persistence_writes: 0, units_charged: 0 } });
   }
-  if (!result || cp.validateLocationProjection(result) !== "OK") {
+  // F02/S03: reuse the AUTHORITATIVE final-result validator (validateDiceV05FinalResult) at the Web
+  // boundary — never a weaker duplicate canonical validator — AND require the displayed language and
+  // question_mode to agree between the trusted metadata and the canonical result, plus the full
+  // canonical Location projection guard. validateDiceV05FinalResult rejects a non-record first, so
+  // the result.language / result.question_mode reads below are safe. Any failure is a controlled
+  // copy-unavailable; the provider calls really happened, so PRESERVE the measured total (never 0).
+  if (cp.validateDiceV05FinalResult(result) !== "OK"
+      || result.language !== language
+      || metadata.question_mode !== result.question_mode
+      || cp.validateLocationProjection(result) !== "OK") {
     return Object.freeze({ status: 502, body: { code: "DICE_FIXED_FALLBACK", presentation: deterministicV05Presentation("copy_unavailable", language), classification: { question_mode: null, copy_source: "unavailable" }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   }
-  // copy_source is carried in metadata (edge → gateway → server); it is NOT inferred from the
-  // mere presence of a copy object and NEVER defaults to "stage3" (C04).
-  const copy = response.customer_copy;
-  const copySource = metadata.copy_source;
   const unavailable = Object.freeze({
     status: 200,
     body: {
@@ -356,15 +381,33 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
       metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0,
     },
   });
-  // Controlled copy-unavailable: no valid copy, an unrecognized source, OR a copy that fails the
-  // AUTHORITATIVE boundary validation (S03) — the SAME parser + shared validation the backend uses
-  // (exact keys, per-mode required/null rules, follow-up count, caps, prohibited terms, completeness,
-  // preservation/parity and the serialized token cap). No shallow duplicate check; no unchecked
-  // canonical technical prose; never a successful-reading label.
-  if (copySource === "unavailable" || copy === null) return unavailable;
-  const displayable = copySource === "deterministic" || copySource === "stage3" || copySource === "fallback";
-  if (!displayable || cp.validateDisplayCopy(copy, result) !== "OK") return unavailable;
-  const presentation = presentCustomerCopyV05(copy, result, selection);
+  // A backend that explicitly declares its copy unavailable is honoured as a controlled
+  // copy-unavailable; we do NOT manufacture a reading over the top of that signal.
+  if (metadata.copy_source === "unavailable") return unavailable;
+  // F01/S03: the Web NEVER trusts the supplied customer_copy or the copy_source label as
+  // provenance. For the deterministic default it REGENERATES the displayed copy from the
+  // authoritatively-validated canonical (buildValidatedFallback), which also validates every
+  // consumed source-prose COMPONENT (F03) before joining. If regeneration fails, the reading is
+  // copy-unavailable; the displayed copy is exactly the deterministic assembly, never supplied text.
+  const regenerated = cp.buildValidatedFallback(result);
+  if (!regenerated.ok) return unavailable;
+  let displayCopy = regenerated.copy;
+  let copySource = "deterministic";
+  // The Level-1 language editor is honoured ONLY under a trusted server flag, ONLY for the Level-1
+  // family, and ONLY when the trusted metadata says copy_source: "stage3". The supplied editor copy
+  // is merged over the regenerated canonical prose and must pass the SAME authoritative display
+  // validation the backend uses; anything short of that falls back to copy-unavailable rather than
+  // displaying unvalidated provider text or blindly trusting the "stage3" label.
+  if (level1EditorEnabled && metadata.copy_source === "stage3"
+      && (result.question_mode === "person" || result.question_mode === "reason" || result.question_mode === "thing_or_situation")) {
+    const supplied = response.customer_copy;
+    if (!supplied || typeof supplied !== "object" || Array.isArray(supplied)) return unavailable;
+    const merged = cp.mergeProviderProse(result, supplied);
+    if (cp.validateDisplayCopy(merged, result) !== "OK") return unavailable;
+    displayCopy = merged;
+    copySource = "stage3";
+  }
+  const presentation = presentCustomerCopyV05(displayCopy, result, selection);
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
 }
 

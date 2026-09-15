@@ -204,21 +204,126 @@ assert.equal(v05Ok.body.provider_calls, 2, "deterministic success reports two pr
 assert.deepEqual(v05Ok.body.presentation.sections.map((s) => s.heading), ["Short answer", "Why", "Watch out", "Follow-up questions"], "judgment renders the §12 sections");
 assert.deepEqual(v05Ok.body.presentation.sections[3].items, v05Deterministic.suggested_followups, "follow-ups render exactly the canonical sequence");
 assert.equal(v05Ok.body.presentation.opening, "You drew Jupiter in Sagittarius in the 1st House.", "opening stays landing-only");
-// S03 Web MUTATION MATRIX through the REAL server path: every malformed copy → DICE_COPY_UNAVAILABLE.
+// ---- F07: a successful Stage-3 Web reading through the REAL customer-copy handler (NOT
+// presentLabV05Result), in BOTH languages. English success is v05Ok above; here is a zh-Hant throw. ----
+const zhJudgment = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "judgment",
+  planet_side: { fortune: "major_benefic", fortune_zh: "大吉星", dignity: "ruler", dignity_zh: "守護（最強）", strength: "strong", constructive_traits: "慷慨、可靠、有智慧", difficult_traits: "浪費、魯莽、誇大", dignity_emphasis: "constructive", prose: "木星在這裡運作得順暢而有力，帶來明顯的助力。" },
+  house_side: { fortune: "great_fortune", fortune_zh: "大吉", rank: 1, prose: "第一宮是最有利的位置，事情由你自己主導。" },
+  most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+  synthesis: "兩邊都有利，而且各自獨立；強勢的助力落在最有支持的位置。", timing_summary: null,
+  watch_out: "即使有強力支持，也要保持務實的樂觀。", practical_step: null, suggested_followups: ["我應該先準備甚麼？"] };
+const zhMeta = { request_mode: "founder_free_text", language: "zh-Hant", question_mode: "judgment", result_class: "completed", provider_calls: 2, astrology_provider_calls: 2, copy_provider_calls: 0, copy_source: "deterministic", latency_bucket: "unmeasured", cost_bucket: "policy_within_cap", units_consumed: 0, persistence_writes: 0 };
+const zhOk = await executeLabFreeTextV05Request({ question: "我應唔應該接受呢個升職？", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" }, v05Gateway({ kind: "completed", result: zhJudgment, question_mode: "judgment", customer_copy: CP.deterministicCustomerCopy(zhJudgment), metadata: zhMeta }));
+assert.equal(zhOk.body.code, "DICE_COMPLETED", "F07: zh-Hant Stage-3 Web reading completes through the real handler");
+assert.equal(zhOk.body.classification.copy_source, "deterministic", "F07: zh-Hant success reports deterministic");
+assert.ok(JSON.stringify(zhOk.body.presentation).includes("兩邊都有利"), "F07: zh-Hant reading renders the Chinese canonical synthesis");
+assert.ok(JSON.stringify(zhOk.body.presentation.sections).includes("木星"), "F07: zh-Hant reading renders the Chinese Planet-side factor");
+// ---- F01 Web PROVENANCE MATRIX (P01–P04): under the deterministic default the Web REGENERATES the
+// displayed copy from the validated canonical, so a supplied headline/reading/step/follow-up
+// substitution — contrary, partial or malformed — has NO effect on what the customer sees. The
+// result is a DICE_COMPLETED reading whose sections are byte-identical to the clean canonical
+// display, and the reported copy_source is "deterministic" (the actual path). No contrary text.
+const v05OkSections = JSON.stringify(v05Ok.body.presentation.sections);
 for (const [label, mutate] of [
   ["extra-key", (c) => ({ ...c, extra: "x" })],
   ["judgment-practical", (c) => ({ ...c, practical_step: "Take a new action." })],
   ["judgment-no-warning", (c) => ({ ...c, watch_out: null })],
   ["judgment-zero-followups", (c) => ({ ...c, suggested_followups: [] })],
-  ["followups-replaced", (c) => ({ ...c, suggested_followups: ["Should I quit my job?"] })],
+  ["followups-replaced (P02-adjacent)", (c) => ({ ...c, suggested_followups: ["Should I quit my job?"] })],
   ["over-headline", (c) => ({ ...c, headline: "a".repeat(200) + "." })],
-  ["prohibited", (c) => ({ ...c, reading: "This sits on rank 7 of the houses." })],
+  ["prohibited-reading (P01)", (c) => ({ ...c, reading: "This sits on rank 7 of the houses." })],
+  ["reversed-conclusion (P01)", (c) => ({ ...c, headline: "Both factors strongly oppose proceeding.", reading: "Everything here is unfavourable. Do not proceed." })],
+  ["dropped-synthesis (P02)", (c) => ({ ...c, reading: String(v05Judgment.planet_side.prose) + "\n\n" + String(v05Judgment.house_side.prose) })],
 ]) {
   const bad = mutate(v05Deterministic);
   const res = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: bad, metadata: v05Meta() }));
-  assert.equal(res.body.code, "DICE_COPY_UNAVAILABLE", `S03 Web rejects malformed copy: ${label}`);
-  assert.ok(!("sections" in res.body.presentation), `S03 ${label}: no reading sections shown`);
+  assert.equal(res.body.code, "DICE_COMPLETED", `F01 deterministic still renders the canonical reading: ${label}`);
+  assert.equal(res.body.classification.copy_source, "deterministic", `F01 ${label}: reported source is the actual (deterministic) path`);
+  assert.equal(JSON.stringify(res.body.presentation.sections), v05OkSections, `F01 ${label}: displayed copy is the regenerated canonical; the injected supplied copy has NO effect`);
 }
+// F03 (P12/P13): a broken source-prose COMPONENT (Planet prose, House prose or synthesis) is caught
+// by canonicalProseComplete BEFORE the components are joined — a valid final synthesis cannot conceal
+// an earlier fragment — so the reading is controlled-unavailable, never a customer reading containing
+// the broken paragraph. Tested with and without terminal punctuation.
+const jPlanet = (prose) => ({ ...v05Judgment, planet_side: { ...v05Judgment.planet_side, prose } });
+const jHouse = (prose) => ({ ...v05Judgment, house_side: { ...v05Judgment.house_side, prose } });
+for (const [label, brokenCanonical] of [
+  ["P12 planet-prose fragment (with period)", jPlanet("They tend to be careful and.")],
+  ["P12 planet-prose fragment (no period)", jPlanet("They tend to be careful and")],
+  ["P13 house-prose fragment (with period)", jHouse("Beware of overex.")],
+  ["P13 house-prose fragment (no period)", jHouse("Beware of overex")],
+  ["synthesis fragment", { ...v05Judgment, synthesis: "A strong benefic sits inside the house because" }],
+]) {
+  const res = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: brokenCanonical, question_mode: "judgment", customer_copy: CP.deterministicCustomerCopy(brokenCanonical), metadata: v05Meta() }));
+  assert.equal(res.body.code, "DICE_COPY_UNAVAILABLE", `F03 broken component → controlled unavailable: ${label}`);
+  assert.ok(!("sections" in res.body.presentation), `F03 ${label}: no reading sections shown`);
+}
+// F02 (P05–P11, P21): the authoritative final-result validator AND the full Location projection guard
+// run at the Web boundary. Each invariant is exercised IN ISOLATION on an otherwise-valid baseline;
+// every failure returns the controlled DICE_FIXED_FALLBACK with the measured provider total preserved.
+const v05LocBase = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null,
+  most_likely_area: "at home", location_candidates: [
+    { rank: 1, place: "the bedroom", evidence: { planet_ids: ["planet.moon.related.1"], house_ids: [], element_ids: [] } },
+    { rank: 2, place: "the kitchen", evidence: { planet_ids: ["planet.moon.related.2"], house_ids: [], element_ids: [] } }],
+  location_extension: { candidate_rank: 1, source_id: "planet.moon.related.1", relationship: "A document pouch is a direct container for a passport." }, location_search_order: [1, 2],
+  synthesis: "Start at home, then narrower spots.", timing_summary: null, watch_out: "Do not check only the obvious spots.", practical_step: "Begin with the bedroom.", suggested_followups: [] };
+const locMut = (over) => ({ ...v05LocBase, ...over });
+const cand = (over) => [{ ...v05LocBase.location_candidates[0], ...over }, v05LocBase.location_candidates[1]];
+const v05LocSel = { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" };
+const locMeta = () => v05Meta({ question_mode: "location", language: "en" });
+for (const [label, badCanonical, sel, meta] of [
+  ["P05 numeric planet evidence id", locMut({ location_candidates: cand({ evidence: { planet_ids: [99], house_ids: [], element_ids: [] } }) }), v05LocSel, locMeta()],
+  ["P06 extension missing source_id", locMut({ location_extension: { candidate_rank: 1, relationship: "x is a direct container for a passport." } }), v05LocSel, locMeta()],
+  ["P07 negative ranks and order", locMut({ location_candidates: [{ ...v05LocBase.location_candidates[0], rank: -1 }, { ...v05LocBase.location_candidates[1], rank: -2 }], location_search_order: [-1, -2], location_extension: null }), v05LocSel, locMeta()],
+  ["P08 extension source not cited", locMut({ location_extension: { candidate_rank: 1, source_id: "planet.moon.related.9", relationship: "A pouch is a direct container for a passport." } }), v05LocSel, locMeta()],
+  ["P09 rank-1 has no evidence", locMut({ location_candidates: cand({ evidence: { planet_ids: [], house_ids: [], element_ids: [] } }), location_extension: null }), v05LocSel, locMeta()],
+  ["P10 Chinese place in English list", locMut({ location_candidates: cand({ place: "睡房" }), location_extension: null }), v05LocSel, locMeta()],
+  ["P11 invalid Judgment dignity enum", { ...v05Judgment, planet_side: { ...v05Judgment.planet_side, dignity: "sovereign" } }, v05FreeText, v05Meta()],
+  ["P21 metadata mode contradicts result", v05Judgment, v05FreeText, v05Meta({ question_mode: "timing" })],
+]) {
+  const res = await executeLabFreeTextV05Request(sel, v05Gateway({ kind: "completed", result: badCanonical, question_mode: badCanonical.question_mode, customer_copy: CP.deterministicCustomerCopy(v05LocBase), metadata: meta }));
+  assert.equal(res.body.code, "DICE_FIXED_FALLBACK", `F02 authoritative canonical rejection: ${label}`);
+  assert.ok(!("sections" in res.body.presentation), `F02 ${label}: no sections shown`);
+  assert.equal(res.body.provider_calls, meta.provider_calls, `F02 ${label}: measured provider total preserved`);
+  assert.equal(res.body.provider_calls_disposition, "measured", `F02 ${label}: total is measured, not a false 0`);
+}
+// F01 Level-1 editor gating: the gated language editor is honoured ONLY under the trusted server flag,
+// ONLY for the Level-1 family, and ONLY when the trusted metadata declares copy_source "stage3".
+const v05Level1 = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "person",
+  planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+  synthesis: "This points to someone practical and steady who prefers clear commitments.", timing_summary: null,
+  watch_out: "Do not read more certainty into this than the symbols support.", practical_step: "Focus on how they act, not only what they say.", suggested_followups: [] };
+const v05Level1Base = CP.deterministicCustomerCopy(v05Level1);
+const v05Level1Editor = { ...v05Level1Base, headline: "A steady, practical person.", reading: "The symbols point to someone grounded who values clear commitments and consistent follow-through." };
+const v05Level1Sel = { question: "What is this person like?", planet_id: "saturn", sign_id: "capricorn", house_id: "house_7" };
+const stage3Meta = v05Meta({ question_mode: "person", provider_calls: 3, astrology_provider_calls: 2, copy_provider_calls: 1, copy_source: "stage3" });
+// Editor DISABLED (default): supplied stage3 editor prose is NOT displayed — the Web regenerates the
+// deterministic Level-1 copy and reports copy_source "deterministic".
+const v05Level1Off = await executeLabFreeTextV05Request(v05Level1Sel, v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: v05Level1Editor, metadata: stage3Meta }));
+assert.equal(v05Level1Off.body.code, "DICE_COMPLETED", "Level-1 editor OFF still renders a reading");
+assert.equal(v05Level1Off.body.classification.copy_source, "deterministic", "Level-1 editor OFF: label 'stage3' does NOT enable the editor");
+{
+  const shown = JSON.stringify(v05Level1Off.body.presentation);
+  assert.ok(!shown.includes("A steady, practical person"), "Level-1 editor OFF: the supplied editor headline is not shown");
+  assert.ok(shown.includes("someone practical and steady who prefers clear commitments"), "Level-1 editor OFF: the deterministic canonical reading is shown");
+}
+// Editor ENABLED for the Level-1 family + trusted stage3 label: the merged copy passes the SAME
+// authoritative validation and is displayed as copy_source "stage3".
+const v05Level1On = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: v05Level1Editor, metadata: stage3Meta }), level1EditorEnabled: true });
+assert.equal(v05Level1On.body.code, "DICE_COMPLETED", "Level-1 editor ON renders a reading");
+assert.equal(v05Level1On.body.classification.copy_source, "stage3", "Level-1 editor ON: validated editor prose is reported as stage3");
+// Editor ENABLED but the supplied editor prose is malformed (prohibited term) → controlled unavailable,
+// never displayed.
+const v05Level1Bad = { ...v05Level1Editor, reading: "This person sits on rank 7 of the houses." };
+const v05Level1BadRes = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: v05Level1Bad, metadata: stage3Meta }), level1EditorEnabled: true });
+assert.equal(v05Level1BadRes.body.code, "DICE_COPY_UNAVAILABLE", "Level-1 editor ON rejects malformed editor prose");
+assert.ok(!("sections" in v05Level1BadRes.body.presentation), "Level-1 editor ON malformed: no sections shown");
+// Editor ENABLED but a CONCLUSION-BEARING mode still stays deterministic (the editor cannot touch it).
+const v05JudgeEditorAttempt = { ...v05Deterministic, headline: "Both factors strongly oppose proceeding." };
+const v05JudgeStage3 = await executeLabFreeTextV05Request(v05FreeText, { ...v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05JudgeEditorAttempt, metadata: v05Meta({ provider_calls: 3, astrology_provider_calls: 2, copy_provider_calls: 1, copy_source: "stage3" }) }), level1EditorEnabled: true });
+assert.equal(v05JudgeStage3.body.code, "DICE_COMPLETED", "Judgment under editor-ON still renders");
+assert.equal(v05JudgeStage3.body.classification.copy_source, "deterministic", "Judgment stays deterministic even with the editor enabled (conclusion-bearing)");
+assert.equal(JSON.stringify(v05JudgeStage3.body.presentation.sections), v05OkSections, "Judgment editor attempt has NO effect on the displayed conclusion");
 // S01 Web: a substituted Location search step never reaches the customer (canonical step rendered).
 const v05Loc = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location", planet_side: null, house_side: null,
   most_likely_area: "A quiet place at home.", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { planet_ids: ["p"], house_ids: [], element_ids: [] } }, { rank: 2, place: "the kitchen", evidence: { planet_ids: [], house_ids: ["h"], element_ids: [] } }],
@@ -226,8 +331,15 @@ const v05Loc = { schema: "lumis_dice_interpretation_v5", status: "ok", language:
   watch_out: "Do not assume it is permanently lost.", practical_step: "Search the bedroom first.", suggested_followups: [] };
 const v05LocCopy = { ...CP.deterministicCustomerCopy(v05Loc), practical_step: "Go to the airport first." };
 const v05LocRes = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Gateway({ kind: "completed", result: v05Loc, question_mode: "location", customer_copy: v05LocCopy, metadata: v05Meta({ question_mode: "location", language: "en" }) }));
-// The airport copy fails authoritative validation (parity) → unavailable; even the canonical render uses the bedroom step.
-assert.equal(v05LocRes.body.code, "DICE_COPY_UNAVAILABLE", "S01 Web rejects a substituted Location search step");
+// P04/S01: the substituted airport step is IGNORED — the Web regenerates the Location copy from the
+// validated canonical, so the customer sees the canonical bedroom step and never the airport step.
+assert.equal(v05LocRes.body.code, "DICE_COMPLETED", "S01 renders the canonical Location reading");
+assert.equal(v05LocRes.body.classification.copy_source, "deterministic", "S01 reports the actual deterministic path");
+{
+  const shown = JSON.stringify(v05LocRes.body.presentation);
+  assert.ok(!/airport/i.test(shown), "S01: the substituted airport step never reaches the customer");
+  assert.ok(shown.includes("Search the bedroom first"), "S01: the canonical bedroom step is shown");
+}
 // S03 malformed Location projection ([1,1] + leaked term) → rejected before any render.
 const v05BadLoc = { ...v05Loc, location_search_order: [1, 1], location_candidates: [{ ...v05Loc.location_candidates[0], place: "planet_speed internal clue" }, v05Loc.location_candidates[1]] };
 const v05BadLocRes = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, v05Gateway({ kind: "completed", result: v05BadLoc, question_mode: "location", customer_copy: CP.deterministicCustomerCopy(v05Loc), metadata: v05Meta({ question_mode: "location", language: "en" }) }));
@@ -238,9 +350,13 @@ const v05Unavailable = await executeLabFreeTextV05Request(v05FreeText, v05Gatewa
 assert.equal(v05Unavailable.body.code, "DICE_COPY_UNAVAILABLE", "copy-unavailable is not a successful reading");
 assert.equal(v05Unavailable.body.presentation.kind, "copy_unavailable");
 assert.ok(!("sections" in v05Unavailable.body.presentation), "unavailable shows a fixed message, not canonical sections");
-// Missing source metadata must NOT be reported as a valid source (no default): treated as unavailable.
-const v05NoSource = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: v05Deterministic, metadata: { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 } }));
-assert.equal(v05NoSource.body.code, "DICE_COPY_UNAVAILABLE", "missing copy_source metadata is not a valid display source");
+// F01: an absent copy_source label CANNOT enable a supplied copy. The Web does not trust the label
+// (present, absent or otherwise) — it regenerates deterministically from the validated canonical and
+// reports the actual path ("deterministic"). The supplied copy is never displayed on its say-so.
+const v05NoSource = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: { ...v05Deterministic, headline: "Both factors strongly oppose proceeding." }, metadata: { request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 } }));
+assert.equal(v05NoSource.body.code, "DICE_COMPLETED", "missing copy_source still renders the regenerated canonical reading");
+assert.equal(v05NoSource.body.classification.copy_source, "deterministic", "missing copy_source: the Web reports the actual regenerated path, never trusts a label");
+assert.equal(JSON.stringify(v05NoSource.body.presentation.sections), v05OkSections, "missing copy_source: injected contrary headline has NO effect on the display");
 // D05 honest totals: metadata valid but canonical malformed → PRESERVE provider_calls, disposition measured.
 const v05D05 = await executeLabFreeTextV05Request(v05FreeText, v05Gateway({ kind: "completed", result: { ...v05Judgment, synthesis: null }, question_mode: "judgment", customer_copy: v05Deterministic, metadata: v05Meta({ provider_calls: 3, copy_provider_calls: 1, copy_source: "stage3" }) }));
 assert.equal(v05D05.body.code, "DICE_FIXED_FALLBACK", "D05 malformed canonical → failure code");

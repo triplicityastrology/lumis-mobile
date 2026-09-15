@@ -71,7 +71,12 @@ export type DiceV05CaseOutcome =
 
 export type DiceV05ProviderResult =
   | Readonly<{ kind: "success"; content: string }>
-  | Readonly<{ kind: "network" | "timeout" | "authentication" | "permission" | "content_filter" | "server" | "malformed" }>;
+  // `transported` distinguishes a real provider TRANSPORT request from a bare adapter ATTEMPT that
+  // short-circuited before any network call (e.g. the adapter's own pre-fetch deadline check). When
+  // it is explicitly false, the window must NOT count it as a provider call (F05): an attempt that
+  // never reached the provider is not a billable/transport request. Absent/true means transport
+  // was attempted (fetch was issued, even if it then aborted or errored).
+  | Readonly<{ kind: "network" | "timeout" | "authentication" | "permission" | "content_filter" | "server" | "malformed"; transported?: boolean }>;
 export type DiceV05ProviderAdapter = Readonly<{
   invoke(request: Readonly<{ prompt: string; deadline_at_ms: number; max_output_tokens: number; schema_name: string; schema: unknown; signal: AbortSignal }>): Promise<DiceV05ProviderResult>;
 }>;
@@ -91,8 +96,15 @@ export function parseDiceV05FreeTextRequest(value: unknown): DiceV05FreeTextRequ
 function metadata(language: DiceV05Language, mode: DiceV05Mode | null, resultClass: string, providerCalls: number): DiceV05Metadata {
   return Object.freeze({
     request_mode: "founder_free_text", language, question_mode: mode, result_class: resultClass,
-    provider_calls: providerCalls, latency_bucket: providerCalls > 0 ? "lt_12s" : "zero",
-    cost_bucket: providerCalls > 0 ? "within_cap" : "zero", units_consumed: 0, persistence_writes: 0,
+    provider_calls: providerCalls,
+    // F05: this window computes NO elapsed duration, so latency is emitted as an EXPLICIT unmeasured
+    // label — never a measured-looking bucket ("lt_12s") derived from the call count. Any real p50/p95
+    // latency is a separate authorized measurement (L05), kept out of this policy metadata.
+    latency_bucket: "unmeasured",
+    // cost_bucket is a POLICY budget statement (output tokens are capped by construction), not a
+    // measured spend — named "policy_within_cap" so it cannot be read as a measured cost bucket;
+    // "none" when no provider transport occurred.
+    cost_bucket: providerCalls > 0 ? "policy_within_cap" : "none", units_consumed: 0, persistence_writes: 0,
   });
 }
 function hardGateOutcome(code: string, language: DiceV05Language): DiceV05CaseOutcome {
@@ -143,10 +155,15 @@ export async function executeDiceV05FreeTextCase(
   // Stage 1 — semantic mode selection.
   const stage1Input = buildProviderInput(DICE_V05_BLOCK.stage1, { language, question: decision.normalized_question });
   if (!measureDiceTokenLimit(stage1Input, INPUT_CAP).within_limit) return fallback("DICE_INPUT_TOKEN_CAP", language, null, calls);
+  // F05: if the shared absolute deadline is ALREADY exhausted, stop BEFORE invoking Stage 1 — do not
+  // issue an adapter attempt we know cannot transport, and report ZERO provider calls (not a false 1).
+  if (now() >= deadline) return providerFailure("timeout", language, null, 0);
   // The provider gets the full generation allowance (reasoning + output + formatting); the RETURNED
   // visible mode-selection JSON is measured against the 300-token Stage-1 visible cap before parse.
   const s1 = await invokeStage(adapter, stage1Input, PROVIDER_GENERATION_CAP, "lumis_dice_mode_selection_v5", diceV05Stage1Schema(), deadline, now);
-  calls += 1;
+  // Count a provider call ONLY for a real transport request. An attempt the adapter short-circuited
+  // before any network call (transported === false) is not counted (F05).
+  if (s1.kind === "success" || s1.transported !== false) calls += 1;
   if (s1.kind !== "success") return providerFailure(s1.kind, language, null, calls);
   if (!measureDiceTokenLimit(s1.content, MODE_OUTPUT_CAP).within_limit) return fallback("DICE_OUTPUT_TOKEN_CAP", language, null, calls);
   const sel = parseDiceV05Stage1(s1.content);
@@ -179,7 +196,9 @@ export async function executeDiceV05FreeTextCase(
     // The provider is given the same generation allowance (reasoning + output + formatting);
     // the RETURNED visible JSON is measured against outCap (580 Location / 600 other) below.
     const s2 = await invokeStage(adapter, stage2Input, PROVIDER_GENERATION_CAP, stage2SchemaName(s2mode), buildStage2Schema(s2mode, language), deadline, now);
-    calls += 1;
+    // Count a provider call ONLY for a real transport request (F05): an attempt the adapter
+    // short-circuited before any network call (transported === false) is not a provider request.
+    if (s2.kind === "success" || s2.transported !== false) calls += 1;
     if (s2.kind !== "success") {
       if (["authentication", "permission", "content_filter"].includes(s2.kind) || attempt === 2 || now() >= deadline) return providerFailure(s2.kind, language, mode, calls);
       continue;

@@ -8,7 +8,7 @@
 import {
   DICE_V05_CUSTOMER_COPY_SCHEMA, CUSTOMER_COPY_UNAVAILABLE_MESSAGE, buildCustomerCopySchema, buildCustomerCopyInput, parseCustomerCopy,
   prohibitedLanguageCheck, completenessCheck, preservationCheck, sourceParityCheck, deterministicCustomerCopy,
-  validateDisplayCopy, buildValidatedFallback, executeDiceV05CustomerCopy, customerCopySchemaName, COPY_CAPS, CUSTOMER_COPY_OUTPUT_CAP,
+  validateDisplayCopy, buildValidatedFallback, canonicalProseComplete, executeDiceV05CustomerCopy, customerCopySchemaName, COPY_CAPS, CUSTOMER_COPY_OUTPUT_CAP,
   type DiceV05CustomerCopy,
 } from "./dice-v0-5-customer-copy.ts";
 import { validateDiceV05FinalResult, type DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
@@ -119,6 +119,12 @@ ok(sourceParityCheck({ ...deterministicCustomerCopy(judgmentCanonical as any), w
 ok(sourceParityCheck({ ...deterministicCustomerCopy(judgmentCanonical as any), suggested_followups: ["a?", "b?"] }, judgmentCanonical as any) === "DICE_COPY_FOLLOWUPS_COUNT_DRIFT", "C06: follow-up count drift rejected");
 // S02: an equal-count REPLACEMENT/REORDER of follow-ups is rejected (not just a count change).
 ok(sourceParityCheck({ ...deterministicCustomerCopy(judgmentCanonical as any), suggested_followups: ["完全不同的問題？"] }, judgmentCanonical as any) === "DICE_COPY_FOLLOWUPS_ORDER_OR_TEXT", "S02: equal-count follow-up replacement rejected");
+// F07/S02: a TWO-follow-up REORDER (same items, swapped order) is rejected — a single-item case cannot
+// demonstrate reordering, so this uses a two-item canonical and only permutes the order.
+const twoFollowupJudgment = Object.freeze({ ...(judgmentCanonical as any), suggested_followups: ["我可以點樣改善溝通？", "我應該幾時提出？"] });
+const twoFollowupBase = deterministicCustomerCopy(twoFollowupJudgment as any);
+eq(sourceParityCheck(twoFollowupBase, twoFollowupJudgment as any), "OK", "F07 control: the in-order two-follow-up copy passes parity");
+ok(sourceParityCheck({ ...twoFollowupBase, suggested_followups: [twoFollowupBase.suggested_followups[1], twoFollowupBase.suggested_followups[0]] }, twoFollowupJudgment as any) === "DICE_COPY_FOLLOWUPS_ORDER_OR_TEXT", "F07/S02: a two-follow-up REORDER (same items, swapped) is rejected");
 // timing: inventing a caution the source did not supply is rejected.
 ok(sourceParityCheck({ ...deterministicCustomerCopy(timingCanonical as any), watch_out: "Invented." }, timingCanonical as any) === "DICE_COPY_CAUTION_INVENTED", "C06: invented caution rejected");
 // person (level-1): dropping the supplied practical step is rejected.
@@ -217,6 +223,49 @@ ok(rawRes.failure_code === "DICE_COPY_RAW_OUTPUT_TOKEN_CAP", "D02: raw-output ca
 const fragRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They are steady.", reading: "They tend to be careful and." }))), { now: () => 1000 });
 eq(fragRes.source, "fallback", "S06: 'They tend to be careful and.' provider copy is rejected → fallback");
 ok(fragRes.copy && completenessCheck(fragRes.copy) === "OK", "S06: the resulting fallback is itself complete");
+
+/* ---- F03: each Judgment source-prose COMPONENT is validated before the components are joined.
+ *      A broken Planet, House or synthesis component makes the deterministic assembly UNAVAILABLE
+ *      (a valid final synthesis never conceals an earlier fragment), with and without a terminal
+ *      period, in EN and zh-Hant. ---- */
+const enJudgment = { schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "judgment",
+  planet_side: { fortune: "major_benefic", fortune_zh: "大吉星", dignity: "ruler", dignity_zh: "守護（最強）", strength: "strong",
+    constructive_traits: "Generous, trustworthy and wise", difficult_traits: "Wasteful, reckless and careless", dignity_emphasis: "constructive",
+    prose: "Jupiter is a major benefic at full strength here." },
+  house_side: { fortune: "great_fortune", fortune_zh: "大吉", rank: 1, prose: "House 1 is the most supportive setting, with the matter in your hands." },
+  most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+  synthesis: "Both fixed sides are favourable and remain separate.", timing_summary: null,
+  watch_out: "Keep optimism realistic even with strong support.", practical_step: null, suggested_followups: ["What most needs preparing first?"] };
+eq(validateDiceV05FinalResult(enJudgment as any), "OK", "F03 control: the EN Judgment canonical is a valid final result");
+eq(canonicalProseComplete(enJudgment as any), "OK", "F03 control: a fully complete Judgment canonical passes component validation");
+for (const [label, broken] of [
+  ["P12 planet prose 'and' (period)", { ...enJudgment, planet_side: { ...enJudgment.planet_side, prose: "They tend to be careful and." } }],
+  ["P12 planet prose 'and' (no period)", { ...enJudgment, planet_side: { ...enJudgment.planet_side, prose: "They tend to be careful and" } }],
+  ["P13 house prose 'overex' (period)", { ...enJudgment, house_side: { ...enJudgment.house_side, prose: "Beware of overex." } }],
+  ["P13 house prose 'overex' (no period)", { ...enJudgment, house_side: { ...enJudgment.house_side, prose: "Beware of overex" } }],
+  ["synthesis 'because'", { ...enJudgment, synthesis: "A strong benefic sits inside the house because" }],
+  ["zh planet prose connector '因為'", { ...judgmentCanonical, planet_side: { ...(judgmentCanonical as any).planet_side, prose: "火星這一面較為困難，因為" } }],
+  ["zh synthesis connector '所以'", { ...judgmentCanonical, synthesis: "外在環境有利，所以" }],
+] as const) {
+  ok(canonicalProseComplete(broken as any) !== "OK", `F03: broken component caught before join — ${label}`);
+  ok(!buildValidatedFallback(broken as any).ok, `F03: buildValidatedFallback → unavailable for ${label}`);
+}
+// A valid final synthesis must NOT conceal an earlier broken Planet prose (the exact S06 regression).
+const hiddenFragment = { ...enJudgment, planet_side: { ...enJudgment.planet_side, prose: "They tend to be careful and" } };
+ok(!buildValidatedFallback(hiddenFragment as any).ok, "F03: a valid synthesis does not conceal an earlier Planet-prose fragment");
+
+/* ---- F04: the Chinese dangling-tail heuristic no longer rejects ordinary sentences that merely END
+ *      in a character that can also be a connector (同/和). Positive controls MUST pass; genuine
+ *      unfinished multi-character connector clauses MUST still fail. ---- */
+for (const good of ["每個人的需要不同。", "溝通時保持溫和。", "這個決定需要耐心。", "佢哋通常都好謹慎同務實。"]) {
+  eq(completenessCheck(copyOk({ language: "zh-Hant", question_mode: "person", headline: "一個穩陣務實嘅人。", reading: good })), "OK", `F04 positive control passes: ${good}`);
+}
+// English: a sentence legitimately ending after a complete clause is not a fragment.
+eq(completenessCheck(copyOk({ language: "en", question_mode: "person", headline: "A steady person.", reading: "That is what the symbols point to." })), "OK", "F04: ordinary English sentence passes");
+// Genuine unfinished connector clauses still fail (EN 'because'; zh multi-char connectors).
+ok(completenessCheck(copyOk({ language: "en", question_mode: "person", headline: "A steady person.", reading: "They are careful because" })) !== "OK", "F04: genuine EN connector clause still rejected");
+ok(completenessCheck(copyOk({ language: "zh-Hant", question_mode: "person", headline: "一個人。", reading: "佢哋好謹慎，因為" })) !== "OK", "F04: genuine zh '因為' connector clause still rejected");
+ok(completenessCheck(copyOk({ language: "zh-Hant", question_mode: "person", headline: "一個人。", reading: "佢哋好謹慎，不過" })) !== "OK", "F04: genuine zh '不過' connector clause still rejected");
 
 /* ---- production-tokenizer max-sample envelope measurement (report + assert within cap) ---- */
 const maxEnvelope = (mode: DiceV05Mode, language: "en" | "zh-Hant") => {

@@ -70,10 +70,18 @@ async function main() {
   const throwing = createDiceV05Adapter(config, (async () => { throw new Error("boom"); }) as any);
   eq((await throwing.invoke(invokeInput())).kind, "network", "fetch throw → network");
   const aborting = createDiceV05Adapter(config, (async () => { const e: any = new DOMException("abort", "AbortError"); throw e; }) as any);
-  eq((await aborting.invoke(invokeInput())).kind, "timeout", "AbortError → timeout");
-  // Past deadline → timeout before any fetch.
-  const past = createDiceV05Adapter(config, mockFetch(200, okBody));
-  eq((await past.invoke({ ...invokeInput(), deadline_at_ms: Date.now() - 1 })).kind, "timeout", "past deadline → timeout");
+  const abortRes = await aborting.invoke(invokeInput());
+  eq(abortRes.kind, "timeout", "AbortError → timeout");
+  ok((abortRes as any).transported !== false, "AbortError timeout: transport WAS attempted (fetch issued then aborted) → counted");
+  // F05/P20: a past deadline → timeout BEFORE any fetch, and the result is flagged transported:false
+  // so the window will NOT count a provider call. A fetch spy proves zero network calls were made.
+  let fetchCalls = 0;
+  const spyFetch = (async (...args: unknown[]) => { fetchCalls += 1; return mockFetch(200, okBody)(...(args as [any, any])); }) as any;
+  const past = createDiceV05Adapter(config, spyFetch);
+  const pastRes = await past.invoke({ ...invokeInput(), deadline_at_ms: Date.now() - 1 });
+  eq(pastRes.kind, "timeout", "past deadline → timeout");
+  eq((pastRes as any).transported, false, "F05: timeout-before-fetch is flagged transported:false (not a provider call)");
+  eq(fetchCalls, 0, "F05/P20: timeout-before-fetch issued ZERO network requests");
 
   console.log("dice-v0-5 adapter fixtures passed");
 }

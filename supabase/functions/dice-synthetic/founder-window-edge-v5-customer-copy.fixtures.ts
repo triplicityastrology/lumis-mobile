@@ -94,6 +94,26 @@ async function main() {
   eq(prov.provider_calls, 3, "provider mode: Stage 1 + Stage 2 + Stage 3 = 3");
   ok(prohibitedLanguageCheck(prov.customer_copy!) === "OK" && completenessCheck(prov.customer_copy!) === "OK", "displayed judgment copy is clean + complete (canonical, not prohibited provider prose)");
 
+  // (3b) F07: the ONE absolute deadline reaches STAGE 3 as well, not only Stage 1/2. Provider copy
+  // mode is enabled so the Stage-3 copy call actually runs; all three stages observe one deadline
+  // captured before preprocessing (no fresh capture at Stage 3).
+  const stage3Deadlines: number[] = [];
+  let clock3 = 1000;
+  const threeStageRecorder: DiceV05ProviderAdapter = {
+    invoke: async (req) => {
+      stage3Deadlines.push(req.deadline_at_ms);
+      if (req.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "judgment", matched_rule: "STEP_3_JUDGMENT" }) };
+      if (req.schema_name.startsWith("lumis_dice_customer_copy_")) return { kind: "success", content: rankyCopy };
+      return { kind: "success", content: stage2Judgment };
+    },
+  };
+  const three = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => threeStageRecorder, () => { const t = clock3; clock3 += 10; return t; }, { copyMode: "provider" });
+  ok(three.kind === "completed", "provider-mode three-stage completes");
+  eq(stage3Deadlines.length, 3, "F07: Stage 1 + Stage 2 + Stage 3 each made exactly one provider call");
+  eq(stage3Deadlines[0], 1000 + SHARED_DEADLINE_MS, "F07: Stage 1 uses the one absolute deadline captured before preprocessing");
+  eq(stage3Deadlines[1], stage3Deadlines[0], "F07: Stage 2 shares the same absolute deadline");
+  eq(stage3Deadlines[2], stage3Deadlines[0], "F07: Stage 3 (copy) shares the SAME absolute deadline — no fresh capture at Stage 3");
+
   // (4) Route-review passes through unchanged, with no customer copy.
   const rr = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => ({
     invoke: async (req) => req.schema_name === "lumis_dice_mode_selection_v5"

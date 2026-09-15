@@ -25,7 +25,10 @@ export function createDiceV05Adapter(config: DiceAzureServerConfig, fetchImpl: t
   }
   return Object.freeze({
     async invoke(input): Promise<DiceV05ProviderResult> {
-      if (input.deadline_at_ms - Date.now() <= 0) return { kind: "timeout" };
+      // F05: if the shared deadline is already exhausted we return BEFORE issuing any network request.
+      // `transported: false` tells the window this attempt made no provider transport, so it must not
+      // be counted as a provider call (never a false billable/transport request).
+      if (input.deadline_at_ms - Date.now() <= 0) return { kind: "timeout", transported: false };
       try {
         const response = await fetchImpl(`${config.endpoint}/openai/${config.routeFamily}/responses`, {
           method: "POST",
