@@ -215,9 +215,11 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
           metadata: payload?.metadata ?? null,
         });
       }
-      // Three-stage envelope: the completed v5 response now also carries the Stage-3 customer copy.
-      if (!exactKeys(payload, ["result", "question_mode", "customer_copy", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
-      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, customer_copy: payload.customer_copy, metadata: payload.metadata });
+      // Three-stage envelope: the completed v5 response carries the Stage-3 customer copy AND the
+      // raw structured editor_response (null unless copy_source is "stage3"), which the Web boundary
+      // re-parses, re-assembles and re-validates independently (V02).
+      if (!exactKeys(payload, ["result", "question_mode", "customer_copy", "editor_response", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
+      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, customer_copy: payload.customer_copy, editor_response: payload.editor_response, metadata: payload.metadata });
     },
   });
 }

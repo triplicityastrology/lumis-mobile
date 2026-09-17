@@ -6,21 +6,31 @@
  * production-tokenizer max-sample envelope measurement. The customer question is sent inside the
  * Stage-3 provider input; it is not logged, persisted, or emitted in evidence here. */
 import {
-  DICE_V05_CUSTOMER_COPY_SCHEMA, CUSTOMER_COPY_UNAVAILABLE_MESSAGE, buildCustomerCopySchema, buildCustomerCopyInput, parseCustomerCopy,
+  DICE_V05_CUSTOMER_COPY_SCHEMA, DICE_V05_EDITOR_SCHEMA, CUSTOMER_COPY_UNAVAILABLE_MESSAGE,
+  buildEditorSchema, buildEditorInput, editorSchemaName, parseEditorResponse, assembleEditorCopy, parseCustomerCopy,
   prohibitedLanguageCheck, completenessCheck, preservationCheck, sourceParityCheck, deterministicCustomerCopy,
-  validateDisplayCopy, buildValidatedFallback, canonicalProseComplete, executeDiceV05CustomerCopy, customerCopySchemaName, COPY_CAPS, CUSTOMER_COPY_OUTPUT_CAP,
-  DICE_V05_CUSTOMER_COPY_BLOCK, meaningContradictionCheck,
-  type DiceV05CustomerCopy,
+  validateDisplayCopy, buildValidatedFallback, canonicalProseComplete, executeDiceV05CustomerCopy, COPY_CAPS, CUSTOMER_COPY_OUTPUT_CAP,
+  DICE_V05_EDITOR_BLOCK, meaningContradictionCheck,
+  type DiceV05CustomerCopy, type Landing,
 } from "./dice-v0-5-customer-copy.ts";
 import { validateDiceV05FinalResult, type DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
+import { buildTimingEnvelope } from "./dice-v0-5-presentation.ts";
 import type { DiceV05ProviderAdapter, DiceV05ProviderResult } from "./dice-v0-5-window.ts";
+import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
-// Build a status-"ok" copy object (adds status + schema so tests stay terse).
+// Build a status-"ok" DISPLAY copy object (adds status + schema so display-validator tests stay terse).
 const copyOk = (o: Partial<DiceV05CustomerCopy> & Pick<DiceV05CustomerCopy, "language" | "question_mode" | "headline" | "reading">): DiceV05CustomerCopy =>
   Object.freeze({ schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", watch_out: null, practical_step: null, suggested_followups: [], ...o });
+// Build a status-"ok" structured EDITOR response (the provider's per-mode components) as a JSON string.
+const editorOk = (language: "en" | "zh-Hant", mode: DiceV05Mode, components: Record<string, string>): string =>
+  JSON.stringify({ schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language, question_mode: mode, ...components });
+const editorUnpresentable = (language: "en" | "zh-Hant", mode: DiceV05Mode, keys: readonly string[]): string =>
+  JSON.stringify({ schema: DICE_V05_EDITOR_SCHEMA, status: "unpresentable", language, question_mode: mode, ...Object.fromEntries(keys.map((k) => [k, null])) });
+const L = (planet: string, sign: string, house: number): Landing => ({ planet: planet as DiceV05PlanetId, sign: sign as DiceV05SignId, house });
+const paceFor = (l: Landing): string => (buildTimingEnvelope("en", "", l.planet, l.sign, l.house).given as Record<string, unknown>).combined_pace as string;
 // Mirror of the module's ensureTerminal (adds a full stop when a field has no terminal punctuation).
 const ensureTerminalLike = (s: string): string => {
   const t = String(s).trim();
@@ -65,25 +75,36 @@ const personCanonical = Object.freeze({
 for (const [n, c] of [["judgment", judgmentCanonical], ["timing", timingCanonical], ["location", locationCanonical], ["person", personCanonical]] as const) {
   eq(validateDiceV05FinalResult(c as any), "OK", `canonical ${n} is a valid §12.4 final`);
 }
+// Trusted physical landings for each canonical (as the request/composition supplies them). Only the
+// TIMING landing is consumed by the editor assembly (authoritative pace); the others are passed but
+// unused by their mode. The timing landing is chosen to resolve to a NON-fast band so the immediacy
+// guard is meaningful, matching the medium-pace timing canonical.
+const judgmentLanding = L("mars", "aries", 7);
+const timingLanding = L("jupiter", "cancer", 6);
+const locationLanding = L("moon", "cancer", 4);
+const personLanding = L("venus", "taurus", 7);
 
 async function main() {
-/* ---- schema shape: one closed object, required status enum, nullable prose (C02) ---- */
-const jSchema: any = buildCustomerCopySchema("judgment", "zh-Hant");
-eq(jSchema.additionalProperties, false, "copy schema closed");
-ok(jSchema.required.includes("status"), "schema requires status");
+/* ---- structured editor schema: one closed object per mode, required component keys (M02) ---- */
+const jSchema: any = buildEditorSchema("judgment", "zh-Hant");
+eq(jSchema.additionalProperties, false, "editor schema closed");
+ok(jSchema.required.includes("status") && jSchema.required.includes("planet_factor") && jSchema.required.includes("house_factor") && jSchema.required.includes("synthesis"), "judgment editor requires both factors + synthesis");
 eq(jSchema.properties.status, { enum: ["ok", "unpresentable"] }, "status is an ok|unpresentable enum");
-ok(Array.isArray(jSchema.properties.headline.anyOf), "headline is nullable in the provider schema (unpresentable representable)");
-ok(jSchema.properties.practical_step.anyOf?.some((s: any) => s.type === "null"), "practical_step nullable in the provider schema");
-eq(jSchema.properties.suggested_followups.maxItems, 3, "followups capped at 3 in the schema (count band narrowed by the parser)");
-eq(customerCopySchemaName("thing_or_situation"), "lumis_dice_customer_copy_level1_v1", "level1 family schema name");
+eq(jSchema.properties.schema.const, DICE_V05_EDITOR_SCHEMA, "editor schema id pinned");
+ok(Array.isArray(jSchema.properties.planet_factor.anyOf), "components nullable in the editor schema (unpresentable representable)");
+const tSchema: any = buildEditorSchema("timing", "en");
+ok(tSchema.required.includes("pace_band") && tSchema.required.includes("explanation"), "timing editor requires the pace_band control echo + explanation");
+eq(editorSchemaName("thing_or_situation"), "lumis_dice_editor_level1_v2", "level1 editor schema name");
 
-/* ---- input mapping keeps only text; both judgment axes carried ---- */
-const jInput = buildCustomerCopyInput(judgmentCanonical as any, "我個application會唔會批？");
-eq(jInput.locked_conclusion.required_meanings.length, 2, "judgment maps both axes as required meanings");
-ok(jInput.locked_conclusion.forbidden_additions.some((f) => /averaged|blended/.test(f)), "judgment forbids blended grade");
-ok(!JSON.stringify(jInput).includes("dignity_emphasis") && !JSON.stringify(jInput).includes('"rank"'), "input carries no rank/dignity_emphasis keys as facts");
-const lInput = buildCustomerCopyInput(locationCanonical as any, "where is it?");
-eq(lInput.source_sections.location_places, ["the bedroom", "the kitchen"], "location input carries ordered candidate places");
+/* ---- structured, source-bound editor input: bound facts (M02) + source prose, both judgment axes ---- */
+const jInput = buildEditorInput(judgmentCanonical as any, "我個application會唔會批？", judgmentLanding);
+eq(jInput.facts.planet_orientation, "difficult", "judgment input binds the planet-side orientation as an internal fact");
+eq(jInput.facts.house_orientation, "favourable", "judgment input binds the house-side orientation as an internal fact");
+ok(jInput.source.planet_factor && jInput.source.house_factor && jInput.source.synthesis, "judgment source carries both factors + synthesis separately");
+const tInput = buildEditorInput(timingCanonical as any, "幾時批？", timingLanding);
+eq(tInput.facts.pace_band, paceFor(timingLanding), "timing input carries the AUTHORITATIVE resolver pace band as an internal fact");
+const lInput = buildEditorInput(locationCanonical as any, "where is it?", locationLanding);
+eq(lInput.facts.candidates, ["the bedroom", "the kitchen"], "location input carries the ordered candidate places as facts");
 
 /* ---- C02: exact keys + identity validated BEFORE the status branch ---- */
 const legalUnpresentable = (language: "en" | "zh-Hant", mode: DiceV05Mode) => JSON.stringify({
@@ -151,56 +172,63 @@ ok(!oversizeFb.ok, "C01: an over-cap judgment fallback is rejected (not sliced t
 const copyAdapter = (content: string, kind: DiceV05ProviderResult["kind"] = "success"): DiceV05ProviderAdapter => ({
   invoke: async () => (kind === "success" ? { kind: "success", content } : { kind } as DiceV05ProviderResult),
 });
-// A valid judgment provider copy: its edited headline + reading ARE now displayed (source stage3);
-// the caution and follow-ups still come from the canonical result.
-const goodJudgmentCopy = JSON.stringify(copyOk({
-  language: "zh-Hant", question_mode: "judgment",
-  headline: "外在條件較有利，但你的處理方式是關鍵。", reading: "對方有合作空間，環境對你有利。不過你這面處理得太急或太強硬，容易帶來磨擦，兩者要分開理解。",
-  watch_out: "跟進時保持主動，但不要催逼對方。", suggested_followups: ["我可以點樣改善溝通？"],
-}));
-const r1 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "我個application會唔會批？", copyAdapter(goodJudgmentCopy), { now: () => 1000 });
-eq(r1.source, "stage3", "valid judgment provider copy → edited prose IS displayed (all-mode editor)");
+// A valid judgment EDITOR response: separate factor components + synthesis. The planet factor is
+// bound to the canonical planet orientation ("difficult") and the house factor to the house
+// orientation ("favourable"); its assembled answer + reading ARE displayed (source stage3); the
+// caution and follow-ups still come from the canonical result.
+const goodJudgmentEditor = editorOk("zh-Hant", "judgment", {
+  answer: "外在條件較有利，但你的處理方式是關鍵。",
+  planet_factor: "你這面比較吃力，若處理得太急或太強硬，容易遇到阻力。",
+  house_factor: "周圍環境對你有利，對方有合作空間。",
+  synthesis: "兩邊要分開理解：環境有幫助，但你的處理方式會明顯影響結果。",
+});
+const r1 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "我個application會唔會批？", copyAdapter(goodJudgmentEditor), { now: () => 1000, landing: judgmentLanding });
+eq(r1.source, "stage3", "valid judgment editor response → edited prose IS displayed (all-mode editor)");
 eq(r1.provider_calls, 1, "one Stage-3 provider call");
+ok(r1.editor_response !== null, "stage3 outcome carries the structured editor_response for the wire (V02)");
 ok(r1.copy && r1.copy.practical_step === null, "judgment copy keeps practical_step null");
-ok(r1.copy && r1.copy.reading.includes("對方有合作空間"), "judgment display uses the PROVIDER reading");
-ok(r1.copy && r1.copy.watch_out === ensureTerminalLike((judgmentCanonical as any).watch_out), "judgment watch_out stays canonical, not the provider's");
+ok(r1.copy && r1.copy.reading.includes("對方有合作空間") && r1.copy.reading.includes("阻力"), "judgment display keeps BOTH edited factors, each bound to its orientation");
+ok(r1.copy && r1.copy.watch_out === ensureTerminalLike((judgmentCanonical as any).watch_out), "judgment watch_out stays canonical, not the editor's");
 ok(r1.copy && JSON.stringify(r1.copy.suggested_followups) === JSON.stringify(((judgmentCanonical as any).suggested_followups as string[]).map(ensureTerminalLike)), "judgment follow-ups stay canonical");
-// A valid Level-1 provider copy: its explanatory prose IS used (source stage3); controlled fields
-// (watch/practical/follow-ups) still come from the canonical result.
-const goodPersonCopy = JSON.stringify(copyOk({
-  language: "en", question_mode: "person",
-  headline: "They are steady and reliable.", reading: "They earn trust slowly through consistent, dependable actions.",
-  watch_out: "Ignore me.", practical_step: "Ignore me too.",
-}));
-const rL = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(goodPersonCopy), { now: () => 1000 });
-eq(rL.source, "stage3", "valid Level-1 provider prose is used");
-ok(rL.copy && rL.copy.reading.includes("consistent"), "Level-1 display uses provider reading");
-ok(rL.copy && rL.copy.watch_out === ensureTerminalLike((personCanonical as any).watch_out), "Level-1 watch_out stays canonical, not the provider's");
-ok(rL.copy && rL.copy.practical_step === ensureTerminalLike((personCanonical as any).practical_step), "Level-1 practical_step stays canonical, not the provider's");
+// A valid Level-1 editor response: answer + explanation. Controlled fields stay canonical.
+const goodPersonEditor = editorOk("en", "person", {
+  answer: "They are steady and reliable.",
+  explanation: "They earn trust slowly through consistent, dependable actions.",
+});
+const rL = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(goodPersonEditor), { now: () => 1000, landing: personLanding });
+eq(rL.source, "stage3", "valid Level-1 editor prose is used");
+ok(rL.copy && rL.copy.reading.includes("consistent"), "Level-1 display uses editor explanation");
+ok(rL.copy && rL.copy.watch_out === ensureTerminalLike((personCanonical as any).watch_out), "Level-1 watch_out stays canonical, not the editor's");
+ok(rL.copy && rL.copy.practical_step === ensureTerminalLike((personCanonical as any).practical_step), "Level-1 practical_step stays canonical, not the editor's");
 
-/* ---- execution: a judgment provider copy whose EDITED prose leaks rank/大吉 → rejected → fallback ---- */
-const rankyCopy = JSON.stringify(copyOk({ language: "zh-Hant", question_mode: "judgment", headline: "排名第一，大吉。", reading: "第三順位。", watch_out: "留意。", suggested_followups: ["我可以點樣改善溝通？"] }));
-const r2 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", copyAdapter(rankyCopy), { now: () => 1000 });
-eq(r2.source, "fallback", "a judgment provider copy leaking rank/大吉 is rejected → deterministic fallback");
-ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "the displayed judgment fallback is clean (canonical, not the prohibited provider prose)");
+/* ---- execution: a judgment editor response whose ASSEMBLED prose leaks rank/大吉 → rejected → fallback ---- */
+const rankyEditor = editorOk("zh-Hant", "judgment", {
+  answer: "大吉，排名第一。",
+  planet_factor: "你這面比較吃力，會遇到阻力。",
+  house_factor: "環境有利。",
+  synthesis: "第三順位。",
+});
+const r2 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", copyAdapter(rankyEditor), { now: () => 1000, landing: judgmentLanding });
+eq(r2.source, "fallback", "a judgment editor response leaking rank/大吉 is rejected → deterministic fallback");
+ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "the displayed judgment fallback is clean (canonical, not the prohibited editor prose)");
 
-/* ---- execution: a Level-1 provider copy whose PROSE is prohibited → fallback ---- */
-const rankyPersonCopy = JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They rank first.", reading: "This sits on rank 7 of the houses." }));
-const rLbad = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(rankyPersonCopy), { now: () => 1000 });
-eq(rLbad.source, "fallback", "Level-1 provider copy with prohibited prose falls back deterministically");
+/* ---- execution: a Level-1 editor response whose PROSE is prohibited → fallback ---- */
+const rankyPersonEditor = editorOk("en", "person", { answer: "They rank first.", explanation: "This sits on rank 7 of the houses." });
+const rLbad = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(rankyPersonEditor), { now: () => 1000, landing: personLanding });
+eq(rLbad.source, "fallback", "Level-1 editor response with prohibited prose falls back deterministically");
 ok(rLbad.copy && prohibitedLanguageCheck(rLbad.copy) === "OK", "the Level-1 fallback is clean");
 
 /* ---- execution: provider network error → fallback; legal unpresentable → fallback/unavailable ---- */
-const r3 = await executeDiceV05CustomerCopy(timingCanonical as any, "幾時批？", copyAdapter("", "network"), { now: () => 1000 });
+const r3 = await executeDiceV05CustomerCopy(timingCanonical as any, "幾時批？", copyAdapter("", "network"), { now: () => 1000, landing: timingLanding });
 eq(r3.source, "fallback", "provider failure falls back");
-const r4 = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(legalUnpresentable("en", "person")), { now: () => 1000 });
+const r4 = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(editorUnpresentable("en", "person", ["answer", "explanation"])), { now: () => 1000, landing: personLanding });
 ok(r4.source === "fallback" || r4.source === "unavailable", "explicit unpresentable routes to fallback/unavailable, never a reading");
 eq(r4.failure_code?.startsWith("DICE_COPY_UNPRESENTABLE"), true, "unpresentable code recorded");
 
 /* ---- C03: one absolute deadline — exhausted budget makes ZERO Stage-3 calls ---- */
 let called = 0;
-const countingAdapter: DiceV05ProviderAdapter = { invoke: async () => { called += 1; return { kind: "success", content: goodJudgmentCopy }; } };
-const past = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", countingAdapter, { now: () => 5000, deadlineAtMs: 4000 });
+const countingAdapter: DiceV05ProviderAdapter = { invoke: async () => { called += 1; return { kind: "success", content: goodJudgmentEditor }; } };
+const past = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", countingAdapter, { now: () => 5000, deadlineAtMs: 4000, landing: judgmentLanding });
 eq(called, 0, "C03: no time left → zero Stage-3 provider calls");
 ok(past.source === "fallback" || past.source === "unavailable", "C03: exhausted budget yields fallback/unavailable");
 eq(past.provider_calls, 0, "C03: provider_calls is 0 when the budget is already spent");
@@ -232,19 +260,20 @@ const g04RealRes = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q
 eq(g04RealRes.provider_calls, 2, "G04-B: two genuine transported failures are counted as two provider calls");
 
 /* ---- D02: the RAW provider output is measured before parse/normalization (real tokenizer) ---- */
-// A valid person copy padded with whitespace so the RAW string exceeds the 700-token cap while the
-// NORMALIZED object stays well within it. The raw guard must reject it (→ fallback), proving that
-// whitespace/escape padding cannot slip a huge raw response past measurement.
-const paddedRaw = JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They are steady.", reading: "They build trust slowly." })) + " \n".repeat(1500);
+// A valid person editor response padded with whitespace so the RAW string exceeds the 700-token cap
+// while the NORMALIZED object stays well within it. The raw guard must reject it (→ fallback),
+// proving whitespace/escape padding cannot slip a huge raw response past measurement.
+const paddedRaw = editorOk("en", "person", { answer: "They are steady.", explanation: "They build trust slowly." }) + " \n".repeat(1500);
 ok(!measureDiceTokenLimit(paddedRaw, CUSTOMER_COPY_OUTPUT_CAP).within_limit, "D02: the padded RAW string exceeds the 700-token cap");
-const rawRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(paddedRaw), { now: () => 1000 });
+const rawRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(paddedRaw), { now: () => 1000, landing: personLanding });
 eq(rawRes.source, "fallback", "D02: an over-cap RAW response is rejected before parse → deterministic fallback");
 ok(rawRes.failure_code === "DICE_COPY_RAW_OUTPUT_TOKEN_CAP", "D02: raw-output cap failure code recorded");
 
-/* ---- S06: a dangling fragment (with a trailing period) from the provider is rejected, not laundered ---- */
-const fragRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They are steady.", reading: "They tend to be careful and." }))), { now: () => 1000 });
-eq(fragRes.source, "fallback", "S06: 'They tend to be careful and.' provider copy is rejected → fallback");
-ok(fragRes.copy && completenessCheck(fragRes.copy) === "OK", "S06: the resulting fallback is itself complete");
+/* ---- V06/S06: a dangling fragment MID-paragraph inside an edited component is rejected, not
+ *      laundered by a clean final sentence (sentence-level segment check before composition). ---- */
+const fragRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(editorOk("en", "person", { answer: "They are steady.", explanation: "They tend to be careful and. They value clear commitments." })), { now: () => 1000, landing: personLanding });
+eq(fragRes.source, "fallback", "V06: a mid-paragraph 'careful and.' fragment in the edited explanation is rejected → fallback");
+ok(fragRes.copy && completenessCheck(fragRes.copy) === "OK", "V06: the resulting fallback is itself complete");
 
 /* ---- F03: each Judgment source-prose COMPONENT is validated before the components are joined.
  *      A broken Planet, House or synthesis component makes the deterministic assembly UNAVAILABLE
@@ -312,27 +341,62 @@ for (const mode of ["judgment", "timing", "location", "person"] as DiceV05Mode[]
 // The fixed unavailable message is stable and non-interpretive.
 ok(CUSTOMER_COPY_UNAVAILABLE_MESSAGE.en.length > 0 && CUSTOMER_COPY_UNAVAILABLE_MESSAGE["zh-Hant"].length > 0, "unavailable message defined for both languages");
 
-/* ---- L-round: the all-mode meaning-contradiction guard (targeted, documented heuristics). ---- */
+/* ---- V05/V04: backstop meaning-contradiction guard on the assembled copy (the primary per-factor
+ *      binding is exercised below via assembleEditorCopy). ---- */
 // Judgment: on a MIXED canonical a totalizing one-sided claim is rejected either way; a faithful
-// mixed rewrite passes. planet_side.dignity_emphasis "constructive" (favourable) + house misfortune (difficult).
+// mixed rewrite (INCLUDING a correct negation) passes. planet favourable (constructive) + house difficult.
 const mixedJudg = { ...(enJudgment as any), house_side: { fortune: "great_misfortune", fortune_zh: "大凶", rank: 12, prose: "House 12 is a hidden, difficult setting here." }, synthesis: "The planet side is favourable while the house environment is difficult." };
-ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Everything is favourable.", reading: "Both factors support you with no obstacles at all.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any) !== "OK", "L: an all-positive reading on a mixed canonical is rejected (dropped-difficult)");
-ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Both factors oppose this.", reading: "Everything here is against you and unfavourable.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any) !== "OK", "L: an all-negative reading on a mixed canonical is rejected (dropped-favourable)");
-eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Your strengths are real, but the setting is hard.", reading: "You have genuine capacity working for you, yet the surroundings make it difficult; the two stay separate.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any), "OK", "L: a faithful mixed rewrite passes the contradiction guard");
-// Timing: canonical medium; a positive immediacy claim is rejected, a negated one passes.
-ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", headline: "It resolves immediately.", reading: "This happens right away." }), timingCanonical as any) !== "OK", "L: an immediacy claim contradicting a medium canonical is rejected");
-eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", headline: "A moderate wait is likely.", reading: "This will not resolve immediately; it develops over time." }), timingCanonical as any), "OK", "L: a negated-immediacy moderate rewrite passes");
+ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Everything is favourable.", reading: "Both factors support you with no obstacles at all.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any) !== "OK", "V05: an all-positive reading on a mixed canonical is rejected (dropped-difficult)");
+ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Both factors oppose this.", reading: "Everything here is against you and unfavourable.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any) !== "OK", "V05: an all-negative reading on a mixed canonical is rejected (dropped-favourable)");
+eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Your strengths are real, but the setting is hard.", reading: "You have genuine capacity working for you, yet the surroundings make it difficult; the two stay separate.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any), "OK", "V05: a faithful mixed rewrite passes the backstop");
+// V05 (fixes R04): a CORRECT NEGATION of a totalizer is NOT a false all-positive claim.
+eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Support is real, but not everything is favourable.", reading: "Not every factor is favourable here: your side helps, yet the setting works against you.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any), "OK", "V05: 'Not every factor is favourable' (correct negation) is NOT falsely rejected");
+// Timing backstop uses the AUTHORITATIVE resolver pace via the landing (V04). Non-fast landing:
+ok(!["fastest", "fast"].includes(paceFor(timingLanding)), "V04 control: the timing landing resolves to a NON-fast band");
+ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", headline: "It resolves immediately.", reading: "This happens right away." }), timingCanonical as any, timingLanding) !== "OK", "V04: an immediacy claim contradicting a non-fast landing is rejected");
+eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", headline: "A moderate wait is likely.", reading: "This will not resolve immediately; it develops over time." }), timingCanonical as any, timingLanding), "OK", "V04: a negated-immediacy moderate rewrite passes");
 
-/* ---- L-round: full Stage-3 INPUT + assembled-envelope token measurement with the runtime tokenizer
- *      (report; the input rides the provider GENERATION allowance, the envelope rides the 700 cap). ---- */
-for (const [mode, canonical, q] of [["judgment", judgmentCanonical, "我個application會唔會批？"], ["timing", timingCanonical, "幾時會有結果？"], ["location", locationCanonical, "喺邊度？"], ["person", personCanonical, "係咩人？"]] as const) {
-  const providerInput = `${DICE_V05_CUSTOMER_COPY_BLOCK}\nINPUT_JSON:\n${JSON.stringify(buildCustomerCopyInput(canonical as any, q))}`;
+/* ---- PRIMARY structured source-binding in assembleEditorCopy (V03/V04/V05/V06), both languages. ---- */
+const asm = (canonical: any, language: "en" | "zh-Hant", mode: DiceV05Mode, components: Record<string, string>, landing?: Landing) => {
+  const p = parseEditorResponse(mode, language, editorOk(language, mode, components));
+  if (p.kind !== "ok") return { ok: false as const, reason: `PARSE_${p.kind === "invalid" ? p.code : "UNPRESENTABLE"}` };
+  return assembleEditorCopy(canonical, p.value, landing);
+};
+// V05 judgment (EN, mixed: planet favourable, house difficult).
+const jFaithful = asm(mixedJudg, "en", "judgment", { answer: "Your side helps, but the setting is hard.", planet_factor: "Your own capacity is a genuine strength working in your favour.", house_factor: "The surrounding setting is difficult and adds friction.", synthesis: "Real support on one side, real difficulty on the other; the two stay separate." }, judgmentLanding);
+ok(jFaithful.ok, "V05 EN: a faithful two-factor rewrite assembles");
+ok(jFaithful.ok && validateDisplayCopy(jFaithful.copy, mixedJudg as any, judgmentLanding) === "OK", "V05 EN: the faithful assembled judgment copy passes display validation");
+// Swap: planet factor carries the DIFFICULT signal (opposite of its favourable orientation).
+eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own side is difficult and works against you with real friction.", house_factor: "The setting strongly supports you and helps throughout.", synthesis: "They stay separate." }, judgmentLanding), { ok: false, reason: "DICE_COPY_JUDGMENT_PLANET_FACTOR_ORIENTATION" }, "V05 EN: a swapped planet factor (favourable→difficult) is rejected");
+// Omission/averaged: the difficult house factor is written favourable-only.
+eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your side is a real strength that helps you.", house_factor: "The setting also supports you and helps, with everything in your favour.", synthesis: "They stay separate." }, judgmentLanding), { ok: false, reason: "DICE_COPY_JUDGMENT_HOUSE_FACTOR_ORIENTATION" }, "V05 EN: a dropped/averaged difficult factor (written favourable) is rejected");
+// V05 judgment (zh-Hant, mixed: planet difficult, house favourable — from judgmentCanonical).
+const jZhFaithful = asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。" }, judgmentLanding);
+ok(jZhFaithful.ok, "V05 zh: a faithful two-factor rewrite assembles");
+eq(asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "x。", planet_factor: "你這面好有利，有明顯助力，順暢。", house_factor: "周圍環境不利，充滿阻力同困難。", synthesis: "兩邊分開理解。" }, judgmentLanding).ok, false, "V05 zh: a swapped factor pair is rejected");
+// V04 timing: correct pace echo assembles; a wrong echo and an immediacy claim are rejected.
+const paceBand = paceFor(timingLanding);
+ok(asm(timingCanonical, "zh-Hant", "timing", { answer: "預計需要中等時間。", pace_band: paceBand, explanation: "事情本身較慢，但環境會推動，整體屬中等，會逐步發展。" }, timingLanding).ok, "V04: a correct pace-band echo assembles");
+eq(asm(timingCanonical, "zh-Hant", "timing", { answer: "預計需要中等時間。", pace_band: "fast", explanation: "整體中等，會逐步發展。" }, timingLanding), { ok: false, reason: "DICE_COPY_TIMING_PACE_ECHO" }, "V04: a wrong pace-band echo is rejected");
+eq(asm(timingCanonical, "en", "timing", { answer: "It happens right away.", pace_band: paceBand, explanation: "This resolves immediately with no delay." }, timingLanding), { ok: false, reason: "DICE_COPY_TIMING_PACE_CONTRADICTED" }, "V04: an immediacy claim on a non-fast band is rejected");
+// V03 location: clean clues assemble; a movement instruction is rejected (EN + zh).
+ok(asm(locationCanonical, "en", "location", { clues: "The strongest sign points to a private, indoor spot at home, near where daily items are kept." }, locationLanding).ok, "V03: clean Location clue prose assembles");
+eq(asm(locationCanonical, "en", "location", { clues: "Go to the airport first, then look at home." }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_IMPERATIVE" }, "V03 EN: a movement instruction in the clue prose is rejected");
+eq(asm(locationCanonical, "en", "location", { clues: "前往機場先，再返屋企搵。" }, locationLanding).ok, false, "V03 zh: a movement instruction in the clue prose is rejected");
+// V06: a mid-paragraph fragment in a component is rejected before composition.
+eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "They tend to be careful and. They value clarity." }, personLanding).ok, false, "V06: a mid-paragraph fragment in the edited explanation is rejected");
+
+/* ---- Stage-3 EDITOR input + assembled-envelope token measurement (honest allowance labels, M03). ---- */
+for (const [mode, canonical, q, landing] of [["judgment", judgmentCanonical, "我個application會唔會批？", judgmentLanding], ["timing", timingCanonical, "幾時會有結果？", timingLanding], ["location", locationCanonical, "喺邊度？", locationLanding], ["person", personCanonical, "係咩人？", personLanding]] as const) {
+  const providerInput = `${DICE_V05_EDITOR_BLOCK}\nINPUT_JSON:\n${JSON.stringify(buildEditorInput(canonical as any, q, landing))}`;
   const inTok = measureDiceTokenLimit(providerInput, 100000).token_count;
-  const fb = buildValidatedFallback(canonical as any);
+  const fb = buildValidatedFallback(canonical as any, landing);
   const envTok = fb.ok ? measureDiceTokenLimit(JSON.stringify(fb.copy), CUSTOMER_COPY_OUTPUT_CAP) : { token_count: -1, within_limit: false };
-  ok(fb.ok, `L: ${mode} deterministic envelope builds`);
-  ok(envTok.within_limit, `L: ${mode} assembled display envelope within the 700-token cap (tokens=${envTok.token_count})`);
-  console.log(`stage3-io ${mode}: input_tokens=${inTok} (runtime tokenizer, real INPUT_JSON), display_envelope_tokens=${envTok.token_count} cap=${CUSTOMER_COPY_OUTPUT_CAP} (not a mathematical worst case; representative fixture)`);
+  ok(fb.ok, `${mode} deterministic envelope builds`);
+  ok(envTok.within_limit, `${mode} assembled display envelope within the 700-token cap (tokens=${envTok.token_count})`);
+  // The editor INPUT is a provider PROMPT: it is bounded by the provider generation/context allowance
+  // owned by the window, NOT by the 700-token OUTPUT cap (which bounds only the returned display copy).
+  console.log(`stage3-io ${mode}: editor_input_tokens=${inTok} (runtime tokenizer, real INPUT_JSON; bounded by the provider context/generation allowance, not the 700 output cap), display_envelope_tokens=${envTok.token_count} cap=${CUSTOMER_COPY_OUTPUT_CAP} (representative fixture, not a mathematical worst case)`);
 }
 
 console.log("dice-v0-5 customer-copy fixtures passed");

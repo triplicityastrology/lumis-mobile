@@ -67,12 +67,24 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
         // editor on a completed result. Stage 3 uses the same injected adapter; on any Stage-3
         // failure the composition returns a deterministic, astrology-free customer copy built
         // from the validated canonical result (never a broken sentence, never a second charge).
-        const v5 = await executeDiceV05FreeTextCaseWithCopy(v5Request, () => createDiceV05Adapter(providerConfig.config, dependencies.fetchImpl));
+        //
+        // V01: the all-mode Stage-3 language editor is selected here, at the real entrypoint, ONLY
+        // when the explicit server setting LUMIS_FOUNDER_DICE_STAGE3_EDITOR === "true" (OFF by
+        // default — no silent activation). Off, the composition runs the deterministic assembly and
+        // makes no Stage-3 provider call. This is the single switch that reaches the provider editor
+        // composition; changing it does not alter any live/hosted configuration.
+        const stage3EditorEnabled = dependencies.environment.LUMIS_FOUNDER_DICE_STAGE3_EDITOR === "true";
+        const v5 = await executeDiceV05FreeTextCaseWithCopy(
+          v5Request,
+          () => createDiceV05Adapter(providerConfig.config, dependencies.fetchImpl),
+          () => Date.now(),
+          { copyMode: stage3EditorEnabled ? "provider" : "deterministic" },
+        );
         if (v5.kind !== "completed") {
           const code = v5.kind === "safety" ? "DICE_SAFETY_REDIRECT" : v5.kind === "bundled" ? "DICE_BUNDLED_QUESTION" : v5.kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
           return jsonResponse({ error: { code, redacted_failure_code: v5.code }, metadata: v5.metadata }, { status: 422 });
         }
-        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, customer_copy: v5.customer_copy, metadata: v5.metadata }, { status: 200 });
+        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, customer_copy: v5.customer_copy, editor_response: v5.editor_response, metadata: v5.metadata }, { status: 200 });
       }
       const outcome = await executeFounderDiceFreeTextCase(freeTextRequest, () => createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl));
       if (outcome.kind !== "completed") {

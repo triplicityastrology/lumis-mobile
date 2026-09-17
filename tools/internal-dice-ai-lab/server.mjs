@@ -35,8 +35,8 @@ const COMPILED_COPY_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/func
 const COMPILED_CONTRACT_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-interpretation-contract.js");
 let _copyValidatorPromise = null;
 function loadAuthoritativeCopyValidator() {
-  // Loads BOTH the compiled customer-copy module (parseCustomerCopy / validateDisplayCopy /
-  // buildValidatedFallback / deterministicCustomerCopy / mergeProviderProse / validateLocationProjection)
+  // Loads BOTH the compiled customer-copy module (parseCustomerCopy / parseEditorResponse /
+  // assembleEditorCopy / validateDisplayCopy / buildValidatedFallback / validateLocationProjection)
   // AND the compiled interpretation-contract module (the AUTHORITATIVE validateDiceV05FinalResult) —
   // so the Web boundary reuses the same canonical validator the engine uses, not a weaker duplicate.
   if (!_copyValidatorPromise) {
@@ -396,45 +396,53 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   // A backend that explicitly declares its copy unavailable is honoured as a controlled
   // copy-unavailable; we do NOT manufacture a reading over the top of that signal.
   if (metadata.copy_source === "unavailable") return unavailable;
-  // F01/S03: the Web NEVER trusts the supplied customer_copy or the copy_source label as
-  // provenance. For the deterministic default it REGENERATES the displayed copy from the
-  // authoritatively-validated canonical (buildValidatedFallback), which also validates every
-  // consumed source-prose COMPONENT (F03) before joining. If regeneration fails, the reading is
-  // copy-unavailable; the displayed copy is exactly the deterministic assembly, never supplied text.
-  const regenerated = cp.buildValidatedFallback(result);
-  if (!regenerated.ok) return unavailable;
-  let displayCopy = regenerated.copy;
-  let copySource = "deterministic";
-  // ALL-MODE Stage-3 language editor (Founder language-quality completion). Honoured ONLY under the
-  // single explicit server switch `stage3EditorEnabled` AND when the trusted metadata says
-  // copy_source: "stage3" — for EVERY supported mode (judgment, timing, location, person, reason,
-  // thing_or_situation), not only Level-1. The supplied editor copy is parsed with the TRUSTED
-  // canonical mode+language, merged over the canonical controlled fields, and must pass the SAME
-  // authoritative display validation (schema, caps, prohibited, completeness, source parity AND the
-  // meaning-contradiction guard). Anything short of that falls back to the regenerated deterministic
-  // copy — the incoming "stage3" label never bypasses validation, and a missing field is never
-  // coerced into "undefined." (parse rejects it first).
+  // The Web NEVER trusts the supplied editor response or the copy_source label as provenance. It
+  // re-parses, re-assembles and re-validates everything from the authoritatively-validated canonical.
+  let displayCopy = null;
+  let copySource = null;
+  let copyFailure = null;
+  // V02: the editor response is evaluated INDEPENDENTLY — its acceptance does NOT require the
+  // deterministic fallback to be displayable. The structured editor response is parsed with the
+  // TRUSTED canonical mode+language, assembled from its SEPARATED components with the source-bound
+  // checks (per-factor Judgment orientation, authoritative Timing pace echo, Location
+  // movement-imperative, sentence-level fragments — all in assembleEditorCopy) and must pass the SAME
+  // authoritative display validation. Honoured ONLY under the explicit server switch
+  // `stage3EditorEnabled` AND when the trusted metadata says copy_source: "stage3", for EVERY
+  // supported mode. A stray "stage3" label alone can neither bypass validation nor force unavailable.
   if (stage3EditorEnabled && metadata.copy_source === "stage3") {
-    const supplied = response.customer_copy;
-    // Parse the COMPLETE supplied object with the TRUSTED canonical mode+language, merge it over the
-    // canonical controlled fields, and re-validate the whole display (defense in depth). A missing
-    // field is rejected here — never coerced into "undefined." Any failure keeps the already
-    // regenerated deterministic copy (the §13 fallback order: reject → validated deterministic
-    // fallback → unavailable), honestly labelled "deterministic"; a stray "stage3" label alone can
-    // neither bypass validation nor force copy-unavailable.
-    let edited = null;
+    const supplied = response.editor_response;
     if (supplied && typeof supplied === "object" && !Array.isArray(supplied)) {
       const suppliedSerialized = JSON.stringify(supplied);
-      const parsedSupplied = cp.parseCustomerCopy(result.question_mode, result.language, suppliedSerialized);
-      if (parsedSupplied.kind === "ok") {
-        const merged = cp.mergeProviderProse(result, parsedSupplied.value);
-        if (cp.validateDisplayCopy(merged, result) === "OK") edited = merged;
+      const parsedEditor = cp.parseEditorResponse(result.question_mode, result.language, suppliedSerialized);
+      if (parsedEditor.kind === "ok") {
+        const assembled = cp.assembleEditorCopy(result, parsedEditor.value, landing);
+        const displayVerdict = assembled.ok ? cp.validateDisplayCopy(assembled.copy, result, landing) : assembled.reason;
+        if (assembled.ok && displayVerdict === "OK") { displayCopy = assembled.copy; copySource = "stage3"; }
+        else copyFailure = displayVerdict;
+      } else {
+        copyFailure = parsedEditor.kind === "unpresentable" ? "DICE_COPY_UNPRESENTABLE" : parsedEditor.code;
       }
+    } else {
+      copyFailure = "DICE_EDITOR_MISSING";
     }
-    if (edited) { displayCopy = edited; copySource = "stage3"; }
+  }
+  // No usable edited copy → the validated deterministic assembly, built NOW (V02: not a precondition
+  // that could block a valid edited copy). It also validates every consumed source-prose COMPONENT
+  // (F03). If it too cannot be produced, the reading is copy-unavailable.
+  if (!displayCopy) {
+    const regenerated = cp.buildValidatedFallback(result, landing);
+    if (!regenerated.ok) return unavailable;
+    displayCopy = regenerated.copy;
+    // V07: report the ACTUAL displayed source. A stage3 editor that was attempted but REJECTED shows
+    // the deterministic fallback → "fallback" with a redacted failure code; the unselected path →
+    // "deterministic". Never label a fallback render "stage3".
+    copySource = copyFailure ? "fallback" : "deterministic";
   }
   const presentation = presentCustomerCopyV05(displayCopy, result, selection);
-  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
+  const classification = copySource === "fallback"
+    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: copyFailure }
+    : { question_mode: result.question_mode, copy_source: copySource };
+  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   } catch {
     // Gateway/transport or downstream execution failure on a VALID request → controlled 502 service
     // result. Preserve a trusted total if metadata was already redacted; otherwise the count is

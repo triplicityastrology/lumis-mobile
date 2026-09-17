@@ -18,10 +18,12 @@
  * follow-up sequence, timing band, judgment axes + synthesis, Location projection), so no provider
  * text can substitute a Location step, reorder follow-ups, negate a warning, drop synthesis, or
  * reverse a timing band / judgment orientation. The provider LANGUAGE editor ("provider" mode) is
- * gated OFF pending the deferred Founder live-language + semantic-fidelity acceptance (L02–L04);
- * even when enabled it can only influence Level-1 explanatory prose (controlled fields stay
- * canonical — see mergeProviderProse). This keeps the customer answer faithful to the approved
- * interpretation for this candidate while the language editor is validated separately.
+ * gated OFF by default pending the deferred Founder live-language + semantic-fidelity acceptance
+ * (L02–L04). When enabled it edits ONLY the customer-facing answer/explanation prose in every mode
+ * through the structured, source-bound editor contract (see assembleEditorCopy); the controlled,
+ * meaning-bearing fields (warning, practical/search step, follow-up sequence; Location area,
+ * candidates, order and step) stay a canonical pass-through. This keeps the customer answer faithful
+ * to the approved interpretation for this candidate while the language editor is validated separately.
  */
 import {
   executeDiceV05FreeTextCase, SHARED_DEADLINE_MS,
@@ -29,9 +31,10 @@ import {
 } from "./dice-v0-5-window.ts";
 import {
   executeDiceV05CustomerCopy, buildValidatedFallback, CUSTOMER_COPY_UNAVAILABLE_MESSAGE,
-  type DiceV05CustomerCopy,
+  type DiceV05CustomerCopy, type DiceV05EditorResponse, type Landing,
 } from "./dice-v0-5-customer-copy.ts";
 import type { DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
+import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 
 export type DiceV05CopyMode = "deterministic" | "provider";
 
@@ -47,6 +50,9 @@ export type DiceV05ThreeStageOutcome =
       copy_source: "deterministic" | "stage3" | "fallback" | "unavailable";
       copy_unavailable_message: string | null;
       copy_failure_code: string | null;
+      // The RAW structured editor response behind a "stage3" copy, so the Web boundary can
+      // independently re-parse, re-assemble and re-validate it (defence in depth). Null otherwise.
+      editor_response: DiceV05EditorResponse | null;
       provider_calls: number;            // Stage 1 + Stage 2 + Stage 3 (actual)
       astrology_provider_calls: number;  // Stage 1 + Stage 2 only
       metadata: Record<string, unknown>;
@@ -68,21 +74,30 @@ export async function executeDiceV05FreeTextCaseWithCopy(
   if (canonical.kind !== "completed") return canonical;
 
   const astrologyCalls = canonical.provider_calls; // Stage 1 + Stage 2
+  // The trusted physical landing from the validated request — used to derive the authoritative
+  // combined pace (V04) and passed through to Stage 3.
+  const landing: Landing = {
+    planet: input.planet_id as DiceV05PlanetId,
+    sign: input.sign_id as DiceV05SignId,
+    house: Number(input.house_id.slice("house_".length)),
+  };
   let customerCopy: DiceV05CustomerCopy | null;
   let copySource: "deterministic" | "stage3" | "fallback" | "unavailable";
   let copyFailure: string | null;
   let copyCalls: number;
+  let editorResponse: DiceV05EditorResponse | null = null;
 
   if (copyMode === "provider") {
     // Gated language-editor path (controlled fields still forced from canonical inside).
-    const copy = await executeDiceV05CustomerCopy(canonical.result, input.question, adapterSource, { now, deadlineAtMs });
+    const copy = await executeDiceV05CustomerCopy(canonical.result, input.question, adapterSource, { now, deadlineAtMs, landing });
     customerCopy = copy.copy;
     copySource = copy.source;
     copyFailure = copy.failure_code;
     copyCalls = copy.provider_calls;
+    editorResponse = copy.editor_response;
   } else {
     // Default: deterministic assembly from the validated canonical result. No provider call.
-    const built = buildValidatedFallback(canonical.result);
+    const built = buildValidatedFallback(canonical.result, landing);
     customerCopy = built.ok ? built.copy : null;
     copySource = built.ok ? "deterministic" : "unavailable";
     copyFailure = built.ok ? null : built.reason;
@@ -99,6 +114,7 @@ export async function executeDiceV05FreeTextCaseWithCopy(
     question_mode: canonical.question_mode,
     result: canonical.result,
     customer_copy: customerCopy,
+    editor_response: editorResponse,
     copy_source: copySource,
     copy_unavailable_message: unavailableMessage,
     copy_failure_code: copyFailure,

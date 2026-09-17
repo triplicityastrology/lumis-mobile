@@ -5,12 +5,14 @@
  * ONE absolute deadline reaches Stage 1 and Stage 2 (D01), and exercises the gated provider mode.
  * No raw question or provider body is emitted. */
 import { executeDiceV05FreeTextCaseWithCopy } from "../_shared/dice-v0-5-window-with-copy.ts";
-import { prohibitedLanguageCheck, completenessCheck, DICE_V05_CUSTOMER_COPY_SCHEMA } from "../_shared/dice-v0-5-customer-copy.ts";
+import { prohibitedLanguageCheck, completenessCheck, DICE_V05_EDITOR_SCHEMA } from "../_shared/dice-v0-5-customer-copy.ts";
 import { SHARED_DEADLINE_MS, type DiceV05ProviderAdapter } from "../_shared/dice-v0-5-window.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
 
+// Jupiter in Sagittarius (ruler → strong → constructive/favourable) in House 1 (great_fortune →
+// favourable): both Judgment factors are favourable, so faithful factor prose reads favourably.
 const JUDGMENT_REQUEST = Object.freeze({ question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" });
 
 // Stage-2 judgment content (English, within caps, no blended-grade terms).
@@ -22,26 +24,31 @@ const stage2Judgment = JSON.stringify({
   watch_out: "Do not let optimism skip over the practical preparation.",
   suggested_followups: ["What should I prepare first?"],
 });
-const goodCopy = JSON.stringify({
-  schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
-  headline: "The conditions clearly support stepping forward.",
-  reading: "The wider situation favours you and keeps the choice in your own hands. The main caution is practical rather than about the opportunity itself.",
-  watch_out: "Do not let optimism skip over the practical preparation.",
-  practical_step: null, suggested_followups: ["What should I prepare first?"],
+// A structured EDITOR response whose ASSEMBLED prose leaks a rank / overall grade → rejected. The
+// factor components stay orientation-consistent (both favourable) so the rejection is on the leak.
+const rankyEditor = JSON.stringify({
+  schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
+  answer: "This is rank 1, a strong result.",
+  planet_factor: "Your own capacity is a genuine strength working in your favour.",
+  house_factor: "The setting is supportive and keeps the matter in your hands.",
+  synthesis: "The overall grade is favourable.",
 });
-const rankyCopy = JSON.stringify({
-  schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
-  headline: "This is rank 1, a strong result.", reading: "The overall grade is favourable.",
-  watch_out: "Watch the ranking.", practical_step: null, suggested_followups: ["What should I prepare first?"],
+// A clean, faithful structured editor response (both factors favourable, each its own component).
+const goodJudgmentEditor = JSON.stringify({
+  schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
+  answer: "You have real support for this, and the setting is favourable.",
+  planet_factor: "Your own capacity is strong and works in your favour.",
+  house_factor: "The situation around you is also supportive and keeps the choice in your hands.",
+  synthesis: "The two sides agree here rather than pulling against each other, so the outlook is supportive.",
 });
 
-// stage3Content may be null → the adapter THROWS if asked for a copy schema (proves no copy call).
+// stage3Content may be null → the adapter THROWS if asked for an editor schema (proves no copy call).
 function stagedAdapter(stage3Content: string | null): DiceV05ProviderAdapter {
   return {
     invoke: async (req) => {
       if (req.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "judgment", matched_rule: "STEP_3_JUDGMENT" }) };
       if (req.schema_name.endsWith("_v5_stage2")) return { kind: "success", content: stage2Judgment };
-      if (req.schema_name.startsWith("lumis_dice_customer_copy_")) {
+      if (req.schema_name.startsWith("lumis_dice_editor_")) {
         if (stage3Content === null) throw new Error("copy provider must NOT be called in deterministic mode");
         return { kind: "success", content: stage3Content };
       }
@@ -86,7 +93,7 @@ async function main() {
 
   // (3) ALL-MODE editor on a Judgment question: a prohibited provider copy (rank/大吉/overall grade)
   // is REJECTED and falls back to the clean deterministic assembly; the Stage-3 call still happened.
-  const prov = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(rankyCopy), () => 1000, { copyMode: "provider" });
+  const prov = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(rankyEditor), () => 1000, { copyMode: "provider" });
   ok(prov.kind === "completed", "provider-mode judgment completes");
   if (prov.kind !== "completed") throw new Error("unreachable");
   eq(prov.copy_source, "fallback", "a prohibited judgment provider copy is rejected → deterministic fallback (S05)");
@@ -95,16 +102,10 @@ async function main() {
 
   // (3a) ALL-MODE editor: a CLEAN edited Judgment copy IS displayed (source stage3), and its edited
   // reading — not the deterministic assembly — reaches the customer, while the caution stays canonical.
-  const goodJudgmentEditor = JSON.stringify({
-    schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
-    headline: "You have real support for this, and the setting is favourable.",
-    reading: "Your own capacity is strong and works in your favour. The situation around you is also supportive, so the two sides agree here rather than pulling against each other.",
-    watch_out: "IGNORE ME — the caution must come from canonical.", practical_step: null, suggested_followups: ["What should I prepare first?"],
-  });
   const provOk = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(goodJudgmentEditor), () => 1000, { copyMode: "provider" });
-  ok(provOk.kind === "completed" && provOk.copy_source === "stage3", "a clean edited Judgment copy is displayed as stage3");
   if (provOk.kind !== "completed") throw new Error("unreachable");
-  ok(provOk.customer_copy!.reading.includes("the two sides agree here"), "the PROVIDER edited reading reaches the customer (not the deterministic assembly)");
+  ok(provOk.copy_source === "stage3", "a clean edited Judgment copy is displayed as stage3");
+  ok(provOk.customer_copy!.reading.includes("two sides agree here"), "the PROVIDER edited reading reaches the customer (not the deterministic assembly)");
   eq(provOk.customer_copy!.watch_out, (provOk.result as any).watch_out, "the caution stays the canonical warning, not the provider's");
   eq(provOk.provider_calls, 3, "clean stage3 judgment: 3 provider calls");
 
@@ -117,7 +118,7 @@ async function main() {
     invoke: async (req) => {
       stage3Deadlines.push(req.deadline_at_ms);
       if (req.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "judgment", matched_rule: "STEP_3_JUDGMENT" }) };
-      if (req.schema_name.startsWith("lumis_dice_customer_copy_")) return { kind: "success", content: goodJudgmentEditor };
+      if (req.schema_name.startsWith("lumis_dice_editor_")) return { kind: "success", content: goodJudgmentEditor };
       return { kind: "success", content: stage2Judgment };
     },
   };
@@ -127,6 +128,20 @@ async function main() {
   eq(stage3Deadlines[0], 1000 + SHARED_DEADLINE_MS, "F07: Stage 1 uses the one absolute deadline captured before preprocessing");
   eq(stage3Deadlines[1], stage3Deadlines[0], "F07: Stage 2 shares the same absolute deadline");
   eq(stage3Deadlines[2], stage3Deadlines[0], "F07: Stage 3 (copy) shares the SAME absolute deadline — no fresh capture at Stage 3");
+
+  // (3c) V01: the edge entrypoint's copyMode is DERIVED from the explicit server setting
+  // LUMIS_FOUNDER_DICE_STAGE3_EDITOR (mirrored here as the edge computes it). With the setting on, the
+  // composition runs the provider editor and returns a stage3 copy + the structured editor_response;
+  // with it off/unset, the deterministic path runs and makes no Stage-3 provider call.
+  const edgeCopyMode = (env: Record<string, string | undefined>) => env.LUMIS_FOUNDER_DICE_STAGE3_EDITOR === "true" ? "provider" as const : "deterministic" as const;
+  const onSel = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(goodJudgmentEditor), () => 1000, { copyMode: edgeCopyMode({ LUMIS_FOUNDER_DICE_STAGE3_EDITOR: "true" }) });
+  ok(onSel.kind === "completed" && onSel.copy_source === "stage3", "V01: setting ON → the edge selects provider editing → stage3 copy");
+  if (onSel.kind !== "completed") throw new Error("unreachable");
+  ok(onSel.editor_response !== null, "V01: setting ON → the structured editor_response is carried on the wire");
+  const offSel = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(null), () => 1000, { copyMode: edgeCopyMode({}) });
+  ok(offSel.kind === "completed" && offSel.copy_source === "deterministic", "V01: setting unset → deterministic path, no Stage-3 provider call (adapter throws if asked)");
+  if (offSel.kind !== "completed") throw new Error("unreachable");
+  eq(offSel.editor_response, null, "V01: deterministic path carries no editor_response");
 
   // (4) Route-review passes through unchanged, with no customer copy.
   const rr = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => ({
