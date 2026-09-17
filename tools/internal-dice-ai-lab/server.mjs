@@ -324,7 +324,7 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
 // loadAuthoritativeCopyValidator(), plus validateLocationProjection for the canonical Location
 // projection. See executeLabFreeTextV05Request below (S03).)
 
-export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory, level1EditorEnabled = false } = {}) {
+export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory, stage3EditorEnabled = false } = {}) {
   const selection = validateLabFreeTextRunRequest(raw);
   if (!selection) return Object.freeze({ status: 400, body: { code: "LAB_V05_FREE_TEXT_SELECTION_INVALID", provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
   const language = /[㐀-鿿豈-﫿]/u.test(selection.question) ? "zh-Hant" : "en";
@@ -405,26 +405,33 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   if (!regenerated.ok) return unavailable;
   let displayCopy = regenerated.copy;
   let copySource = "deterministic";
-  // The Level-1 language editor is honoured ONLY under a trusted server flag, ONLY for the Level-1
-  // family, and ONLY when the trusted metadata says copy_source: "stage3". The supplied editor copy
-  // is merged over the regenerated canonical prose and must pass the SAME authoritative display
-  // validation the backend uses; anything short of that falls back to copy-unavailable rather than
-  // displaying unvalidated provider text or blindly trusting the "stage3" label.
-  if (level1EditorEnabled && metadata.copy_source === "stage3"
-      && (result.question_mode === "person" || result.question_mode === "reason" || result.question_mode === "thing_or_situation")) {
+  // ALL-MODE Stage-3 language editor (Founder language-quality completion). Honoured ONLY under the
+  // single explicit server switch `stage3EditorEnabled` AND when the trusted metadata says
+  // copy_source: "stage3" — for EVERY supported mode (judgment, timing, location, person, reason,
+  // thing_or_situation), not only Level-1. The supplied editor copy is parsed with the TRUSTED
+  // canonical mode+language, merged over the canonical controlled fields, and must pass the SAME
+  // authoritative display validation (schema, caps, prohibited, completeness, source parity AND the
+  // meaning-contradiction guard). Anything short of that falls back to the regenerated deterministic
+  // copy — the incoming "stage3" label never bypasses validation, and a missing field is never
+  // coerced into "undefined." (parse rejects it first).
+  if (stage3EditorEnabled && metadata.copy_source === "stage3") {
     const supplied = response.customer_copy;
-    if (!supplied || typeof supplied !== "object" || Array.isArray(supplied)) return unavailable;
-    // G04-A: run the COMPLETE supplied object through the authoritative parser with the TRUSTED
-    // canonical mode + language BEFORE merging. A missing/extra field, a wrong schema/status/mode/
-    // language, or a legal-unpresentable object is rejected here — never coerced (mergeProviderProse
-    // would otherwise turn a missing headline into the literal "undefined." via String(...)).
-    const suppliedSerialized = JSON.stringify(supplied);
-    const parsedSupplied = cp.parseCustomerCopy(result.question_mode, result.language, suppliedSerialized);
-    if (parsedSupplied.kind !== "ok") return unavailable;
-    const merged = cp.mergeProviderProse(result, parsedSupplied.value);
-    if (cp.validateDisplayCopy(merged, result) !== "OK") return unavailable;
-    displayCopy = merged;
-    copySource = "stage3";
+    // Parse the COMPLETE supplied object with the TRUSTED canonical mode+language, merge it over the
+    // canonical controlled fields, and re-validate the whole display (defense in depth). A missing
+    // field is rejected here — never coerced into "undefined." Any failure keeps the already
+    // regenerated deterministic copy (the §13 fallback order: reject → validated deterministic
+    // fallback → unavailable), honestly labelled "deterministic"; a stray "stage3" label alone can
+    // neither bypass validation nor force copy-unavailable.
+    let edited = null;
+    if (supplied && typeof supplied === "object" && !Array.isArray(supplied)) {
+      const suppliedSerialized = JSON.stringify(supplied);
+      const parsedSupplied = cp.parseCustomerCopy(result.question_mode, result.language, suppliedSerialized);
+      if (parsedSupplied.kind === "ok") {
+        const merged = cp.mergeProviderProse(result, parsedSupplied.value);
+        if (cp.validateDisplayCopy(merged, result) === "OK") edited = merged;
+      }
+    }
+    if (edited) { displayCopy = edited; copySource = "stage3"; }
   }
   const presentation = presentCustomerCopyV05(displayCopy, result, selection);
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification: { question_mode: result.question_mode, copy_source: copySource }, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
@@ -546,6 +553,9 @@ export async function createLabServer({ runtime = null } = {}) {
         const result = await executeLabFreeTextV05Request(await readBody(req), {
           providerEnabled: typeof runtime?.v05FreeTextGatewayFactory === "function",
           gatewayFactory: runtime?.v05FreeTextGatewayFactory,
+          // Single explicit switch for the all-mode Stage-3 editor path; off unless the runtime
+          // (its explicit activation setting) turns it on. The metadata copy_source still gates it.
+          stage3EditorEnabled: runtime?.v05Stage3EditorEnabled === true,
         });
         return send(res, result.status, result.body);
       } catch {
@@ -581,6 +591,11 @@ async function runtimeFromEnvironment(environment = process.env) {
     // v5 (Prompt v3 technical identity) shares the same free-text access; the client
     // opts into the two-stage edge route via the x-lumis-dice-interpretation header.
     runtime.v05FreeTextGatewayFactory = () => createFounderDiceV05FreeTextGatewayClient({ functionUrl: environment.LUMIS_FOUNDER_DICE_FUNCTION_URL, anonKey: environment.LUMIS_FOUNDER_DICE_ANON_KEY, accessKey: environment.LUMIS_FOUNDER_DICE_FREE_TEXT_ACCESS_KEY });
+    // EXPLICIT all-mode Stage-3 editor activation (Founder language-quality path). OFF unless the
+    // operator sets LUMIS_FOUNDER_DICE_STAGE3_EDITOR="true" for this Web-Lab process — this is the
+    // single activation setting to hand QA/Deployment; it does not change any live/hosted config,
+    // and the edge/gateway must independently emit copy_source:"stage3" for it to take effect.
+    runtime.v05Stage3EditorEnabled = environment.LUMIS_FOUNDER_DICE_STAGE3_EDITOR === "true";
   }
   return Object.freeze(runtime);
 }

@@ -9,6 +9,7 @@ import {
   DICE_V05_CUSTOMER_COPY_SCHEMA, CUSTOMER_COPY_UNAVAILABLE_MESSAGE, buildCustomerCopySchema, buildCustomerCopyInput, parseCustomerCopy,
   prohibitedLanguageCheck, completenessCheck, preservationCheck, sourceParityCheck, deterministicCustomerCopy,
   validateDisplayCopy, buildValidatedFallback, canonicalProseComplete, executeDiceV05CustomerCopy, customerCopySchemaName, COPY_CAPS, CUSTOMER_COPY_OUTPUT_CAP,
+  DICE_V05_CUSTOMER_COPY_BLOCK, meaningContradictionCheck,
   type DiceV05CustomerCopy,
 } from "./dice-v0-5-customer-copy.ts";
 import { validateDiceV05FinalResult, type DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
@@ -145,22 +146,25 @@ const oversizeJudgment = { ...judgmentCanonical, planet_side: { ...(judgmentCano
 const oversizeFb = buildValidatedFallback(oversizeJudgment as any);
 ok(!oversizeFb.ok, "C01: an over-cap judgment fallback is rejected (not sliced to fit)");
 
-/* ---- execution (gated provider-editor path): controlled meaning is ALWAYS canonical ---- */
+/* ---- execution (ALL-MODE editor path, 2026-09-17): the provider's edited answer + explanation are
+ *      DISPLAYED for every mode; controlled fields (watch/step/follow-ups) stay canonical. ---- */
 const copyAdapter = (content: string, kind: DiceV05ProviderResult["kind"] = "success"): DiceV05ProviderAdapter => ({
   invoke: async () => (kind === "success" ? { kind: "success", content } : { kind } as DiceV05ProviderResult),
 });
-// A valid judgment provider copy (conclusion-bearing mode): provider prose is NOT used, so the
-// display is the deterministic assembly and the source is honestly "deterministic" (S05).
+// A valid judgment provider copy: its edited headline + reading ARE now displayed (source stage3);
+// the caution and follow-ups still come from the canonical result.
 const goodJudgmentCopy = JSON.stringify(copyOk({
   language: "zh-Hant", question_mode: "judgment",
-  headline: "外在條件較有利，但你的處理方式是關鍵。", reading: "對方有合作空間，環境對你有利。不過火星這一面較急，太強硬或會帶來磨擦，兩者需要分開理解。",
+  headline: "外在條件較有利，但你的處理方式是關鍵。", reading: "對方有合作空間，環境對你有利。不過你這面處理得太急或太強硬，容易帶來磨擦，兩者要分開理解。",
   watch_out: "跟進時保持主動，但不要催逼對方。", suggested_followups: ["我可以點樣改善溝通？"],
 }));
 const r1 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "我個application會唔會批？", copyAdapter(goodJudgmentCopy), { now: () => 1000 });
-eq(r1.source, "deterministic", "valid judgment provider copy → deterministic display (conclusion-bearing mode)");
+eq(r1.source, "stage3", "valid judgment provider copy → edited prose IS displayed (all-mode editor)");
 eq(r1.provider_calls, 1, "one Stage-3 provider call");
 ok(r1.copy && r1.copy.practical_step === null, "judgment copy keeps practical_step null");
-ok(r1.copy && r1.copy.reading.includes("整體而言"), "judgment display uses the canonical synthesis, not provider prose");
+ok(r1.copy && r1.copy.reading.includes("對方有合作空間"), "judgment display uses the PROVIDER reading");
+ok(r1.copy && r1.copy.watch_out === ensureTerminalLike((judgmentCanonical as any).watch_out), "judgment watch_out stays canonical, not the provider's");
+ok(r1.copy && JSON.stringify(r1.copy.suggested_followups) === JSON.stringify(((judgmentCanonical as any).suggested_followups as string[]).map(ensureTerminalLike)), "judgment follow-ups stay canonical");
 // A valid Level-1 provider copy: its explanatory prose IS used (source stage3); controlled fields
 // (watch/practical/follow-ups) still come from the canonical result.
 const goodPersonCopy = JSON.stringify(copyOk({
@@ -174,11 +178,11 @@ ok(rL.copy && rL.copy.reading.includes("consistent"), "Level-1 display uses prov
 ok(rL.copy && rL.copy.watch_out === ensureTerminalLike((personCanonical as any).watch_out), "Level-1 watch_out stays canonical, not the provider's");
 ok(rL.copy && rL.copy.practical_step === ensureTerminalLike((personCanonical as any).practical_step), "Level-1 practical_step stays canonical, not the provider's");
 
-/* ---- execution: a judgment provider copy is never displayed → deterministic (clean) regardless ---- */
+/* ---- execution: a judgment provider copy whose EDITED prose leaks rank/大吉 → rejected → fallback ---- */
 const rankyCopy = JSON.stringify(copyOk({ language: "zh-Hant", question_mode: "judgment", headline: "排名第一，大吉。", reading: "第三順位。", watch_out: "留意。", suggested_followups: ["我可以點樣改善溝通？"] }));
 const r2 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", copyAdapter(rankyCopy), { now: () => 1000 });
-eq(r2.source, "deterministic", "a conclusion-bearing (judgment) provider copy is never displayed → deterministic");
-ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "the displayed judgment copy is clean (canonical, not the prohibited provider prose)");
+eq(r2.source, "fallback", "a judgment provider copy leaking rank/大吉 is rejected → deterministic fallback");
+ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "the displayed judgment fallback is clean (canonical, not the prohibited provider prose)");
 
 /* ---- execution: a Level-1 provider copy whose PROSE is prohibited → fallback ---- */
 const rankyPersonCopy = JSON.stringify(copyOk({ language: "en", question_mode: "person", headline: "They rank first.", reading: "This sits on rank 7 of the houses." }));
@@ -307,6 +311,29 @@ for (const mode of ["judgment", "timing", "location", "person"] as DiceV05Mode[]
 
 // The fixed unavailable message is stable and non-interpretive.
 ok(CUSTOMER_COPY_UNAVAILABLE_MESSAGE.en.length > 0 && CUSTOMER_COPY_UNAVAILABLE_MESSAGE["zh-Hant"].length > 0, "unavailable message defined for both languages");
+
+/* ---- L-round: the all-mode meaning-contradiction guard (targeted, documented heuristics). ---- */
+// Judgment: on a MIXED canonical a totalizing one-sided claim is rejected either way; a faithful
+// mixed rewrite passes. planet_side.dignity_emphasis "constructive" (favourable) + house misfortune (difficult).
+const mixedJudg = { ...(enJudgment as any), house_side: { fortune: "great_misfortune", fortune_zh: "大凶", rank: 12, prose: "House 12 is a hidden, difficult setting here." }, synthesis: "The planet side is favourable while the house environment is difficult." };
+ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Everything is favourable.", reading: "Both factors support you with no obstacles at all.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any) !== "OK", "L: an all-positive reading on a mixed canonical is rejected (dropped-difficult)");
+ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Both factors oppose this.", reading: "Everything here is against you and unfavourable.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any) !== "OK", "L: an all-negative reading on a mixed canonical is rejected (dropped-favourable)");
+eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "judgment", headline: "Your strengths are real, but the setting is hard.", reading: "You have genuine capacity working for you, yet the surroundings make it difficult; the two stay separate.", watch_out: "Stay grounded.", suggested_followups: ["Q?"] }), mixedJudg as any), "OK", "L: a faithful mixed rewrite passes the contradiction guard");
+// Timing: canonical medium; a positive immediacy claim is rejected, a negated one passes.
+ok(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", headline: "It resolves immediately.", reading: "This happens right away." }), timingCanonical as any) !== "OK", "L: an immediacy claim contradicting a medium canonical is rejected");
+eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", headline: "A moderate wait is likely.", reading: "This will not resolve immediately; it develops over time." }), timingCanonical as any), "OK", "L: a negated-immediacy moderate rewrite passes");
+
+/* ---- L-round: full Stage-3 INPUT + assembled-envelope token measurement with the runtime tokenizer
+ *      (report; the input rides the provider GENERATION allowance, the envelope rides the 700 cap). ---- */
+for (const [mode, canonical, q] of [["judgment", judgmentCanonical, "我個application會唔會批？"], ["timing", timingCanonical, "幾時會有結果？"], ["location", locationCanonical, "喺邊度？"], ["person", personCanonical, "係咩人？"]] as const) {
+  const providerInput = `${DICE_V05_CUSTOMER_COPY_BLOCK}\nINPUT_JSON:\n${JSON.stringify(buildCustomerCopyInput(canonical as any, q))}`;
+  const inTok = measureDiceTokenLimit(providerInput, 100000).token_count;
+  const fb = buildValidatedFallback(canonical as any);
+  const envTok = fb.ok ? measureDiceTokenLimit(JSON.stringify(fb.copy), CUSTOMER_COPY_OUTPUT_CAP) : { token_count: -1, within_limit: false };
+  ok(fb.ok, `L: ${mode} deterministic envelope builds`);
+  ok(envTok.within_limit, `L: ${mode} assembled display envelope within the 700-token cap (tokens=${envTok.token_count})`);
+  console.log(`stage3-io ${mode}: input_tokens=${inTok} (runtime tokenizer, real INPUT_JSON), display_envelope_tokens=${envTok.token_count} cap=${CUSTOMER_COPY_OUTPUT_CAP} (not a mathematical worst case; representative fixture)`);
+}
 
 console.log("dice-v0-5 customer-copy fixtures passed");
 }

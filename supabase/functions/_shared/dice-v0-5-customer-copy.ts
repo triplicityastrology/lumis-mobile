@@ -607,6 +607,9 @@ export function validateDisplayCopy(copy: DiceV05CustomerCopy, canonical: Canoni
     completenessCheck(parsed.value),
     preservationCheck(parsed.value, canonical),
     sourceParityCheck(parsed.value, canonical),
+    // All-mode editor: the edited answer/explanation must not reverse the canonical Judgment factor
+    // mix or contradict the canonical Timing pace (documented targeted guards).
+    meaningContradictionCheck(parsed.value, canonical),
   ];
   return checks.find((c) => c !== "OK") ?? "OK";
 }
@@ -730,26 +733,88 @@ export function validateLocationProjection(
 }
 
 /* ------------------------------------------------------------------ *
- * Controlled-meaning protection for the (gated) provider-editor path.
- * Even when a provider response is accepted, EVERY controlled field is taken from the validated
- * canonical result, never from the provider: the warning, the practical/search step, the exact
- * follow-up sequence, and (for judgment/timing/location) the conclusion-bearing headline/reading.
- * The provider may only influence the free explanatory prose of the Level-1 descriptive family
- * (person/reason/thing_or_situation), where there is no finite controlled conclusion to reverse;
- * its semantic fidelity there is a deferred human/QA acceptance (L04). So a provider attempt to
- * substitute a Location step (S01), reorder/replace follow-ups (S02), negate a warning or reverse
- * a timing band / judgment orientation (S05) cannot reach the customer.
+ * All-mode customer-language editor merge (Founder language-quality completion, 2026-09-17).
+ *
+ * The provider rewrites the two customer-facing PROSE fields — the direct-answer `headline` and the
+ * explanatory `reading` — in EVERY mode (Judgment, Timing, Location, Person, Reason,
+ * Thing/Situation). These are where the reported unreadability lived. The controlled, meaning-bearing
+ * fields stay a canonical pass-through and are NEVER taken from the provider: the warning
+ * (`watch_out`), the practical/search step (`practical_step`), and the exact follow-up sequence.
+ * For Location the presentation also keeps the ordered candidate places and the search action from
+ * the canonical result (see presentCustomerCopyV05), so a substituted place/step cannot reach the
+ * customer. The edited headline/reading are then gated by `validateDisplayCopy`, whose
+ * `meaningContradictionCheck` rejects a reading that reverses the canonical Judgment factor mix or
+ * contradicts the canonical Timing pace. What each guard actually detects is documented on it; broad
+ * semantic/naturalness fidelity remains a deferred QA/Founder acceptance (L02–L04).
  * ------------------------------------------------------------------ */
 export function mergeProviderProse(canonical: Canonical, provider: DiceV05CustomerCopy): DiceV05CustomerCopy {
   const base = deterministicCustomerCopy(canonical);
-  const fam = familyOf(canonical.question_mode as DiceV05Mode);
-  if (fam !== "level1") return base; // conclusion-bearing modes stay fully deterministic
   const zh = (canonical.language as DiceV05Language) === "zh-Hant";
+  // Provider prose for the answer + explanation in ALL modes; controlled fields stay canonical.
   return Object.freeze({
     ...base,
     headline: ensureTerminal(String(provider.headline), zh),
     reading: ensureTerminal(String(provider.reading), zh),
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * meaningContradictionCheck — targeted contradiction guards on the EDITED prose (headline+reading),
+ * evaluated against locked facts derived from the validated canonical result (server-owned). These
+ * are deliberately narrow, documented heuristics, NOT a proof of semantic fidelity:
+ *
+ *  - Judgment: derive each side's orientation from the canonical (planet: dignity_emphasis;
+ *    house: house_fortune). Reject a TOTALIZING one-sided claim in the edited prose that erases a
+ *    side that exists — e.g. "both factors oppose…"/"everything is unfavourable" when a favourable
+ *    side exists (P01 reversal / dropped-favourable), or "both support…"/"no obstacles" when a
+ *    difficult side exists (dropped-difficult / averaged-away). The existing blended-grade guard
+ *    (preservationCheck) covers a new overall grade.
+ *  - Timing: when the canonical timing prose indicates a NON-fast pace (medium/slow), reject an
+ *    immediacy/very-fast claim in the edited prose ("immediately"/"right away"/"立即"/"馬上"…) — the
+ *    "echoes medium but says immediate" contradiction. A genuinely fast canonical is not guarded.
+ *
+ * It detects the tested dangerous phrasings; it cannot catch every subtle paraphrase, so live
+ * semantic review stays a deferred acceptance.
+ * ------------------------------------------------------------------ */
+// Strong, positive-only immediacy phrasings. Deliberately NOT the bare words "instant"/"at once",
+// which appear in ordinary NEGATED/contrastive prose ("not an instant result", "rather than all at
+// once") that a natural "moderate" reading legitimately uses; guarding those produced false
+// rejections. This detects an editor asserting an immediate/very-fast result.
+const IMMEDIACY_TERMS = /\b(?:immediately|right away|straight away|instantly|very rapid(?:ly)?|extremely fast|no time at all|any moment now)\b|立即|馬上|即刻|好快就(?:會|有)/iu;
+// Remove NEGATED immediacy ("not immediately" / "not … right away" / 不會即時) before testing, so the
+// canonical timing prose ("不會即時有結果" — will NOT be immediate) is never misread as a claim.
+const NEGATED_IMMEDIACY = /\b(?:not|won'?t|will not|no|never|rather than)\s+(?:\w+\s+){0,2}?(?:immediately|right away|straight away|instantly)\b|(?:不會|不|未|沒有?|毋須|無需|唔會|唔)\s*(?:立即|馬上|即刻|即時|瞬間)/giu;
+const stripNegatedImmediacy = (s: string): string => s.replace(NEGATED_IMMEDIACY, " ");
+const TIMING_SLOWMED_EN = /\b(?:moderate|medium|gradual|gradually|slow(?:ly)?|steadily|takes? time|over time|not immediate|not right away)\b/iu;
+const TIMING_SLOWMED_ZH = /中等|逐步|逐漸|慢慢|需要時間|不會即時|不會馬上|需時|較慢/u;
+const TIMING_FAST_EN = /\b(?:fast|quick(?:ly)?|rapid(?:ly)?|soon|sooner)\b/iu;
+const TIMING_FAST_ZH = /偏快|較快|好快|快將|很快/u;
+// Totalizing one-sided orientation claims (English + zh-Hant).
+const JUDGMENT_ALL_NEGATIVE = /\b(?:both|all|every|each)\b[^.。!！?？]*\b(?:oppose|opposed|against|unfavou?rable|difficult|negative|discourage|do not proceed|don't proceed)\b|\beverything\b[^.。!！?？]*\b(?:unfavou?rable|against|opposed|negative)\b|兩邊都(?:不利|反對|阻礙|負面|不支持)|一切都(?:不利|反對|負面)|兩者都(?:不利|反對)/iu;
+const JUDGMENT_ALL_POSITIVE = /\b(?:both|all|every|each)\b[^.。!！?？]*\b(?:favou?rable|support|supportive|positive|encourage|go ahead|no (?:obstacle|difficulty|problem|risk|concern)s?)\b|\beverything\b[^.。!！?？]*\b(?:favou?rable|supportive|positive)\b|兩邊都(?:有利|支持|正面|順利)|一切都(?:有利|順利|正面)|兩者都(?:有利|支持)|毫無(?:阻礙|困難|問題)/iu;
+
+export function meaningContradictionCheck(copy: DiceV05CustomerCopy, canonical: Canonical): "OK" | string {
+  const fam = familyOf(copy.question_mode);
+  const prose = `${copy.headline}\n${copy.reading}`;
+  if (fam === "judgment") {
+    const emphasis = canonical.planet_side?.dignity_emphasis;
+    const houseFortune = String(canonical.house_side?.fortune ?? "");
+    const planetFav = emphasis === "constructive";
+    const planetDiff = emphasis === "difficult";
+    const houseFav = houseFortune === "great_fortune" || houseFortune === "fortune";
+    const houseDiff = houseFortune === "great_misfortune" || houseFortune === "misfortune";
+    const anyFav = planetFav || houseFav;
+    const anyDiff = planetDiff || houseDiff;
+    // A favourable side exists but the prose says everything opposes → reversal / dropped-favourable.
+    if (anyFav && JUDGMENT_ALL_NEGATIVE.test(prose)) return "DICE_COPY_JUDGMENT_ORIENTATION_REVERSED";
+    // A difficult side exists but the prose says everything supports → dropped-difficult / averaged.
+    if (anyDiff && JUDGMENT_ALL_POSITIVE.test(prose)) return "DICE_COPY_JUDGMENT_DIFFICULT_DROPPED";
+  } else if (fam === "timing") {
+    const ref = `${canonical.timing_summary ?? ""}\n${canonical.synthesis ?? ""}`;
+    const canonicalSlowMed = (TIMING_SLOWMED_EN.test(ref) || TIMING_SLOWMED_ZH.test(ref)) && !(TIMING_FAST_EN.test(ref) || TIMING_FAST_ZH.test(ref));
+    if (canonicalSlowMed && IMMEDIACY_TERMS.test(stripNegatedImmediacy(prose))) return "DICE_COPY_TIMING_PACE_CONTRADICTED";
+  }
+  return "OK";
 }
 
 /* ------------------------------------------------------------------ *
@@ -765,11 +830,10 @@ export function mergeProviderProse(canonical: Canonical, provider: DiceV05Custom
  * ------------------------------------------------------------------ */
 export type CustomerCopyOutcome = Readonly<{
   copy: DiceV05CustomerCopy | null;
-  // "stage3": a valid provider response contributed Level-1 explanatory prose (controlled fields
-  //   still canonical). "deterministic": a valid provider response was received but its prose was
-  //   NOT used (conclusion-bearing mode) — the display is the canonical assembly. "fallback": the
-  //   provider response failed/was rejected, deterministic assembly used. "unavailable": no valid
-  //   copy at all.
+  // "stage3": a valid provider response supplied the edited answer + explanation for THIS mode
+  //   (any of the six), controlled fields still canonical. "deterministic": reserved for the
+  //   deterministic copy mode (no provider editor call is made). "fallback": the provider response
+  //   failed/was rejected, validated deterministic assembly used. "unavailable": no valid copy.
   source: "stage3" | "deterministic" | "fallback" | "unavailable";
   provider_calls: number;
   failure_code: string | null;
@@ -838,22 +902,16 @@ export async function executeDiceV05CustomerCopy(
     const parsed = parseCustomerCopy(mode, language, res.content);
     if (parsed.kind === "unpresentable") { lastFailure = "DICE_COPY_UNPRESENTABLE"; break; }
     if (parsed.kind === "invalid") { lastFailure = parsed.code; if (attempt < 2 && now() < deadline) continue; break; }
-    if (familyOf(mode) === "level1") {
-      // Level-1 descriptive family: the provider's explanatory prose may be shown. Assemble the
-      // display with provider headline+reading and CANONICAL controlled fields, then validate the
-      // whole display — so a prohibited/incomplete provider reading is a FAILED attempt
-      // (→ retry/fallback), while the warning, step and follow-ups can never be altered.
-      const display = mergeProviderProse(canonical, parsed.value);
-      const displayVerdict = validateDisplayCopy(display, canonical);
-      if (displayVerdict !== "OK") { lastFailure = displayVerdict; if (attempt < 2 && now() < deadline) continue; break; }
-      return Object.freeze({ copy: display, source: "stage3", provider_calls: calls, failure_code: null });
-    }
-    // Conclusion-bearing mode (judgment/timing/location): the provider's prose is NEVER displayed
-    // (a band, orientation, area or clue reversal cannot be verified), so a valid provider response
-    // simply yields the deterministic assembly — honestly labelled "deterministic".
-    const built = buildValidatedFallback(canonical);
-    if (built.ok) return Object.freeze({ copy: built.copy, source: "deterministic", provider_calls: calls, failure_code: null });
-    lastFailure = `DETERMINISTIC_${built.reason}`; break;
+    // ALL modes (Founder language-quality completion): the provider's edited answer + explanation
+    // are shown. Assemble the display with provider headline+reading and CANONICAL controlled fields
+    // (warning, step, follow-ups; Location candidates/order/step stay canonical in presentation),
+    // then validate the WHOLE display. A prohibited/incomplete/contradictory provider reading is a
+    // FAILED attempt (→ retry/fallback), so a reversed Judgment orientation, a contradicted Timing
+    // pace, a substituted caution/step/follow-up or a leaked term can never reach the customer.
+    const display = mergeProviderProse(canonical, parsed.value);
+    const displayVerdict = validateDisplayCopy(display, canonical);
+    if (displayVerdict !== "OK") { lastFailure = displayVerdict; if (attempt < 2 && now() < deadline) continue; break; }
+    return Object.freeze({ copy: display, source: "stage3", provider_calls: calls, failure_code: null });
   }
   // No valid Stage-3 copy: validated deterministic fallback, or controlled copy-unavailable.
   return fallbackOrUnavailable(canonical, calls, lastFailure);

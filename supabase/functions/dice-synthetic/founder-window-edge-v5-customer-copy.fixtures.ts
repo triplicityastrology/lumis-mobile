@@ -84,15 +84,29 @@ async function main() {
   eq(deadlines[0], 1000 + SHARED_DEADLINE_MS, "D01: Stage 1 uses the one absolute deadline captured before preprocessing");
   eq(deadlines[1], deadlines[0], "D01: Stage 2 uses the SAME absolute deadline as Stage 1 (no drift)");
 
-  // (3) Gated provider mode on a conclusion-bearing (judgment) question: the provider is called but
-  // its prose is NEVER displayed — the display is deterministic and the copy is clean regardless of
-  // what the provider returned (here a prohibited "rank 1 / overall grade" copy).
+  // (3) ALL-MODE editor on a Judgment question: a prohibited provider copy (rank/大吉/overall grade)
+  // is REJECTED and falls back to the clean deterministic assembly; the Stage-3 call still happened.
   const prov = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(rankyCopy), () => 1000, { copyMode: "provider" });
   ok(prov.kind === "completed", "provider-mode judgment completes");
   if (prov.kind !== "completed") throw new Error("unreachable");
-  eq(prov.copy_source, "deterministic", "judgment provider prose is never displayed → deterministic (S05)");
-  eq(prov.provider_calls, 3, "provider mode: Stage 1 + Stage 2 + Stage 3 = 3");
-  ok(prohibitedLanguageCheck(prov.customer_copy!) === "OK" && completenessCheck(prov.customer_copy!) === "OK", "displayed judgment copy is clean + complete (canonical, not prohibited provider prose)");
+  eq(prov.copy_source, "fallback", "a prohibited judgment provider copy is rejected → deterministic fallback (S05)");
+  eq(prov.provider_calls, 4, "provider mode with a rejected copy: Stage 1 + Stage 2 + two Stage-3 attempts (one controlled retry) = 4");
+  ok(prohibitedLanguageCheck(prov.customer_copy!) === "OK" && completenessCheck(prov.customer_copy!) === "OK", "displayed judgment copy is clean + complete (canonical fallback, not prohibited provider prose)");
+
+  // (3a) ALL-MODE editor: a CLEAN edited Judgment copy IS displayed (source stage3), and its edited
+  // reading — not the deterministic assembly — reaches the customer, while the caution stays canonical.
+  const goodJudgmentEditor = JSON.stringify({
+    schema: DICE_V05_CUSTOMER_COPY_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
+    headline: "You have real support for this, and the setting is favourable.",
+    reading: "Your own capacity is strong and works in your favour. The situation around you is also supportive, so the two sides agree here rather than pulling against each other.",
+    watch_out: "IGNORE ME — the caution must come from canonical.", practical_step: null, suggested_followups: ["What should I prepare first?"],
+  });
+  const provOk = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(goodJudgmentEditor), () => 1000, { copyMode: "provider" });
+  ok(provOk.kind === "completed" && provOk.copy_source === "stage3", "a clean edited Judgment copy is displayed as stage3");
+  if (provOk.kind !== "completed") throw new Error("unreachable");
+  ok(provOk.customer_copy!.reading.includes("the two sides agree here"), "the PROVIDER edited reading reaches the customer (not the deterministic assembly)");
+  eq(provOk.customer_copy!.watch_out, (provOk.result as any).watch_out, "the caution stays the canonical warning, not the provider's");
+  eq(provOk.provider_calls, 3, "clean stage3 judgment: 3 provider calls");
 
   // (3b) F07: the ONE absolute deadline reaches STAGE 3 as well, not only Stage 1/2. Provider copy
   // mode is enabled so the Stage-3 copy call actually runs; all three stages observe one deadline
@@ -103,7 +117,7 @@ async function main() {
     invoke: async (req) => {
       stage3Deadlines.push(req.deadline_at_ms);
       if (req.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "judgment", matched_rule: "STEP_3_JUDGMENT" }) };
-      if (req.schema_name.startsWith("lumis_dice_customer_copy_")) return { kind: "success", content: rankyCopy };
+      if (req.schema_name.startsWith("lumis_dice_customer_copy_")) return { kind: "success", content: goodJudgmentEditor };
       return { kind: "success", content: stage2Judgment };
     },
   };
