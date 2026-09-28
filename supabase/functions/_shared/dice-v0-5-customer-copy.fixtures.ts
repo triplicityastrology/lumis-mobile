@@ -386,6 +386,29 @@ eq(asm(locationCanonical, "en", "location", { clues: "前往機場先，再返�
 // V06: a mid-paragraph fragment in a component is rejected before composition.
 eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "They tend to be careful and. They value clarity." }, personLanding).ok, false, "V06: a mid-paragraph fragment in the edited explanation is rejected");
 
+/* ---- VM-2 negative controls: identifiers/orientation CORRECT but the wording reverses meaning or
+ *      introduces an unsupported place. Binding a factor to an orientation is NOT satisfied by echoing
+ *      an orientation word — a strong directional phrase in the opposite direction is still caught. ---- */
+// Judgment (mixedJudg: planet favourable) — the planet factor carries a favourable word ("strength")
+// yet asserts the OPPOSITE direction ("works against you"): rejected despite the correct orientation word.
+eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own strength here actually works against you at every turn.", house_factor: "The setting is difficult and adds friction.", synthesis: "The two stay separate." }, judgmentLanding), { ok: false, reason: "DICE_COPY_JUDGMENT_PLANET_FACTOR_ORIENTATION" }, "VM-2: a favourable factor whose wording reverses direction (strong opposition) is rejected, not accepted on the orientation word alone");
+// zh-Hant equivalent (judgmentCanonical: house favourable) — house factor uses a favourable word but a
+// strong opposite phrase.
+eq(asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "x。", planet_factor: "你這面比較吃力，遇到阻力。", house_factor: "周圍環境雖然有支持，但其實對你不利，拖你後腿。", synthesis: "兩邊分開理解。" }, judgmentLanding).ok, false, "VM-2 zh: a favourable house factor whose wording reverses direction is rejected");
+// Location — the clue prose introduces an UNSUPPORTED place (no movement verb), not among the approved
+// candidates/area: rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "The strongest clue points to a locker inside the airport lounge." }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_UNSUPPORTED_PLACE" }, "VM-2: an unsupported place ('airport') in the Location clue prose is rejected");
+// A clue that stays within the approved area (home) and adds no new place still passes.
+ok(asm(locationCanonical, "en", "location", { clues: "The strongest sign points to a private, indoor spot at home, out of plain view." }, locationLanding).ok, "VM-2 control: a clue that introduces no new place passes");
+// Person (Level-1) — a DIRECTLY REVERSED description. Level-1 modes have no orientation/pace to bind,
+// so the structural guards do NOT catch this reversal: it currently ASSEMBLES. Explicit REGRESSION
+// marker for an OPEN requirement gap (RG1) — NOT dismissed as future live QA. If a Level-1 fidelity
+// guard is later added, this expectation must flip to ok:false. See 06-later-testing.md (RG1).
+{
+  const reversed = asm(personCanonical, "en", "person", { answer: "A reckless, erratic person.", explanation: "This points to someone impulsive and unreliable who avoids any clear commitment." }, personLanding);
+  eq(reversed.ok, true, "VM-2 KNOWN GAP (regression marker): a directly reversed Person description is NOT caught structurally — Level-1 semantic fidelity is an OPEN requirement gap (RG1), tracked, not dismissed as live QA");
+}
+
 /* ---- Stage-3 EDITOR input + assembled-envelope token measurement (honest allowance labels, M03). ---- */
 for (const [mode, canonical, q, landing] of [["judgment", judgmentCanonical, "我個application會唔會批？", judgmentLanding], ["timing", timingCanonical, "幾時會有結果？", timingLanding], ["location", locationCanonical, "喺邊度？", locationLanding], ["person", personCanonical, "係咩人？", personLanding]] as const) {
   const providerInput = `${DICE_V05_EDITOR_BLOCK}\nINPUT_JSON:\n${JSON.stringify(buildEditorInput(canonical as any, q, landing))}`;

@@ -592,10 +592,22 @@ export type Landing = Readonly<{ planet: DiceV05PlanetId; sign: DiceV05SignId; h
 // (a swapped or dropped factor), never to demand a specific wording.
 const FAV_SIGNAL = /\b(?:favou?rable|support(?:s|ive|ing)?|helps?|helpful|benefits?|beneficial|strength|strong|works? for you|in your favou?r|on your side|smooth|encourag\w*|positive|advantage|backs? you|goes? well|goodwill|supportive setting)\b|有利|有幫助|支持|順利|順暢|強旺|強勢|助力|優勢|正面|配合|對你有利/iu;
 const DIFF_SIGNAL = /\b(?:difficult|difficulty|friction|against|obstacles?|resist\w*|strain\w*|weak\w*|block\w*|harder|hard going|works? against|drag|headwind|unfavou?rable|setback|hindr\w*|holds? you back|works against you)\b|不利|阻礙|阻力|困難|摩擦|拖慢|薄弱|受阻|逆風|窒礙|不順|吃力/iu;
+// STRONG directional phrases (VM-2): a factor's prose can carry a matching-orientation WORD yet still
+// assert the opposite DIRECTION (e.g. a "favourable" factor whose prose says "your strength here works
+// against you"). These strong phrases flag that reversal even when a same-orientation signal is also
+// present, so binding a factor to its orientation is NOT satisfied merely by echoing an orientation
+// word. Still a documented heuristic, not a proof of fidelity (see RG3 in 06-later-testing.md).
+const STRONG_OPPOSITION = /\b(?:works? against|working against|undermin\w+|holds? (?:you|it|them|the matter) back|stands? in (?:your|the) way|sabotag\w+|blocks? (?:you|it|the matter|progress)|counts? against|drags? (?:you|it|them) down|hurts? (?:your|the) (?:chances|case|odds)|is a (?:real )?(?:liability|obstacle|handicap)|goes? against you)\b|對你不利|拖你後腿|扯你後腿|妨礙你|阻礙你|對你造成阻礙|不利於你/iu;
+const STRONG_SUPPORT = /\b(?:works? (?:for you|in your favou?r)|working (?:for you|in your favou?r)|strongly supports?|is a (?:real )?(?:asset|strength|advantage)|helps? (?:you|it|the matter) (?:along|forward)|is (?:firmly )?on your side|backs? you up|carries? (?:you|it) forward|clears? the way|paves? the way)\b|對你有利|全力支持你|對你大有幫助|站在你這邊|為你開路/iu;
 // Movement instructions that are NOT part of the approved (canonical) search action. The single
 // ordered search action is the canonical practical_step and is rendered from the canonical result;
 // the editable Location clue prose must not tell the customer to go somewhere (V03).
 const MOVEMENT_IMPERATIVE = /\b(?:go|head|drive|travel|walk|fly|rush|proceed|set off|make your way)\s+(?:to|towards?|over to|straight to|back to|there|first)\b|前往|先去|去到|走去|前去|直接去|先到|去.{0,4}?先/iu;
+// Concrete place nouns (VM-2). A Location clue must not introduce a place that is not among the
+// approved candidates / most-likely area ("identifiers correct but wording introduces an unsupported
+// place"). Documented denylist heuristic, not an exhaustive place detector; catches the tested classes
+// (airport, station, hospital, …) even with no movement verb.
+const PLACE_LEXICON = /\b(?:airport|station|terminal|hospital|clinic|hotel|motel|restaurant|cafe|bar|pub|office|warehouse|factory|garage|basement|attic|garden|yard|balcony|rooftop|beach|park|forest|lake|river|mountain|church|temple|mosque|synagogue|school|university|library|museum|mall|shop|store|market|supermarket|bank|prison|jail|farm|barn|stadium|gym|pool|harbou?r|port|dock|pier|lounge)\b|機場|車站|總站|醫院|診所|酒店|旅館|餐廳|咖啡店|酒吧|辦公室|倉庫|工廠|車房|地窖|地下室|閣樓|花園|露台|天台|沙灘|海灘|公園|森林|教堂|廟宇|學校|大學|圖書館|博物館|商場|超市|銀行|監獄|農場|碼頭/giu;
 
 type Orientation = "favourable" | "difficult" | "balanced";
 function planetOrientation(canonical: Canonical): Orientation {
@@ -608,12 +620,14 @@ function houseOrientation(canonical: Canonical): Orientation {
   if (f === "misfortune" || f === "great_misfortune") return "difficult";
   return "balanced";
 }
-// A component asserts the OPPOSITE of its bound orientation when it carries ONLY the opposing signal.
-// Any consistent or mixed wording passes (paraphrase); "balanced" binds nothing.
+// A component asserts the OPPOSITE of its bound orientation when it carries ONLY the opposing signal,
+// OR carries a STRONG directional phrase in the opposite direction (a hedged reversal that also uses a
+// matching-orientation word). Any consistent or mildly mixed wording still passes (paraphrase);
+// "balanced" binds nothing.
 function assertsOpposite(prose: string, orientation: Orientation): boolean {
   const fav = FAV_SIGNAL.test(prose), diff = DIFF_SIGNAL.test(prose);
-  if (orientation === "favourable") return diff && !fav;
-  if (orientation === "difficult") return fav && !diff;
+  if (orientation === "favourable") return STRONG_OPPOSITION.test(prose) || (diff && !fav);
+  if (orientation === "difficult") return STRONG_SUPPORT.test(prose) || (fav && !diff);
   return false;
 }
 // The AUTHORITATIVE combined pace for a throw, from the production resolver — never word-scanned (V04).
@@ -833,10 +847,17 @@ export function assembleEditorCopy(
     headline = ensureTerminal(String(c.answer), zh);
     reading = ensureTerminal(String(c.explanation), zh);
   } else if (fam === "location") {
-    // V03: the only editable Location prose is the clue paragraph; it must not issue a movement
-    // instruction. Area, candidates, order and the single ordered search step stay canonical.
-    if (MOVEMENT_IMPERATIVE.test(String(c.clues))) return fail("DICE_COPY_LOCATION_IMPERATIVE");
-    reading = ensureTerminal(String(c.clues), zh); // headline stays the canonical area (base.headline)
+    // V03/VM-2: the only editable Location prose is the clue paragraph; it must not issue a movement
+    // instruction, and it must not introduce a place that is not among the approved candidates / area.
+    // Area, candidates, order and the single ordered search step stay canonical.
+    const clues = String(c.clues);
+    if (MOVEMENT_IMPERATIVE.test(clues)) return fail("DICE_COPY_LOCATION_IMPERATIVE");
+    const byRank = new Map<number, any>((canonical.location_candidates ?? []).map((x: any) => [x.rank, x]));
+    const approvedText = [String(canonical.most_likely_area ?? ""), ...[...byRank.values()].map((x: any) => String(x?.place ?? ""))].join(" ").toLowerCase();
+    for (const m of clues.matchAll(PLACE_LEXICON)) {
+      if (!approvedText.includes(m[0].toLowerCase())) return fail("DICE_COPY_LOCATION_UNSUPPORTED_PLACE");
+    }
+    reading = ensureTerminal(clues, zh); // headline stays the canonical area (base.headline)
   } else {
     headline = ensureTerminal(String(c.answer), zh);
     reading = ensureTerminal(String(c.explanation), zh);

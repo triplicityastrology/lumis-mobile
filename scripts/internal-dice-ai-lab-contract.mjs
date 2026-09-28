@@ -445,6 +445,28 @@ for (const lang of ["en", "zh-Hant"]) {
   assert.equal(res.body.classification.question_mode, "person", "§14C prompt-injection: question_mode is unchanged (injection treated as data)");
   assert.ok(!/\brank\b/i.test(JSON.stringify(res.body.presentation)), "§14C prompt-injection: no internal rank leaks");
 }
+// ---- VM-2 (Web boundary, editor ON): identifiers/orientation CORRECT but the wording reverses the
+// meaning or introduces an unsupported place. Binding to a fact/orientation is not proof of fidelity;
+// these are caught by the strengthened directional / place guards and fall back to deterministic. ----
+{
+  const bad = edResp("en", "judgment", { answer: "Support all round.", planet_factor: "Your own strength here actually works against you at every turn.", house_factor: "The setting is supportive and helps.", synthesis: "They stay separate." });
+  const rev = await executeLabFreeTextV05Request(v05FreeText, { ...v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, editor_response: bad, metadata: v05Meta({ provider_calls: 3, copy_provider_calls: 1, copy_source: "stage3" }) }), stage3EditorEnabled: true });
+  assert.equal(rev.body.classification.copy_source, "fallback", "VM-2: correct-orientation-word-but-reversed-direction Judgment wording is rejected → fallback");
+  assert.ok(!/works against you/i.test(JSON.stringify(rev.body.presentation)), "VM-2: the reversed wording never reaches the customer");
+  const badLoc = edResp("en", "location", { clues: "The strongest clue points to a locker inside the airport lounge." });
+  const locRes = PRESENT.buildLocationResolution("en", "moon", "leo", 4);
+  const locCanon = PRESENT.assembleLocation("en", { status: "ok", most_likely_area: "A quiet place at home.", synthesis: "Look in a private domestic setting.", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { p: [locRes.selectedKeys.p[0]], h: [], e: [] } }, { rank: 2, place: "the kitchen", evidence: { p: [], h: [locRes.selectedKeys.h[0]], e: [] } }], extension: null, search_order: [1, 2], watch_out: "Do not assume it is permanently lost.", practical_step: "Search the bedroom first." }, locRes.gid);
+  const locRev = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, { ...v05Gateway({ kind: "completed", result: locCanon, question_mode: "location", customer_copy: null, editor_response: badLoc, metadata: v05Meta({ question_mode: "location", language: "en", provider_calls: 3, copy_provider_calls: 1, copy_source: "stage3" }) }), stage3EditorEnabled: true });
+  assert.equal(locRev.body.classification.copy_source, "fallback", "VM-2: an unsupported place in the Location clue prose is rejected → fallback");
+  assert.ok(!/airport/i.test(JSON.stringify(locRev.body.presentation)), "VM-2: the unsupported 'airport' place never reaches the customer");
+  // Person (Level-1): a directly REVERSED description. No orientation/pace to bind, so NOT caught —
+  // displayed as stage3. Explicit REGRESSION MARKER for OPEN gap RG1, NOT dismissed as live QA. If a
+  // Level-1 guard is added later, this expectation must flip to "fallback".
+  const personRev = edResp("en", "person", { answer: "A reckless, erratic person.", explanation: "This points to someone impulsive and unreliable who avoids any clear commitment." });
+  const pr = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: null, editor_response: personRev, metadata: stage3Meta }), stage3EditorEnabled: true });
+  assert.equal(pr.body.classification.copy_source, "stage3", "VM-2 KNOWN GAP (regression marker): a reversed Person description is NOT caught structurally and displays as stage3 — Level-1 semantic fidelity is OPEN gap RG1 (06-later-testing), not live-QA-only");
+  assert.ok(/reckless|impulsive/i.test(JSON.stringify(pr.body.presentation)), "VM-2 KNOWN GAP: the reversed Person wording currently reaches the customer (documents the exact hole the review flagged)");
+}
 // ---- G02: Location provenance at the Web boundary, built from the REAL resolver (no fake IDs). ----
 // Valid baseline via the production resolver + wire validator + assembler for the Moon/Leo/H4 throw.
 const locSel = { question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" };
