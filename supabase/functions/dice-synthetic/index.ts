@@ -10,6 +10,10 @@ const environment = {
   LUMIS_DICE_FOUNDER_WINDOW_PUBLIC_KEY_PEM: Deno.env.get("LUMIS_DICE_FOUNDER_WINDOW_PUBLIC_KEY_PEM"),
   LUMIS_DICE_FOUNDER_FREE_TEXT_ENABLED: Deno.env.get("LUMIS_DICE_FOUNDER_FREE_TEXT_ENABLED"),
   LUMIS_DICE_FOUNDER_FREE_TEXT_ACCESS_KEY: Deno.env.get("LUMIS_DICE_FOUNDER_FREE_TEXT_ACCESS_KEY"),
+  // Stage-3 customer-language editor switch (review C01): the handler reads this to select
+  // copyMode "provider" vs "deterministic". It MUST be forwarded here or the deployed function can
+  // never select the editor. OFF by default (unset/false → deterministic; no Stage-3 provider call).
+  LUMIS_FOUNDER_DICE_STAGE3_EDITOR: Deno.env.get("LUMIS_FOUNDER_DICE_STAGE3_EDITOR"),
   LUMIS_DICE_DEPLOYMENT_ALIAS: Deno.env.get("LUMIS_DICE_DEPLOYMENT_ALIAS"),
   LUMIS_DICE_MODEL: Deno.env.get("LUMIS_DICE_MODEL"),
   LUMIS_DICE_MODEL_VERSION: Deno.env.get("LUMIS_DICE_MODEL_VERSION"),

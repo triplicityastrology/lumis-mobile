@@ -19,11 +19,13 @@
  * text can substitute a Location step, reorder follow-ups, negate a warning, drop synthesis, or
  * reverse a timing band / judgment orientation. The provider LANGUAGE editor ("provider" mode) is
  * gated OFF by default pending the deferred Founder live-language + semantic-fidelity acceptance
- * (L02–L04). When enabled it edits ONLY the customer-facing answer/explanation prose in every mode
- * through the structured, source-bound editor contract (see assembleEditorCopy); the controlled,
- * meaning-bearing fields (warning, practical/search step, follow-up sequence; Location area,
- * candidates, order and step) stay a canonical pass-through. This keeps the customer answer faithful
- * to the approved interpretation for this candidate while the language editor is validated separately.
+ * (L02–L04). When enabled it language-improves the customer-facing answer/explanation prose AND (RG2)
+ * the controlled fields — the warning, the practical/search step and the follow-up questions —
+ * through the structured, source-bound editor contract (see assembleEditorCopy), under source-relative
+ * negation/polarity/order/place guards that catch the reproduced reversals (review C03–C07) but do NOT
+ * prove full paraphrase fidelity (RG3 open). The Location AREA, ordered candidate LIST and search order
+ * stay a canonical fact (never taken from the editor); the search STEP text is edited under the guards.
+ * The editor_response is carried onto the wire in the FLAT contract (editorResponseToWire, review C02).
  */
 import {
   executeDiceV05FreeTextCase, SHARED_DEADLINE_MS,
@@ -85,7 +87,8 @@ export async function executeDiceV05FreeTextCaseWithCopy(
   let copySource: "deterministic" | "stage3" | "fallback" | "unavailable";
   let copyFailure: string | null;
   let copyCalls: number;
-  let editorResponse: DiceV05EditorResponse | null = null;
+  // Flat wire contract (review C02): forwarded verbatim to the Web boundary for independent re-parse.
+  let editorResponse: Readonly<Record<string, unknown>> | null = null;
 
   if (copyMode === "provider") {
     // Gated language-editor path (controlled fields still forced from canonical inside).

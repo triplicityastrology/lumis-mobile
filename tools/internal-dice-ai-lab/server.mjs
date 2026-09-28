@@ -447,7 +447,15 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   const classification = copySource === "fallback"
     ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: copyFailure }
     : { question_mode: result.question_mode, copy_source: copySource };
-  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification, metadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
+  // C08: make the `copy_source` field CONSISTENT across metadata and classification — it is the ACTUAL
+  // DISPLAYED source. When the upstream generation intent differed (e.g. the backend generated "stage3"
+  // but the Web rejected it and fell back), preserve that upstream label separately as
+  // `copy_source_upstream` and carry the redacted failure reason, so a rejected editor is never
+  // reported as if its prose were displayed.
+  const reportedMetadata = metadata.copy_source === copySource
+    ? metadata
+    : Object.freeze({ ...metadata, copy_source: copySource, copy_source_upstream: metadata.copy_source, ...(copyFailure ? { copy_redacted_failure_code: copyFailure } : {}) });
+  return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification, metadata: reportedMetadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   } catch {
     // Gateway/transport or downstream execution failure on a VALID request → controlled 502 service
     // result. Preserve a trusted total if metadata was already redacted; otherwise the count is

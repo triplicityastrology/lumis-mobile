@@ -13,6 +13,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverSource = await readFile(path.join(root, "tools/internal-dice-ai-lab/server.mjs"), "utf8");
 const liveWindowSource = await readFile(path.join(root, "tools/internal-dice-ai-lab/founder-live-window.mjs"), "utf8");
 const edgeHandlerSource = await readFile(path.join(root, "supabase/functions/dice-synthetic/edge-handler-v1.ts"), "utf8");
+const edgeIndexSource = await readFile(path.join(root, "supabase/functions/dice-synthetic/index.ts"), "utf8");
 const liveLauncherSource = await readFile(path.join(root, "scripts/start-founder-dice-web-lab-live.sh"), "utf8");
 const fixtures = await loadFixtures();
 const interpretationBankSource = await readFile(path.join(root, "apps/mobile/src/features/dice/interpretationBank.ts"), "utf8");
@@ -169,6 +170,10 @@ assert.match(liveLauncherSource, /if \[\[ "\$FIXTURE_LIVE" == "true" \]\]/u, "fi
 assert.match(edgeHandlerSource, /const\s+stage3EditorEnabled\s*=\s*dependencies\.environment\.LUMIS_FOUNDER_DICE_STAGE3_EDITOR\s*===\s*"true"/u, "V01: the edge reads the explicit LUMIS_FOUNDER_DICE_STAGE3_EDITOR setting");
 assert.match(edgeHandlerSource, /copyMode:\s*stage3EditorEnabled\s*\?\s*"provider"\s*:\s*"deterministic"/u, "V01: the edge selects provider editing only when the setting is on (deterministic otherwise)");
 assert.match(edgeHandlerSource, /editor_response:\s*v5\.editor_response/u, "V01: the edge forwards the structured editor_response on the wire for Web re-validation");
+// C01 (independent review): the ACTUAL Deno entrypoint (index.ts) must FORWARD the setting into the
+// environment object the handler reads — testing the handler's read of a property the entrypoint never
+// populates would be a false pass. This scans the real index.ts environment construction.
+assert.match(edgeIndexSource, /LUMIS_FOUNDER_DICE_STAGE3_EDITOR:\s*Deno\.env\.get\("LUMIS_FOUNDER_DICE_STAGE3_EDITOR"\)/u, "C01: index.ts forwards LUMIS_FOUNDER_DICE_STAGE3_EDITOR into the handler environment (OFF unless the deployed env sets it)");
 const generatedScript = renderLabPage().match(/<script>([\s\S]*)<\/script>/u)?.[1];
 assert(generatedScript, "generated Lab page contains its bootstrap script");
 assert.doesNotThrow(() => new vm.Script(generatedScript), "generated inline JavaScript parses before bootstrap");
@@ -217,19 +222,16 @@ const edResp = (lang, mode, comps) => ({ schema: CP.DICE_V05_EDITOR_SCHEMA, stat
 // while an adversarial case overrides one controlled key. A timing canonical carries none, so its response
 // is unchanged. This mirrors withControlled() in the customer-copy fixtures.
 const edRespFor = (canonical, comps) => {
-  const lang = canonical.language, mode = canonical.question_mode, zh = lang === "zh-Hant";
+  const lang = canonical.language, mode = canonical.question_mode;
   const filled = { ...comps };
-  if (canonical.watch_out != null && !("watch_out" in filled)) filled.watch_out = zh ? "記得留意相關情況，避免大意。" : "Keep this in mind and take care not to overlook it.";
-  if (canonical.practical_step != null && !("practical_step" in filled)) {
-    if (mode === "location") {
-      const places = (canonical.location_candidates || []).map((x) => String((x && x.place) || "")).filter(Boolean);
-      filled.practical_step = zh ? `先由${places[0] || ""}開始搵${places[1] ? `，再檢查${places[1]}` : ""}。` : `Start by searching ${places[0] || ""}${places[1] ? `, then check ${places[1]}` : ""}.`;
-    } else {
-      filled.practical_step = zh ? "畀清晰、具體嘅資料，唔好施壓。" : "Try giving clear, concrete detail rather than pressure.";
-    }
-  }
+  // Auto-fill any controlled component the caller did not supply with the canonical value VERBATIM — a
+  // maximally faithful stand-in — so a test whose FOCUS is the display prose does not accidentally
+  // alter meaning and get rejected by the source-relative guards (independent-review correction #3).
+  // Tests exercising a controlled-field edit (or an adversarial one) supply that key explicitly.
+  if (canonical.watch_out != null && !("watch_out" in filled)) filled.watch_out = String(canonical.watch_out);
+  if (canonical.practical_step != null && !("practical_step" in filled)) filled.practical_step = String(canonical.practical_step);
   const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
-  for (let i = 0; i < nf; i += 1) { const k = `followup_${i + 1}`; if (!(k in filled)) filled[k] = zh ? "你想我點樣幫手？" : "What would help you most here?"; }
+  for (let i = 0; i < nf; i += 1) { const k = `followup_${i + 1}`; if (!(k in filled)) filled[k] = String(canonical.suggested_followups[i]); }
   return edResp(lang, mode, filled);
 };
 // AUTHORITATIVE combined pace for the langSel timing landing (jupiter/sagittarius/house_1), from the
@@ -594,6 +596,50 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
   assert.equal(onZh.body.classification.copy_source, "stage3", "L4 location/zh: edited reading displayed as stage3");
   assert.ok(JSON.stringify(onZh.body.presentation).includes("日常用品"), "L4 location/zh: the edited Chinese clues reading reaches the card");
   assert.ok(JSON.stringify(onZh.body.presentation).includes("先搵睡房"), "RG2 location/zh: the EDITED search step still names the rank-1 place ('睡房') and stays a search action");
+}
+
+// ================================================================================================
+// C02 (independent review) — JOINED PATH: the REAL Stage-3 producer's returned editor_response,
+// serialized by the REAL producer, must round-trip through the REAL Web parser to a stage3 render.
+// The previous edge/Web fixtures never crossed this boundary (edge called composition directly; the
+// Web fixture invented a flat gateway response), so the nested-vs-flat wire mismatch went undetected.
+// Here we take produced.editor_response UNCHANGED (no hand-built wire object) and feed it to the Web.
+// ================================================================================================
+{
+  const jc = jCanon.en;
+  const jLanding = { planet: "jupiter", sign: "sagittarius", house: 1 };
+  // Real Stage-3 producer with a mock provider returning a faithful flat editor response.
+  const produced = await CP.executeDiceV05CustomerCopy(
+    jc, "Should I accept this promotion?",
+    () => ({ invoke: async () => ({ kind: "success", content: JSON.stringify(edRespFor(jc, jEditor.en)) }) }),
+    { now: () => 1000, landing: jLanding },
+  );
+  assert.equal(produced.source, "stage3", "C02 joined: the real Stage-3 producer accepts the faithful editor response");
+  assert.ok(produced.editor_response && typeof produced.editor_response === "object", "C02 joined: a stage3 outcome carries a wire editor_response");
+  // The wire shape must be FLAT (identity + component keys), never the parser's internal nested object.
+  assert.ok(!("components" in produced.editor_response), "C02 joined: editor_response is the FLAT wire contract (no nested 'components' object)");
+  // Feed the ACTUAL produced editor_response through the REAL Web handler unchanged.
+  const web = await executeLabFreeTextV05Request(langSel("en", "judgment"), { ...v05Gateway({ kind: "completed", result: jc, question_mode: "judgment", customer_copy: null, editor_response: produced.editor_response, metadata: stage3MetaFor("en", "judgment") }), stage3EditorEnabled: true });
+  assert.equal(web.body.classification.copy_source, "stage3", "C02 joined: the real producer's editor_response round-trips through the Web boundary to a stage3 render (not fallback)");
+  assert.ok(JSON.stringify(web.body.presentation.sections).includes(jEditor.en.synthesis.replace(/\.$/, "")), "C02 joined: the edited reading reaches the rendered card end-to-end");
+}
+
+// ================================================================================================
+// C08 (independent review) — the `copy_source` field is CONSISTENT across metadata and classification
+// (it is the actual DISPLAYED source), and a rejected editor's upstream label is preserved separately.
+// ================================================================================================
+{
+  // A rejected editor (prohibited prose) → fallback: metadata.copy_source must NOT still read "stage3".
+  const rejected = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: null, editor_response: v05Level1BadResp, metadata: stage3Meta }), stage3EditorEnabled: true });
+  assert.equal(rejected.body.classification.copy_source, "fallback", "C08 control: a rejected editor displays fallback");
+  assert.equal(rejected.body.metadata.copy_source, "fallback", "C08: metadata.copy_source reflects the ACTUAL displayed source, not the upstream 'stage3' label");
+  assert.equal(rejected.body.metadata.copy_source_upstream, "stage3", "C08: the upstream generation label is preserved separately as copy_source_upstream");
+  assert.ok(typeof rejected.body.metadata.copy_redacted_failure_code === "string", "C08: a redacted failure reason is carried through the boundary");
+  assert.equal(rejected.body.provider_calls, stage3Meta.provider_calls, "C08: the measured provider total is preserved");
+  // An accepted stage3 render leaves copy_source consistent as "stage3" with no upstream override.
+  const accepted = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: null, editor_response: v05Level1EditorResp, metadata: stage3Meta }), stage3EditorEnabled: true });
+  assert.equal(accepted.body.metadata.copy_source, "stage3", "C08: an accepted stage3 render keeps metadata.copy_source consistent as stage3");
+  assert.equal(Object.hasOwn(accepted.body.metadata, "copy_source_upstream"), false, "C08: no upstream override when display source already matches");
 }
 
 // ---- G03: a gateway/service exception on a VALID request is a controlled 502 service failure —

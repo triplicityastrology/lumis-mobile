@@ -28,31 +28,19 @@ const copyOk = (o: Partial<DiceV05CustomerCopy> & Pick<DiceV05CustomerCopy, "lan
 const editorOk = (language: "en" | "zh-Hant", mode: DiceV05Mode, components: Record<string, string>): string =>
   JSON.stringify({ schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language, question_mode: mode, ...components });
 // RG2: the editor response must now also carry the CONTROLLED components (watch_out / practical_step /
-// followup_1..N) whenever the canonical carries them. This auto-fills a plausible faithful rewrite for
-// any the caller did not supply, so pre-RG2 tests (which passed only the display components) stay valid,
-// while an RG2 adversarial test overrides ONE controlled key to a hostile value. Auto-filled values use
-// only approved candidate places (Location) and stay a caution / search action / question so they pass
-// the guards; a test that wants a rejection supplies its own value for that key.
+// followup_1..N) whenever the canonical carries them. For any the caller did not supply, this auto-fills
+// the canonical value VERBATIM — a maximally faithful stand-in — so tests whose FOCUS is elsewhere stay
+// valid without accidentally changing meaning (independent-review correction #3: generic filler could
+// erase meaning even in a "positive" test, and the source-relative guards would then reject it). Tests
+// that specifically exercise a controlled-field EDIT (or an adversarial one) supply that key explicitly.
 const withControlled = (canonical: any, components: Record<string, string>): Record<string, string> => {
   const filled: Record<string, string> = { ...components };
-  const zh = canonical.language === "zh-Hant";
-  if (canonical.watch_out != null && !("watch_out" in filled)) {
-    filled.watch_out = zh ? "留意跟進時嘅語氣，避免過急。" : "Keep an eye on this and take care not to rush it.";
-  }
-  if (canonical.practical_step != null && !("practical_step" in filled)) {
-    if (canonical.question_mode === "location") {
-      const places = (canonical.location_candidates ?? []).map((x: any) => String(x?.place ?? "")).filter(Boolean);
-      filled.practical_step = zh
-        ? `先由${places[0] ?? ""}開始搵${places[1] ? `，再檢查${places[1]}` : ""}。`
-        : `Start by searching ${places[0] ?? ""}${places[1] ? `, then check ${places[1]}` : ""}.`;
-    } else {
-      filled.practical_step = zh ? "畀清晰、具體嘅資料，唔好施壓。" : "Try giving clear, concrete information rather than pressure.";
-    }
-  }
+  if (canonical.watch_out != null && !("watch_out" in filled)) filled.watch_out = String(canonical.watch_out);
+  if (canonical.practical_step != null && !("practical_step" in filled)) filled.practical_step = String(canonical.practical_step);
   const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
   for (let i = 0; i < nf; i += 1) {
     const key = `followup_${i + 1}`;
-    if (!(key in filled)) filled[key] = zh ? "你想我點樣幫手？" : "What would help you most here?";
+    if (!(key in filled)) filled[key] = String(canonical.suggested_followups[i]);
   }
   return filled;
 };
@@ -200,8 +188,9 @@ const oversizeJudgment = { ...judgmentCanonical, planet_side: { ...(judgmentCano
 const oversizeFb = buildValidatedFallback(oversizeJudgment as any);
 ok(!oversizeFb.ok, "C01: an over-cap judgment fallback is rejected (not sliced to fit)");
 
-/* ---- execution (ALL-MODE editor path, 2026-09-17): the provider's edited answer + explanation are
- *      DISPLAYED for every mode; controlled fields (watch/step/follow-ups) stay canonical. ---- */
+/* ---- execution (ALL-MODE editor path): the provider's edited answer + explanation are DISPLAYED for
+ *      every mode; the controlled fields (watch / step / follow-ups) are ALSO language-improved (RG2)
+ *      under the source-relative guards, so the EDITED wording displays (not a canonical pass-through). ---- */
 const copyAdapter = (content: string, kind: DiceV05ProviderResult["kind"] = "success"): DiceV05ProviderAdapter => ({
   invoke: async () => (kind === "success" ? { kind: "success", content } : { kind } as DiceV05ProviderResult),
 });
@@ -497,8 +486,9 @@ ok(asm(locationCanonical, "en", "location", { clues: "The strongest sign points 
 }
 // Adversarial — a caution inverted into an all-clear is rejected.
 eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Nothing to worry about here; you can relax." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_INVERTED" }, "RG2: a caution inverted into an all-clear is rejected");
-// Adversarial — a caution reworded into a bland non-warning (warning signal dropped) is rejected.
-eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "This concerns the general tone of the matter." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_NOT_WARNING" }, "RG2: a caution reworded into a bland non-warning is rejected");
+// C07 (review): a FAITHFUL caution paraphrase that omits a stock warning word ("Beware"/"watch") is
+// NOT rejected — the guard is source-relative (no polarity reversal), not a mandatory-vocabulary rule.
+ok(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Try to keep your hopes grounded even with strong support." }, judgmentLanding).ok, "C07: a faithful caution paraphrase without a stock warning word is accepted (no forced vocabulary)");
 // Adversarial — a follow-up rewritten as a statement (no longer a question) is rejected.
 eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", followup_1: "You should prepare the documents first." }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_NOT_QUESTION" }, "RG2: a follow-up rewritten as a statement (not a question) is rejected");
 // Adversarial (location) — a search step that drops the rank-1 candidate place is rejected.
@@ -517,6 +507,47 @@ eq(parseEditorResponse(locationCanonical as any, "en", editorOk("en", "location"
 // ...and an EXTRA follow-up beyond the single source follow-up is rejected at parse (count/order preserved).
 eq(parseEditorResponse(judgmentCanonical as any, "zh-Hant", editorOk("zh-Hant", "judgment", { answer: "a。", planet_factor: "b。", house_factor: "c。", synthesis: "d。", watch_out: "留意語氣，避免過急。", followup_1: "問題一？", followup_2: "多咗一條？" })).kind, "invalid", "RG2: an EXTRA follow-up (followup_2) beyond the single source follow-up is rejected at parse (count/order preserved)");
 
+/* ================================================================================================
+ * INDEPENDENT-REVIEW REPRODUCTIONS (7048c22 review, C03–C07). The earlier RG2 guards checked for
+ * warning vocabulary / a rank-1 substring / a matching regex; the review showed that a warning word,
+ * a matching substring, or a positional key is NOT proof the rewrite kept the SOURCE meaning. These
+ * assert the SOURCE-RELATIVE, negation-aware guards catch the exact reproduced reversals — and, just
+ * as important, that a FAITHFUL paraphrase (C07) is NOT falsely rejected. Still heuristics, not a
+ * semantic proof (RG3 stays open): they close the demonstrated holes, not all possible paraphrases.
+ * ================================================================================================ */
+const faithFactors = { answer: "Your side helps, but the setting is hard.", planet_factor: "Your own capacity is a genuine strength working in your favour.", house_factor: "The surrounding setting is difficult and adds friction.", synthesis: "Real support on one side, real difficulty on the other; the two stay separate." };
+// C03 (P03): a caution whose action/polarity is REVERSED against the source is rejected, even though it
+// reuses the same words ("pressure") and stays warning-shaped.
+const pressureJudg = Object.freeze({ ...(mixedJudg as any), watch_out: "Avoid putting pressure on the other person.", suggested_followups: [] });
+eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid giving the other person space; put pressure on them." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "C03/P03 EN: a caution that reverses the source instruction (avoid pressure → put pressure) is rejected");
+// C03 (P13) zh equivalent — 不要施壓 → 繼續施壓 (same verb 施壓, negation flipped).
+const pressureJudgZh = Object.freeze({ ...(judgmentCanonical as any), watch_out: "不要向對方施壓。", suggested_followups: [] });
+eq(asm(pressureJudgZh, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", watch_out: "注意繼續向對方施壓。" }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "C03/P13 zh: a caution that flips 不要施壓 → 繼續施壓 is rejected");
+// C03 (P09): a practical step whose polarity is reversed is rejected (person mode).
+eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Pressure them and withhold clear information." }, personLanding), { ok: false, reason: "DICE_COPY_STEP_REVERSED" }, "C03/P09 EN: a practical step reversed against the source (give clear info, not pressure → pressure them) is rejected");
+// C04 (P06): a Location search step that puts the rank-2 place FIRST (search order broken) is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Search the kitchen first, then check the bedroom." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_ORDER" }, "C04/P06: a search step that names the rank-2 place before the rank-1 place is rejected (ordered action, not a substring)");
+// C04 (P07): a step that NEGATES the rank-1 place (do not search it) is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Do not search the bedroom. Search the kitchen instead." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_REVERSED" }, "C04/P07: a step that tells the customer NOT to search the rank-1 place is rejected (polarity)");
+// C04 (P08): a newly-editable Location CAUTION that introduces an unsupported place is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", watch_out: "Beware of leaving it at the airport." }, locationLanding), { ok: false, reason: "DICE_COPY_CAUTION_UNSUPPORTED_PLACE" }, "C04/P08: an unsupported place introduced in the editable Location caution is rejected");
+// C05 (P04) EN swap: two follow-ups exchanged between positions are rejected (position anchoring).
+const enTwoFollowup = Object.freeze({ ...(enJudgment as any), suggested_followups: ["What should I prepare first?", "When is the best time to raise it?"] });
+eq(asm(enTwoFollowup, "en", "judgment", { answer: "You have real support, and the setting is favourable.", planet_factor: "Your own capacity is strong and works in your favour.", house_factor: "The situation around you is also supportive and helps.", synthesis: "The two sides agree here rather than pulling against each other.", followup_1: "When is the best time to raise it?", followup_2: "What should I prepare first?" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_ORDER" }, "C05/P04 EN: two follow-ups swapped between positions are rejected (each slot must paraphrase ITS source question)");
+// C05 (P15) zh swap.
+eq(asm(twoFollowupJudgment, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", followup_1: "我應該幾時提出？", followup_2: "我可以點樣改善溝通？" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_ORDER" }, "C05/P15 zh: two follow-ups swapped between positions are rejected");
+// C05 (P05): an unrelated replacement follow-up is rejected (content anchoring floor).
+eq(asm(mixedJudg, "en", "judgment", { ...faithFactors, followup_1: "What should I cook for dinner?" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_UNRELATED" }, "C05/P05 EN: an unrelated replacement follow-up (off-topic) is rejected");
+// C05 (P14): a zh DECLARATIVE is not a question just because it contains 可以.
+eq(asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", followup_1: "你可以繼續努力。" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_NOT_QUESTION" }, "C05/P14 zh: a declarative containing 可以 is NOT accepted as a follow-up question");
+// C06 (P11): a Chinese mid-paragraph fragment (no space after 。) is caught as its own sentence now.
+eq(asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "外在有利。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "你本身有能力，因為。這對事情有幫助。" }, judgmentLanding).ok, false, "C06/P11 zh: a mid-paragraph Chinese fragment ('…因為。這…') is rejected (segmentation no longer needs whitespace)");
+// C07 (P10): a faithful caution paraphrase (no polarity flip) IS accepted — covered above for judgment;
+// here for a Level-1 caution: "reserved before settled" → "reserved until settled".
+ok(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "Steady and dependable.", watch_out: "They might appear reserved until they feel settled." }, personLanding).ok, "C07/P10 EN: a faithful caution paraphrase (no reversal) is accepted, not falsely rejected");
+// C07 (P12): a NEGATED opposite phrase ("does not work against you") on a favourable factor is NOT a reversal.
+ok(asm(mixedJudg, "en", "judgment", { ...faithFactors, planet_factor: "Your own strength does not work against you; it supports your progress." }, judgmentLanding).ok, "C07/P12 EN: a negated opposite phrase on a favourable factor is accepted (negation-aware, not flagged as opposition)");
+
 /* ---- Stage-3 EDITOR input + assembled-envelope token measurement (honest allowance labels, M03). ---- */
 for (const [mode, canonical, q, landing] of [["judgment", judgmentCanonical, "我個application會唔會批？", judgmentLanding], ["timing", timingCanonical, "幾時會有結果？", timingLanding], ["location", locationCanonical, "喺邊度？", locationLanding], ["person", personCanonical, "係咩人？", personLanding]] as const) {
   const providerInput = `${DICE_V05_EDITOR_BLOCK}\nINPUT_JSON:\n${JSON.stringify(buildEditorInput(canonical as any, q, landing))}`;
@@ -525,9 +556,15 @@ for (const [mode, canonical, q, landing] of [["judgment", judgmentCanonical, "�
   const envTok = fb.ok ? measureDiceTokenLimit(JSON.stringify(fb.copy), CUSTOMER_COPY_OUTPUT_CAP) : { token_count: -1, within_limit: false };
   ok(fb.ok, `${mode} deterministic envelope builds`);
   ok(envTok.within_limit, `${mode} assembled display envelope within the 700-token cap (tokens=${envTok.token_count})`);
-  // The editor INPUT is a provider PROMPT: it is bounded by the provider generation/context allowance
-  // owned by the window, NOT by the 700-token OUTPUT cap (which bounds only the returned display copy).
-  console.log(`stage3-io ${mode}: editor_input_tokens=${inTok} (runtime tokenizer, real INPUT_JSON; bounded by the provider context/generation allowance, not the 700 output cap), display_envelope_tokens=${envTok.token_count} cap=${CUSTOMER_COPY_OUTPUT_CAP} (representative fixture, not a mathematical worst case)`);
+  // Three DISTINCT limits, kept separate (independent-review correction #6):
+  //   (1) editor INPUT tokens — the provider PROMPT, bounded by the model's INPUT/context window; it is
+  //       NOT bounded by the 2,000-token GENERATION allowance (that caps generated OUTPUT) NOR by the
+  //       700-token display-output cap;
+  //   (2) the RAW editor OUTPUT is measured against the 700-token cap BEFORE parse (in execution);
+  //   (3) the assembled DISPLAY envelope is measured against the same 700-token cap here.
+  // The number below is (1) input measurement and (3) the assembled display envelope; it is a
+  // representative sample, not a mathematical worst case.
+  console.log(`stage3-io ${mode}: editor_input_tokens=${inTok} (runtime tokenizer, real INPUT_JSON; bounded by the model INPUT/context window — NOT the 2000-token generation allowance and NOT the 700 display-output cap), display_envelope_tokens=${envTok.token_count} cap=${CUSTOMER_COPY_OUTPUT_CAP} (assembled display OUTPUT; representative fixture, not a mathematical worst case)`);
 }
 
 console.log("dice-v0-5 customer-copy fixtures passed");

@@ -582,9 +582,11 @@ export function validateLocationProjection(
  * deterministically from the validated canonical result (and, for pace, from the trusted landing).
  * The server checks each component against its bound fact — permitting natural paraphrase, requiring
  * that a component never asserts the OPPOSITE of its bound orientation and never drops a factor —
- * then assembles the flat DiceV05CustomerCopy the unchanged presentation renders. Controlled,
- * meaning-bearing fields (warning, practical/search step, follow-up sequence; Location area,
- * candidates, order and step) stay a canonical pass-through and are NEVER taken from the editor.
+ * then assembles the flat DiceV05CustomerCopy the unchanged presentation renders. The controlled
+ * fields (warning, practical/search step, follow-up questions) are ALSO language-improved (RG2) under
+ * source-relative negation/polarity/order/place guards; the Location AREA, ordered candidate LIST and
+ * search order remain a canonical fact NEVER taken from the editor (only the search STEP text is
+ * edited, and only if it keeps the rank-1 place first, a search action, and no unsupported place).
  *
  * Component -> display map (what the customer actually sees):
  *   judgment: answer->headline; planet_factor + house_factor + synthesis -> reading
@@ -640,8 +642,10 @@ function houseOrientation(canonical: Canonical): Orientation {
 // "balanced" binds nothing.
 function assertsOpposite(prose: string, orientation: Orientation): boolean {
   const fav = FAV_SIGNAL.test(prose), diff = DIFF_SIGNAL.test(prose);
-  if (orientation === "favourable") return STRONG_OPPOSITION.test(prose) || (diff && !fav);
-  if (orientation === "difficult") return STRONG_SUPPORT.test(prose) || (fav && !diff);
+  // Negation-aware (review C07/P12): a NEGATED strong-opposite phrase ("does not work against you") is
+  // not opposition, so require an UN-negated strong phrase; the bare-signal branch keeps its behaviour.
+  if (orientation === "favourable") return hasUnnegated(prose, STRONG_OPPOSITION) || (diff && !fav);
+  if (orientation === "difficult") return hasUnnegated(prose, STRONG_SUPPORT) || (fav && !diff);
   return false;
 }
 // The AUTHORITATIVE combined pace for a throw, from the production resolver — never word-scanned (V04).
@@ -680,12 +684,80 @@ const EDITOR_COMPONENTS: Record<Stage3Family, readonly EditorSpec[]> = Object.fr
 // follow-up questions), preserving meaning and ORDER. These lexicons guard the tested failure classes;
 // they are documented heuristics, NOT a proof of fidelity (the same disclosed limit as RG1/RG3).
 // A caution must remain a caution (carry a warning signal) and must not be inverted into an all-clear.
-const CAUTION_SIGNAL = /\b(?:watch|beware|careful|caution|avoid|don'?t|do not|note that|keep|mind|guard against|be wary|wary of|resist|refrain|take care|too much|over\w+)\b|留意|小心|注意|不要|唔好|別|避免|切勿|謹記|提防|勿|過\w|太\w/iu;
 const ALL_CLEAR = /\b(?:nothing to (?:watch|worry|be careful|note)|no need to (?:worry|be careful|watch)|no (?:risk|concern|caution|worry|downside)|don'?t worry|rest assured|nothing to be careful about|you can relax)\b|毋須擔心|無須擔心|不用擔心|唔使擔心|無需注意|沒有風險|冇風險|不必小心|無需提防|放心|冇問題|沒問題/iu;
 // A search/practical step must remain an actionable instruction (not an all-clear).
 const SEARCH_SIGNAL = /\b(?:search|look|check|start|begin|first|focus|try)\b|搵|尋|找|檢查|先|由.{0,8}?開始|集中|嘗試/iu;
-// A follow-up must remain a question.
-const QUESTION_SIGNAL = /[?？]\s*$|^\s*(?:what|why|how|when|where|who|which|should|could|would|will|can|is|are|do|does|did|have|has|am)\b|點|可以|應該|會唔會|係咪|係唔係|如何|為何|為什麼|幾時|邊|嗎|呢[？?]?$/iu;
+// A follow-up must remain a question: it must END with a question mark, OR carry an explicit
+// interrogative structure (an EN interrogative-led clause, or a zh interrogative particle/phrase near
+// the end). A bare modal such as 「可以」 in a DECLARATIVE sentence no longer counts (review C05/P14).
+const QUESTION_SIGNAL = /[?？]\s*$|^\s*(?:what|why|how|when|where|who|which|should|could|would|will|can|is|are|do|does|did|have|has|am)\b.*\?\s*$|(?:嗎|呢|點樣|係咪|係唔係|會唔會|如何|為何|為什麼|幾時|邊個|邊度)\s*[？?]?\s*$/iu;
+
+/* ------------------------------------------------------------------ *
+ * RG2-R2 — source-relative, negation-aware guards for the controlled-field rewrites.
+ * These answer the independent review (C03–C07): a warning word or a matching substring is NOT proof
+ * the rewrite kept the source meaning, so the caution / step guards now compare POLARITY against the
+ * SOURCE text, the follow-up guard anchors each rewritten question to the SOURCE follow-up it must
+ * paraphrase (position + content), and the strong-opposition Judgment guard ignores a NEGATED opposite
+ * phrase. They are stronger, still-documented HEURISTICS — not a semantic proof; full paraphrase
+ * fidelity remains open (RG3). No provider call is added.
+ * ------------------------------------------------------------------ */
+// Negators (EN + zh). Used to decide whether a shared salient token is negated in a given clause.
+const NEGATOR = /\b(?:not|no|never|n'?t|without|avoid(?:s|ing)?|rather than|instead of|refrain(?:s|ing)? from|won'?t|does\s?n'?t|do\s?n'?t|did\s?n'?t|is\s?n'?t|are\s?n'?t|cannot|can'?t|stop(?:s|ping)?)\b|不要|唔好|唔會|不會|沒有|冇|別|勿|毋須|無須|不用|唔使|避免|切勿|而非|而不是|拒絕/iu;
+const EN_STOPWORDS = new Set(["the","a","an","to","of","in","on","at","for","and","or","but","is","are","be","it","this","that","these","those","you","your","them","their","they","he","she","him","her","his","its","with","as","by","from","into","over","about","than","then","so","not","no","do","does","did","can","could","would","should","will","may","might","must","i","me","my","we","us","our","what","which","how","when","where","who","why"]);
+const CJK = /[㐀-鿿]/;
+const hasCJK = (s: string) => CJK.test(s);
+// Salient content tokens: EN lowercased words len>=3 minus stopwords; zh CJK 2-grams (skip pure
+// function-char grams). Used for polarity and follow-up anchoring.
+function contentTokens(s: string): string[] {
+  const out: string[] = [];
+  if (hasCJK(s)) {
+    const runs = s.match(/[㐀-鿿]{2,}/gu) ?? [];
+    const skip = new Set(["你","我","佢","呢","嗎","嘅","的","了","係","會","可以","如果","因為","所以","但係","不過"]);
+    for (const run of runs) for (let i = 0; i + 2 <= run.length; i += 1) { const g = run.slice(i, i + 2); if (!skip.has(g)) out.push(g); }
+  } else {
+    for (const w of s.toLowerCase().match(/[a-z']+/g) ?? []) if (w.length >= 3 && !EN_STOPWORDS.has(w)) out.push(w);
+  }
+  return out;
+}
+// Is a token negated where it appears in `text`? Look at a small window BEFORE its first occurrence
+// (clause-scoped) for a negator. Char window for zh, word window approximated by chars for EN.
+function tokenNegated(text: string, token: string): boolean {
+  const idx = text.toLowerCase().indexOf(token.toLowerCase());
+  if (idx < 0) return false;
+  const window = text.slice(Math.max(0, idx - (hasCJK(text) ? 6 : 28)), idx);
+  return NEGATOR.test(window);
+}
+// A rewrite REVERSES the source when a salient token shared by both has OPPOSITE negation status
+// (source asserts X, edit negates X — or vice versa). Catches direct instruction reversals (C03/C04)
+// without demanding specific wording; a faithful paraphrase keeps each shared token's polarity.
+function polarityReversed(source: string, edit: string): boolean {
+  const editLower = edit.toLowerCase();
+  for (const tok of new Set(contentTokens(source))) {
+    if (!editLower.includes(tok.toLowerCase())) continue;
+    if (tokenNegated(source, tok) !== tokenNegated(edit, tok)) return true;
+  }
+  return false;
+}
+// Content-token overlap (Jaccard over salient tokens). 0..1.
+function contentOverlap(a: string, b: string): number {
+  const A = new Set(contentTokens(a)), B = new Set(contentTokens(b));
+  if (A.size === 0 && B.size === 0) return 1;
+  if (A.size === 0 || B.size === 0) return 0;
+  let inter = 0; for (const t of A) if (B.has(t)) inter += 1;
+  return inter / (A.size + B.size - inter);
+}
+const FOLLOWUP_ANCHOR_FLOOR = 0.15;
+// Does a strong opposite phrase appear UN-negated? A negated opposite ("does not work against you")
+// is not opposition (review C07/P12).
+function hasUnnegated(text: string, re: RegExp): boolean {
+  const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+  for (const m of text.matchAll(g)) {
+    const idx = m.index ?? 0;
+    const window = text.slice(Math.max(0, idx - (hasCJK(text) ? 6 : 28)), idx);
+    if (!NEGATOR.test(window)) return true;
+  }
+  return false;
+}
 
 // present, so the per-mode forbidden/required rules fall out of "present iff canonical present"
 // (judgment/timing have no practical_step; timing usually has no watch_out; only judgment carries
@@ -806,6 +878,18 @@ export type EditorParse =
   | Readonly<{ kind: "unpresentable" }>
   | Readonly<{ kind: "invalid"; code: string }>;
 
+/**
+ * The ON-THE-WIRE editor_response transport contract (review C02): the SAME flat shape the provider
+ * returns and `parseEditorResponse` consumes — identity fields plus one string per component key. The
+ * parser's internal `value` nests the components under a `components` object for assembly; that nested
+ * shape must NEVER be put on the wire, or the Web boundary (which re-parses with the FLAT parser) would
+ * reject it as `DICE_EDITOR_EXTRA_OR_MISSING_KEY`. This is the single serialization used by the
+ * producer, edge, gateway and Web parser so the joined path round-trips.
+ */
+export function editorResponseToWire(value: DiceV05EditorResponse): Readonly<Record<string, unknown>> {
+  return Object.freeze({ schema: value.schema, status: value.status, language: value.language, question_mode: value.question_mode, ...value.components });
+}
+
 /** Strict contract validation of a structured editor response against the canonical (mode + the
  * controlled fields it carries) and language. */
 export function parseEditorResponse(canonical: Canonical, language: DiceV05Language, rawContent: string): EditorParse {
@@ -833,8 +917,13 @@ export function parseEditorResponse(canonical: Canonical, language: DiceV05Langu
   return { kind: "ok", value: Object.freeze({ schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language, question_mode: mode, components: Object.freeze(components) }) as DiceV05EditorResponse };
 }
 
-// Sentence boundary: terminal punctuation (optionally a closing quote/bracket) followed by space.
-const SENTENCE_SPLIT = /(?<=[.!?。！？…]["'”』」）)\]]?)\s+/u;
+// Sentence boundary. Two cases, because Chinese does NOT put whitespace after 。！？ (review C06):
+//  1. after a CJK terminator (＋ optional closing quote/bracket) — split with NO following whitespace,
+//     so a mid-paragraph Chinese fragment ("…因為。這對事情有幫助。") becomes its OWN sentence and is
+//     checked by fieldCompleteness (DANGLING_END_ZH catches the dangling 因為);
+//  2. after an English terminator / ellipsis (＋ optional closer) FOLLOWED by whitespace — preserving
+//     the abbreviation/decimal/quotation handling (a bare "." with no space does not split).
+const SENTENCE_SPLIT = /(?<=[。！？]["'”』」）)\]]?)|(?<=[.!?…]["'”』」）)\]]?)\s+/u;
 // V06: fragment / known-truncated-tail detection at the SENTENCE level within an editable prose
 // component, so a broken sentence in the MIDDLE of a paragraph (a clean final sentence after it)
 // cannot slip past the field-tail heuristic. Runs BEFORE any component is joined.
@@ -878,7 +967,7 @@ export function assembleEditorCopy(
     if (verdict !== "OK") return fail(verdict);
   }
 
-  const base = deterministicCustomerCopy(canonical); // controlled fields = canonical pass-through
+  const base = deterministicCustomerCopy(canonical); // starting point; controlled fields re-edited below (RG2)
   let headline = base.headline;
   let reading = base.reading;
 
@@ -916,44 +1005,63 @@ export function assembleEditorCopy(
 
   // RG2: language-improve the CONTROLLED fields, preserving meaning + ORDER. Each is present in the
   // editor response IFF the canonical carries it (editorSpecs), so per-mode forbidden/required is
-  // already enforced by parse. Guards catch the tested failure classes (inversion / dropped search
-  // action / non-question follow-up); full fidelity is heuristic, not proven (see RG1–RG3).
+  // enforced by parse. The guards below are SOURCE-RELATIVE and negation-aware (review C03–C07): they
+  // compare the rewrite's polarity / place claims / question anchoring against the SOURCE, rather than
+  // merely checking for warning vocabulary or a substring. They are stronger, still-documented
+  // HEURISTICS — not a semantic proof; full paraphrase fidelity remains open (RG3).
   let watch_out = base.watch_out;
   let practical_step = base.practical_step;
   let followups: readonly string[] = base.suggested_followups;
+  const approvedPlaces = [String(canonical.most_likely_area ?? ""), ...(canonical.location_candidates ?? []).map((x: any) => String(x?.place ?? ""))].join(" ").toLowerCase();
+  const placeCore = (place: unknown) => String(place ?? "").replace(/^\s*(the|a|an)\s+/i, "").trim().toLowerCase();
 
   if (canonical.watch_out != null) {
+    const src = String(canonical.watch_out);
     const w = String(c.watch_out);
-    // RG2: a caution must stay a caution — it must NOT be inverted into an all-clear, and it must
-    // still carry a warning signal (a bland non-warning drops the caution's meaning). Heuristic,
-    // not a fidelity proof (see RG2/RG3).
+    // C03/C07: a caution must not be inverted into an all-clear, and must not REVERSE the source
+    // instruction's polarity (a shared salient token whose negation flips). A faithful paraphrase that
+    // simply omits a stock warning word is NOT rejected (review C07/P10). For Location, the caution is
+    // an editable place-bearing field, so it must introduce no unsupported place (review C04/P08).
     if (ALL_CLEAR.test(w)) return fail("DICE_COPY_CAUTION_INVERTED");
-    if (!CAUTION_SIGNAL.test(w)) return fail("DICE_COPY_CAUTION_NOT_WARNING");
+    if (polarityReversed(src, w)) return fail("DICE_COPY_CAUTION_REVERSED");
+    if (fam === "location") for (const m of w.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_CAUTION_UNSUPPORTED_PLACE");
     watch_out = ensureTerminal(w, zh);
   }
   if (canonical.practical_step != null) {
+    const src = String(canonical.practical_step);
     const p = String(c.practical_step);
+    // C03: a step must not be inverted into an all-clear, and must not reverse the source polarity
+    // (e.g. "Do not search the bedroom" when the source says to search it — review C04/P07).
     if (ALL_CLEAR.test(p)) return fail("DICE_COPY_STEP_INVERTED");
+    if (polarityReversed(src, p)) return fail("DICE_COPY_STEP_REVERSED");
     if (fam === "location") {
-      // The ordered search action is preserved: the edited step must still direct to the rank-1
-      // candidate place, remain a search/start instruction, add no movement to / no unsupported place.
-      const rank1 = (canonical.location_candidates ?? []).find((x: any) => x?.rank === 1)?.place;
-      const core = String(rank1 ?? "").replace(/^\s*(the|a|an)\s+/i, "").trim().toLowerCase();
-      if (!core || !p.toLowerCase().includes(core)) return fail("DICE_COPY_STEP_CANDIDATE_DROPPED");
+      const cands = [...(canonical.location_candidates ?? [])].sort((a: any, b: any) => (a?.rank ?? 0) - (b?.rank ?? 0));
+      const rank1core = placeCore(cands.find((x: any) => x?.rank === 1)?.place);
+      // The rank-1 place must still be present AND named FIRST among the candidate places (ordered
+      // search action preserved, not just a substring — review C04/P06), stay a search instruction,
+      // add no movement imperative and introduce no unsupported place.
+      if (!rank1core || !p.toLowerCase().includes(rank1core)) return fail("DICE_COPY_STEP_CANDIDATE_DROPPED");
+      const positions = cands.map((x: any) => ({ core: placeCore(x?.place), at: p.toLowerCase().indexOf(placeCore(x?.place)) })).filter((x) => x.core && x.at >= 0).sort((a, b) => a.at - b.at);
+      if (positions.length > 0 && positions[0].core !== rank1core) return fail("DICE_COPY_STEP_ORDER");
       if (!SEARCH_SIGNAL.test(p)) return fail("DICE_COPY_STEP_NOT_ACTIONABLE");
       if (MOVEMENT_IMPERATIVE.test(p)) return fail("DICE_COPY_LOCATION_IMPERATIVE");
-      const approvedStep = [String(canonical.most_likely_area ?? ""), ...(canonical.location_candidates ?? []).map((x: any) => String(x?.place ?? ""))].join(" ").toLowerCase();
-      for (const m of p.matchAll(PLACE_LEXICON)) if (!approvedStep.includes(m[0].toLowerCase())) return fail("DICE_COPY_LOCATION_UNSUPPORTED_PLACE");
+      for (const m of p.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_LOCATION_UNSUPPORTED_PLACE");
     }
     practical_step = ensureTerminal(p, zh);
   }
-  const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
-  if (nf > 0) {
+  const sourceFollow = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.map(String) : [];
+  if (sourceFollow.length > 0) {
     const items: string[] = [];
-    for (let i = 0; i < nf; i += 1) {
+    for (let i = 0; i < sourceFollow.length; i += 1) {
       const q = String(c[`followup_${i + 1}`]).trim();
-      // Each follow-up must remain a question; count and ORDER are preserved by the positional keys.
+      // C05: each follow-up must (a) still be a question, and (b) paraphrase the SOURCE follow-up in
+      // its OWN slot — its content must overlap source[i] more than any OTHER source follow-up (rejects
+      // a swap) and clear a floor (rejects an unrelated replacement). Positional keys fix the count.
       if (!QUESTION_SIGNAL.test(q)) return fail("DICE_COPY_FOLLOWUP_NOT_QUESTION");
+      let best = -1, bestAt = -1;
+      for (let j = 0; j < sourceFollow.length; j += 1) { const o = contentOverlap(q, sourceFollow[j]); if (o > best) { best = o; bestAt = j; } }
+      if (best < FOLLOWUP_ANCHOR_FLOOR) return fail("DICE_COPY_FOLLOWUP_UNRELATED");
+      if (bestAt !== i) return fail("DICE_COPY_FOLLOWUP_ORDER");
       items.push(ensureTerminal(q, zh));
     }
     followups = Object.freeze(items);
@@ -1026,16 +1134,16 @@ export function meaningContradictionCheck(copy: DiceV05CustomerCopy, canonical: 
 export type CustomerCopyOutcome = Readonly<{
   copy: DiceV05CustomerCopy | null;
   // "stage3": a valid provider response supplied the edited answer + explanation for THIS mode
-  //   (any of the six), controlled fields still canonical. "deterministic": reserved for the
+  //   (any of the six), with the controlled fields also language-improved (RG2). "deterministic": reserved for the
   //   deterministic copy mode (no provider editor call is made). "fallback": the provider response
   //   failed/was rejected, validated deterministic assembly used. "unavailable": no valid copy.
   source: "stage3" | "deterministic" | "fallback" | "unavailable";
   provider_calls: number;
   failure_code: string | null;
-  // The RAW structured editor response that produced a "stage3" copy, carried onto the wire so the
-  // Web boundary can independently re-parse, re-assemble and re-validate it (defence in depth). Null
-  // for every non-stage3 outcome.
-  editor_response: DiceV05EditorResponse | null;
+  // The structured editor response that produced a "stage3" copy, in the FLAT WIRE contract
+  // (editorResponseToWire — review C02), carried onto the wire so the Web boundary can independently
+  // re-parse, re-assemble and re-validate it (defence in depth). Null for every non-stage3 outcome.
+  editor_response: Readonly<Record<string, unknown>> | null;
 }>;
 
 // Resolve a validated fallback or the unavailable outcome, carrying the failure code through.
@@ -1113,7 +1221,9 @@ export async function executeDiceV05CustomerCopy(
     // validation coverage-checks them instead of demanding exact canonical text.
     const displayVerdict = validateDisplayCopy(assembled.copy, canonical, landing, true);
     if (displayVerdict !== "OK") { lastFailure = displayVerdict; if (attempt < 2 && now() < deadline) continue; break; }
-    return Object.freeze({ copy: assembled.copy, source: "stage3", provider_calls: calls, failure_code: null, editor_response: parsed.value });
+    // C02: emit the FLAT wire contract (not the parser's internal nested `components` object) so the
+    // edge/gateway forward exactly what the Web boundary's flat parser can re-validate.
+    return Object.freeze({ copy: assembled.copy, source: "stage3", provider_calls: calls, failure_code: null, editor_response: editorResponseToWire(parsed.value) });
   }
   // No valid Stage-3 copy: validated deterministic fallback, or controlled copy-unavailable.
   return fallbackOrUnavailable(canonical, calls, lastFailure, landing);
