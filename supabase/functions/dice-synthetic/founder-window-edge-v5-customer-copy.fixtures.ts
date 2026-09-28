@@ -32,14 +32,22 @@ const rankyEditor = JSON.stringify({
   planet_factor: "Your own capacity is a genuine strength working in your favour.",
   house_factor: "The setting is supportive and keeps the matter in your hands.",
   synthesis: "The overall grade is favourable.",
+  // RG2: the controlled components are present + valid, so the rejection is on the leaked rank/grade,
+  // not a missing-key parse error.
+  watch_out: "Keep your plans grounded and prepare properly.",
+  followup_1: "What should I prepare first?",
 });
-// A clean, faithful structured editor response (both factors favourable, each its own component).
+// A clean, faithful structured editor response (both factors favourable, each its own component), PLUS
+// the RG2 controlled components — a reworded caution + follow-up that are language-improved (not the
+// raw canonical wording) yet still a caution / a question.
 const goodJudgmentEditor = JSON.stringify({
   schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: "judgment",
   answer: "You have real support for this, and the setting is favourable.",
   planet_factor: "Your own capacity is strong and works in your favour.",
   house_factor: "The situation around you is also supportive and keeps the choice in your hands.",
   synthesis: "The two sides agree here rather than pulling against each other, so the outlook is supportive.",
+  watch_out: "Keep your plans grounded even with strong support behind you.",
+  followup_1: "Which part is most worth preparing first?",
 });
 
 // stage3Content may be null → the adapter THROWS if asked for an editor schema (proves no copy call).
@@ -101,12 +109,15 @@ async function main() {
   ok(prohibitedLanguageCheck(prov.customer_copy!) === "OK" && completenessCheck(prov.customer_copy!) === "OK", "displayed judgment copy is clean + complete (canonical fallback, not prohibited provider prose)");
 
   // (3a) ALL-MODE editor: a CLEAN edited Judgment copy IS displayed (source stage3), and its edited
-  // reading — not the deterministic assembly — reaches the customer, while the caution stays canonical.
+  // reading — not the deterministic assembly — reaches the customer. RG2: the caution + follow-up are
+  // now the EDITED (language-improved) wording too, not the raw canonical text.
   const provOk = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(goodJudgmentEditor), () => 1000, { copyMode: "provider" });
   if (provOk.kind !== "completed") throw new Error("unreachable");
   ok(provOk.copy_source === "stage3", "a clean edited Judgment copy is displayed as stage3");
   ok(provOk.customer_copy!.reading.includes("two sides agree here"), "the PROVIDER edited reading reaches the customer (not the deterministic assembly)");
-  eq(provOk.customer_copy!.watch_out, (provOk.result as any).watch_out, "the caution stays the canonical warning, not the provider's");
+  eq(provOk.customer_copy!.watch_out, "Keep your plans grounded even with strong support behind you.", "RG2: the caution is the EDITED warning");
+  ok(provOk.customer_copy!.watch_out !== (provOk.result as any).watch_out, "RG2: the edited caution is NOT the raw canonical wording");
+  eq(provOk.customer_copy!.suggested_followups[0], "Which part is most worth preparing first?", "RG2: the follow-up is the EDITED question, count preserved");
   eq(provOk.provider_calls, 3, "clean stage3 judgment: 3 provider calls");
 
   // (3b) F07: the ONE absolute deadline reaches STAGE 3 as well, not only Stage 1/2. Provider copy

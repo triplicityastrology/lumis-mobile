@@ -27,6 +27,35 @@ const copyOk = (o: Partial<DiceV05CustomerCopy> & Pick<DiceV05CustomerCopy, "lan
 // Build a status-"ok" structured EDITOR response (the provider's per-mode components) as a JSON string.
 const editorOk = (language: "en" | "zh-Hant", mode: DiceV05Mode, components: Record<string, string>): string =>
   JSON.stringify({ schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language, question_mode: mode, ...components });
+// RG2: the editor response must now also carry the CONTROLLED components (watch_out / practical_step /
+// followup_1..N) whenever the canonical carries them. This auto-fills a plausible faithful rewrite for
+// any the caller did not supply, so pre-RG2 tests (which passed only the display components) stay valid,
+// while an RG2 adversarial test overrides ONE controlled key to a hostile value. Auto-filled values use
+// only approved candidate places (Location) and stay a caution / search action / question so they pass
+// the guards; a test that wants a rejection supplies its own value for that key.
+const withControlled = (canonical: any, components: Record<string, string>): Record<string, string> => {
+  const filled: Record<string, string> = { ...components };
+  const zh = canonical.language === "zh-Hant";
+  if (canonical.watch_out != null && !("watch_out" in filled)) {
+    filled.watch_out = zh ? "留意跟進時嘅語氣，避免過急。" : "Keep an eye on this and take care not to rush it.";
+  }
+  if (canonical.practical_step != null && !("practical_step" in filled)) {
+    if (canonical.question_mode === "location") {
+      const places = (canonical.location_candidates ?? []).map((x: any) => String(x?.place ?? "")).filter(Boolean);
+      filled.practical_step = zh
+        ? `先由${places[0] ?? ""}開始搵${places[1] ? `，再檢查${places[1]}` : ""}。`
+        : `Start by searching ${places[0] ?? ""}${places[1] ? `, then check ${places[1]}` : ""}.`;
+    } else {
+      filled.practical_step = zh ? "畀清晰、具體嘅資料，唔好施壓。" : "Try giving clear, concrete information rather than pressure.";
+    }
+  }
+  const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
+  for (let i = 0; i < nf; i += 1) {
+    const key = `followup_${i + 1}`;
+    if (!(key in filled)) filled[key] = zh ? "你想我點樣幫手？" : "What would help you most here?";
+  }
+  return filled;
+};
 const editorUnpresentable = (language: "en" | "zh-Hant", mode: DiceV05Mode, keys: readonly string[]): string =>
   JSON.stringify({ schema: DICE_V05_EDITOR_SCHEMA, status: "unpresentable", language, question_mode: mode, ...Object.fromEntries(keys.map((k) => [k, null])) });
 const L = (planet: string, sign: string, house: number): Landing => ({ planet: planet as DiceV05PlanetId, sign: sign as DiceV05SignId, house });
@@ -86,14 +115,18 @@ const personLanding = L("venus", "taurus", 7);
 
 async function main() {
 /* ---- structured editor schema: one closed object per mode, required component keys (M02) ---- */
-const jSchema: any = buildEditorSchema("judgment", "zh-Hant");
+const jSchema: any = buildEditorSchema(judgmentCanonical as any, "zh-Hant");
 eq(jSchema.additionalProperties, false, "editor schema closed");
 ok(jSchema.required.includes("status") && jSchema.required.includes("planet_factor") && jSchema.required.includes("house_factor") && jSchema.required.includes("synthesis"), "judgment editor requires both factors + synthesis");
 eq(jSchema.properties.status, { enum: ["ok", "unpresentable"] }, "status is an ok|unpresentable enum");
 eq(jSchema.properties.schema.const, DICE_V05_EDITOR_SCHEMA, "editor schema id pinned");
 ok(Array.isArray(jSchema.properties.planet_factor.anyOf), "components nullable in the editor schema (unpresentable representable)");
-const tSchema: any = buildEditorSchema("timing", "en");
+// RG2: because judgmentCanonical carries a caution and one follow-up, the editor schema also requires
+// those controlled components — the editor language-improves them (present iff canonical present).
+ok(jSchema.required.includes("watch_out") && jSchema.required.includes("followup_1") && !jSchema.required.includes("followup_2"), "RG2: judgment editor also requires the controlled components the canonical carries (watch_out + one follow-up, positionally)");
+const tSchema: any = buildEditorSchema(timingCanonical as any, "en");
 ok(tSchema.required.includes("pace_band") && tSchema.required.includes("explanation"), "timing editor requires the pace_band control echo + explanation");
+ok(!tSchema.required.includes("watch_out") && !tSchema.required.includes("practical_step") && !tSchema.required.includes("followup_1"), "RG2: timing editor requires NO controlled components (its canonical carries none)");
 eq(editorSchemaName("thing_or_situation"), "lumis_dice_editor_level1_v2", "level1 editor schema name");
 
 /* ---- structured, source-bound editor input: bound facts (M02) + source prose, both judgment axes ---- */
@@ -172,34 +205,42 @@ ok(!oversizeFb.ok, "C01: an over-cap judgment fallback is rejected (not sliced t
 const copyAdapter = (content: string, kind: DiceV05ProviderResult["kind"] = "success"): DiceV05ProviderAdapter => ({
   invoke: async () => (kind === "success" ? { kind: "success", content } : { kind } as DiceV05ProviderResult),
 });
-// A valid judgment EDITOR response: separate factor components + synthesis. The planet factor is
-// bound to the canonical planet orientation ("difficult") and the house factor to the house
-// orientation ("favourable"); its assembled answer + reading ARE displayed (source stage3); the
-// caution and follow-ups still come from the canonical result.
+// A valid judgment EDITOR response: separate factor components + synthesis, PLUS the RG2 controlled
+// components (a reworded caution + a reworded follow-up). The planet factor is bound to the canonical
+// planet orientation ("difficult") and the house factor to the house orientation ("favourable"); its
+// assembled answer + reading ARE displayed (source stage3), and the EDITED caution/follow-up display too.
 const goodJudgmentEditor = editorOk("zh-Hant", "judgment", {
   answer: "外在條件較有利，但你的處理方式是關鍵。",
   planet_factor: "你這面比較吃力，若處理得太急或太強硬，容易遇到阻力。",
   house_factor: "周圍環境對你有利，對方有合作空間。",
   synthesis: "兩邊要分開理解：環境有幫助，但你的處理方式會明顯影響結果。",
+  watch_out: "跟進時記得留意語氣，避免給對方壓力。",
+  followup_1: "我可以點樣令溝通更順暢？",
 });
 const r1 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "我個application會唔會批？", copyAdapter(goodJudgmentEditor), { now: () => 1000, landing: judgmentLanding });
 eq(r1.source, "stage3", "valid judgment editor response → edited prose IS displayed (all-mode editor)");
 eq(r1.provider_calls, 1, "one Stage-3 provider call");
 ok(r1.editor_response !== null, "stage3 outcome carries the structured editor_response for the wire (V02)");
-ok(r1.copy && r1.copy.practical_step === null, "judgment copy keeps practical_step null");
+ok(r1.copy && r1.copy.practical_step === null, "judgment copy keeps practical_step null (canonical carries none)");
 ok(r1.copy && r1.copy.reading.includes("對方有合作空間") && r1.copy.reading.includes("阻力"), "judgment display keeps BOTH edited factors, each bound to its orientation");
-ok(r1.copy && r1.copy.watch_out === ensureTerminalLike((judgmentCanonical as any).watch_out), "judgment watch_out stays canonical, not the editor's");
-ok(r1.copy && JSON.stringify(r1.copy.suggested_followups) === JSON.stringify(((judgmentCanonical as any).suggested_followups as string[]).map(ensureTerminalLike)), "judgment follow-ups stay canonical");
-// A valid Level-1 editor response: answer + explanation. Controlled fields stay canonical.
+// RG2: the caution + follow-up are now the EDITED wording, and they differ from the raw canonical text.
+ok(r1.copy && r1.copy.watch_out === ensureTerminalLike("跟進時記得留意語氣，避免給對方壓力。"), "RG2: judgment watch_out is the EDITED caution");
+ok(r1.copy && r1.copy.watch_out !== ensureTerminalLike((judgmentCanonical as any).watch_out), "RG2: the edited caution is NOT the raw canonical wording");
+ok(r1.copy && r1.copy.suggested_followups.length === 1 && r1.copy.suggested_followups[0] === ensureTerminalLike("我可以點樣令溝通更順暢？"), "RG2: judgment follow-up is the EDITED question, count preserved");
+// A valid Level-1 editor response: answer + explanation PLUS the RG2 controlled components (a reworded
+// caution + practical step). The EDITED controlled fields display (person canonical carries no follow-ups).
 const goodPersonEditor = editorOk("en", "person", {
   answer: "They are steady and reliable.",
   explanation: "They earn trust slowly through consistent, dependable actions.",
+  watch_out: "Keep in mind they may stay reserved until they feel settled.",
+  practical_step: "Try giving them clear, concrete detail rather than pressure.",
 });
 const rL = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(goodPersonEditor), { now: () => 1000, landing: personLanding });
 eq(rL.source, "stage3", "valid Level-1 editor prose is used");
 ok(rL.copy && rL.copy.reading.includes("consistent"), "Level-1 display uses editor explanation");
-ok(rL.copy && rL.copy.watch_out === ensureTerminalLike((personCanonical as any).watch_out), "Level-1 watch_out stays canonical, not the editor's");
-ok(rL.copy && rL.copy.practical_step === ensureTerminalLike((personCanonical as any).practical_step), "Level-1 practical_step stays canonical, not the editor's");
+ok(rL.copy && rL.copy.watch_out === ensureTerminalLike("Keep in mind they may stay reserved until they feel settled."), "RG2: Level-1 watch_out is the EDITED caution");
+ok(rL.copy && rL.copy.practical_step === ensureTerminalLike("Try giving them clear, concrete detail rather than pressure."), "RG2: Level-1 practical_step is the EDITED step");
+ok(rL.copy && rL.copy.watch_out !== ensureTerminalLike((personCanonical as any).watch_out) && rL.copy.practical_step !== ensureTerminalLike((personCanonical as any).practical_step), "RG2: the edited Level-1 controlled fields are NOT the raw canonical wording");
 
 /* ---- execution: a judgment editor response whose ASSEMBLED prose leaks rank/大吉 → rejected → fallback ---- */
 const rankyEditor = editorOk("zh-Hant", "judgment", {
@@ -207,13 +248,15 @@ const rankyEditor = editorOk("zh-Hant", "judgment", {
   planet_factor: "你這面比較吃力，會遇到阻力。",
   house_factor: "環境有利。",
   synthesis: "第三順位。",
+  watch_out: "跟進時留意語氣，避免催逼。",
+  followup_1: "我可以點樣改善溝通？",
 });
 const r2 = await executeDiceV05CustomerCopy(judgmentCanonical as any, "q", copyAdapter(rankyEditor), { now: () => 1000, landing: judgmentLanding });
 eq(r2.source, "fallback", "a judgment editor response leaking rank/大吉 is rejected → deterministic fallback");
 ok(r2.copy && prohibitedLanguageCheck(r2.copy) === "OK", "the displayed judgment fallback is clean (canonical, not the prohibited editor prose)");
 
 /* ---- execution: a Level-1 editor response whose PROSE is prohibited → fallback ---- */
-const rankyPersonEditor = editorOk("en", "person", { answer: "They rank first.", explanation: "This sits on rank 7 of the houses." });
+const rankyPersonEditor = editorOk("en", "person", { answer: "They rank first.", explanation: "This sits on rank 7 of the houses.", watch_out: "Keep in mind they may stay reserved at first.", practical_step: "Try giving them clear, concrete detail rather than pressure." });
 const rLbad = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(rankyPersonEditor), { now: () => 1000, landing: personLanding });
 eq(rLbad.source, "fallback", "Level-1 editor response with prohibited prose falls back deterministically");
 ok(rLbad.copy && prohibitedLanguageCheck(rLbad.copy) === "OK", "the Level-1 fallback is clean");
@@ -221,7 +264,9 @@ ok(rLbad.copy && prohibitedLanguageCheck(rLbad.copy) === "OK", "the Level-1 fall
 /* ---- execution: provider network error → fallback; legal unpresentable → fallback/unavailable ---- */
 const r3 = await executeDiceV05CustomerCopy(timingCanonical as any, "幾時批？", copyAdapter("", "network"), { now: () => 1000, landing: timingLanding });
 eq(r3.source, "fallback", "provider failure falls back");
-const r4 = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(editorUnpresentable("en", "person", ["answer", "explanation"])), { now: () => 1000, landing: personLanding });
+// RG2: an unpresentable editor response must null EVERY component the canonical requires, including the
+// controlled ones (person carries a caution + practical step), or it is a key mismatch, not a legal unpresentable.
+const r4 = await executeDiceV05CustomerCopy(personCanonical as any, "what kind of person?", copyAdapter(editorUnpresentable("en", "person", ["answer", "explanation", "watch_out", "practical_step"])), { now: () => 1000, landing: personLanding });
 ok(r4.source === "fallback" || r4.source === "unavailable", "explicit unpresentable routes to fallback/unavailable, never a reading");
 eq(r4.failure_code?.startsWith("DICE_COPY_UNPRESENTABLE"), true, "unpresentable code recorded");
 
@@ -263,7 +308,7 @@ eq(g04RealRes.provider_calls, 2, "G04-B: two genuine transported failures are co
 // A valid person editor response padded with whitespace so the RAW string exceeds the 700-token cap
 // while the NORMALIZED object stays well within it. The raw guard must reject it (→ fallback),
 // proving whitespace/escape padding cannot slip a huge raw response past measurement.
-const paddedRaw = editorOk("en", "person", { answer: "They are steady.", explanation: "They build trust slowly." }) + " \n".repeat(1500);
+const paddedRaw = editorOk("en", "person", { answer: "They are steady.", explanation: "They build trust slowly.", watch_out: "Keep in mind they may stay reserved at first.", practical_step: "Try giving them clear, concrete detail rather than pressure." }) + " \n".repeat(1500);
 ok(!measureDiceTokenLimit(paddedRaw, CUSTOMER_COPY_OUTPUT_CAP).within_limit, "D02: the padded RAW string exceeds the 700-token cap");
 const rawRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(paddedRaw), { now: () => 1000, landing: personLanding });
 eq(rawRes.source, "fallback", "D02: an over-cap RAW response is rejected before parse → deterministic fallback");
@@ -271,7 +316,7 @@ ok(rawRes.failure_code === "DICE_COPY_RAW_OUTPUT_TOKEN_CAP", "D02: raw-output ca
 
 /* ---- V06/S06: a dangling fragment MID-paragraph inside an edited component is rejected, not
  *      laundered by a clean final sentence (sentence-level segment check before composition). ---- */
-const fragRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(editorOk("en", "person", { answer: "They are steady.", explanation: "They tend to be careful and. They value clear commitments." })), { now: () => 1000, landing: personLanding });
+const fragRes = await executeDiceV05CustomerCopy(personCanonical as any, "q", copyAdapter(editorOk("en", "person", { answer: "They are steady.", explanation: "They tend to be careful and. They value clear commitments.", watch_out: "Keep in mind they may stay reserved at first.", practical_step: "Try giving them clear, concrete detail rather than pressure." })), { now: () => 1000, landing: personLanding });
 eq(fragRes.source, "fallback", "V06: a mid-paragraph 'careful and.' fragment in the edited explanation is rejected → fallback");
 ok(fragRes.copy && completenessCheck(fragRes.copy) === "OK", "V06: the resulting fallback is itself complete");
 
@@ -358,14 +403,14 @@ eq(meaningContradictionCheck(copyOk({ language: "en", question_mode: "timing", h
 
 /* ---- PRIMARY structured source-binding in assembleEditorCopy (V03/V04/V05/V06), both languages. ---- */
 const asm = (canonical: any, language: "en" | "zh-Hant", mode: DiceV05Mode, components: Record<string, string>, landing?: Landing) => {
-  const p = parseEditorResponse(mode, language, editorOk(language, mode, components));
+  const p = parseEditorResponse(canonical, language, editorOk(language, mode, withControlled(canonical, components)));
   if (p.kind !== "ok") return { ok: false as const, reason: `PARSE_${p.kind === "invalid" ? p.code : "UNPRESENTABLE"}` };
   return assembleEditorCopy(canonical, p.value, landing);
 };
 // V05 judgment (EN, mixed: planet favourable, house difficult).
 const jFaithful = asm(mixedJudg, "en", "judgment", { answer: "Your side helps, but the setting is hard.", planet_factor: "Your own capacity is a genuine strength working in your favour.", house_factor: "The surrounding setting is difficult and adds friction.", synthesis: "Real support on one side, real difficulty on the other; the two stay separate." }, judgmentLanding);
 ok(jFaithful.ok, "V05 EN: a faithful two-factor rewrite assembles");
-ok(jFaithful.ok && validateDisplayCopy(jFaithful.copy, mixedJudg as any, judgmentLanding) === "OK", "V05 EN: the faithful assembled judgment copy passes display validation");
+ok(jFaithful.ok && validateDisplayCopy(jFaithful.copy, mixedJudg as any, judgmentLanding, true) === "OK", "V05 EN: the faithful assembled judgment copy passes display validation");
 // Swap: planet factor carries the DIFFICULT signal (opposite of its favourable orientation).
 eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own side is difficult and works against you with real friction.", house_factor: "The setting strongly supports you and helps throughout.", synthesis: "They stay separate." }, judgmentLanding), { ok: false, reason: "DICE_COPY_JUDGMENT_PLANET_FACTOR_ORIENTATION" }, "V05 EN: a swapped planet factor (favourable→difficult) is rejected");
 // Omission/averaged: the difficult house factor is written favourable-only.
@@ -408,6 +453,69 @@ ok(asm(locationCanonical, "en", "location", { clues: "The strongest sign points 
   const reversed = asm(personCanonical, "en", "person", { answer: "A reckless, erratic person.", explanation: "This points to someone impulsive and unreliable who avoids any clear commitment." }, personLanding);
   eq(reversed.ok, true, "VM-2 KNOWN GAP (regression marker): a directly reversed Person description is NOT caught structurally — Level-1 semantic fidelity is an OPEN requirement gap (RG1), tracked, not dismissed as live QA");
 }
+
+/* ---- RG2: the editor also LANGUAGE-IMPROVES the controlled fields (caution, practical/search step,
+ *      follow-ups), preserving meaning + ORDER. A reworded caution / step / follow-up is ACCEPTED and
+ *      the EDITED text is what displays; an inverted or de-warned caution, a non-question follow-up, a
+ *      dropped search action / candidate place, an unsupported place / movement step, and a dropped or
+ *      extra follow-up are REJECTED. Order/count are structural (positional followup_1..N keys). The
+ *      guards are documented heuristics, NOT a fidelity proof — full paraphrase fidelity stays open
+ *      (RG2/RG3), the same disclosed limit as the answer/explanation editor. ---- */
+// Positive (EN judgment, mixedJudg carries a caution + one follow-up): a reworded caution and follow-up
+// are accepted and the EDITED wording (not the canonical wording) is carried into the display copy.
+{
+  const edited = asm(mixedJudg, "en", "judgment",
+    { answer: "Your side helps, but the setting is hard.", planet_factor: "Your own capacity is a genuine strength working in your favour.", house_factor: "The surrounding setting is difficult and adds friction.", synthesis: "Real support on one side, real difficulty on the other; the two stay separate.",
+      watch_out: "Do keep your hopes realistic even with strong backing.", followup_1: "Which part is most worth preparing first?" },
+    judgmentLanding);
+  ok(edited.ok, "RG2 EN: a reworded caution + follow-up assemble alongside the edited answer/factors");
+  ok(edited.ok && edited.copy.watch_out === ensureTerminalLike("Do keep your hopes realistic even with strong backing."), "RG2 EN: the EDITED caution (not the canonical wording) is what displays");
+  ok(edited.ok && edited.copy.suggested_followups.length === 1 && edited.copy.suggested_followups[0] === ensureTerminalLike("Which part is most worth preparing first?"), "RG2 EN: the EDITED follow-up displays, count preserved");
+  ok(edited.ok && validateDisplayCopy(edited.copy, mixedJudg as any, judgmentLanding, true) === "OK", "RG2 EN: the edited controlled fields pass display validation (coverage mode)");
+  // The SAME edited copy fails validation WITHOUT the edited-path flag: the deterministic pass-through
+  // parity is unchanged and still rejects a rewrite, so the relaxation is scoped to the accepted editor.
+  ok(edited.ok && validateDisplayCopy(edited.copy, mixedJudg as any, judgmentLanding, false) !== "OK", "RG2 EN: the same edited copy is rejected under EXACT pass-through parity (deterministic path unchanged)");
+}
+// Positive (EN location): a reworded search step that keeps the rank-1 candidate place and a search verb.
+{
+  const edited = asm(locationCanonical, "en", "location",
+    { clues: "The strongest sign points to a private, indoor spot at home.", practical_step: "Try searching the bedroom first, then check the kitchen." },
+    locationLanding);
+  ok(edited.ok, "RG2 EN location: a reworded search step that keeps the rank-1 place + a search verb is accepted");
+  ok(edited.ok && edited.copy.practical_step === ensureTerminalLike("Try searching the bedroom first, then check the kitchen."), "RG2 EN location: the EDITED search step (not the canonical wording) displays");
+  ok(edited.ok && validateDisplayCopy(edited.copy, locationCanonical as any, locationLanding, true) === "OK", "RG2 EN location: the edited step passes display validation");
+}
+// Positive (zh-Hant judgment, judgmentCanonical carries a caution + one follow-up).
+{
+  const edited = asm(judgmentCanonical, "zh-Hant", "judgment",
+    { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。",
+      watch_out: "記住跟進時要留意語氣，避免催逼對方。", followup_1: "我可以點樣令溝通更順暢？" },
+    judgmentLanding);
+  ok(edited.ok, "RG2 zh: a reworded caution + follow-up assemble");
+  ok(edited.ok && edited.copy.watch_out === ensureTerminalLike("記住跟進時要留意語氣，避免催逼對方。"), "RG2 zh: the EDITED caution displays");
+  ok(edited.ok && validateDisplayCopy(edited.copy, judgmentCanonical as any, judgmentLanding, true) === "OK", "RG2 zh: the edited controlled fields pass display validation");
+}
+// Adversarial — a caution inverted into an all-clear is rejected.
+eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Nothing to worry about here; you can relax." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_INVERTED" }, "RG2: a caution inverted into an all-clear is rejected");
+// Adversarial — a caution reworded into a bland non-warning (warning signal dropped) is rejected.
+eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "This concerns the general tone of the matter." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_NOT_WARNING" }, "RG2: a caution reworded into a bland non-warning is rejected");
+// Adversarial — a follow-up rewritten as a statement (no longer a question) is rejected.
+eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", followup_1: "You should prepare the documents first." }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_NOT_QUESTION" }, "RG2: a follow-up rewritten as a statement (not a question) is rejected");
+// Adversarial (location) — a search step that drops the rank-1 candidate place is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Try searching the kitchen first." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_CANDIDATE_DROPPED" }, "RG2 location: a search step that drops the rank-1 candidate place is rejected");
+// Adversarial (location) — a search step reworded into a non-actionable statement is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "The bedroom is where it most likely rests." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_NOT_ACTIONABLE" }, "RG2 location: a search step reworded into a non-actionable statement is rejected");
+// Adversarial (location) — a search step that introduces an unsupported place is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Search the bedroom, then the airport lounge." }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_UNSUPPORTED_PLACE" }, "RG2 location: a search step naming an unsupported place is rejected");
+// Adversarial (location) — a search step turned into a movement instruction is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Go to the bedroom first and search there." }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_IMPERATIVE" }, "RG2 location: a search step turned into a movement instruction is rejected");
+// Adversarial (person) — a practical step inverted into an all-clear is rejected.
+eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Rest assured, there is nothing to worry about." }, personLanding), { ok: false, reason: "DICE_COPY_STEP_INVERTED" }, "RG2 person: a practical step inverted into an all-clear is rejected");
+// Structural (parse) — order/count of the controlled components is enforced by the positional keys:
+// a MISSING required controlled component is rejected at parse...
+eq(parseEditorResponse(locationCanonical as any, "en", editorOk("en", "location", { clues: "A private indoor spot at home.", watch_out: "Do not assume it is gone for good." })).kind, "invalid", "RG2: a Location editor response missing the required practical_step component is rejected at parse");
+// ...and an EXTRA follow-up beyond the single source follow-up is rejected at parse (count/order preserved).
+eq(parseEditorResponse(judgmentCanonical as any, "zh-Hant", editorOk("zh-Hant", "judgment", { answer: "a。", planet_factor: "b。", house_factor: "c。", synthesis: "d。", watch_out: "留意語氣，避免過急。", followup_1: "問題一？", followup_2: "多咗一條？" })).kind, "invalid", "RG2: an EXTRA follow-up (followup_2) beyond the single source follow-up is rejected at parse (count/order preserved)");
 
 /* ---- Stage-3 EDITOR input + assembled-envelope token measurement (honest allowance labels, M03). ---- */
 for (const [mode, canonical, q, landing] of [["judgment", judgmentCanonical, "我個application會唔會批？", judgmentLanding], ["timing", timingCanonical, "幾時會有結果？", timingLanding], ["location", locationCanonical, "喺邊度？", locationLanding], ["person", personCanonical, "係咩人？", personLanding]] as const) {

@@ -304,12 +304,15 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
       .map((r) => { const place = byRank.get(r)?.place; if (!place) return null; return ext && ext.candidate_rank === r ? `${place}${sep}${ext.relationship}` : place; })
       .filter(Boolean);
     sections.push({ heading: H("candidates"), body: "", items });
-    // The warning and the SEARCH STEP are canonical facts: render them from the canonical result,
-    // never from provider prose, so a rewritten step ("Go to the airport first.") can never replace
-    // the approved instruction ("Search the bedroom first.") (S01). The boundary guard also requires
-    // copy.watch_out / copy.practical_step to equal the canonical values, so these are consistent.
-    if (canonical.watch_out) sections.push({ heading: H("watch"), body: canonical.watch_out });
-    if (canonical.practical_step) sections.push({ heading: H("search"), body: canonical.practical_step });
+    // The ordered candidate LIST and the area heading above stay canonical. The warning and the
+    // search STEP text are rendered from the validated `copy`: on the deterministic path they equal
+    // the canonical values exactly (pass-through), and on the accepted Stage-3 path (RG2) they are the
+    // language-improved versions that already passed assembleEditorCopy — where the search step is
+    // guaranteed to still name the rank-1 candidate place, stay a search instruction, add no movement
+    // imperative and introduce no unsupported place — so a reversed step ("Go to the airport first.")
+    // can never reach the card. Both cases are re-checked by validateDisplayCopy.
+    if (copy.watch_out) sections.push({ heading: H("watch"), body: copy.watch_out });
+    if (copy.practical_step) sections.push({ heading: H("search"), body: copy.practical_step });
   } else {
     sections.push({ heading: COPY_DIRECT_TITLE[mode][lang], body: copy.headline });
     sections.push({ heading: H("explanation"), body: copy.reading });
@@ -413,10 +416,12 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
     const supplied = response.editor_response;
     if (supplied && typeof supplied === "object" && !Array.isArray(supplied)) {
       const suppliedSerialized = JSON.stringify(supplied);
-      const parsedEditor = cp.parseEditorResponse(result.question_mode, result.language, suppliedSerialized);
+      const parsedEditor = cp.parseEditorResponse(result, result.language, suppliedSerialized);
       if (parsedEditor.kind === "ok") {
         const assembled = cp.assembleEditorCopy(result, parsedEditor.value, landing);
-        const displayVerdict = assembled.ok ? cp.validateDisplayCopy(assembled.copy, result, landing) : assembled.reason;
+        // controlledEdited=true: the accepted editor also rewrote the controlled fields (RG2), so the
+        // display validation coverage-checks them rather than demanding exact canonical text.
+        const displayVerdict = assembled.ok ? cp.validateDisplayCopy(assembled.copy, result, landing, true) : assembled.reason;
         if (assembled.ok && displayVerdict === "OK") { displayCopy = assembled.copy; copySource = "stage3"; }
         else copyFailure = displayVerdict;
       } else {
