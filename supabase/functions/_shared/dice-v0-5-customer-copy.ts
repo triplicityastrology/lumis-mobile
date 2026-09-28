@@ -719,42 +719,62 @@ function contentTokens(s: string): string[] {
   }
   return out;
 }
-// Is a token negated where it appears in `text`? Look at a small window BEFORE its first occurrence
-// (clause-scoped) for a negator. Char window for zh, word window approximated by chars for EN.
-function tokenNegated(text: string, token: string): boolean {
-  const idx = text.toLowerCase().indexOf(token.toLowerCase());
-  if (idx < 0) return false;
-  const window = text.slice(Math.max(0, idx - (hasCJK(text) ? 6 : 28)), idx);
-  return NEGATOR.test(window);
+// Clause separators. Negation is scoped BOTH by a short window and by clause boundaries (review R01):
+//  - a negator in an EARLIER sentence/clause must not negate a later command ("Avoid haste. Apply
+//    pressure." asserts pressure); and
+//  - a negator far from the token within the SAME clause must not spuriously negate it ("Do not let
+//    optimism skip over the practical PREPARATION" does not negate "preparation").
+// So a token counts as negated only when a negator sits within a short window before it AND no clause
+// separator intervenes. This is a heuristic, not a parser (RG3): it cannot resolve exactly what a
+// negator modifies, so it favours the demonstrated action-reversal cases over distant nouns.
+const CLAUSE_SEP = /[.!?;:。！？；：,，、]/u;
+const NEG_WINDOW = { en: 22, zh: 5 };
+// The negation-scanning span before position `idx`: back to the window edge, but not across a clause
+// separator (whichever is nearer).
+function negationSpan(text: string, idx: number): string {
+  let start = Math.max(0, idx - (hasCJK(text) ? NEG_WINDOW.zh : NEG_WINDOW.en));
+  for (let j = idx - 1; j >= start; j -= 1) if (CLAUSE_SEP.test(text[j])) { start = j + 1; break; }
+  return text.slice(start, idx);
 }
-// A rewrite REVERSES the source when a salient token shared by both has OPPOSITE negation status
-// (source asserts X, edit negates X — or vice versa). Catches direct instruction reversals (C03/C04)
-// without demanding specific wording; a faithful paraphrase keeps each shared token's polarity.
+// Is `token` ASSERTED (i.e. NOT negated) somewhere in `text`? True when at least one occurrence has no
+// negator in its scanning span. (If every occurrence is negated, the token is negated.)
+function tokenAsserted(text: string, token: string): boolean {
+  const lower = text.toLowerCase(), tk = token.toLowerCase();
+  let from = 0;
+  for (;;) {
+    const idx = lower.indexOf(tk, from);
+    if (idx < 0) return false;
+    if (!NEGATOR.test(negationSpan(text, idx))) return true;
+    from = idx + tk.length;
+  }
+}
+// A rewrite REVERSES the source when a salient token shared by both is ASSERTED in one and NEGATED in
+// the other (source says do X, edit says don't X — or vice versa). Clause-scoped, checks every
+// occurrence. Catches direct instruction reversals (C03/C04) without demanding specific wording; a
+// faithful paraphrase keeps each shared token's polarity. Heuristic, not a proof (RG3).
 function polarityReversed(source: string, edit: string): boolean {
   const editLower = edit.toLowerCase();
   for (const tok of new Set(contentTokens(source))) {
     if (!editLower.includes(tok.toLowerCase())) continue;
-    if (tokenNegated(source, tok) !== tokenNegated(edit, tok)) return true;
+    if (tokenAsserted(source, tok) !== tokenAsserted(edit, tok)) return true;
   }
   return false;
 }
-// Content-token overlap (Jaccard over salient tokens). 0..1.
-function contentOverlap(a: string, b: string): number {
-  const A = new Set(contentTokens(a)), B = new Set(contentTokens(b));
-  if (A.size === 0 && B.size === 0) return 1;
-  if (A.size === 0 || B.size === 0) return 0;
-  let inter = 0; for (const t of A) if (B.has(t)) inter += 1;
-  return inter / (A.size + B.size - inter);
+// Salient-token overlap count between two texts (shared content tokens). Used ONLY for the relative
+// follow-up SWAP defence (which slot a rewrite best matches) and the caution SUBJECT-retention check —
+// never as an absolute "is this a faithful paraphrase" threshold, because literal overlap is not proof
+// of equivalent intent (review R03). A bounded semantic check is proposed separately (see 11-...md).
+function sharedTokenCount(a: string, b: string): number {
+  const B = new Set(contentTokens(b));
+  let n = 0; for (const t of new Set(contentTokens(a))) if (B.has(t)) n += 1;
+  return n;
 }
-const FOLLOWUP_ANCHOR_FLOOR = 0.15;
-// Does a strong opposite phrase appear UN-negated? A negated opposite ("does not work against you")
-// is not opposition (review C07/P12).
+// Does a strong opposite phrase appear UN-negated (asserted in its clause)? A negated opposite
+// ("does not work against you") is not opposition (review C07/P12). Clause-scoped.
 function hasUnnegated(text: string, re: RegExp): boolean {
   const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
   for (const m of text.matchAll(g)) {
-    const idx = m.index ?? 0;
-    const window = text.slice(Math.max(0, idx - (hasCJK(text) ? 6 : 28)), idx);
-    if (!NEGATOR.test(window)) return true;
+    if (!NEGATOR.test(negationSpan(text, m.index ?? 0))) return true;
   }
   return false;
 }
@@ -762,11 +782,24 @@ function hasUnnegated(text: string, re: RegExp): boolean {
 // present, so the per-mode forbidden/required rules fall out of "present iff canonical present"
 // (judgment/timing have no practical_step; timing usually has no watch_out; only judgment carries
 // follow-ups, positionally as followup_1..N to preserve order without an array).
+function rankedCandidates(canonical: Canonical): any[] {
+  return [...(canonical.location_candidates ?? [])].filter((x: any) => x && x.place != null).sort((a: any, b: any) => (a?.rank ?? 0) - (b?.rank ?? 0));
+}
 function editorSpecs(canonical: Canonical): EditorSpec[] {
   const fam = familyOf(canonical.question_mode as DiceV05Mode);
   const specs: EditorSpec[] = [...EDITOR_COMPONENTS[fam]];
   if (canonical.watch_out != null) specs.push({ key: "watch_out", kind: "prose", cap: COPY_CAPS.watch_out });
-  if (canonical.practical_step != null) specs.push({ key: "practical_step", kind: "prose", cap: COPY_CAPS.practical_step });
+  if (canonical.practical_step != null) {
+    const cands = rankedCandidates(canonical);
+    if (fam === "location" && cands.length > 0) {
+      // R02 (review): the search step is edited PER CANDIDATE (one phrase per approved place) and the
+      // SERVER assembles them in canonical RANK order, so the editor improves each action's phrasing but
+      // can never reorder the search sequence — order is server-owned, not parsed from free-form prose.
+      for (let i = 0; i < cands.length; i += 1) specs.push({ key: `search_step_${i + 1}`, kind: "prose", cap: COPY_CAPS.practical_step });
+    } else {
+      specs.push({ key: "practical_step", kind: "prose", cap: COPY_CAPS.practical_step });
+    }
+  }
   const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
   for (let i = 0; i < nf; i += 1) specs.push({ key: `followup_${i + 1}`, kind: "prose", cap: COPY_CAPS.followup });
   return specs;
@@ -792,6 +825,20 @@ export type DiceV05EditorResponse = Readonly<{
   language: DiceV05Language;
   question_mode: DiceV05Mode;
   components: Readonly<Record<string, string>>;
+}>;
+
+/**
+ * The FLAT on-the-wire editor response (review C02/R05): the identity fields plus one string per editor
+ * component key. This is DISTINCT from the internal parsed `DiceV05EditorResponse` (which nests the
+ * strings under `components` for assembly) and is the single type used by the serializer
+ * (`editorResponseToWire`), the execution outcome and the composition outcome — so no consumer is left
+ * with a false contract. It is never assembled from directly; the Web re-parses it with `parseEditorResponse`.
+ */
+export type DiceV05EditorWire = Readonly<Record<string, unknown>> & Readonly<{
+  schema: typeof DICE_V05_EDITOR_SCHEMA;
+  status: "ok";
+  language: DiceV05Language;
+  question_mode: DiceV05Mode;
 }>;
 
 export type EditorInput = Readonly<{
@@ -886,8 +933,8 @@ export type EditorParse =
  * reject it as `DICE_EDITOR_EXTRA_OR_MISSING_KEY`. This is the single serialization used by the
  * producer, edge, gateway and Web parser so the joined path round-trips.
  */
-export function editorResponseToWire(value: DiceV05EditorResponse): Readonly<Record<string, unknown>> {
-  return Object.freeze({ schema: value.schema, status: value.status, language: value.language, question_mode: value.question_mode, ...value.components });
+export function editorResponseToWire(value: DiceV05EditorResponse): DiceV05EditorWire {
+  return Object.freeze({ schema: value.schema, status: value.status, language: value.language, question_mode: value.question_mode, ...value.components }) as DiceV05EditorWire;
 }
 
 /** Strict contract validation of a structured editor response against the canonical (mode + the
@@ -1015,53 +1062,71 @@ export function assembleEditorCopy(
   const approvedPlaces = [String(canonical.most_likely_area ?? ""), ...(canonical.location_candidates ?? []).map((x: any) => String(x?.place ?? ""))].join(" ").toLowerCase();
   const placeCore = (place: unknown) => String(place ?? "").replace(/^\s*(the|a|an)\s+/i, "").trim().toLowerCase();
 
+  const bareStep = (s: string) => String(s).replace(TRAILING_TERMINATOR, "").trim();
   if (canonical.watch_out != null) {
     const src = String(canonical.watch_out);
     const w = String(c.watch_out);
-    // C03/C07: a caution must not be inverted into an all-clear, and must not REVERSE the source
-    // instruction's polarity (a shared salient token whose negation flips). A faithful paraphrase that
-    // simply omits a stock warning word is NOT rejected (review C07/P10). For Location, the caution is
-    // an editable place-bearing field, so it must introduce no unsupported place (review C04/P08).
+    // C03/C07 + R01: a caution must not be inverted into an all-clear, must not REVERSE the source
+    // polarity (clause-scoped negation flip on a shared token), and must RETAIN the source warning's
+    // subject (share >=1 salient token with the source, so a warning cannot silently vanish into an
+    // unrelated statement — review N07). It does NOT force any stock warning word (C07/P10). For
+    // Location it introduces no unsupported place (C04/P08). The retention check is a conservative
+    // heuristic: a fully-synonymised caution with zero shared tokens is rejected (disclosed, RG3).
     if (ALL_CLEAR.test(w)) return fail("DICE_COPY_CAUTION_INVERTED");
     if (polarityReversed(src, w)) return fail("DICE_COPY_CAUTION_REVERSED");
+    // An unsupported place is a hard content violation, checked before subject retention.
     if (fam === "location") for (const m of w.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_CAUTION_UNSUPPORTED_PLACE");
+    if (sharedTokenCount(src, w) === 0) return fail("DICE_COPY_CAUTION_LOST");
     watch_out = ensureTerminal(w, zh);
   }
   if (canonical.practical_step != null) {
-    const src = String(canonical.practical_step);
-    const p = String(c.practical_step);
-    // C03: a step must not be inverted into an all-clear, and must not reverse the source polarity
-    // (e.g. "Do not search the bedroom" when the source says to search it — review C04/P07).
-    if (ALL_CLEAR.test(p)) return fail("DICE_COPY_STEP_INVERTED");
-    if (polarityReversed(src, p)) return fail("DICE_COPY_STEP_REVERSED");
-    if (fam === "location") {
-      const cands = [...(canonical.location_candidates ?? [])].sort((a: any, b: any) => (a?.rank ?? 0) - (b?.rank ?? 0));
-      const rank1core = placeCore(cands.find((x: any) => x?.rank === 1)?.place);
-      // The rank-1 place must still be present AND named FIRST among the candidate places (ordered
-      // search action preserved, not just a substring — review C04/P06), stay a search instruction,
-      // add no movement imperative and introduce no unsupported place.
-      if (!rank1core || !p.toLowerCase().includes(rank1core)) return fail("DICE_COPY_STEP_CANDIDATE_DROPPED");
-      const positions = cands.map((x: any) => ({ core: placeCore(x?.place), at: p.toLowerCase().indexOf(placeCore(x?.place)) })).filter((x) => x.core && x.at >= 0).sort((a, b) => a.at - b.at);
-      if (positions.length > 0 && positions[0].core !== rank1core) return fail("DICE_COPY_STEP_ORDER");
-      if (!SEARCH_SIGNAL.test(p)) return fail("DICE_COPY_STEP_NOT_ACTIONABLE");
-      if (MOVEMENT_IMPERATIVE.test(p)) return fail("DICE_COPY_LOCATION_IMPERATIVE");
-      for (const m of p.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_LOCATION_UNSUPPORTED_PLACE");
+    const cands = rankedCandidates(canonical);
+    if (fam === "location" && cands.length > 0) {
+      // R02 (review): the search step is edited PER CANDIDATE and assembled by the SERVER in canonical
+      // RANK order, so the editor can improve each action's phrasing but can NEVER reorder the sequence
+      // (order is server-owned, not parsed from prose). Each phrase must name its OWN rank-i place (and
+      // no other candidate's), be a search action, add no movement imperative and no unsupported place.
+      const cores = cands.map((x: any) => placeCore(x.place));
+      const phrases: string[] = [];
+      for (let i = 0; i < cands.length; i += 1) {
+        const s = String(c[`search_step_${i + 1}`]);
+        const low = s.toLowerCase();
+        if (!cores[i] || !low.includes(cores[i])) return fail("DICE_COPY_STEP_CANDIDATE_DROPPED");
+        // The place must be ASSERTED as the search target, not NEGATED ("Do not search the bedroom").
+        if (!tokenAsserted(s, cores[i])) return fail("DICE_COPY_STEP_REVERSED");
+        for (let k = 0; k < cores.length; k += 1) if (k !== i && cores[k] && low.includes(cores[k])) return fail("DICE_COPY_STEP_ORDER");
+        if (!SEARCH_SIGNAL.test(s)) return fail("DICE_COPY_STEP_NOT_ACTIONABLE");
+        if (MOVEMENT_IMPERATIVE.test(s)) return fail("DICE_COPY_LOCATION_IMPERATIVE");
+        for (const m of s.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_LOCATION_UNSUPPORTED_PLACE");
+        phrases.push(bareStep(s));
+      }
+      practical_step = ensureTerminal(phrases.join(zh ? "，然後" : "; then "), zh);
+    } else {
+      const src = String(canonical.practical_step);
+      const p = String(c.practical_step);
+      // Non-location step: not inverted into an all-clear, and not polarity-reversed against the source.
+      if (ALL_CLEAR.test(p)) return fail("DICE_COPY_STEP_INVERTED");
+      if (polarityReversed(src, p)) return fail("DICE_COPY_STEP_REVERSED");
+      practical_step = ensureTerminal(p, zh);
     }
-    practical_step = ensureTerminal(p, zh);
   }
   const sourceFollow = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.map(String) : [];
   if (sourceFollow.length > 0) {
     const items: string[] = [];
     for (let i = 0; i < sourceFollow.length; i += 1) {
       const q = String(c[`followup_${i + 1}`]).trim();
-      // C05: each follow-up must (a) still be a question, and (b) paraphrase the SOURCE follow-up in
-      // its OWN slot — its content must overlap source[i] more than any OTHER source follow-up (rejects
-      // a swap) and clear a floor (rejects an unrelated replacement). Positional keys fix the count.
+      // C05 + R03: each follow-up must still be a QUESTION, and (with >=2 slots) must match its OWN
+      // source slot at least as well as any OTHER by shared salient tokens — a structural SWAP defence
+      // so two questions cannot be exchanged. We do NOT impose an absolute overlap floor: literal word
+      // overlap is not proof of equivalent intent (it false-rejects faithful paraphrases — review
+      // N01/N02 — and cannot reliably catch an unrelated single-slot replacement). Reliable per-slot
+      // INTENT preservation and single-slot unrelated-replacement detection need the bounded
+      // semantic-fidelity check proposed in 11-semantic-fidelity-decision.md (RG3 — not added silently).
       if (!QUESTION_SIGNAL.test(q)) return fail("DICE_COPY_FOLLOWUP_NOT_QUESTION");
-      let best = -1, bestAt = -1;
-      for (let j = 0; j < sourceFollow.length; j += 1) { const o = contentOverlap(q, sourceFollow[j]); if (o > best) { best = o; bestAt = j; } }
-      if (best < FOLLOWUP_ANCHOR_FLOOR) return fail("DICE_COPY_FOLLOWUP_UNRELATED");
-      if (bestAt !== i) return fail("DICE_COPY_FOLLOWUP_ORDER");
+      if (sourceFollow.length >= 2) {
+        const own = sharedTokenCount(q, sourceFollow[i]);
+        for (let j = 0; j < sourceFollow.length; j += 1) if (j !== i && sharedTokenCount(q, sourceFollow[j]) > own) return fail("DICE_COPY_FOLLOWUP_ORDER");
+      }
       items.push(ensureTerminal(q, zh));
     }
     followups = Object.freeze(items);
@@ -1141,9 +1206,9 @@ export type CustomerCopyOutcome = Readonly<{
   provider_calls: number;
   failure_code: string | null;
   // The structured editor response that produced a "stage3" copy, in the FLAT WIRE contract
-  // (editorResponseToWire — review C02), carried onto the wire so the Web boundary can independently
+  // (DiceV05EditorWire — review C02/R05), carried onto the wire so the Web boundary can independently
   // re-parse, re-assemble and re-validate it (defence in depth). Null for every non-stage3 outcome.
-  editor_response: Readonly<Record<string, unknown>> | null;
+  editor_response: DiceV05EditorWire | null;
 }>;
 
 // Resolve a validated fallback or the unavailable outcome, carrying the failure code through.

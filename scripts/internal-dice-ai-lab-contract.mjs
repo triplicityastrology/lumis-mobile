@@ -221,15 +221,23 @@ const edResp = (lang, mode, comps) => ({ schema: CP.DICE_V05_EDITOR_SCHEMA, stat
 // candidate places (Location) and staying a caution / a search action / a question so the guards pass —
 // while an adversarial case overrides one controlled key. A timing canonical carries none, so its response
 // is unchanged. This mirrors withControlled() in the customer-copy fixtures.
+const rankedCands = (canonical) => [...(canonical.location_candidates || [])].filter((x) => x && x.place != null).sort((a, b) => (a?.rank ?? 0) - (b?.rank ?? 0));
 const edRespFor = (canonical, comps) => {
-  const lang = canonical.language, mode = canonical.question_mode;
+  const lang = canonical.language, mode = canonical.question_mode, zh = lang === "zh-Hant";
   const filled = { ...comps };
-  // Auto-fill any controlled component the caller did not supply with the canonical value VERBATIM — a
-  // maximally faithful stand-in — so a test whose FOCUS is the display prose does not accidentally
-  // alter meaning and get rejected by the source-relative guards (independent-review correction #3).
-  // Tests exercising a controlled-field edit (or an adversarial one) supply that key explicitly.
+  // Auto-fill any controlled component the caller did not supply with a faithful stand-in (the canonical
+  // value verbatim; for Location, a per-candidate "search <place>" — review R02), so a test whose FOCUS
+  // is the display prose does not accidentally alter meaning and get rejected by the source-relative
+  // guards. Tests exercising a controlled-field edit (or an adversarial one) supply that key explicitly.
   if (canonical.watch_out != null && !("watch_out" in filled)) filled.watch_out = String(canonical.watch_out);
-  if (canonical.practical_step != null && !("practical_step" in filled)) filled.practical_step = String(canonical.practical_step);
+  if (canonical.practical_step != null) {
+    const cands = rankedCands(canonical);
+    if (mode === "location" && cands.length > 0) {
+      for (let i = 0; i < cands.length; i += 1) { const k = `search_step_${i + 1}`; if (!(k in filled)) filled[k] = zh ? `搵${cands[i].place}` : `Search ${cands[i].place}`; }
+    } else if (!("practical_step" in filled)) {
+      filled.practical_step = String(canonical.practical_step);
+    }
+  }
   const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
   for (let i = 0; i < nf; i += 1) { const k = `followup_${i + 1}`; if (!(k in filled)) filled[k] = String(canonical.suggested_followups[i]); }
   return edResp(lang, mode, filled);
@@ -572,11 +580,11 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
 {
   // RG2: the editor supplies a reworded clue reading, caution AND search step. The search step keeps
   // the rank-1 place ("the bedroom") and a search verb, so it is accepted and displayed as the edit.
-  const locEditedEn = edResp("en", "location", { clues: "The strongest sign points to a private, indoor spot at home, near where daily items are kept.", watch_out: "Keep looking calmly and do not assume it is gone for good.", practical_step: "Try searching the bedroom first, then check the kitchen." });
+  const locEditedEn = edResp("en", "location", { clues: "The strongest sign points to a private, indoor spot at home, near where daily items are kept.", watch_out: "Keep looking calmly and do not assume it is gone for good.", search_step_1: "Try looking in the bedroom", search_step_2: "check the kitchen" });
   const onEn = await executeLabFreeTextV05Request(locSel, { ...v05Gateway({ kind: "completed", result: locCanonical, question_mode: "location", customer_copy: null, editor_response: locEditedEn, metadata: stage3MetaFor("en", "location") }), stage3EditorEnabled: true });
   assert.equal(onEn.body.classification.copy_source, "stage3", "L4 location/en: edited reading displayed as stage3");
   assert.ok(JSON.stringify(onEn.body.presentation).includes("near where daily items are kept"), "L4 location/en: the edited clues reading reaches the card");
-  assert.ok(JSON.stringify(onEn.body.presentation).includes("Try searching the bedroom first"), "RG2 location/en: the EDITED search step is displayed and still names the rank-1 place ('the bedroom')");
+  assert.ok(JSON.stringify(onEn.body.presentation).includes("Try looking in the bedroom"), "R02 location/en: the EDITED per-candidate search phrase is displayed, rank-1 place first");
   assert.deepEqual(onEn.body.presentation.sections.find((s) => s.heading === "Where to look").items, ["the bedroom", "the kitchen"], "L4 location/en: canonical ordered candidates preserved");
   // V03: a movement instruction ("Go to the airport first") in the edited clues is rejected; the
   // fallback renders the deterministic copy (canonical search step "Search the bedroom first"), and
@@ -591,7 +599,7 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
   const locZhWire = { status: "ok", most_likely_area: "喺屋企", synthesis: "睡房。", location_candidates: [{ rank: 1, place: "睡房", evidence: { p: [locZhRes.selectedKeys.p[0]], h: [], e: [] } }, { rank: 2, place: "廚房", evidence: { p: [], h: [locZhRes.selectedKeys.h[0]], e: [] } }], extension: null, search_order: [1, 2], watch_out: "唔好假設一定唔見咗。", practical_step: "先搵睡房。" };
   assert.equal(CONTRACT.validateLocation(locZhWire, locZhRes.selectedKeys), "OK", "L4 location/zh: real wire baseline valid");
   const locZhCanon = PRESENT.assembleLocation("zh-Hant", locZhWire, locZhRes.gid);
-  const locEditedZh = edResp("zh-Hant", "location", { clues: "最強的線索指向屋企一個較私密、室內的位置，通常擺放日常用品的地方。", watch_out: "繼續冷靜咁搵，唔好假設一定唔見咗。", practical_step: "可以先搵睡房，再檢查廚房。" });
+  const locEditedZh = edResp("zh-Hant", "location", { clues: "最強的線索指向屋企一個較私密、室內的位置，通常擺放日常用品的地方。", watch_out: "繼續冷靜咁搵，唔好假設一定唔見咗。", search_step_1: "先搵睡房", search_step_2: "再檢查廚房" });
   const onZh = await executeLabFreeTextV05Request({ question: "我份文件喺邊？", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, { ...v05Gateway({ kind: "completed", result: locZhCanon, question_mode: "location", customer_copy: null, editor_response: locEditedZh, metadata: stage3MetaFor("zh-Hant", "location") }), stage3EditorEnabled: true });
   assert.equal(onZh.body.classification.copy_source, "stage3", "L4 location/zh: edited reading displayed as stage3");
   assert.ok(JSON.stringify(onZh.body.presentation).includes("日常用品"), "L4 location/zh: the edited Chinese clues reading reaches the card");
@@ -640,6 +648,37 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
   const accepted = await executeLabFreeTextV05Request(v05Level1Sel, { ...v05Gateway({ kind: "completed", result: v05Level1, question_mode: "person", customer_copy: null, editor_response: v05Level1EditorResp, metadata: stage3Meta }), stage3EditorEnabled: true });
   assert.equal(accepted.body.metadata.copy_source, "stage3", "C08: an accepted stage3 render keeps metadata.copy_source consistent as stage3");
   assert.equal(Object.hasOwn(accepted.body.metadata, "copy_source_upstream"), false, "C08: no upstream override when display source already matches");
+}
+
+// ================================================================================================
+// R04 / N08 (independent review) — a BACKEND editor attempt that fails must not be relabelled
+// "deterministic" and stripped of its reason. Runs the REAL three-stage composition with a malformed
+// editor ({}), then forwards its output UNCHANGED into the Web boundary.
+// ================================================================================================
+{
+  const windowCopyMod = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-window-with-copy.js")).href);
+  const executeThreeStage = windowCopyMod.executeDiceV05FreeTextCaseWithCopy;
+  const N08_REQ = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
+  const stage2J = JSON.stringify({ status: "ok", planet_prose: "Jupiter here is a strong, benefic influence, favouring growth and confident expansion.", house_prose: "House 1 keeps the matter firmly in your own hands and initiative.", synthesis: "The outlook is supportive: this is a favourable setting to step forward, while keeping your plans realistic.", watch_out: "Keep your optimism realistic about the preparation.", suggested_followups: ["What should I prepare first?"] });
+  const n08Adapter = { invoke: async (req) => {
+    if (req.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "judgment", matched_rule: "STEP_3_JUDGMENT" }) };
+    if (req.schema_name.endsWith("_v5_stage2")) return { kind: "success", content: stage2J };
+    if (req.schema_name.startsWith("lumis_dice_editor_")) return { kind: "success", content: "{}" }; // malformed editor → rejected
+    return { kind: "malformed" };
+  } };
+  const n08 = await executeThreeStage(N08_REQ, () => n08Adapter, () => 1000, { copyMode: "provider" });
+  assert.equal(n08.kind, "completed", "N08: three-stage completes");
+  assert.equal(n08.copy_source, "fallback", "N08: a backend editor attempt that fails → composition copy_source fallback");
+  assert.ok(typeof n08.copy_failure_code === "string" && n08.copy_failure_code.length > 0, "N08: composition carries a copy_failure_code");
+  assert.equal(n08.metadata.copy_redacted_failure_code, n08.copy_failure_code, "R04: composition metadata carries the REDACTED failure code through to the wire");
+  assert.equal(n08.editor_response, null, "N08: a failed editor carries no wire editor_response");
+  // Forward the composition output UNCHANGED into the Web boundary.
+  const n08Web = await executeLabFreeTextV05Request(N08_REQ, { ...v05Gateway({ kind: "completed", result: n08.result, question_mode: n08.question_mode, customer_copy: n08.customer_copy, editor_response: n08.editor_response, metadata: n08.metadata }), stage3EditorEnabled: true });
+  assert.equal(n08Web.body.code, "DICE_COMPLETED", "N08: the Web still renders a reading");
+  assert.equal(n08Web.body.classification.copy_source, "fallback", "R04/N08: a backend fallback is reported as fallback, NOT relabelled deterministic");
+  assert.ok(typeof n08Web.body.classification.redacted_failure_code === "string" && n08Web.body.classification.redacted_failure_code.length > 0, "R04/N08: the failure reason survives into the Web classification");
+  assert.equal(n08Web.body.metadata.copy_source, "fallback", "R04/N08: metadata.copy_source is consistent (fallback)");
+  assert.equal(n08Web.body.provider_calls, n08.provider_calls, "R04/N08: the measured provider total is preserved");
 }
 
 // ---- G03: a gateway/service exception on a VALID request is a controlled 502 service failure —

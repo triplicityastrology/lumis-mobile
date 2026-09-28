@@ -33,10 +33,20 @@ const editorOk = (language: "en" | "zh-Hant", mode: DiceV05Mode, components: Rec
 // valid without accidentally changing meaning (independent-review correction #3: generic filler could
 // erase meaning even in a "positive" test, and the source-relative guards would then reject it). Tests
 // that specifically exercise a controlled-field EDIT (or an adversarial one) supply that key explicitly.
+const rankedCands = (canonical: any): any[] => [...(canonical.location_candidates ?? [])].filter((x: any) => x && x.place != null).sort((a: any, b: any) => (a?.rank ?? 0) - (b?.rank ?? 0));
 const withControlled = (canonical: any, components: Record<string, string>): Record<string, string> => {
   const filled: Record<string, string> = { ...components };
+  const zh = canonical.language === "zh-Hant";
   if (canonical.watch_out != null && !("watch_out" in filled)) filled.watch_out = String(canonical.watch_out);
-  if (canonical.practical_step != null && !("practical_step" in filled)) filled.practical_step = String(canonical.practical_step);
+  if (canonical.practical_step != null) {
+    const cands = rankedCands(canonical);
+    if (canonical.question_mode === "location" && cands.length > 0) {
+      // R02: per-candidate search phrases; auto-fill a faithful "search <place>" for any not supplied.
+      for (let i = 0; i < cands.length; i += 1) { const k = `search_step_${i + 1}`; if (!(k in filled)) filled[k] = zh ? `搵${cands[i].place}` : `Search ${cands[i].place}`; }
+    } else if (!("practical_step" in filled)) {
+      filled.practical_step = String(canonical.practical_step);
+    }
+  }
   const nf = Array.isArray(canonical.suggested_followups) ? canonical.suggested_followups.length : 0;
   for (let i = 0; i < nf; i += 1) {
     const key = `followup_${i + 1}`;
@@ -465,14 +475,23 @@ ok(asm(locationCanonical, "en", "location", { clues: "The strongest sign points 
   // parity is unchanged and still rejects a rewrite, so the relaxation is scoped to the accepted editor.
   ok(edited.ok && validateDisplayCopy(edited.copy, mixedJudg as any, judgmentLanding, false) !== "OK", "RG2 EN: the same edited copy is rejected under EXACT pass-through parity (deterministic path unchanged)");
 }
-// Positive (EN location): a reworded search step that keeps the rank-1 candidate place and a search verb.
+// Positive (EN location, R02): per-candidate search phrases; the SERVER assembles them in canonical
+// RANK order (bedroom then kitchen), so the editor improves phrasing but cannot reorder the sequence.
 {
   const edited = asm(locationCanonical, "en", "location",
-    { clues: "The strongest sign points to a private, indoor spot at home.", practical_step: "Try searching the bedroom first, then check the kitchen." },
+    { clues: "The strongest sign points to a private, indoor spot at home.", search_step_1: "Try looking in the bedroom", search_step_2: "check the kitchen" },
     locationLanding);
-  ok(edited.ok, "RG2 EN location: a reworded search step that keeps the rank-1 place + a search verb is accepted");
-  ok(edited.ok && edited.copy.practical_step === ensureTerminalLike("Try searching the bedroom first, then check the kitchen."), "RG2 EN location: the EDITED search step (not the canonical wording) displays");
-  ok(edited.ok && validateDisplayCopy(edited.copy, locationCanonical as any, locationLanding, true) === "OK", "RG2 EN location: the edited step passes display validation");
+  ok(edited.ok, "R02 EN location: per-candidate reworded search phrases assemble");
+  ok(edited.ok && edited.copy.practical_step === ensureTerminalLike("Try looking in the bedroom; then check the kitchen"), "R02 EN location: the server assembles the edited phrases in canonical rank order (bedroom first)");
+  ok(edited.ok && validateDisplayCopy(edited.copy, locationCanonical as any, locationLanding, true) === "OK", "R02 EN location: the assembled step passes display validation");
+}
+// R02 (review N05): an AWKWARDLY-PHRASED but correct set still assembles bedroom-first — order is
+// server-owned, so it cannot be flipped by phrasing. A slot-1 phrase cannot name the rank-2 place.
+{
+  const edited = asm(locationCanonical, "en", "location",
+    { clues: "A private indoor spot at home.", search_step_1: "Before anything else, search the bedroom", search_step_2: "afterwards check the kitchen" },
+    locationLanding);
+  ok(edited.ok && edited.copy.practical_step!.toLowerCase().indexOf("bedroom") < edited.copy.practical_step!.toLowerCase().indexOf("kitchen"), "R02/N05: awkward phrasing still assembles the rank-1 place first (server-owned order)");
 }
 // Positive (zh-Hant judgment, judgmentCanonical carries a caution + one follow-up).
 {
@@ -491,19 +510,23 @@ eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own cap
 ok(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Try to keep your hopes grounded even with strong support." }, judgmentLanding).ok, "C07: a faithful caution paraphrase without a stock warning word is accepted (no forced vocabulary)");
 // Adversarial — a follow-up rewritten as a statement (no longer a question) is rejected.
 eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", followup_1: "You should prepare the documents first." }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_NOT_QUESTION" }, "RG2: a follow-up rewritten as a statement (not a question) is rejected");
-// Adversarial (location) — a search step that drops the rank-1 candidate place is rejected.
-eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Try searching the kitchen first." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_CANDIDATE_DROPPED" }, "RG2 location: a search step that drops the rank-1 candidate place is rejected");
-// Adversarial (location) — a search step reworded into a non-actionable statement is rejected.
-eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "The bedroom is where it most likely rests." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_NOT_ACTIONABLE" }, "RG2 location: a search step reworded into a non-actionable statement is rejected");
-// Adversarial (location) — a search step that introduces an unsupported place is rejected.
-eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Search the bedroom, then the airport lounge." }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_UNSUPPORTED_PLACE" }, "RG2 location: a search step naming an unsupported place is rejected");
-// Adversarial (location) — a search step turned into a movement instruction is rejected.
-eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Go to the bedroom first and search there." }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_IMPERATIVE" }, "RG2 location: a search step turned into a movement instruction is rejected");
+// Adversarial (location, per-candidate) — slot-1 phrase that does not name the rank-1 place is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Try searching somewhere quiet" }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_CANDIDATE_DROPPED" }, "R02 location: a slot-1 search phrase that omits the rank-1 place is rejected");
+// Slot-1 phrase that NEGATES the rank-1 place ("do not search the bedroom") is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Do not search the bedroom" }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_REVERSED" }, "R02/C04 location: a slot-1 phrase that negates its own place is rejected");
+// Slot-1 phrase that names the rank-2 place (cross-reference / reorder attempt) is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Search the bedroom and the kitchen" }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_ORDER" }, "R02 location: a slot-1 phrase that also names the rank-2 place is rejected (each phrase is its own place)");
+// A non-actionable slot phrase is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "The bedroom is nearby" }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_NOT_ACTIONABLE" }, "R02 location: a non-actionable slot phrase is rejected");
+// A slot phrase that introduces an unsupported place is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Search the bedroom near the airport" }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_UNSUPPORTED_PLACE" }, "R02 location: a slot phrase naming an unsupported place is rejected");
+// A slot phrase turned into a movement instruction is rejected.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Go to the bedroom to search" }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_IMPERATIVE" }, "R02 location: a slot phrase turned into a movement instruction is rejected");
 // Adversarial (person) — a practical step inverted into an all-clear is rejected.
 eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Rest assured, there is nothing to worry about." }, personLanding), { ok: false, reason: "DICE_COPY_STEP_INVERTED" }, "RG2 person: a practical step inverted into an all-clear is rejected");
 // Structural (parse) — order/count of the controlled components is enforced by the positional keys:
 // a MISSING required controlled component is rejected at parse...
-eq(parseEditorResponse(locationCanonical as any, "en", editorOk("en", "location", { clues: "A private indoor spot at home.", watch_out: "Do not assume it is gone for good." })).kind, "invalid", "RG2: a Location editor response missing the required practical_step component is rejected at parse");
+eq(parseEditorResponse(locationCanonical as any, "en", editorOk("en", "location", { clues: "A private indoor spot at home.", watch_out: "Do not assume it is gone for good." })).kind, "invalid", "RG2/R02: a Location editor response missing the required per-candidate search_step components is rejected at parse");
 // ...and an EXTRA follow-up beyond the single source follow-up is rejected at parse (count/order preserved).
 eq(parseEditorResponse(judgmentCanonical as any, "zh-Hant", editorOk("zh-Hant", "judgment", { answer: "a。", planet_factor: "b。", house_factor: "c。", synthesis: "d。", watch_out: "留意語氣，避免過急。", followup_1: "問題一？", followup_2: "多咗一條？" })).kind, "invalid", "RG2: an EXTRA follow-up (followup_2) beyond the single source follow-up is rejected at parse (count/order preserved)");
 
@@ -525,19 +548,36 @@ const pressureJudgZh = Object.freeze({ ...(judgmentCanonical as any), watch_out:
 eq(asm(pressureJudgZh, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", watch_out: "注意繼續向對方施壓。" }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "C03/P13 zh: a caution that flips 不要施壓 → 繼續施壓 is rejected");
 // C03 (P09): a practical step whose polarity is reversed is rejected (person mode).
 eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Pressure them and withhold clear information." }, personLanding), { ok: false, reason: "DICE_COPY_STEP_REVERSED" }, "C03/P09 EN: a practical step reversed against the source (give clear info, not pressure → pressure them) is rejected");
-// C04 (P06): a Location search step that puts the rank-2 place FIRST (search order broken) is rejected.
-eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Search the kitchen first, then check the bedroom." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_ORDER" }, "C04/P06: a search step that names the rank-2 place before the rank-1 place is rejected (ordered action, not a substring)");
-// C04 (P07): a step that NEGATES the rank-1 place (do not search it) is rejected.
-eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", practical_step: "Do not search the bedroom. Search the kitchen instead." }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_REVERSED" }, "C04/P07: a step that tells the customer NOT to search the rank-1 place is rejected (polarity)");
+// C04 (P06/P07 → R02): the search step is now edited PER CANDIDATE and assembled in canonical rank
+// order, so a rank-2-first ordering is unexpressible; a slot-1 phrase naming the rank-2 place, or one
+// negating the rank-1 place, is rejected (covered in the R02 location block above). Order contradiction
+// with the candidate list shown beside it is structurally impossible.
 // C04 (P08): a newly-editable Location CAUTION that introduces an unsupported place is rejected.
 eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", watch_out: "Beware of leaving it at the airport." }, locationLanding), { ok: false, reason: "DICE_COPY_CAUTION_UNSUPPORTED_PLACE" }, "C04/P08: an unsupported place introduced in the editable Location caution is rejected");
-// C05 (P04) EN swap: two follow-ups exchanged between positions are rejected (position anchoring).
+// R01 (N03): a FAITHFUL caution that keeps the same negated action across a clause boundary is ACCEPTED
+// (clause-scoped negation — an earlier-clause negator does not spuriously flip a later token).
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Give them space and avoid pressure." }, judgmentLanding).ok, "R01/N03 EN: a faithful caution ('...and avoid pressure') is accepted (clause-scoped negation)");
+// R01 (N04): a DIRECT reversal in a later clause is rejected (the earlier 'Avoid' does not scope to it).
+eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid haste. Apply pressure." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "R01/N04 EN: a reversal in a later clause ('Avoid haste. Apply pressure.') is rejected (clause-scoped)");
+// R01 (N07): a caution replaced by an UNRELATED statement (warning lost) is rejected — subject retention.
+eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "This concerns the general tone of the matter." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_LOST" }, "R01/N07 EN: a caution that loses the source warning's subject is rejected (retention, not a stock-word rule)");
+// C05 (P04) EN swap: two follow-ups exchanged between positions are rejected (relative slot anchoring).
 const enTwoFollowup = Object.freeze({ ...(enJudgment as any), suggested_followups: ["What should I prepare first?", "When is the best time to raise it?"] });
-eq(asm(enTwoFollowup, "en", "judgment", { answer: "You have real support, and the setting is favourable.", planet_factor: "Your own capacity is strong and works in your favour.", house_factor: "The situation around you is also supportive and helps.", synthesis: "The two sides agree here rather than pulling against each other.", followup_1: "When is the best time to raise it?", followup_2: "What should I prepare first?" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_ORDER" }, "C05/P04 EN: two follow-ups swapped between positions are rejected (each slot must paraphrase ITS source question)");
+const enTwoFactors = { answer: "You have real support, and the setting is favourable.", planet_factor: "Your own capacity is strong and works in your favour.", house_factor: "The situation around you is also supportive and helps.", synthesis: "The two sides agree here rather than pulling against each other." };
+eq(asm(enTwoFollowup, "en", "judgment", { ...enTwoFactors, followup_1: "When is the best time to raise it?", followup_2: "What should I prepare first?" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_ORDER" }, "C05/P04 EN: two follow-ups swapped between positions are rejected (relative slot anchoring)");
 // C05 (P15) zh swap.
 eq(asm(twoFollowupJudgment, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", followup_1: "我應該幾時提出？", followup_2: "我可以點樣改善溝通？" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_ORDER" }, "C05/P15 zh: two follow-ups swapped between positions are rejected");
-// C05 (P05): an unrelated replacement follow-up is rejected (content anchoring floor).
-eq(asm(mixedJudg, "en", "judgment", { ...faithFactors, followup_1: "What should I cook for dinner?" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_UNRELATED" }, "C05/P05 EN: an unrelated replacement follow-up (off-topic) is rejected");
+// R03 (N01/N02): a FAITHFUL single-slot paraphrase with low LITERAL overlap is ACCEPTED (no absolute
+// overlap floor — literal overlap is not proof of changed intent). Single-slot unrelated replacement
+// (former P05) is NOT reliably caught by literal means and is disclosed as RG3 (see 11-...md), NOT
+// asserted to display.
+{
+  const n1 = Object.freeze({ ...(mixedJudg as any), suggested_followups: ["What should I prepare first?"] });
+  ok(asm(n1, "en", "judgment", { ...faithFactors, followup_1: "What do I need to get ready before anything else?" }, judgmentLanding).ok, "R03/N01 EN: a faithful single-slot follow-up paraphrase is accepted (no literal-overlap floor)");
+  ok(asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", followup_1: "有咩方法可以令我同人溝通得更好？" }, judgmentLanding).ok, "R03/N02 zh: a faithful single-slot follow-up paraphrase is accepted");
+}
+// R03 control: a FAITHFUL two-slot rewrite (each keeps its own slot's intent) is accepted, not swapped.
+ok(asm(enTwoFollowup, "en", "judgment", { ...enTwoFactors, followup_1: "What is the first thing to prepare?", followup_2: "When is the best moment to bring it up?" }, judgmentLanding).ok, "R03 control: a faithful two-slot follow-up rewrite is accepted (each matches its own slot)");
 // C05 (P14): a zh DECLARATIVE is not a question just because it contains 可以.
 eq(asm(judgmentCanonical, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", followup_1: "你可以繼續努力。" }, judgmentLanding), { ok: false, reason: "DICE_COPY_FOLLOWUP_NOT_QUESTION" }, "C05/P14 zh: a declarative containing 可以 is NOT accepted as a follow-up question");
 // C06 (P11): a Chinese mid-paragraph fragment (no space after 。) is caught as its own sentence now.

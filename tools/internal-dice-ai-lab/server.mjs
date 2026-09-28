@@ -438,9 +438,17 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
     const regenerated = cp.buildValidatedFallback(result, landing);
     if (!regenerated.ok) return unavailable;
     displayCopy = regenerated.copy;
-    // V07: report the ACTUAL displayed source. A stage3 editor that was attempted but REJECTED shows
-    // the deterministic fallback → "fallback" with a redacted failure code; the unselected path →
-    // "deterministic". Never label a fallback render "stage3".
+    // R04 (review): distinguish an editor-DISABLED deterministic result from a deterministic fallback
+    // after an ATTEMPTED editor failure. The backend signals the latter with an INCOMING
+    // metadata.copy_source of "fallback"; adopt its redacted reason (carried in
+    // metadata.copy_redacted_failure_code) so the Web does not relabel a backend fallback "deterministic"
+    // and strip its reason. A Web-side editor rejection sets copyFailure directly (above).
+    if (!copyFailure && metadata.copy_source === "fallback") {
+      copyFailure = (typeof metadata.copy_redacted_failure_code === "string" && metadata.copy_redacted_failure_code) || "DICE_COPY_UPSTREAM_FALLBACK";
+    }
+    // V07: report the ACTUAL displayed source. An editor attempted (here or upstream) but rejected →
+    // "fallback" with a redacted failure code; the editor-unselected path → "deterministic". Never
+    // label a fallback render "stage3".
     copySource = copyFailure ? "fallback" : "deterministic";
   }
   const presentation = presentCustomerCopyV05(displayCopy, result, selection);

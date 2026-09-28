@@ -33,7 +33,7 @@ import {
 } from "./dice-v0-5-window.ts";
 import {
   executeDiceV05CustomerCopy, buildValidatedFallback, CUSTOMER_COPY_UNAVAILABLE_MESSAGE,
-  type DiceV05CustomerCopy, type DiceV05EditorResponse, type Landing,
+  type DiceV05CustomerCopy, type DiceV05EditorWire, type Landing,
 } from "./dice-v0-5-customer-copy.ts";
 import type { DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
 import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
@@ -52,9 +52,9 @@ export type DiceV05ThreeStageOutcome =
       copy_source: "deterministic" | "stage3" | "fallback" | "unavailable";
       copy_unavailable_message: string | null;
       copy_failure_code: string | null;
-      // The RAW structured editor response behind a "stage3" copy, so the Web boundary can
+      // The FLAT wire editor response behind a "stage3" copy (review C02/R05), so the Web boundary can
       // independently re-parse, re-assemble and re-validate it (defence in depth). Null otherwise.
-      editor_response: DiceV05EditorResponse | null;
+      editor_response: DiceV05EditorWire | null;
       provider_calls: number;            // Stage 1 + Stage 2 + Stage 3 (actual)
       astrology_provider_calls: number;  // Stage 1 + Stage 2 only
       metadata: Record<string, unknown>;
@@ -87,8 +87,8 @@ export async function executeDiceV05FreeTextCaseWithCopy(
   let copySource: "deterministic" | "stage3" | "fallback" | "unavailable";
   let copyFailure: string | null;
   let copyCalls: number;
-  // Flat wire contract (review C02): forwarded verbatim to the Web boundary for independent re-parse.
-  let editorResponse: Readonly<Record<string, unknown>> | null = null;
+  // Flat wire contract (review C02/R05): forwarded verbatim to the Web boundary for independent re-parse.
+  let editorResponse: DiceV05EditorWire | null = null;
 
   if (copyMode === "provider") {
     // Gated language-editor path (controlled fields still forced from canonical inside).
@@ -132,6 +132,11 @@ export async function executeDiceV05FreeTextCaseWithCopy(
       astrology_provider_calls: astrologyCalls,
       copy_provider_calls: copyCalls,
       copy_source: copySource,
+      // R04 (review): carry the BOUNDED/REDACTED copy failure reason through composition → edge →
+      // gateway → Web, so a backend editor-attempt-then-fallback is not later relabelled "deterministic"
+      // and stripped of its reason. Null when there is nothing to report. The value is an internal
+      // failure CODE (e.g. DICE_EDITOR_EXTRA_OR_MISSING_KEY), never raw provider text or an exception.
+      copy_redacted_failure_code: copySource === "fallback" || copySource === "unavailable" ? copyFailure : null,
     },
-  }) as DiceV05ThreeStageOutcome;
+  });
 }

@@ -34,7 +34,7 @@ const rankyEditor = JSON.stringify({
   synthesis: "The overall grade is favourable.",
   // RG2: the controlled components are present + valid, so the rejection is on the leaked rank/grade,
   // not a missing-key parse error.
-  watch_out: "Keep your plans grounded and prepare properly.",
+  watch_out: "Keep your preparation practical.",
   followup_1: "What should I prepare first?",
 });
 // A clean, faithful structured editor response (both factors favourable, each its own component), PLUS
@@ -46,7 +46,7 @@ const goodJudgmentEditor = JSON.stringify({
   planet_factor: "Your own capacity is strong and works in your favour.",
   house_factor: "The situation around you is also supportive and keeps the choice in your hands.",
   synthesis: "The two sides agree here rather than pulling against each other, so the outlook is supportive.",
-  watch_out: "Keep your plans grounded even with strong support behind you.",
+  watch_out: "Keep your preparation practical and grounded.",
   followup_1: "Which part is most worth preparing first?",
 });
 
@@ -115,7 +115,7 @@ async function main() {
   if (provOk.kind !== "completed") throw new Error("unreachable");
   ok(provOk.copy_source === "stage3", "a clean edited Judgment copy is displayed as stage3");
   ok(provOk.customer_copy!.reading.includes("two sides agree here"), "the PROVIDER edited reading reaches the customer (not the deterministic assembly)");
-  eq(provOk.customer_copy!.watch_out, "Keep your plans grounded even with strong support behind you.", "RG2: the caution is the EDITED warning");
+  eq(provOk.customer_copy!.watch_out, "Keep your preparation practical and grounded.", "RG2: the caution is the EDITED warning");
   ok(provOk.customer_copy!.watch_out !== (provOk.result as any).watch_out, "RG2: the edited caution is NOT the raw canonical wording");
   eq(provOk.customer_copy!.suggested_followups[0], "Which part is most worth preparing first?", "RG2: the follow-up is the EDITED question, count preserved");
   eq(provOk.provider_calls, 3, "clean stage3 judgment: 3 provider calls");

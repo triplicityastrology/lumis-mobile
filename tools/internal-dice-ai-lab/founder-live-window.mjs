@@ -237,9 +237,17 @@ export function redactV05Metadata(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const base = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket", "units_consumed", "persistence_writes"];
   const copyKeys = ["astrology_provider_calls", "copy_provider_calls", "copy_source"];
+  // R04 (review): an OPTIONAL bounded/redacted copy failure reason carried from composition, so a
+  // backend editor-attempt-then-fallback keeps its reason to the Web. Not part of the all-or-none copy
+  // block; validated to be null or an internal CODE (no whitespace / raw provider text).
+  const optionalKeys = ["copy_redacted_failure_code"];
   const keys = Object.keys(value);
   if (!base.every((k) => keys.includes(k))) return null;
-  if (keys.some((k) => !base.includes(k) && !copyKeys.includes(k))) return null;
+  if (keys.some((k) => !base.includes(k) && !copyKeys.includes(k) && !optionalKeys.includes(k))) return null;
+  if (Object.hasOwn(value, "copy_redacted_failure_code")) {
+    const f = value.copy_redacted_failure_code;
+    if (f !== null && (typeof f !== "string" || f.length > 200 || !/^[A-Z0-9_|]+$/.test(f))) return null;
+  }
   if (value.request_mode !== "founder_free_text" || !["en", "zh-Hant"].includes(value.language) || typeof value.result_class !== "string" || !Number.isInteger(value.provider_calls)) return null;
   if (value.units_consumed !== 0 || value.persistence_writes !== 0) return null;
   const copyPresent = copyKeys.some((k) => keys.includes(k));
