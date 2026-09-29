@@ -11,6 +11,26 @@ export const FOUNDER_ISSUER_KEY_ID = "founder-ed25519-deployment-approver-v1";
 export const FOUNDER_PUBLIC_KEY_SPKI_SHA256 = "ee1d1e2643e525d4de8e1604b127a718260bd8234561af262ab6685873f47478";
 export const PROVIDER_DISPOSITIONS = Object.freeze(["http_400_text_format_schema", "http_non_2xx", "responses_incomplete_content_filter", "responses_incomplete_max_output", "responses_incomplete_other", "responses_completed_empty_output", "responses_completed_non_text_output", "responses_completed_schema_invalid", "responses_completed_valid"]);
 
+// A02/B05: the bounded PUBLIC copy-failure contract, mirrored here so the metadata redactor validates
+// MEMBERSHIP (not a character-pattern approximation) at the gateway boundary. This is the SAME set the
+// producer's publicCopyFailure emits; the copy-fidelity fixtures assert byte-for-byte equality against
+// the compiled TS source (PUBLIC_COPY_FAILURE_CODES / PUBLIC_COPY_FAILURE_FIELDS), so the two can never
+// drift into "separate regex approximations".
+export const PUBLIC_COPY_FAILURE_CODES = Object.freeze([
+  "DICE_COPY_INCOMPLETE", "DICE_COPY_PROHIBITED", "DICE_COPY_ORIENTATION", "DICE_COPY_PACE",
+  "DICE_COPY_PLACE", "DICE_COPY_ORDER", "DICE_COPY_CAUTION", "DICE_COPY_STEP", "DICE_COPY_FOLLOWUP",
+  "DICE_COPY_TOKEN_CAP", "DICE_COPY_TIMEOUT", "DICE_COPY_TRANSPORT", "DICE_COPY_MALFORMED",
+  "DICE_COPY_UNPRESENTABLE", "DICE_COPY_CHECKER_CHANGED", "DICE_COPY_CHECKER_UNCERTAIN",
+  "DICE_COPY_CHECKER_INVALID", "DICE_COPY_UNAVAILABLE", "DICE_COPY_REJECTED",
+]);
+export const PUBLIC_COPY_FAILURE_FIELDS = Object.freeze([
+  "headline", "reading", "watch_out", "practical_step", "clues", "answer", "explanation",
+  "pace_band", "planet_factor", "house_factor", "synthesis", "whole_display",
+  "search_step", "followup", "editor", "copy",
+]);
+const PUBLIC_COPY_FAILURE_CODE_SET = new Set(PUBLIC_COPY_FAILURE_CODES);
+const PUBLIC_COPY_FAILURE_FIELD_SET = new Set(PUBLIC_COPY_FAILURE_FIELDS);
+
 const SHA256 = /^[a-f0-9]{64}$/u;
 const WINDOW_ID = /^dice-founder40-[a-z0-9]{16,40}$/u;
 const isProviderDisposition = (value) => PROVIDER_DISPOSITIONS.includes(value);
@@ -215,11 +235,18 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
           metadata: payload?.metadata ?? null,
         });
       }
-      // Three-stage envelope: the completed v5 response carries the Stage-3 customer copy AND the
-      // raw structured editor_response (null unless copy_source is "stage3"), which the Web boundary
-      // re-parses, re-assembles and re-validates independently (V02).
-      if (!exactKeys(payload, ["result", "question_mode", "customer_copy", "editor_response", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
-      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, customer_copy: payload.customer_copy, editor_response: payload.editor_response, metadata: payload.metadata });
+      // Four-stage envelope (Founder Option 2): the completed v5 response carries the Stage-3 customer
+      // copy, the raw structured editor_response (null unless copy_source is "stage3"), AND the typed
+      // Stage-4 checker_outcome (null unless the edit was ACCEPTED by the meaning checker). The Web
+      // boundary re-parses, re-assembles and re-validates the editor_response independently (V02) and
+      // re-validates the carried checker_outcome against the candidate it re-assembles (coverage +
+      // fingerprint binding + all-preserves) with NO second checker call (B01/B02). The envelope stays
+      // CLOSED (exact six keys): the edge ALWAYS serializes checker_outcome — null on the deterministic,
+      // fallback and unavailable paths, non-null only on an accepted stage3 edit — so there is no
+      // five-key legacy form to admit. A missing/omitted checker_outcome key is a malformed upstream
+      // envelope and is rejected here; it never reaches the Web as an authorization to display edited text.
+      if (!exactKeys(payload, ["result", "question_mode", "customer_copy", "editor_response", "checker_outcome", "metadata"])) throw new Error("LAB_V05_GATEWAY_RESPONSE_INVALID");
+      return Object.freeze({ kind: "completed", result: payload.result, question_mode: payload.question_mode, customer_copy: payload.customer_copy, editor_response: payload.editor_response, checker_outcome: payload.checker_outcome, metadata: payload.metadata });
     },
   });
 }
@@ -237,12 +264,13 @@ export function redactV05Metadata(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const base = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket", "units_consumed", "persistence_writes"];
   const copyKeys = ["astrology_provider_calls", "copy_provider_calls", "copy_source"];
-  // R04 + A02 (review): OPTIONAL bounded PUBLIC copy failure reason carried from composition, so a
+  // R04 + A02 + B05 (review): OPTIONAL bounded PUBLIC copy failure reason carried from composition, so a
   // backend editor-attempt-then-fallback keeps its reason to the Web. Not part of the all-or-none copy
-  // block. The code must be a PUBLIC token (UPPER_SNAKE only — no punctuation/lowercase/field internals),
-  // and the optional field id must be a single allow-listed lowercase token. This enforces the public
-  // failure-code contract at redaction so raw diagnostic detail can never pass.
-  const optionalKeys = ["copy_redacted_failure_code", "copy_failure_field", "editor_provider_calls", "checker_provider_calls"];
+  // block. The code must be a MEMBER of the shared PUBLIC_COPY_FAILURE_CODES set and the optional field a
+  // MEMBER of PUBLIC_COPY_FAILURE_FIELDS — membership, not a character-pattern approximation, so an
+  // arbitrary UPPER_SNAKE code (UNAPPROVED_ARBITRARY_CODE) or lowercase field (unapproved_field) can
+  // never pass even though it matches the old regex shape.
+  const optionalKeys = ["copy_redacted_failure_code", "copy_failure_field", "copy_failure_index", "editor_provider_calls", "checker_provider_calls"];
   const keys = Object.keys(value);
   if (!base.every((k) => keys.includes(k))) return null;
   if (keys.some((k) => !base.includes(k) && !copyKeys.includes(k) && !optionalKeys.includes(k))) return null;
@@ -255,11 +283,18 @@ export function redactV05Metadata(value) {
       && value.editor_provider_calls + value.checker_provider_calls !== value.copy_provider_calls) return null;
   if (Object.hasOwn(value, "copy_redacted_failure_code")) {
     const f = value.copy_redacted_failure_code;
-    if (f !== null && (typeof f !== "string" || f.length > 64 || !/^[A-Z][A-Z0-9_]*$/.test(f))) return null;
+    if (f !== null && !PUBLIC_COPY_FAILURE_CODE_SET.has(f)) return null;
   }
   if (Object.hasOwn(value, "copy_failure_field")) {
     const ff = value.copy_failure_field;
-    if (typeof ff !== "string" || ff.length > 32 || !/^[a-z][a-z0-9_]*$/.test(ff)) return null;
+    if (!PUBLIC_COPY_FAILURE_FIELD_SET.has(ff)) return null;
+  }
+  // A field or index locator may only travel ALONGSIDE a non-null public code (never on its own / a null code).
+  if ((Object.hasOwn(value, "copy_failure_field") || Object.hasOwn(value, "copy_failure_index"))
+      && !(typeof value.copy_redacted_failure_code === "string")) return null;
+  if (Object.hasOwn(value, "copy_failure_index")) {
+    const ci = value.copy_failure_index;
+    if (!Number.isInteger(ci) || ci < 0 || ci > 99) return null;
   }
   if (value.request_mode !== "founder_free_text" || !["en", "zh-Hant"].includes(value.language) || typeof value.result_class !== "string" || !Number.isInteger(value.provider_calls)) return null;
   if (value.units_consumed !== 0 || value.persistence_writes !== 0) return null;

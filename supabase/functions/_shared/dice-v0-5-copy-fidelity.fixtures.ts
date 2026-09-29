@@ -1,19 +1,21 @@
 /** Stage-4 meaning-checker — unit fixtures (node-runnable; MOCK adapter, no network). Verifies the
  * server-determined required check keys, the strict mode-aware output schema, the strict parse, the
- * SERVER acceptance rule (accept iff every required check is "preserves"), the request-local binding
- * fingerprint, the carried-outcome validation used at the Web boundary, and the one-attempt bounded
- * runner (accept / changes-reject / malformed-reject / timeout-skip / transport-reject / input-too-large
- * / no-retry). MOCK verdicts prove HANDLING and WIRING only — NOT that a real checker detects semantic
- * errors; that is the deferred live evaluation. */
+ * SERVER acceptance rule (accept iff every required check is "preserves"), the request+source binding
+ * fingerprint (B02), duplicate-key rejection (B03), the carried-outcome validation used at the Web
+ * boundary, the one-attempt bounded runner including late/aborted rejection (B06), and the largest legal
+ * verdict envelope + input for EVERY mode/language (B07 token measurement). MOCK verdicts prove HANDLING
+ * and WIRING only — NOT that a real checker detects semantic errors; that is the deferred live evaluation. */
 import {
   DICE_V05_FIDELITY_SCHEMA, DICE_V05_FIDELITY_BLOCK, WHOLE_DISPLAY_KEY,
   fidelityCheckKeys, buildFidelitySchema, buildFidelityInput, buildFidelityProviderInput,
   parseFidelityResponse, fidelityDecision, candidateFingerprint, assembledVisibleText,
   validateCarriedFidelity, fidelityOutcomeToWire, runFidelityCheck,
+  parseJsonRejectDuplicateKeys, fidelityComponentsFromWire, sha256Hex,
   CHECKER_OUTPUT_CAP, CHECKER_GEN_CAP, CHECKER_INPUT_CAP,
 } from "./dice-v0-5-copy-fidelity.ts";
 import { deterministicCustomerCopy, type DiceV05CustomerCopy, type Landing } from "./dice-v0-5-customer-copy.ts";
-import { validateDiceV05FinalResult } from "./dice-v0-5-interpretation-contract.ts";
+import { validateDiceV05FinalResult, type DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
+import type { DiceV05Language } from "./dice-v0-5-fixed-data.ts";
 import type { DiceV05ProviderAdapter, DiceV05ProviderResult } from "./dice-v0-5-window.ts";
 import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
@@ -34,13 +36,22 @@ eq(validateDiceV05FinalResult(judgment as any), "OK", "control: judgment canonic
 const jLanding = L("jupiter", "sagittarius", 1);
 const copy: DiceV05CustomerCopy = deterministicCustomerCopy(judgment as any);
 const components = { answer: "You have real support.", planet_factor: "Your side is strong.", house_factor: "The setting supports you.", synthesis: "The two agree.", watch_out: "Keep hopes realistic.", followup_1: "What is worth preparing first?" };
+const Q = "Should I accept this promotion?";
+
+// A verdict-changing SOURCE swap that is itself a schema-valid final: the meaning is opposite, so a
+// verdict produced for `judgment` must NOT validate against this one (B02 source binding).
+const judgmentOpposite = Object.freeze({ ...judgment,
+  planet_side: { ...(judgment as any).planet_side, dignity_emphasis: "difficult", prose: "Jupiter is weak and works against the matter here." },
+  house_side: { ...(judgment as any).house_side, fortune: "misfortune", prose: "House 1 is an obstructive setting that resists the matter." },
+  synthesis: "Both fixed sides are difficult and remain separate.",
+});
+eq(validateDiceV05FinalResult(judgmentOpposite as any), "OK", "control: opposite judgment canonical also valid");
 
 async function main() {
-  // Required keys = every editable component (minus pace_band) + whole_display.
+  // ---- Required keys, schema, input (unchanged contract) ------------------------------------------
   const keys = fidelityCheckKeys(judgment as any);
   ok(keys.includes("answer") && keys.includes("planet_factor") && keys.includes("house_factor") && keys.includes("synthesis") && keys.includes("watch_out") && keys.includes("followup_1") && keys.includes(WHOLE_DISPLAY_KEY), "required keys cover every edited component + whole_display");
 
-  // Schema: closed, identity pinned, checks required = keys, verdict enum.
   const schema: any = buildFidelitySchema(judgment as any, "en");
   eq(schema.additionalProperties, false, "schema closed at top level");
   eq(schema.properties.checks.additionalProperties, false, "checks object closed");
@@ -49,9 +60,7 @@ async function main() {
   eq(schema.properties.checks.required.slice().sort(), keys.slice().sort(), "checks required = the server-determined keys");
   eq(schema.properties.checks.properties.whole_display.enum, ["preserves", "changes", "uncertain"], "each check is a preserves/changes/uncertain enum");
 
-  // Input: server-built, carries source + facts + proposed + exact assembled display + mapping; the
-  // prompt is data-safe. No astrology instruction is added beyond the fixed block.
-  const input = buildFidelityInput(judgment as any, copy, components, "Should I accept this promotion?", jLanding);
+  const input = buildFidelityInput(judgment as any, copy, components, Q, jLanding);
   ok(input.fidelity_schema === DICE_V05_FIDELITY_SCHEMA && input.language === "en" && input.question_mode === "judgment", "input identity");
   ok(input.source.planet_factor && input.source.house_factor && input.source.synthesis && input.source.watch_out, "input carries the source meaning-bearing fields");
   ok((input.proposed as any).answer && (input.proposed as any).assembled_headline, "input carries the proposed components + assembled visible fields");
@@ -60,17 +69,14 @@ async function main() {
   const providerInput = buildFidelityProviderInput(input);
   ok(providerInput.startsWith(DICE_V05_FIDELITY_BLOCK), "provider input begins with the fixed checker block");
 
-  // Parse: a valid all-preserves response parses; the decision is OK.
+  // ---- Parse + acceptance rule --------------------------------------------------------------------
   const mk = (over: Record<string, string> = {}) => JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: "en", question_mode: "judgment", checks: Object.fromEntries(keys.map((k) => [k, over[k] ?? "preserves"])) });
   const good = parseFidelityResponse(judgment as any, "en", mk());
   eq(good.kind, "ok", "valid all-preserves response parses");
   eq(fidelityDecision(judgment as any, good), "OK", "server acceptance: all preserves → OK");
-
-  // Server acceptance rule: any single changes/uncertain rejects.
   eq(fidelityDecision(judgment as any, parseFidelityResponse(judgment as any, "en", mk({ watch_out: "changes" }))), "DICE_CHECKER_CHANGED", "a single 'changes' rejects");
   eq(fidelityDecision(judgment as any, parseFidelityResponse(judgment as any, "en", mk({ [WHOLE_DISPLAY_KEY]: "uncertain" }))), "DICE_CHECKER_UNCERTAIN", "a single 'uncertain' rejects");
 
-  // Strict parse: malformed JSON, extra/missing/duplicate keys, wrong identity, bad enum.
   eq(parseFidelityResponse(judgment as any, "en", "{ not json").kind, "invalid", "malformed JSON rejected");
   eq((parseFidelityResponse(judgment as any, "en", JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: "en", question_mode: "judgment", checks: Object.fromEntries(keys.map((k) => [k, "preserves"])), extra: 1 })) as any).code, "DICE_CHECKER_EXTRA_OR_MISSING_KEY", "extra top-level key rejected");
   { const c = Object.fromEntries(keys.map((k) => [k, "preserves"])); delete (c as any)[keys[0]]; eq((parseFidelityResponse(judgment as any, "en", JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: "en", question_mode: "judgment", checks: c })) as any).code, "DICE_CHECKER_CHECKS_KEYS", "missing check key rejected"); }
@@ -78,21 +84,59 @@ async function main() {
   eq((parseFidelityResponse(judgment as any, "zh-Hant", mk()) as any).code, "DICE_CHECKER_LANGUAGE", "wrong language rejected");
   eq((parseFidelityResponse(judgment as any, "en", mk({ answer: "definitely" })) as any).code, "DICE_CHECKER_VERDICT", "non-enum verdict rejected");
 
-  // Fingerprint: stable + differs when the visible text differs.
-  eq(candidateFingerprint("en", "judgment", copy), candidateFingerprint("en", "judgment", copy), "fingerprint is stable");
-  ok(candidateFingerprint("en", "judgment", copy) !== candidateFingerprint("en", "judgment", { ...copy, headline: copy.headline + " extra." }), "fingerprint differs when the displayed text differs");
+  // ---- B03: duplicate JSON keys ------------------------------------------------------------------
+  // A NESTED duplicate check key whose earlier value is rejecting must NOT be silently overwritten by a
+  // later "preserves". Plain JSON.parse would keep the last; the duplicate-aware parser rejects it.
+  const dupNested = mk().replace('"answer":"preserves"', '"answer":"changes","answer":"preserves"');
+  const dupNestedParse = parseFidelityResponse(judgment as any, "en", dupNested);
+  eq((dupNestedParse as any).code, "DICE_CHECKER_DUPLICATE_KEY", "B03: nested duplicate check key (changes then preserves) rejected");
+  eq(fidelityDecision(judgment as any, dupNestedParse), "DICE_CHECKER_DUPLICATE_KEY", "B03: the rejecting decision is not overwritten by the later preserves");
+  // A top-level duplicate identity key is rejected too.
+  const dupTop = mk().replace('"language":"en"', '"language":"en","language":"en"');
+  eq((parseFidelityResponse(judgment as any, "en", dupTop) as any).code, "DICE_CHECKER_DUPLICATE_KEY", "B03: duplicate top-level identity key rejected (even identical)");
+  // An ESCAPED-equivalent key spelling that decodes to the same key is a duplicate.
+  const dupEscaped = mk().replace('"answer":"preserves"', '"answer":"changes","an\\u0073wer":"preserves"');
+  eq((parseFidelityResponse(judgment as any, "en", dupEscaped) as any).code, "DICE_CHECKER_DUPLICATE_KEY", "B03: escaped-equivalent duplicate key ('an\\u0073wer'='answer') rejected");
+  // Direct parser unit checks.
+  eq(parseJsonRejectDuplicateKeys('{"a":1,"a":2}'), { ok: false, duplicate: true }, "B03: parser flags a top-level duplicate");
+  eq(parseJsonRejectDuplicateKeys('{"a":{"b":1,"b":2}}'), { ok: false, duplicate: true }, "B03: parser flags a nested duplicate");
+  eq((parseJsonRejectDuplicateKeys('{"a":1,"b":2}') as any).ok, true, "B03: distinct keys parse ok");
+  eq((parseJsonRejectDuplicateKeys('{bad') as any).duplicate, false, "B03: a plain syntax error is not reported as a duplicate");
 
-  // Carried-outcome validation (Web boundary, no second call): OK; binding mismatch; coverage; missing; non-preserves.
-  const fp = candidateFingerprint("en", "judgment", copy);
+  // ---- B02: request + source binding fingerprint --------------------------------------------------
+  // Stable and collision-resistant (SHA-256, 64 hex). Both sides recompute it from server-derived state.
+  const fp = candidateFingerprint(judgment as any, copy, components, Q, jLanding);
+  eq(candidateFingerprint(judgment as any, copy, components, Q, jLanding), fp, "B02: fingerprint is stable for identical inputs");
+  ok(/^[0-9a-f]{64}$/.test(fp), "B02: fingerprint is a 64-hex collision-resistant digest, not an 8-char hash");
+  eq(sha256Hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "B02: SHA-256 matches the FIPS 180-4 test vector for \"abc\"");
+  // Each binding dimension changes the fingerprint.
+  ok(fp !== candidateFingerprint(judgment as any, { ...copy, headline: copy.headline + " extra." }, components, Q, jLanding), "B02: differs when the displayed candidate text differs");
+  ok(fp !== candidateFingerprint(judgmentOpposite as any, copy, components, Q, jLanding), "B02: differs when the SOURCE interpretation differs (same visible text)");
+  ok(fp !== candidateFingerprint(judgment as any, copy, components, "A different question?", jLanding), "B02: differs when the question differs");
+  ok(fp !== candidateFingerprint(judgment as any, copy, components, Q, L("jupiter", "sagittarius", 2)), "B02: differs when the trusted landing differs");
+  ok(fp !== candidateFingerprint(judgment as any, copy, { ...components, watch_out: "Something unrelated." }, Q, jLanding), "B02: differs when the proposed components differ");
+
+  // Carried-outcome validation (Web boundary, no second call).
   const outcome = fidelityOutcomeToWire("en", "judgment", Object.fromEntries(keys.map((k) => [k, "preserves"])) as any, fp);
-  eq(validateCarriedFidelity(outcome, judgment as any, "en", copy), "OK", "a bound all-preserves carried outcome is accepted");
-  eq(validateCarriedFidelity({ ...outcome, fingerprint: "deadbeef" }, judgment as any, "en", copy), "DICE_CHECKER_BINDING", "a verdict bound to a DIFFERENT candidate is rejected (binding)");
-  eq(validateCarriedFidelity({ ...outcome, checks: { ...outcome.checks, watch_out: "changes" } }, judgment as any, "en", copy), "DICE_CHECKER_CHANGED", "a carried 'changes' verdict is rejected");
-  eq(validateCarriedFidelity(null, judgment as any, "en", copy), "DICE_CHECKER_MISSING", "a missing carried outcome is rejected");
-  { const short: any = { ...outcome, checks: { ...outcome.checks } }; delete short.checks[keys[0]]; eq(validateCarriedFidelity(short, judgment as any, "en", copy), "DICE_CHECKER_COVERAGE", "an under-covering carried outcome is rejected"); }
+  eq(validateCarriedFidelity(outcome, judgment as any, "en", copy, components, Q, jLanding), "OK", "a bound all-preserves carried outcome is accepted");
+  eq(validateCarriedFidelity({ ...outcome, fingerprint: "0".repeat(64) }, judgment as any, "en", copy, components, Q, jLanding), "DICE_CHECKER_BINDING", "a verdict bound to a DIFFERENT candidate is rejected (binding)");
+  // B02 CORE REPRODUCTION: the SAME verdict + candidate copy, but replayed against a DIFFERENT source
+  // interpretation, must be rejected on binding (the review's P02 previously returned OK).
+  eq(validateCarriedFidelity(outcome, judgmentOpposite as any, "en", copy, components, Q, jLanding), "DICE_CHECKER_BINDING", "B02: a verdict replayed against a different SOURCE is rejected (no second call)");
+  eq(validateCarriedFidelity(outcome, judgment as any, "en", copy, components, "A different question?", jLanding), "DICE_CHECKER_BINDING", "B02: a verdict replayed against a different QUESTION is rejected");
+  eq(validateCarriedFidelity(outcome, judgment as any, "en", copy, components, Q, L("jupiter", "sagittarius", 2)), "DICE_CHECKER_BINDING", "B02: a verdict replayed against a different LANDING is rejected");
+  eq(validateCarriedFidelity(null, judgment as any, "en", copy, components, Q, jLanding), "DICE_CHECKER_MISSING", "a missing carried outcome is rejected");
+  { const short: any = { ...outcome, checks: { ...outcome.checks } }; delete short.checks[keys[0]]; eq(validateCarriedFidelity(short, judgment as any, "en", copy, components, Q, jLanding), "DICE_CHECKER_COVERAGE", "an under-covering carried outcome is rejected on coverage"); }
+  // A correctly-bound outcome that carries a real 'changes' verdict is rejected on the VERDICT (the
+  // fingerprint binds candidate + source + request, not the verdict values, so a non-preserves verdict
+  // is caught by the explicit all-preserves rule, never silently accepted).
+  { const chg = fidelityOutcomeToWire("en", "judgment", { ...Object.fromEntries(keys.map((k) => [k, "preserves"])), watch_out: "changes" } as any, candidateFingerprint(judgment as any, copy, components, Q, jLanding)); eq(validateCarriedFidelity(chg, judgment as any, "en", copy, components, Q, jLanding), "DICE_CHECKER_CHANGED", "a correctly-bound 'changes' verdict is rejected on the verdict"); }
 
-  // Runner (one bounded attempt): accept; changes → reject; malformed → reject; timeout skip; transport;
-  // input-too-large; and it makes AT MOST one call (no retry).
+  // fidelityComponentsFromWire strips identity keys and matches on both sides.
+  const wire = { schema: "lumis_dice_editor_v2", status: "ok", language: "en", question_mode: "judgment", ...components };
+  eq(fidelityComponentsFromWire(wire), components, "B02: components extracted from the flat wire match the composition's map");
+
+  // ---- Runner: one bounded attempt ----------------------------------------------------------------
   let calls = 0;
   const adapter = (verdict: "preserves" | "changes" | "bad" | "network"): DiceV05ProviderAdapter => ({
     invoke: async (req: any) => {
@@ -103,27 +147,113 @@ async function main() {
       return { kind: "success", content: JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: req.schema.properties.language.const, question_mode: req.schema.properties.question_mode.const, checks: Object.fromEntries(ks.map((k) => [k, verdict === "changes" ? (k === WHOLE_DISPLAY_KEY ? "changes" : "preserves") : "preserves"])) }) } as any;
     },
   });
-  calls = 0; const rAccept = await runFidelityCheck(judgment as any, copy, components, "q", adapter("preserves"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
+  calls = 0; const rAccept = await runFidelityCheck(judgment as any, copy, components, Q, adapter("preserves"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
   ok(rAccept.accepted && rAccept.outcome && rAccept.calls === 1, "runner: all-preserves → accepted, 1 call, outcome carried");
-  ok(rAccept.outcome!.fingerprint === candidateFingerprint("en", "judgment", copy), "runner: the outcome is fingerprint-bound to the candidate");
-  calls = 0; const rChanges = await runFidelityCheck(judgment as any, copy, components, "q", adapter("changes"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
+  ok(rAccept.outcome!.fingerprint === candidateFingerprint(judgment as any, copy, components, Q, jLanding), "runner: the outcome is fingerprint-bound to the candidate + source + request");
+  calls = 0; const rChanges = await runFidelityCheck(judgment as any, copy, components, Q, adapter("changes"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
   ok(!rChanges.accepted && rChanges.failure === "DICE_CHECKER_CHANGED" && calls === 1, "runner: a 'changes' verdict → rejected, exactly 1 call (no retry)");
-  calls = 0; const rBad = await runFidelityCheck(judgment as any, copy, components, "q", adapter("bad"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
+  calls = 0; const rBad = await runFidelityCheck(judgment as any, copy, components, Q, adapter("bad"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
   ok(!rBad.accepted && calls === 1, "runner: malformed checker output → rejected, no retry");
-  calls = 0; const rNet = await runFidelityCheck(judgment as any, copy, components, "q", adapter("network"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
+  calls = 0; const rNet = await runFidelityCheck(judgment as any, copy, components, Q, adapter("network"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
   ok(!rNet.accepted && rNet.failure === "DICE_CHECKER_NETWORK" && calls === 1, "runner: transport failure → rejected, NO hidden retry");
-  calls = 0; const rSkip = await runFidelityCheck(judgment as any, copy, components, "q", adapter("preserves"), { now: () => 5000, deadlineAtMs: 4000, landing: jLanding });
+  calls = 0; const rSkip = await runFidelityCheck(judgment as any, copy, components, Q, adapter("preserves"), { now: () => 5000, deadlineAtMs: 4000, landing: jLanding });
   ok(!rSkip.accepted && rSkip.failure === "DICE_CHECKER_SKIPPED_TIMEOUT" && calls === 0, "runner: expired shared deadline → ZERO checker transport, skipped (never passed)");
-  // Input too large → controlled fallback, not truncation. A giant question blows the input cap.
   calls = 0; const rBig = await runFidelityCheck(judgment as any, copy, components, "x ".repeat(6000), adapter("preserves"), { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
   ok(!rBig.accepted && rBig.failure === "DICE_CHECKER_INPUT_TOO_LARGE" && calls === 0, "runner: over-cap comparison input → controlled fallback, no truncation, no call");
 
-  // Recorded bounds (measured with the production tokenizer), not merely "within budget".
-  const largestVerdict = mk(Object.fromEntries(keys.map((k) => [k, "uncertain"])));
-  const verdictTokens = measureDiceTokenLimit(largestVerdict, CHECKER_OUTPUT_CAP);
-  ok(verdictTokens.within_limit, `largest legal verdict envelope within CHECKER_OUTPUT_CAP=${CHECKER_OUTPUT_CAP} (tokens=${verdictTokens.token_count})`);
-  const inTokens = measureDiceTokenLimit(providerInput, CHECKER_INPUT_CAP).token_count;
-  console.log(`checker-io judgment: verdict_tokens=${verdictTokens.token_count} cap=${CHECKER_OUTPUT_CAP}; input_tokens=${inTokens} cap=${CHECKER_INPUT_CAP}; generation_allowance=${CHECKER_GEN_CAP} (reasoning-aware, not a visible bound)`);
+  // ---- B06: a completion that only settles AFTER the deadline is NOT accepted ---------------------
+  // Controlled clock: start 1000, deadline 2000; the adapter advances the clock to 3000 before it
+  // returns a well-formed all-preserves verdict. The runner must reject (late), not accept.
+  {
+    let clock = 1000;
+    const lateAdapter: DiceV05ProviderAdapter = { invoke: async (req: any) => { clock = 3000; const ks: string[] = req.schema.properties.checks.required; return { kind: "success", content: JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: req.schema.properties.language.const, question_mode: req.schema.properties.question_mode.const, checks: Object.fromEntries(ks.map((k) => [k, "preserves"])) }) } as any; } };
+    const late = await runFidelityCheck(judgment as any, copy, components, Q, lateAdapter, { now: () => clock, deadlineAtMs: 2000, landing: jLanding });
+    ok(!late.accepted && late.failure === "DICE_CHECKER_TIMEOUT", "B06: a verdict that settles after the absolute deadline is rejected (not accepted)");
+    ok(late.calls === 1, "B06: the late transported call is still honestly counted");
+  }
+  // Preprocessing that itself exhausts the budget: deadline passes exactly at/after input construction.
+  {
+    const times = [1500, 2500]; let i = 0; // first read (initial guard) ok; second read (post-build) expired
+    const neverAdapter: DiceV05ProviderAdapter = { invoke: async () => { throw new Error("must not be called"); } };
+    const r = await runFidelityCheck(judgment as any, copy, components, Q, neverAdapter, { now: () => times[Math.min(i++, times.length - 1)], deadlineAtMs: 2000, landing: jLanding });
+    ok(!r.accepted && r.failure === "DICE_CHECKER_SKIPPED_TIMEOUT" && r.calls === 0, "B06: budget exhausted during preprocessing → skipped before transport, zero calls");
+  }
+
+  // ---- B07: largest legal verdict envelope + input per mode/language ------------------------------
+  // The verdict envelope's size is driven by the number of required check keys (ASCII keys + ASCII enum
+  // values), so it is LANGUAGE-INDEPENDENT; the input size differs by language (source prose). We build
+  // the MAX-legal-key canonical for every mode and measure both, asserting they stay within the caps.
+  type Row = { mode: DiceV05Mode; language: DiceV05Language; canonical: any; landing: Landing };
+  const maxRows: Row[] = [
+    { mode: "judgment", language: "en", landing: L("jupiter", "sagittarius", 1), canonical: {
+      ...judgment, watch_out: "Keep optimism realistic even with strong support, and do not overcommit early.",
+      suggested_followups: ["What should I prepare first?", "Who should I involve early on?", "What would make me reconsider this?"] } },
+    { mode: "judgment", language: "zh-Hant", landing: L("jupiter", "sagittarius", 1), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "judgment",
+      planet_side: { fortune: "major_benefic", fortune_zh: "大吉星", dignity: "ruler", dignity_zh: "守護", strength: "strong", constructive_traits: "慷慨", difficult_traits: "浪費", dignity_emphasis: "constructive", prose: "木星在這裡是強而有力的吉星，主動而有信心地推動事情。" },
+      house_side: { fortune: "great_fortune", fortune_zh: "大吉", rank: 1, prose: "第一宮把事情牢牢放在你自己手上，環境相當支持。" },
+      most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "兩邊都各自有利，並沒有互相抵消，所以整體形勢是支持的。", timing_summary: null,
+      watch_out: "在有支持的時候，也要保持務實，不要太早過度承諾。", practical_step: null,
+      suggested_followups: ["我應該先準備甚麼？", "應該及早找誰參與？", "甚麼情況會讓我重新考慮？"] } },
+    { mode: "timing", language: "en", landing: L("saturn", "capricorn", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "timing",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "The matter needs time to develop, though the present setting helps move it along a little faster than its own slow pace.",
+      timing_summary: "The pace is moderate: not immediate, but not stalled for long either.",
+      watch_out: "Do not force an early result before the groundwork is in place.", practical_step: null, suggested_followups: [] } },
+    { mode: "timing", language: "zh-Hant", landing: L("saturn", "capricorn", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "timing",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "事情本身需要較長時間處理，不過目前的環境有助推動進度，所以整體會比原本的慢節奏快一些。", timing_summary: "進度屬於中等，不會即時有結果，但亦不會長期停滯。",
+      watch_out: "在基礎未穩之前，不要勉強追求太早的結果。", practical_step: null, suggested_followups: [] } },
+    { mode: "location", language: "en", landing: L("moon", "cancer", 4), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "location",
+      planet_side: null, house_side: null, most_likely_area: "Most likely a quiet, everyday storage spot at home.",
+      location_candidates: [
+        { rank: 1, place: "the bedroom", evidence: { planet_ids: ["planet.moon.related.bedroom"], house_ids: [], element_ids: [] } },
+        { rank: 2, place: "the kitchen", evidence: { planet_ids: [], house_ids: ["house.4.related.kitchen"], element_ids: [] } },
+        { rank: 3, place: "the living room", evidence: { planet_ids: [], house_ids: ["house.4.related.living"], element_ids: [] } },
+        { rank: 4, place: "the hallway cupboard", evidence: { planet_ids: [], house_ids: ["house.4.related.storage"], element_ids: [] } },
+      ],
+      location_extension: null, location_search_order: [1, 2, 3, 4],
+      synthesis: "The Moon points to a private, domestic setting, so begin indoors where daily items are kept and rarely disturbed.",
+      timing_summary: null, watch_out: "Do not assume it is permanently lost before a careful look.",
+      practical_step: "Start with the bedroom, then check the kitchen, then the living room, then the hallway cupboard.", suggested_followups: [] } },
+    { mode: "person", language: "en", landing: L("saturn", "taurus", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "person",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "This person is careful and practical, and tends to build trust slowly through consistent, dependable actions over time.",
+      timing_summary: null, watch_out: "They may seem reserved and slow to open up before they feel settled.",
+      practical_step: "Give them clear, concrete information and time, rather than pressure.", suggested_followups: [] } },
+    { mode: "reason", language: "en", landing: L("saturn", "taurus", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "reason",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "The cause is most likely a practical, structural constraint that built up gradually rather than a sudden or emotional trigger.",
+      timing_summary: null, watch_out: "Do not assume a single dramatic cause when steady pressure is the better explanation.",
+      practical_step: "Look for the slow, concrete factors first before considering anything sudden.", suggested_followups: [] } },
+    { mode: "thing_or_situation", language: "en", landing: L("saturn", "taurus", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "en", question_mode: "thing_or_situation",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "The situation is stable and durable but slow to change, favouring patience and steady maintenance over rapid moves.",
+      timing_summary: null, watch_out: "Do not expect a quick turnaround; forcing it risks undoing the stability.",
+      practical_step: "Consolidate what already works before attempting any large change.", suggested_followups: [] } },
+  ];
+  for (const row of maxRows) {
+    eq(validateDiceV05FinalResult(row.canonical), "OK", `B07: max-legal ${row.mode}/${row.language} canonical is a valid final`);
+    const rowCopy = deterministicCustomerCopy(row.canonical);
+    const rowKeys = fidelityCheckKeys(row.canonical);
+    // Largest legal verdict = every required check at the LONGEST enum value ("uncertain").
+    const largest = JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: row.language, question_mode: row.mode, checks: Object.fromEntries(rowKeys.map((k) => [k, "uncertain"])) });
+    const vTok = measureDiceTokenLimit(largest, CHECKER_OUTPUT_CAP);
+    ok(vTok.within_limit, `B07: ${row.mode}/${row.language} largest verdict (${rowKeys.length} keys) within CHECKER_OUTPUT_CAP=${CHECKER_OUTPUT_CAP} (tokens=${vTok.token_count})`);
+    // The comparison INPUT at this max canonical stays within the input cap (never truncated).
+    const rowComponents = fidelityComponentsFromWire({ schema: "lumis_dice_editor_v2", status: "ok", language: row.language, question_mode: row.mode, ...Object.fromEntries(rowKeys.filter((k) => k !== WHOLE_DISPLAY_KEY).map((k) => [k, "x"])) });
+    const rowInput = buildFidelityProviderInput(buildFidelityInput(row.canonical, rowCopy, rowComponents, row.language === "en" ? "A representative maximal question for measurement?" : "一個用於量度的代表性最長問題？", row.landing));
+    const iTok = measureDiceTokenLimit(rowInput, CHECKER_INPUT_CAP);
+    ok(iTok.within_limit, `B07: ${row.mode}/${row.language} max comparison input within CHECKER_INPUT_CAP=${CHECKER_INPUT_CAP} (tokens=${iTok.token_count})`);
+    console.log(`checker-io ${row.mode}/${row.language}: keys=${rowKeys.length} verdict_tokens=${vTok.token_count} cap=${CHECKER_OUTPUT_CAP}; input_tokens=${iTok.token_count} cap=${CHECKER_INPUT_CAP}; generation_allowance=${CHECKER_GEN_CAP}`);
+  }
 
   console.log("dice-v0-5 copy-fidelity (Stage 4 meaning checker) fixtures passed");
 }

@@ -88,22 +88,55 @@ export const PUBLIC_COPY_FAILURE_CODES = Object.freeze([
   "DICE_COPY_UNPRESENTABLE", "DICE_COPY_CHECKER_CHANGED", "DICE_COPY_CHECKER_UNCERTAIN",
   "DICE_COPY_CHECKER_INVALID", "DICE_COPY_UNAVAILABLE", "DICE_COPY_REJECTED",
 ] as const);
-// Field ids that may travel ALONGSIDE a public code (bounded allowlist; never free text).
-const PUBLIC_COPY_FAILURE_FIELDS = new Set<string>([
+// Field ids that may travel ALONGSIDE a public code (bounded allowlist; never free text). Exported so
+// the same membership set validates at EVERY boundary (composition, edge, gateway redactor, Web) rather
+// than a per-boundary regex approximation (B05).
+export const PUBLIC_COPY_FAILURE_FIELDS = new Set<string>([
   "headline", "reading", "watch_out", "practical_step", "clues", "answer", "explanation",
   "pace_band", "planet_factor", "house_factor", "synthesis", "whole_display",
   "search_step", "followup", "editor", "copy",
 ]);
 export type PublicCopyFailure = Readonly<{ code: string; field?: string; index?: number }>;
+// Map ANY internal diagnostic (with an optional "…:where.field#index" locator and/or a
+// "|FALLBACK_…" suffix) to the bounded PUBLIC contract: a member of PUBLIC_COPY_FAILURE_CODES plus an
+// optional allow-listed field id and index. Two properties the review (B05) requires:
+//  1. IDEMPOTENT — an already-public code (with or without a field locator) maps to itself, so
+//     re-mapping already-mapped metadata never degrades it or loses its field/index.
+//  2. Stage-4 CHECKER failures preserve their SPECIFIC category (changed / uncertain / timeout-or-
+//     skipped / transport / input-or-output token limit) BEFORE the generic invalid-content case, so an
+//     expired budget or a failed transport is never mislabelled as invalid checker CONTENT.
 export function publicCopyFailure(internalCode: string | null | undefined): PublicCopyFailure {
   const raw = String(internalCode ?? "");
   const head = raw.split("|")[0]; // strip any "|FALLBACK_..." suffix
-  const upper = head.toUpperCase();
+  // Extract the optional trailing "…:where.field#index" locator FIRST, so the bare code can be matched
+  // (and an already-public code recognised) without the suffix interfering. Field is allow-listed only.
+  let bare = head;
+  let field: string | undefined;
+  let index: number | undefined;
+  const m = /:([a-z0-9_.]+?)(?:#(\d+))?$/i.exec(head);
+  if (m) {
+    bare = head.slice(0, m.index);
+    let f = m[1].toLowerCase();
+    if (f.includes(".")) f = f.slice(f.lastIndexOf(".") + 1);
+    const base = f.replace(/_\d+$/, ""); // search_step_1 -> search_step, followup_2 -> followup
+    if (PUBLIC_COPY_FAILURE_FIELDS.has(f)) field = f;
+    else if (PUBLIC_COPY_FAILURE_FIELDS.has(base)) field = base;
+    if (m[2]) index = Number(m[2]);
+  }
+  const upper = bare.toUpperCase();
   const has = (...needles: string[]) => needles.some((n) => upper.includes(n));
-  let code = "DICE_COPY_REJECTED";
-  if (has("CHECKER_CHANGED")) code = "DICE_COPY_CHECKER_CHANGED";
-  else if (has("CHECKER_UNCERTAIN")) code = "DICE_COPY_CHECKER_UNCERTAIN";
-  else if (has("CHECKER")) code = "DICE_COPY_CHECKER_INVALID";
+  let code: string;
+  if ((PUBLIC_COPY_FAILURE_CODES as readonly string[]).includes(bare)) {
+    code = bare; // idempotent: already public.
+  } else if (has("CHECKER")) {
+    // Stage-4 meaning-checker failure: keep the specific category before the generic invalid case.
+    if (has("CHANGED")) code = "DICE_COPY_CHECKER_CHANGED";
+    else if (has("UNCERTAIN")) code = "DICE_COPY_CHECKER_UNCERTAIN";
+    else if (has("SKIPPED", "TIMEOUT")) code = "DICE_COPY_TIMEOUT";
+    else if (has("NETWORK", "TRANSPORT", "PERMISSION", "AUTHENTICATION", "CONTENT_FILTER")) code = "DICE_COPY_TRANSPORT";
+    else if (has("TOKEN_CAP", "OUTPUT_TOKEN", "INPUT_TOO_LARGE", "TOO_LARGE", "RAW_OUTPUT")) code = "DICE_COPY_TOKEN_CAP";
+    else code = "DICE_COPY_CHECKER_INVALID"; // genuine invalid/missing/unbound checker content
+  }
   else if (has("UNPRESENTABLE")) code = "DICE_COPY_UNPRESENTABLE";
   else if (has("TIMEOUT")) code = "DICE_COPY_TIMEOUT";
   else if (has("NETWORK", "TRANSPORT", "PERMISSION", "AUTHENTICATION", "CONTENT_FILTER")) code = "DICE_COPY_TRANSPORT";
@@ -117,19 +150,12 @@ export function publicCopyFailure(internalCode: string | null | undefined): Publ
   else if (has("FOLLOWUP")) code = "DICE_COPY_FOLLOWUP";
   else if (has("CAUTION")) code = "DICE_COPY_CAUTION";
   else if (has("STEP")) code = "DICE_COPY_STEP";
-  else if (has("EDITOR", "JSON", "SHAPE", "KEY", "SCHEMA", "MODE_CHANGED", "LANGUAGE", "STATUS")) code = "DICE_COPY_MALFORMED";
+  else if (has("EDITOR", "JSON", "SHAPE", "KEY", "SCHEMA", "MALFORMED", "MODE_CHANGED", "LANGUAGE", "STATUS")) code = "DICE_COPY_MALFORMED";
   else if (has("UNAVAILABLE")) code = "DICE_COPY_UNAVAILABLE";
-  // Optional field id + index from an internal "…:where.field#index" suffix, allowlisted only.
+  else code = "DICE_COPY_REJECTED";
   const out: { code: string; field?: string; index?: number } = { code };
-  const m = /:([a-z0-9_.]+?)(?:#(\d+))?$/i.exec(head);
-  if (m) {
-    let field = m[1].toLowerCase();
-    if (field.includes(".")) field = field.slice(field.lastIndexOf(".") + 1);
-    const base = field.replace(/_\d+$/, ""); // search_step_1 -> search_step, followup_2 -> followup
-    if (PUBLIC_COPY_FAILURE_FIELDS.has(field)) out.field = field;
-    else if (PUBLIC_COPY_FAILURE_FIELDS.has(base)) out.field = base;
-    if (m[2]) out.index = Number(m[2]);
-  }
+  if (field) out.field = field;
+  if (index !== undefined) out.index = index;
   return Object.freeze(out);
 }
 
@@ -1153,17 +1179,24 @@ export function assembleEditorCopy(
   if (canonical.watch_out != null) {
     const src = String(canonical.watch_out);
     const w = String(c.watch_out);
-    // C03/C07 + R01: a caution must not be inverted into an all-clear, must not REVERSE the source
-    // polarity (clause-scoped negation flip on a shared token), and must RETAIN the source warning's
-    // subject (share >=1 salient token with the source, so a warning cannot silently vanish into an
-    // unrelated statement — review N07). It does NOT force any stock warning word (C07/P10). For
-    // Location it introduces no unsupported place (C04/P08). The retention check is a conservative
-    // heuristic: a fully-synonymised caution with zero shared tokens is rejected (disclosed, RG3).
+    // C03/C07 + R01: a caution must not be inverted into an all-clear and must not REVERSE the source
+    // polarity (clause-scoped negation flip on a shared token). It does NOT force any stock warning word
+    // (C07/P10). For Location it introduces no unsupported place (C04/P08). These are HARD STRUCTURAL /
+    // high-confidence content checks.
+    //
+    // B04 (review): the former zero-shared-token "DICE_COPY_CAUTION_LOST" floor is REMOVED. A faithful
+    // synonym caution ("Avoid pressure." → "Do not push." / a zh synonym) shares no words with its
+    // source yet preserves the meaning, so a literal-overlap floor false-rejected it BEFORE the mandatory
+    // meaning checker could evaluate it — contradicting §6 and defeating the checker's purpose. Whether a
+    // fully-reworded caution still preserves the warning (or drifts into an unrelated statement) is a
+    // SEMANTIC judgement, now routed to the Stage-4 checker: a faithful synonym reaches it and displays on
+    // "preserves"; an unrelated replacement is caught by the checker's "changes" and falls back. We do NOT
+    // substitute a different keyword threshold here (the review forbids that); only the high-confidence
+    // structural guards above remain hard.
     if (ALL_CLEAR.test(w)) return fail("DICE_COPY_CAUTION_INVERTED");
     if (polarityReversed(src, w)) return fail("DICE_COPY_CAUTION_REVERSED");
-    // An unsupported place is a hard content violation, checked before subject retention.
+    // An unsupported place is a hard content violation (selected Location evidence), always enforced.
     if (fam === "location") for (const m of w.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_CAUTION_UNSUPPORTED_PLACE");
-    if (sharedTokenCount(src, w) === 0) return fail("DICE_COPY_CAUTION_LOST");
     watch_out = ensureTerminal(w, zh);
   }
   if (canonical.practical_step != null) {

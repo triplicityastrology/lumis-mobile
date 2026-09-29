@@ -46,7 +46,7 @@ function loadAuthoritativeCopyValidator() {
       import(pathToFileURL(COMPILED_COPY_MODULE).href),
       import(pathToFileURL(COMPILED_CONTRACT_MODULE).href),
       import(pathToFileURL(COMPILED_FIDELITY_MODULE).href),
-    ]).then(([copy, contract, fidelity]) => ({ ...copy, validateDiceV05FinalResult: contract.validateDiceV05FinalResult, validateCarriedFidelity: fidelity.validateCarriedFidelity })).catch((error) => {
+    ]).then(([copy, contract, fidelity]) => ({ ...copy, validateDiceV05FinalResult: contract.validateDiceV05FinalResult, validateCarriedFidelity: fidelity.validateCarriedFidelity, fidelityComponentsFromWire: fidelity.fidelityComponentsFromWire })).catch((error) => {
       _copyValidatorPromise = null;
       throw new Error(`LAB_V05_AUTHORITATIVE_VALIDATOR_UNAVAILABLE: build the v5 test output first (tsc -p supabase/functions/tsconfig.dice-v0-5-test.json). ${error?.message ?? error}`);
     });
@@ -429,9 +429,13 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
           // Stage 4 (Option 2): the Web must NOT render an unchecked editor response just because
           // copy_source says stage3. Validate the CARRIED checker outcome against the candidate the Web
           // itself re-assembled — coverage + fingerprint binding + every verdict "preserves" — with NO
-          // second checker call. A missing/unbound/insufficient outcome, or any non-preserves verdict,
-          // rejects the edit and falls back.
-          const fidelityVerdict = cp.validateCarriedFidelity(response.checker_outcome, result, result.language, assembled.copy);
+          // second checker call. B02: the binding covers the SOURCE, trusted facts/landing, question and
+          // request identity, so a verdict produced for a different source/question/landing/candidate
+          // cannot match. Components come from the SAME flat wire via the shared helper; the question and
+          // landing are the Web's OWN validated request values, never browser-supplied. A missing/unbound/
+          // insufficient outcome, or any non-preserves verdict, rejects the edit and falls back.
+          const editorComponents = cp.fidelityComponentsFromWire(supplied);
+          const fidelityVerdict = cp.validateCarriedFidelity(response.checker_outcome, result, result.language, assembled.copy, editorComponents, selection.question, landing);
           if (fidelityVerdict === "OK") { displayCopy = assembled.copy; copySource = "stage3"; }
           else copyFailure = fidelityVerdict;
         } else copyFailure = displayVerdict;
@@ -467,7 +471,7 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   // browser — bounded code + optional allow-listed field, never raw diagnostic detail.
   const pub = copyFailure ? cp.publicCopyFailure(copyFailure) : null;
   const classification = copySource === "fallback"
-    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: pub.code, ...(pub.field ? { failure_field: pub.field } : {}) }
+    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: pub.code, ...(pub.field ? { failure_field: pub.field } : {}), ...(pub.index !== undefined ? { failure_index: pub.index } : {}) }
     : { question_mode: result.question_mode, copy_source: copySource };
   // C08: make the `copy_source` field CONSISTENT across metadata and classification — it is the ACTUAL
   // DISPLAYED source. When the upstream generation intent differed (e.g. the backend generated "stage3"
@@ -476,7 +480,7 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   // reported as if its prose were displayed.
   const reportedMetadata = metadata.copy_source === copySource
     ? metadata
-    : Object.freeze({ ...metadata, copy_source: copySource, copy_source_upstream: metadata.copy_source, ...(pub ? { copy_redacted_failure_code: pub.code, ...(pub.field ? { copy_failure_field: pub.field } : {}) } : {}) });
+    : Object.freeze({ ...metadata, copy_source: copySource, copy_source_upstream: metadata.copy_source, ...(pub ? { copy_redacted_failure_code: pub.code, ...(pub.field ? { copy_failure_field: pub.field } : {}), ...(pub.index !== undefined ? { copy_failure_index: pub.index } : {}) } : {}) });
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification, metadata: reportedMetadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   } catch {
     // Gateway/transport or downstream execution failure on a VALID request → controlled 502 service

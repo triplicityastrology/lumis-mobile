@@ -563,8 +563,23 @@ eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at h
 ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Give them space and avoid pressure." }, judgmentLanding).ok, "R01/N03 EN: a faithful caution ('...and avoid pressure') is accepted (clause-scoped negation)");
 // R01 (N04): a DIRECT reversal in a later clause is rejected (the earlier 'Avoid' does not scope to it).
 eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid haste. Apply pressure." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "R01/N04 EN: a reversal in a later clause ('Avoid haste. Apply pressure.') is rejected (clause-scoped)");
-// R01 (N07): a caution replaced by an UNRELATED statement (warning lost) is rejected — subject retention.
-eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "This concerns the general tone of the matter." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_LOST" }, "R01/N07 EN: a caution that loses the source warning's subject is rejected (retention, not a stock-word rule)");
+// B04 (independent review): the former zero-shared-token "DICE_COPY_CAUTION_LOST" floor is REMOVED. A
+// faithful synonym caution that shares NO words with its source now PASSES assembly and is routed to the
+// mandatory Stage-4 checker (whether it truly preserves the warning — or drifts into an unrelated
+// statement — is a SEMANTIC judgement the checker makes; the composition/Web tests cover display-on-
+// preserves and fallback-on-changes). Only the high-confidence STRUCTURAL guards remain hard here.
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Do not push them." }, judgmentLanding).ok, "B04 EN: a faithful synonym caution ('Avoid putting pressure…' → 'Do not push them.') with zero shared words now passes assembly (routed to the checker), not hard-rejected");
+{ // The exact review example: "Avoid pressure." → "Do not push."
+  const avoidJudg = Object.freeze({ ...(mixedJudg as any), watch_out: "Avoid pressure.", suggested_followups: [] });
+  ok(asm(avoidJudg, "en", "judgment", { ...faithFactors, watch_out: "Do not push." }, judgmentLanding).ok, "B04 EN: the exact review example 'Avoid pressure.' → 'Do not push.' passes assembly");
+}
+// A faithful zh synonym caution (zero shared tokens) likewise passes assembly.
+ok(asm(Object.freeze({ ...(judgmentCanonical as any), watch_out: "留意跟進時的語氣，不要催逼對方。", suggested_followups: [] }), "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", watch_out: "不要迫得太緊。" }, judgmentLanding).ok, "B04 zh: a faithful zh synonym caution ('不要催逼對方' → '不要迫得太緊') passes assembly");
+// An UNRELATED replacement is ALSO not hard-rejected at assembly any more — it reaches the checker,
+// which returns 'changes' → fallback (verified at the composition/Web boundary, see the contract test).
+// The hard STRUCTURAL guards still fire: an inversion into an all-clear and a polarity reversal.
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "This concerns the general tone of the matter." }, judgmentLanding).ok, "B04 EN: an unrelated caution replacement is no longer hard-rejected at assembly (routed to the checker for the semantic decision)");
+eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Everything is fine, no need to be careful." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_INVERTED" }, "B04 EN: a caution INVERTED into an all-clear is STILL hard-rejected (structural guard retained)");
 // C05 (P04) EN swap: two follow-ups exchanged between positions are rejected (relative slot anchoring).
 const enTwoFollowup = Object.freeze({ ...(enJudgment as any), suggested_followups: ["What should I prepare first?", "When is the best time to raise it?"] });
 const enTwoFactors = { answer: "You have real support, and the setting is favourable.", planet_factor: "Your own capacity is strong and works in your favour.", house_factor: "The situation around you is also supportive and helps.", synthesis: "The two sides agree here rather than pulling against each other." };

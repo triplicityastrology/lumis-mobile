@@ -36,7 +36,7 @@ import {
   publicCopyFailure,
   type DiceV05CustomerCopy, type DiceV05EditorWire, type Landing,
 } from "./dice-v0-5-customer-copy.ts";
-import { runFidelityCheck, type FidelityOutcomeWire } from "./dice-v0-5-copy-fidelity.ts";
+import { runFidelityCheck, fidelityComponentsFromWire, type FidelityOutcomeWire } from "./dice-v0-5-copy-fidelity.ts";
 import type { DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
 import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 
@@ -111,10 +111,10 @@ export async function executeDiceV05FreeTextCaseWithCopy(
     // There is no editor-on/checker-off path: an accepted stage3 edit MUST pass the checker AND its
     // deterministic validation. One attempt, same deadline; skip/reject → validated fallback.
     if (copySource === "stage3" && copy.copy && copy.editor_response) {
-      const components: Record<string, string> = {};
-      for (const [k, v] of Object.entries(copy.editor_response)) {
-        if (k !== "schema" && k !== "status" && k !== "language" && k !== "question_mode") components[k] = String(v);
-      }
+      // Extract the proposed components from the FLAT editor wire via the SHARED helper, so the
+      // request-binding fingerprint the checker attaches is computed over exactly the same component map
+      // the Web re-derives from the same wire (B02).
+      const components = fidelityComponentsFromWire(copy.editor_response);
       const chk = await runFidelityCheck(canonical.result, copy.copy, components, input.question, adapterSource, { now, deadlineAtMs, landing });
       checkerCalls = chk.calls;
       if (chk.accepted) {
@@ -176,6 +176,7 @@ export async function executeDiceV05FreeTextCaseWithCopy(
       // allow-listed field) here so no punctuation/lowercase/field-internal detail ever reaches metadata.
       copy_redacted_failure_code: reason ? reason.code : null,
       ...(reason?.field ? { copy_failure_field: reason.field } : {}),
+      ...(reason && reason.index !== undefined ? { copy_failure_index: reason.index } : {}),
     },
   });
 }
