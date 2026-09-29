@@ -237,16 +237,29 @@ export function redactV05Metadata(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const base = ["request_mode", "language", "question_mode", "result_class", "provider_calls", "latency_bucket", "cost_bucket", "units_consumed", "persistence_writes"];
   const copyKeys = ["astrology_provider_calls", "copy_provider_calls", "copy_source"];
-  // R04 (review): an OPTIONAL bounded/redacted copy failure reason carried from composition, so a
+  // R04 + A02 (review): OPTIONAL bounded PUBLIC copy failure reason carried from composition, so a
   // backend editor-attempt-then-fallback keeps its reason to the Web. Not part of the all-or-none copy
-  // block; validated to be null or an internal CODE (no whitespace / raw provider text).
-  const optionalKeys = ["copy_redacted_failure_code"];
+  // block. The code must be a PUBLIC token (UPPER_SNAKE only — no punctuation/lowercase/field internals),
+  // and the optional field id must be a single allow-listed lowercase token. This enforces the public
+  // failure-code contract at redaction so raw diagnostic detail can never pass.
+  const optionalKeys = ["copy_redacted_failure_code", "copy_failure_field", "editor_provider_calls", "checker_provider_calls"];
   const keys = Object.keys(value);
   if (!base.every((k) => keys.includes(k))) return null;
   if (keys.some((k) => !base.includes(k) && !copyKeys.includes(k) && !optionalKeys.includes(k))) return null;
+  // Stage-3 editor + Stage-4 checker call counts (Option 2), tracked separately and reconciled: each is
+  // a non-negative int and, when both present with copy_provider_calls, they must sum to it.
+  for (const k of ["editor_provider_calls", "checker_provider_calls"]) {
+    if (Object.hasOwn(value, k) && (!Number.isInteger(value[k]) || value[k] < 0)) return null;
+  }
+  if (Object.hasOwn(value, "editor_provider_calls") && Object.hasOwn(value, "checker_provider_calls") && Object.hasOwn(value, "copy_provider_calls")
+      && value.editor_provider_calls + value.checker_provider_calls !== value.copy_provider_calls) return null;
   if (Object.hasOwn(value, "copy_redacted_failure_code")) {
     const f = value.copy_redacted_failure_code;
-    if (f !== null && (typeof f !== "string" || f.length > 200 || !/^[A-Z0-9_|]+$/.test(f))) return null;
+    if (f !== null && (typeof f !== "string" || f.length > 64 || !/^[A-Z][A-Z0-9_]*$/.test(f))) return null;
+  }
+  if (Object.hasOwn(value, "copy_failure_field")) {
+    const ff = value.copy_failure_field;
+    if (typeof ff !== "string" || ff.length > 32 || !/^[a-z][a-z0-9_]*$/.test(ff)) return null;
   }
   if (value.request_mode !== "founder_free_text" || !["en", "zh-Hant"].includes(value.language) || typeof value.result_class !== "string" || !Number.isInteger(value.provider_calls)) return null;
   if (value.units_consumed !== 0 || value.persistence_writes !== 0) return null;

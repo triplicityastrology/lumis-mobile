@@ -33,8 +33,10 @@ import {
 } from "./dice-v0-5-window.ts";
 import {
   executeDiceV05CustomerCopy, buildValidatedFallback, CUSTOMER_COPY_UNAVAILABLE_MESSAGE,
+  publicCopyFailure,
   type DiceV05CustomerCopy, type DiceV05EditorWire, type Landing,
 } from "./dice-v0-5-customer-copy.ts";
+import { runFidelityCheck, type FidelityOutcomeWire } from "./dice-v0-5-copy-fidelity.ts";
 import type { DiceV05Mode } from "./dice-v0-5-interpretation-contract.ts";
 import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 
@@ -55,8 +57,13 @@ export type DiceV05ThreeStageOutcome =
       // The FLAT wire editor response behind a "stage3" copy (review C02/R05), so the Web boundary can
       // independently re-parse, re-assemble and re-validate it (defence in depth). Null otherwise.
       editor_response: DiceV05EditorWire | null;
-      provider_calls: number;            // Stage 1 + Stage 2 + Stage 3 (actual)
+      // The typed Stage-4 meaning-checker outcome behind an ACCEPTED stage3 copy (Founder Option 2),
+      // carried so the Web can validate coverage + binding WITHOUT a second checker call. Null otherwise.
+      checker_outcome: FidelityOutcomeWire | null;
+      provider_calls: number;            // Stage 1 + Stage 2 + Stage 3 editor + Stage 4 checker (actual)
       astrology_provider_calls: number;  // Stage 1 + Stage 2 only
+      editor_provider_calls: number;     // Stage 3 editor attempts (transported)
+      checker_provider_calls: number;    // Stage 4 checker attempts (transported; at most 1)
       metadata: Record<string, unknown>;
     }>
   | Exclude<DiceV05CaseOutcome, { kind: "completed" }>;
@@ -86,31 +93,57 @@ export async function executeDiceV05FreeTextCaseWithCopy(
   let customerCopy: DiceV05CustomerCopy | null;
   let copySource: "deterministic" | "stage3" | "fallback" | "unavailable";
   let copyFailure: string | null;
-  let copyCalls: number;
+  let editorCalls = 0;
+  let checkerCalls = 0;
   // Flat wire contract (review C02/R05): forwarded verbatim to the Web boundary for independent re-parse.
   let editorResponse: DiceV05EditorWire | null = null;
+  let checkerOutcome: FidelityOutcomeWire | null = null;
 
   if (copyMode === "provider") {
-    // Gated language-editor path (controlled fields still forced from canonical inside).
+    // Stage 3 — gated language editor.
     const copy = await executeDiceV05CustomerCopy(canonical.result, input.question, adapterSource, { now, deadlineAtMs, landing });
     customerCopy = copy.copy;
     copySource = copy.source;
     copyFailure = copy.failure_code;
-    copyCalls = copy.provider_calls;
+    editorCalls = copy.provider_calls;
     editorResponse = copy.editor_response;
+    // Stage 4 — MANDATORY bounded meaning checker on the SELECTED editor candidate (Founder Option 2).
+    // There is no editor-on/checker-off path: an accepted stage3 edit MUST pass the checker AND its
+    // deterministic validation. One attempt, same deadline; skip/reject → validated fallback.
+    if (copySource === "stage3" && copy.copy && copy.editor_response) {
+      const components: Record<string, string> = {};
+      for (const [k, v] of Object.entries(copy.editor_response)) {
+        if (k !== "schema" && k !== "status" && k !== "language" && k !== "question_mode") components[k] = String(v);
+      }
+      const chk = await runFidelityCheck(canonical.result, copy.copy, components, input.question, adapterSource, { now, deadlineAtMs, landing });
+      checkerCalls = chk.calls;
+      if (chk.accepted) {
+        checkerOutcome = chk.outcome;
+      } else {
+        // Checker rejected/skipped/failed → the edit is NOT displayed. Use the validated fallback and
+        // carry the checker's bounded reason. Never label a skipped/failed check as passed.
+        const built = buildValidatedFallback(canonical.result, landing);
+        customerCopy = built.ok ? built.copy : null;
+        copySource = built.ok ? "fallback" : "unavailable";
+        copyFailure = built.ok ? chk.failure : `${chk.failure}|FALLBACK_${built.reason}`;
+        editorResponse = null;
+      }
+    }
   } else {
     // Default: deterministic assembly from the validated canonical result. No provider call.
     const built = buildValidatedFallback(canonical.result, landing);
     customerCopy = built.ok ? built.copy : null;
     copySource = built.ok ? "deterministic" : "unavailable";
     copyFailure = built.ok ? null : built.reason;
-    copyCalls = 0;
   }
 
+  const copyCalls = editorCalls + checkerCalls;
   const totalCalls = astrologyCalls + copyCalls;
   const unavailableMessage = copySource === "unavailable"
     ? CUSTOMER_COPY_UNAVAILABLE_MESSAGE[canonical.result.language as "en" | "zh-Hant"]
     : null;
+  // A02: the PUBLIC failure reason for a fallback/unavailable outcome (bounded code + allow-listed field).
+  const reason = (copySource === "fallback" || copySource === "unavailable") ? publicCopyFailure(copyFailure) : null;
 
   return Object.freeze({
     kind: "completed",
@@ -118,10 +151,13 @@ export async function executeDiceV05FreeTextCaseWithCopy(
     result: canonical.result,
     customer_copy: customerCopy,
     editor_response: editorResponse,
+    checker_outcome: checkerOutcome,
     copy_source: copySource,
     copy_unavailable_message: unavailableMessage,
     copy_failure_code: copyFailure,
     astrology_provider_calls: astrologyCalls,
+    editor_provider_calls: editorCalls,
+    checker_provider_calls: checkerCalls,
     provider_calls: totalCalls,
     // metadata.provider_calls is the ACTUAL total across all stages; the separate astrology-only
     // and copy-only counts travel alongside it, and copy_source travels here so the presentation
@@ -131,12 +167,15 @@ export async function executeDiceV05FreeTextCaseWithCopy(
       provider_calls: totalCalls,
       astrology_provider_calls: astrologyCalls,
       copy_provider_calls: copyCalls,
+      editor_provider_calls: editorCalls,
+      checker_provider_calls: checkerCalls,
       copy_source: copySource,
-      // R04 (review): carry the BOUNDED/REDACTED copy failure reason through composition → edge →
+      // R04 + A02 (review): carry the BOUNDED PUBLIC copy failure reason through composition → edge →
       // gateway → Web, so a backend editor-attempt-then-fallback is not later relabelled "deterministic"
-      // and stripped of its reason. Null when there is nothing to report. The value is an internal
-      // failure CODE (e.g. DICE_EDITOR_EXTRA_OR_MISSING_KEY), never raw provider text or an exception.
-      copy_redacted_failure_code: copySource === "fallback" || copySource === "unavailable" ? copyFailure : null,
+      // and stripped of its reason. The internal diagnostic is mapped to a PUBLIC code (+ optional
+      // allow-listed field) here so no punctuation/lowercase/field-internal detail ever reaches metadata.
+      copy_redacted_failure_code: reason ? reason.code : null,
+      ...(reason?.field ? { copy_failure_field: reason.field } : {}),
     },
   });
 }

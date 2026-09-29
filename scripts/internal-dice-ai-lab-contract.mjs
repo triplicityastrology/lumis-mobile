@@ -208,10 +208,37 @@ const CP = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supa
 // validator, so Location controls/mutations are built from genuine selected IDs (G02), not fakes.
 const PRESENT = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-presentation.js")).href);
 const CONTRACT = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-interpretation-contract.js")).href);
+const FID = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-copy-fidelity.js")).href);
 const v05Deterministic = CP.deterministicCustomerCopy(v05Judgment);
 const v05Meta = (over = {}) => ({ request_mode: "founder_free_text", language: "en", question_mode: "judgment", result_class: "completed", provider_calls: 2, astrology_provider_calls: 2, copy_provider_calls: 0, copy_source: "deterministic", latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0, ...over });
 const v05FreeText = { question: "Should I accept this promotion?", planet_id: "jupiter", sign_id: "sagittarius", house_id: "house_1" };
-const v05Gateway = (resp) => ({ providerEnabled: true, gatewayFactory: () => ({ run: async () => resp }) });
+// The landing the Web derives for the default judgment/timing selection. assembleEditorCopy uses the
+// landing only for Timing (pace echo); the checker fingerprint (visible text) is otherwise
+// landing-independent, so this default is correct for every mode's fingerprint in these fixtures.
+const DEFAULT_LANDING = { planet: "jupiter", sign: "sagittarius", house: 1 };
+// A MOCK Stage-4 checker OUTCOME bound to the candidate the Web will re-assemble (synthetic — proves
+// wiring, not real semantic detection). Assembles the copy from the flat editor_response exactly as the
+// Web does, computes the binding fingerprint, and returns all-"preserves" (or per-key overrides). Null
+// when the editor does not assemble (such an editor is rejected before the checker anyway).
+function mockCheckerOutcome(canonical, editorResp, landing = DEFAULT_LANDING, overrides = {}) {
+  const parsed = CP.parseEditorResponse(canonical, canonical.language, JSON.stringify(editorResp));
+  if (parsed.kind !== "ok") return null;
+  const assembled = CP.assembleEditorCopy(canonical, parsed.value, landing);
+  if (!assembled.ok) return null;
+  const keys = FID.fidelityCheckKeys(canonical);
+  const checks = {}; for (const k of keys) checks[k] = overrides[k] ?? "preserves";
+  return { schema: FID.DICE_V05_FIDELITY_SCHEMA, language: canonical.language, question_mode: canonical.question_mode, checks, fingerprint: FID.candidateFingerprint(canonical.language, canonical.question_mode, assembled.copy) };
+}
+// The gateway auto-attaches a MATCHING all-preserves checker outcome to any stage3-intended completed
+// response (editor_response present, checker_outcome not already set), so the Web's mandatory Stage-4
+// coverage+binding check passes for a faithful edit. A case that needs a rejecting/absent/mismatched
+// checker sets checker_outcome explicitly (including null).
+const v05Gateway = (resp) => {
+  if (resp && resp.kind === "completed" && resp.editor_response && resp.result && !("checker_outcome" in resp)) {
+    resp = { ...resp, checker_outcome: mockCheckerOutcome(resp.result, resp.editor_response, DEFAULT_LANDING) };
+  }
+  return { providerEnabled: true, gatewayFactory: () => ({ run: async () => resp }) };
+};
 // Structured editor response (the wire `editor_response` the Web boundary re-parses/assembles for a
 // stage3 outcome). The Web no longer reads `customer_copy` for the editor path (V02/M02).
 const edResp = (lang, mode, comps) => ({ schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: lang, question_mode: mode, ...comps });
@@ -599,11 +626,11 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
   const locZhWire = { status: "ok", most_likely_area: "喺屋企", synthesis: "睡房。", location_candidates: [{ rank: 1, place: "睡房", evidence: { p: [locZhRes.selectedKeys.p[0]], h: [], e: [] } }, { rank: 2, place: "廚房", evidence: { p: [], h: [locZhRes.selectedKeys.h[0]], e: [] } }], extension: null, search_order: [1, 2], watch_out: "唔好假設一定唔見咗。", practical_step: "先搵睡房。" };
   assert.equal(CONTRACT.validateLocation(locZhWire, locZhRes.selectedKeys), "OK", "L4 location/zh: real wire baseline valid");
   const locZhCanon = PRESENT.assembleLocation("zh-Hant", locZhWire, locZhRes.gid);
-  const locEditedZh = edResp("zh-Hant", "location", { clues: "最強的線索指向屋企一個較私密、室內的位置，通常擺放日常用品的地方。", watch_out: "繼續冷靜咁搵，唔好假設一定唔見咗。", search_step_1: "先搵睡房", search_step_2: "再檢查廚房" });
+  const locEditedZh = edResp("zh-Hant", "location", { clues: "最強的線索指向屋企一個較私密、室內的位置，通常擺放日常用品的地方。", watch_out: "繼續冷靜咁搵，唔好假設一定唔見咗。", search_step_1: "搵睡房", search_step_2: "檢查廚房" });
   const onZh = await executeLabFreeTextV05Request({ question: "我份文件喺邊？", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, { ...v05Gateway({ kind: "completed", result: locZhCanon, question_mode: "location", customer_copy: null, editor_response: locEditedZh, metadata: stage3MetaFor("zh-Hant", "location") }), stage3EditorEnabled: true });
   assert.equal(onZh.body.classification.copy_source, "stage3", "L4 location/zh: edited reading displayed as stage3");
   assert.ok(JSON.stringify(onZh.body.presentation).includes("日常用品"), "L4 location/zh: the edited Chinese clues reading reaches the card");
-  assert.ok(JSON.stringify(onZh.body.presentation).includes("先搵睡房"), "RG2 location/zh: the EDITED search step still names the rank-1 place ('睡房') and stays a search action");
+  assert.ok(JSON.stringify(onZh.body.presentation).includes("搵睡房"), "R02 location/zh: the EDITED per-candidate search phrase names the rank-1 place ('睡房'), server-assembled in rank order");
 }
 
 // ================================================================================================
@@ -670,15 +697,56 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
   assert.equal(n08.kind, "completed", "N08: three-stage completes");
   assert.equal(n08.copy_source, "fallback", "N08: a backend editor attempt that fails → composition copy_source fallback");
   assert.ok(typeof n08.copy_failure_code === "string" && n08.copy_failure_code.length > 0, "N08: composition carries a copy_failure_code");
-  assert.equal(n08.metadata.copy_redacted_failure_code, n08.copy_failure_code, "R04: composition metadata carries the REDACTED failure code through to the wire");
+  // A02: the metadata carries the PUBLIC code (a bounded UPPER_SNAKE token — no punctuation/lowercase/
+  // field internals), NOT the internal diagnostic. The internal parse code maps to DICE_COPY_MALFORMED.
+  assert.ok(CP.PUBLIC_COPY_FAILURE_CODES.includes(n08.metadata.copy_redacted_failure_code), "A02/R04: composition metadata carries a PUBLIC failure code, not the raw internal diagnostic");
+  assert.equal(n08.metadata.copy_redacted_failure_code, "DICE_COPY_MALFORMED", "A02/R04: a malformed editor maps to the public DICE_COPY_MALFORMED code");
+  assert.match(n08.metadata.copy_redacted_failure_code, /^[A-Z][A-Z0-9_]*$/, "A02: the public code has no punctuation/lowercase");
   assert.equal(n08.editor_response, null, "N08: a failed editor carries no wire editor_response");
   // Forward the composition output UNCHANGED into the Web boundary.
   const n08Web = await executeLabFreeTextV05Request(N08_REQ, { ...v05Gateway({ kind: "completed", result: n08.result, question_mode: n08.question_mode, customer_copy: n08.customer_copy, editor_response: n08.editor_response, metadata: n08.metadata }), stage3EditorEnabled: true });
   assert.equal(n08Web.body.code, "DICE_COMPLETED", "N08: the Web still renders a reading");
   assert.equal(n08Web.body.classification.copy_source, "fallback", "R04/N08: a backend fallback is reported as fallback, NOT relabelled deterministic");
-  assert.ok(typeof n08Web.body.classification.redacted_failure_code === "string" && n08Web.body.classification.redacted_failure_code.length > 0, "R04/N08: the failure reason survives into the Web classification");
+  assert.ok(CP.PUBLIC_COPY_FAILURE_CODES.includes(n08Web.body.classification.redacted_failure_code), "R04/N08 + A02: the PUBLIC failure reason survives into the Web classification");
   assert.equal(n08Web.body.metadata.copy_source, "fallback", "R04/N08: metadata.copy_source is consistent (fallback)");
   assert.equal(n08Web.body.provider_calls, n08.provider_calls, "R04/N08: the measured provider total is preserved");
+}
+
+// ================================================================================================
+// Stage 4 (Founder Option 2) — the Web MUST NOT render an unchecked editor response just because
+// copy_source says stage3. It validates the CARRIED checker outcome (coverage + fingerprint binding +
+// every verdict preserves) with NO second checker call. These drive the REAL Web boundary.
+// ================================================================================================
+{
+  const stage3Meta = () => v05Meta({ provider_calls: 4, astrology_provider_calls: 2, copy_provider_calls: 2, editor_provider_calls: 1, checker_provider_calls: 1, copy_source: "stage3" });
+  const on = (checkerOutcome) => executeLabFreeTextV05Request(v05FreeText, { ...v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, editor_response: v05JudgeEditorResp, checker_outcome: checkerOutcome, metadata: stage3Meta() }), stage3EditorEnabled: true });
+  // Accepted: a matching all-preserves checker outcome → stage3 displayed.
+  const accept = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, DEFAULT_LANDING));
+  assert.equal(accept.body.classification.copy_source, "stage3", "Stage 4: a bound all-preserves checker outcome → stage3 displayed");
+  // MISSING checker outcome → the Web refuses to render the edit → fallback.
+  const missing = await on(null);
+  assert.equal(missing.body.classification.copy_source, "fallback", "Stage 4: a stage3 edit with NO carried checker outcome is NOT rendered (fallback)");
+  assert.ok(CP.PUBLIC_COPY_FAILURE_CODES.includes(missing.body.classification.redacted_failure_code), "Stage 4: the missing-checker fallback carries a PUBLIC reason");
+  // A 'changes' verdict → the SERVER rejects (a browser label cannot force acceptance) → fallback.
+  const changed = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, DEFAULT_LANDING, { [FID.WHOLE_DISPLAY_KEY]: "changes" }));
+  assert.equal(changed.body.classification.copy_source, "fallback", "Stage 4: a 'changes' verdict → the edit is rejected server-side (fallback)");
+  assert.equal(changed.body.classification.redacted_failure_code, "DICE_COPY_CHECKER_CHANGED", "Stage 4: the public checker-changed code is reported");
+  // An 'uncertain' verdict → fallback.
+  const uncertain = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, DEFAULT_LANDING, { answer: "uncertain" }));
+  assert.equal(uncertain.body.classification.copy_source, "fallback", "Stage 4: an 'uncertain' verdict → fallback");
+  // A verdict bound to a DIFFERENT candidate (wrong fingerprint) → rejected (binding), never displayed.
+  const good = mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, DEFAULT_LANDING);
+  const mismatched = await on({ ...good, fingerprint: "00000000" });
+  assert.equal(mismatched.body.classification.copy_source, "fallback", "Stage 4: a checker verdict bound to a DIFFERENT candidate is rejected (binding), not displayed");
+  assert.equal(mismatched.body.classification.redacted_failure_code, "DICE_COPY_CHECKER_INVALID", "Stage 4: a binding mismatch maps to a public checker code");
+  // A01 at the Web: an editor payload whose per-candidate action carries its own sequencing word
+  // ("bedroom last") is rejected by the Web's re-assembly BEFORE the checker — order is server-owned.
+  const locRes2 = PRESENT.buildLocationResolution("en", "moon", "leo", 4);
+  const locCanon2 = PRESENT.assembleLocation("en", { status: "ok", most_likely_area: "A quiet place at home.", synthesis: "Look in a private domestic setting.", location_candidates: [{ rank: 1, place: "the bedroom", evidence: { p: [locRes2.selectedKeys.p[0]], h: [], e: [] } }, { rank: 2, place: "the kitchen", evidence: { p: [], h: [locRes2.selectedKeys.h[0]], e: [] } }], extension: null, search_order: [1, 2], watch_out: "Do not assume it is permanently lost.", practical_step: "Search the bedroom first." }, locRes2.gid);
+  const a01Editor = edResp("en", "location", { clues: "A private indoor spot at home.", watch_out: "Keep looking and do not assume it is gone.", search_step_1: "Search the bedroom last", search_step_2: "search the kitchen first" });
+  const a01 = await executeLabFreeTextV05Request({ question: "Where is my passport?", planet_id: "moon", sign_id: "leo", house_id: "house_4" }, { ...v05Gateway({ kind: "completed", result: locCanon2, question_mode: "location", customer_copy: null, editor_response: a01Editor, checker_outcome: null, metadata: v05Meta({ question_mode: "location", language: "en", provider_calls: 4, copy_provider_calls: 2, editor_provider_calls: 1, checker_provider_calls: 1, copy_source: "stage3" }) }), stage3EditorEnabled: true });
+  assert.equal(a01.body.classification.copy_source, "fallback", "A01 at the Web: a per-candidate action with its own sequencing word ('last') is rejected → fallback");
+  assert.ok(!/bedroom last/i.test(JSON.stringify(a01.body.presentation)), "A01: the order-contradicting instruction never reaches the customer");
 }
 
 // ---- G03: a gateway/service exception on a VALID request is a controlled 502 service failure —

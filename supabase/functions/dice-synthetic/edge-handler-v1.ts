@@ -84,7 +84,7 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
           const code = v5.kind === "safety" ? "DICE_SAFETY_REDIRECT" : v5.kind === "bundled" ? "DICE_BUNDLED_QUESTION" : v5.kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
           return jsonResponse({ error: { code, redacted_failure_code: v5.code }, metadata: v5.metadata }, { status: 422 });
         }
-        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, customer_copy: v5.customer_copy, editor_response: v5.editor_response, metadata: v5.metadata }, { status: 200 });
+        return jsonResponse({ result: v5.result, question_mode: v5.question_mode, customer_copy: v5.customer_copy, editor_response: v5.editor_response, checker_outcome: v5.checker_outcome, metadata: v5.metadata }, { status: 200 });
       }
       const outcome = await executeFounderDiceFreeTextCase(freeTextRequest, () => createAzureDiceAdapter(providerConfig.config, dependencies.fetchImpl));
       if (outcome.kind !== "completed") {

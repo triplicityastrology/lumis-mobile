@@ -72,6 +72,67 @@ export const COPY_CAPS = Object.freeze({
 // separately approved and this correction does not reduce it to 600. See the cap report.
 export const CUSTOMER_COPY_OUTPUT_CAP = 700 as const;
 
+/* ------------------------------------------------------------------ *
+ * A02 (review) — ONE shared, bounded PUBLIC failure-code contract. Internal diagnostics carry detail
+ * (e.g. "DICE_COPY_DANGLING_END:editor.planet_factor#1") that must NEVER reach customer-visible
+ * metadata: it has punctuation/lowercase and could leak field internals. `publicCopyFailure` maps ANY
+ * internal code to a bounded PUBLIC enum plus, separately, an ALLOW-LISTED field id + optional index.
+ * The same mapping is applied wherever a failure reason crosses a boundary (composition metadata, edge,
+ * gateway, Web classification); the metadata redactor validates only the public shape. This preserves
+ * an honest reason for a fallback WITHOUT leaking raw diagnostic prose, provider text or exceptions.
+ * ------------------------------------------------------------------ */
+export const PUBLIC_COPY_FAILURE_CODES = Object.freeze([
+  "DICE_COPY_INCOMPLETE", "DICE_COPY_PROHIBITED", "DICE_COPY_ORIENTATION", "DICE_COPY_PACE",
+  "DICE_COPY_PLACE", "DICE_COPY_ORDER", "DICE_COPY_CAUTION", "DICE_COPY_STEP", "DICE_COPY_FOLLOWUP",
+  "DICE_COPY_TOKEN_CAP", "DICE_COPY_TIMEOUT", "DICE_COPY_TRANSPORT", "DICE_COPY_MALFORMED",
+  "DICE_COPY_UNPRESENTABLE", "DICE_COPY_CHECKER_CHANGED", "DICE_COPY_CHECKER_UNCERTAIN",
+  "DICE_COPY_CHECKER_INVALID", "DICE_COPY_UNAVAILABLE", "DICE_COPY_REJECTED",
+] as const);
+// Field ids that may travel ALONGSIDE a public code (bounded allowlist; never free text).
+const PUBLIC_COPY_FAILURE_FIELDS = new Set<string>([
+  "headline", "reading", "watch_out", "practical_step", "clues", "answer", "explanation",
+  "pace_band", "planet_factor", "house_factor", "synthesis", "whole_display",
+  "search_step", "followup", "editor", "copy",
+]);
+export type PublicCopyFailure = Readonly<{ code: string; field?: string; index?: number }>;
+export function publicCopyFailure(internalCode: string | null | undefined): PublicCopyFailure {
+  const raw = String(internalCode ?? "");
+  const head = raw.split("|")[0]; // strip any "|FALLBACK_..." suffix
+  const upper = head.toUpperCase();
+  const has = (...needles: string[]) => needles.some((n) => upper.includes(n));
+  let code = "DICE_COPY_REJECTED";
+  if (has("CHECKER_CHANGED")) code = "DICE_COPY_CHECKER_CHANGED";
+  else if (has("CHECKER_UNCERTAIN")) code = "DICE_COPY_CHECKER_UNCERTAIN";
+  else if (has("CHECKER")) code = "DICE_COPY_CHECKER_INVALID";
+  else if (has("UNPRESENTABLE")) code = "DICE_COPY_UNPRESENTABLE";
+  else if (has("TIMEOUT")) code = "DICE_COPY_TIMEOUT";
+  else if (has("NETWORK", "TRANSPORT", "PERMISSION", "AUTHENTICATION", "CONTENT_FILTER")) code = "DICE_COPY_TRANSPORT";
+  else if (has("TOKEN_CAP", "OUTPUT_TOKEN", "RAW_OUTPUT")) code = "DICE_COPY_TOKEN_CAP";
+  else if (has("DANGLING", "FRAGMENT", "INCOMPLETE", "EMPTY", "TERMINAL", "TRUNCAT")) code = "DICE_COPY_INCOMPLETE";
+  else if (has("PROHIBITED", "RANK", "LEAK", "TERM")) code = "DICE_COPY_PROHIBITED";
+  else if (has("ORIENTATION", "FACTOR", "CONTRADICT", "TOTALIZ")) code = "DICE_COPY_ORIENTATION";
+  else if (has("PACE", "IMMEDIACY", "TIMING", "DATE")) code = "DICE_COPY_PACE";
+  else if (has("SEQUENCING", "ORDER", "CANDIDATE_DROPPED")) code = "DICE_COPY_ORDER";
+  else if (has("PLACE", "MOVEMENT", "LOCATION")) code = "DICE_COPY_PLACE";
+  else if (has("FOLLOWUP")) code = "DICE_COPY_FOLLOWUP";
+  else if (has("CAUTION")) code = "DICE_COPY_CAUTION";
+  else if (has("STEP")) code = "DICE_COPY_STEP";
+  else if (has("EDITOR", "JSON", "SHAPE", "KEY", "SCHEMA", "MODE_CHANGED", "LANGUAGE", "STATUS")) code = "DICE_COPY_MALFORMED";
+  else if (has("UNAVAILABLE")) code = "DICE_COPY_UNAVAILABLE";
+  // Optional field id + index from an internal "…:where.field#index" suffix, allowlisted only.
+  const out: { code: string; field?: string; index?: number } = { code };
+  const m = /:([a-z0-9_.]+?)(?:#(\d+))?$/i.exec(head);
+  if (m) {
+    let field = m[1].toLowerCase();
+    if (field.includes(".")) field = field.slice(field.lastIndexOf(".") + 1);
+    const base = field.replace(/_\d+$/, ""); // search_step_1 -> search_step, followup_2 -> followup
+    if (PUBLIC_COPY_FAILURE_FIELDS.has(field)) out.field = field;
+    else if (PUBLIC_COPY_FAILURE_FIELDS.has(base)) out.field = base;
+    if (m[2]) out.index = Number(m[2]);
+  }
+  return Object.freeze(out);
+}
+
 type Stage3Family = "judgment" | "timing" | "location" | "level1";
 function familyOf(mode: DiceV05Mode): Stage3Family {
   return mode === "judgment" || mode === "timing" || mode === "location" ? mode : "level1";
@@ -653,6 +714,10 @@ function authoritativeCombinedPace(language: DiceV05Language, landing: Landing):
   const given = buildTimingEnvelope(language, "", landing.planet, landing.sign, landing.house).given as Record<string, unknown>;
   return String(given.combined_pace);
 }
+/** Exported wrapper so the Stage-4 checker input carries the SAME authoritative pace fact. */
+export function authoritativeCombinedPacePublic(language: DiceV05Language, landing: Landing): string {
+  return authoritativeCombinedPace(language, landing);
+}
 const NON_FAST_PACE = new Set(["medium", "slow", "slowest"]);
 
 type EditorSpec = Readonly<{ key: string; kind: "prose" | "pace"; cap: Readonly<Record<DiceV05Language, number>> }>;
@@ -687,6 +752,10 @@ const EDITOR_COMPONENTS: Record<Stage3Family, readonly EditorSpec[]> = Object.fr
 const ALL_CLEAR = /\b(?:nothing to (?:watch|worry|be careful|note)|no need to (?:worry|be careful|watch)|no (?:risk|concern|caution|worry|downside)|don'?t worry|rest assured|nothing to be careful about|you can relax)\b|毋須擔心|無須擔心|不用擔心|唔使擔心|無需注意|沒有風險|冇風險|不必小心|無需提防|放心|冇問題|沒問題/iu;
 // A search/practical step must remain an actionable instruction (not an all-clear).
 const SEARCH_SIGNAL = /\b(?:search|look|check|start|begin|first|focus|try)\b|搵|尋|找|檢查|先|由.{0,8}?開始|集中|嘗試/iu;
+// A01 (review): a PER-CANDIDATE Location search action must carry NO sequencing of its own — order is
+// server-owned. Reject first/last/before/after/then/next/finally… inside a single candidate's phrase
+// so it cannot contradict the assembled canonical order (e.g. "Search the bedroom LAST").
+const SEQUENCING_WORD = /\b(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|last(?:ly)?|finally|before|after|afterwards?|then|next|earlier|later|initially|subsequently|prior)\b|首先|最先|然後|其後|之後|之前|再|接住|接着|接著|跟住|跟着|最後|其次|隨後|稍後|先/iu;
 // A follow-up must remain a question: it must END with a question mark, OR carry an explicit
 // interrogative structure (an EN interrogative-led clause, or a zh interrogative particle/phrase near
 // the end). A bare modal such as 「可以」 in a DECLARATIVE sentence no longer counts (review C05/P14).
@@ -812,8 +881,8 @@ The astrological interpretation has already been completed and validated. You do
 Rewrite the supplied source prose into natural, warm, plain customer language for the request language, returning ONLY the named component fields for this mode. Preserve meaning exactly:
 - Keep each supplied factor as its OWN component and keep its supplied orientation. facts.planet_orientation and facts.house_orientation say whether that factor is favourable, difficult or balanced. Never make a favourable factor read as difficult, or a difficult factor read as favourable, and never drop or merge a factor into an averaged overall grade.
 - For timing, echo facts.pace_band verbatim in pace_band and describe that same relative pace. Do not claim an immediate/very-fast result unless the band is fastest or fast. Add no date, number of days or clock time.
-- For location, write only clue prose that explains where to look. Do not tell the customer to go, head or travel anywhere; the ordered search step is added separately by the system. Introduce no new place.
-- Rewrite the CONTROLLED fields too, preserving their meaning and ORDER: watch_out must stay a caution (never turn a warning into an all-clear); practical_step must keep the same action (for location, keep directing to the same first place named in source, and stay a search instruction); return one rewritten follow-up per source follow-up, in the SAME order, each still a question. Do not add, drop or reorder follow-ups.
+- For location, write clue prose (clues) that explains where to look. Do not tell the customer to go, head or travel anywhere. Introduce no new place. For the search actions, return one field per supplied source.search_targets entry, named search_step_1, search_step_2, … : each describes searching ONLY that entry's place (keep any source detail about where within the place to look), stays a search instruction, and contains NO ordering words of its own (no first/last/before/after/then/next) and no reference to another candidate — the system assembles the actions in the correct order. Do not return a location practical_step.
+- Rewrite the other CONTROLLED fields too, preserving their meaning and ORDER: watch_out must stay a caution (never turn a warning into an all-clear or drop the warning); the non-location practical_step must keep the same action; return one rewritten follow-up per source follow-up, in the SAME order, each still a question. Do not add, drop or reorder follow-ups.
 - Add no new fact, person, place, warning, recommendation, date, number or astrology meaning that is not supplied.
 - Use short, complete sentences. No fragments. No internal labels, ranks, schema names or scoring expressions.
 
@@ -874,13 +943,24 @@ export function buildEditorInput(canonical: Canonical, customerQuestion: string,
     facts.candidates = (Array.isArray(canonical.location_search_order) ? canonical.location_search_order : [])
       .map((r: number) => byRank.get(r)?.place).filter((x: unknown): x is string => typeof x === "string");
     source.clues = String(canonical.synthesis ?? "");
+    // A01: map each per-candidate search action (search_step_1..N) to its canonical candidate rank +
+    // place, in rank order. The editor returns ONE action per target, describing searching THAT place,
+    // with NO sequencing of its own — the server assembles them in this order.
+    if (canonical.practical_step != null) {
+      source.search_targets = rankedCandidates(canonical).map((x: any, i: number) => ({
+        action_component: `search_step_${i + 1}`, rank: x.rank, place: String(x.place ?? ""),
+      }));
+      source.search_source_instruction = String(canonical.practical_step);
+    }
   } else {
     source.explanation = String(canonical.synthesis ?? "");
   }
   // RG2: the controlled fields to language-improve (present iff the canonical carries them), so the
   // editor rewrites them preserving meaning + order rather than leaving raw deterministic wording.
   if (canonical.watch_out != null) source.watch_out = String(canonical.watch_out);
-  if (canonical.practical_step != null) source.practical_step = String(canonical.practical_step);
+  // Location's practical step is mapped per-candidate above (search_targets); other modes send the
+  // single source practical_step for the editor to language-improve.
+  if (canonical.practical_step != null && fam !== "location") source.practical_step = String(canonical.practical_step);
   if (Array.isArray(canonical.suggested_followups) && canonical.suggested_followups.length > 0) {
     source.followups = canonical.suggested_followups.map((x: unknown) => String(x));
   }
@@ -901,6 +981,13 @@ function buildEditorProviderInput(input: EditorInput): string {
 
 function editorKeys(canonical: Canonical): string[] {
   return ["status", "schema", "language", "question_mode", ...editorSpecs(canonical).map((s) => s.key)];
+}
+
+/** The editable component keys for a canonical (the Stage-3 editor's per-mode fields). Exported so the
+ * Stage-4 meaning checker can derive its required per-component check keys from the SAME server-owned
+ * source of truth, rather than re-deriving them independently. */
+export function editorComponentKeys(canonical: Canonical): string[] {
+  return editorSpecs(canonical).map((s) => s.key);
 }
 
 export function buildEditorSchema(canonical: Canonical, language: DiceV05Language) {
@@ -1095,12 +1182,23 @@ export function assembleEditorCopy(
         // The place must be ASSERTED as the search target, not NEGATED ("Do not search the bedroom").
         if (!tokenAsserted(s, cores[i])) return fail("DICE_COPY_STEP_REVERSED");
         for (let k = 0; k < cores.length; k += 1) if (k !== i && cores[k] && low.includes(cores[k])) return fail("DICE_COPY_STEP_ORDER");
+        // A01 (review): the per-candidate action must carry NO sequencing of its own — the server owns
+        // the order — so "Search the bedroom LAST" / "先搵" cannot contradict the assembled sequence.
+        if (SEQUENCING_WORD.test(s)) return fail("DICE_COPY_STEP_SEQUENCING");
         if (!SEARCH_SIGNAL.test(s)) return fail("DICE_COPY_STEP_NOT_ACTIONABLE");
         if (MOVEMENT_IMPERATIVE.test(s)) return fail("DICE_COPY_LOCATION_IMPERATIVE");
         for (const m of s.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_LOCATION_UNSUPPORTED_PLACE");
         phrases.push(bareStep(s));
       }
       practical_step = ensureTerminal(phrases.join(zh ? "，然後" : "; then "), zh);
+      // A01: check the ASSEMBLED instruction too — each candidate's place must appear in canonical rank
+      // order (rank-1 before rank-2 …). This holds by construction, but is asserted so a connector/format
+      // change can never let the displayed sequence contradict the canonical candidate list beside it.
+      {
+        const assembledLow = practical_step.toLowerCase();
+        let prevAt = -1;
+        for (const core of cores) { const at = assembledLow.indexOf(core); if (at < 0 || at < prevAt) return fail("DICE_COPY_STEP_ORDER"); prevAt = at; }
+      }
     } else {
       const src = String(canonical.practical_step);
       const p = String(c.practical_step);

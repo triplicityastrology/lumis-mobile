@@ -6,10 +6,20 @@
  * No raw question or provider body is emitted. */
 import { executeDiceV05FreeTextCaseWithCopy } from "../_shared/dice-v0-5-window-with-copy.ts";
 import { prohibitedLanguageCheck, completenessCheck, DICE_V05_EDITOR_SCHEMA } from "../_shared/dice-v0-5-customer-copy.ts";
+import { DICE_V05_FIDELITY_SCHEMA } from "../_shared/dice-v0-5-copy-fidelity.ts";
 import { SHARED_DEADLINE_MS, type DiceV05ProviderAdapter } from "../_shared/dice-v0-5-window.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
+// MOCK Stage-4 checker response (synthetic — proves handling/wiring, NOT real semantic detection). Reads
+// the REQUIRED check keys from the schema the checker call itself carries, so it stays canonical-agnostic.
+// verdicts default to "preserves"; overrides let a test simulate a `changes`/`uncertain` verdict.
+function mockChecker(req: any, overrides: Record<string, "preserves" | "changes" | "uncertain"> = {}): string {
+  const schema = req.schema; const keys: string[] = schema.properties.checks.required;
+  const checks: Record<string, string> = {};
+  for (const k of keys) checks[k] = overrides[k] ?? "preserves";
+  return JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: schema.properties.language.const, question_mode: schema.properties.question_mode.const, checks });
+}
 
 // Jupiter in Sagittarius (ruler → strong → constructive/favourable) in House 1 (great_fortune →
 // favourable): both Judgment factors are favourable, so faithful factor prose reads favourably.
@@ -59,6 +69,10 @@ function stagedAdapter(stage3Content: string | null): DiceV05ProviderAdapter {
       if (req.schema_name.startsWith("lumis_dice_editor_")) {
         if (stage3Content === null) throw new Error("copy provider must NOT be called in deterministic mode");
         return { kind: "success", content: stage3Content };
+      }
+      if (req.schema_name.startsWith("lumis_dice_fidelity_")) {
+        if (stage3Content === null) throw new Error("checker must NOT be called in deterministic mode");
+        return { kind: "success", content: mockChecker(req) };
       }
       return { kind: "malformed" };
     },
@@ -118,7 +132,10 @@ async function main() {
   eq(provOk.customer_copy!.watch_out, "Keep your preparation practical and grounded.", "RG2: the caution is the EDITED warning");
   ok(provOk.customer_copy!.watch_out !== (provOk.result as any).watch_out, "RG2: the edited caution is NOT the raw canonical wording");
   eq(provOk.customer_copy!.suggested_followups[0], "Which part is most worth preparing first?", "RG2: the follow-up is the EDITED question, count preserved");
-  eq(provOk.provider_calls, 3, "clean stage3 judgment: 3 provider calls");
+  eq(provOk.provider_calls, 4, "clean stage3 judgment: Stage 1 + Stage 2 + Stage 3 editor + Stage 4 checker = 4 provider calls");
+  eq(provOk.editor_provider_calls, 1, "one Stage-3 editor call");
+  eq(provOk.checker_provider_calls, 1, "one Stage-4 checker call");
+  ok(provOk.checker_outcome !== null, "Option 2: an accepted stage3 copy carries the typed Stage-4 checker outcome");
 
   // (3b) F07: the ONE absolute deadline reaches STAGE 3 as well, not only Stage 1/2. Provider copy
   // mode is enabled so the Stage-3 copy call actually runs; all three stages observe one deadline
@@ -130,15 +147,17 @@ async function main() {
       stage3Deadlines.push(req.deadline_at_ms);
       if (req.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "judgment", matched_rule: "STEP_3_JUDGMENT" }) };
       if (req.schema_name.startsWith("lumis_dice_editor_")) return { kind: "success", content: goodJudgmentEditor };
+      if (req.schema_name.startsWith("lumis_dice_fidelity_")) return { kind: "success", content: mockChecker(req) };
       return { kind: "success", content: stage2Judgment };
     },
   };
   const three = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => threeStageRecorder, () => { const t = clock3; clock3 += 10; return t; }, { copyMode: "provider" });
   ok(three.kind === "completed", "provider-mode three-stage completes");
-  eq(stage3Deadlines.length, 3, "F07: Stage 1 + Stage 2 + Stage 3 each made exactly one provider call");
+  eq(stage3Deadlines.length, 4, "F07: Stage 1 + Stage 2 + Stage 3 editor + Stage 4 checker each made exactly one provider call");
   eq(stage3Deadlines[0], 1000 + SHARED_DEADLINE_MS, "F07: Stage 1 uses the one absolute deadline captured before preprocessing");
   eq(stage3Deadlines[1], stage3Deadlines[0], "F07: Stage 2 shares the same absolute deadline");
-  eq(stage3Deadlines[2], stage3Deadlines[0], "F07: Stage 3 (copy) shares the SAME absolute deadline — no fresh capture at Stage 3");
+  eq(stage3Deadlines[2], stage3Deadlines[0], "F07: Stage 3 (editor) shares the SAME absolute deadline — no fresh capture at Stage 3");
+  eq(stage3Deadlines[3], stage3Deadlines[0], "F07: Stage 4 (checker) shares the SAME absolute deadline — no fresh checker deadline");
 
   // (3c) V01: the edge entrypoint's copyMode is DERIVED from the explicit server setting
   // LUMIS_FOUNDER_DICE_STAGE3_EDITOR (mirrored here as the edge computes it). With the setting on, the
@@ -149,6 +168,7 @@ async function main() {
   ok(onSel.kind === "completed" && onSel.copy_source === "stage3", "V01: setting ON → the edge selects provider editing → stage3 copy");
   if (onSel.kind !== "completed") throw new Error("unreachable");
   ok(onSel.editor_response !== null, "V01: setting ON → the structured editor_response is carried on the wire");
+  ok(onSel.checker_outcome !== null, "V01: setting ON → the typed Stage-4 checker outcome is carried on the wire (mandatory checker enforcement)");
   const offSel = await executeDiceV05FreeTextCaseWithCopy(JUDGMENT_REQUEST, () => stagedAdapter(null), () => 1000, { copyMode: edgeCopyMode({}) });
   ok(offSel.kind === "completed" && offSel.copy_source === "deterministic", "V01: setting unset → deterministic path, no Stage-3 provider call (adapter throws if asked)");
   if (offSel.kind !== "completed") throw new Error("unreachable");

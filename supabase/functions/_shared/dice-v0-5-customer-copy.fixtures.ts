@@ -485,13 +485,17 @@ ok(asm(locationCanonical, "en", "location", { clues: "The strongest sign points 
   ok(edited.ok && edited.copy.practical_step === ensureTerminalLike("Try looking in the bedroom; then check the kitchen"), "R02 EN location: the server assembles the edited phrases in canonical rank order (bedroom first)");
   ok(edited.ok && validateDisplayCopy(edited.copy, locationCanonical as any, locationLanding, true) === "OK", "R02 EN location: the assembled step passes display validation");
 }
-// R02 (review N05): an AWKWARDLY-PHRASED but correct set still assembles bedroom-first — order is
-// server-owned, so it cannot be flipped by phrasing. A slot-1 phrase cannot name the rank-2 place.
+// A01: a per-candidate phrase carrying its OWN sequencing word is rejected — order is server-owned, so
+// "Search the bedroom last" cannot contradict the assembled canonical sequence.
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Search the bedroom last", search_step_2: "search the kitchen first" }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_SEQUENCING" }, "A01: a per-candidate search phrase with its own sequencing word ('last') is rejected");
+eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Before anything else, search the bedroom" }, locationLanding), { ok: false, reason: "DICE_COPY_STEP_SEQUENCING" }, "A01: a per-candidate phrase with 'Before' sequencing is rejected");
+// A01: a clean per-candidate set (no sequencing words) assembles in server-owned canonical order.
 {
   const edited = asm(locationCanonical, "en", "location",
-    { clues: "A private indoor spot at home.", search_step_1: "Before anything else, search the bedroom", search_step_2: "afterwards check the kitchen" },
+    { clues: "A private indoor spot at home.", search_step_1: "have a good look in the bedroom", search_step_2: "check the kitchen" },
     locationLanding);
-  ok(edited.ok && edited.copy.practical_step!.toLowerCase().indexOf("bedroom") < edited.copy.practical_step!.toLowerCase().indexOf("kitchen"), "R02/N05: awkward phrasing still assembles the rank-1 place first (server-owned order)");
+  ok(edited.ok, "A01: a clean per-candidate set (no sequencing words) is accepted");
+  ok(edited.ok && edited.copy.practical_step!.toLowerCase().indexOf("bedroom") < edited.copy.practical_step!.toLowerCase().indexOf("kitchen"), "A01: the server assembles the rank-1 place first");
 }
 // Positive (zh-Hant judgment, judgmentCanonical carries a caution + one follow-up).
 {

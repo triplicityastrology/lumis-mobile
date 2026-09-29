@@ -33,17 +33,20 @@ const registryPath = path.join(root, "apps/mobile/src/services/diceFounderFixtur
 // first); if it is missing we fail closed rather than fall back to a shallow check.
 const COMPILED_COPY_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-customer-copy.js");
 const COMPILED_CONTRACT_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-interpretation-contract.js");
+const COMPILED_FIDELITY_MODULE = path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-copy-fidelity.js");
 let _copyValidatorPromise = null;
 function loadAuthoritativeCopyValidator() {
-  // Loads BOTH the compiled customer-copy module (parseCustomerCopy / parseEditorResponse /
-  // assembleEditorCopy / validateDisplayCopy / buildValidatedFallback / validateLocationProjection)
-  // AND the compiled interpretation-contract module (the AUTHORITATIVE validateDiceV05FinalResult) —
-  // so the Web boundary reuses the same canonical validator the engine uses, not a weaker duplicate.
+  // Loads the compiled customer-copy module (parseCustomerCopy / parseEditorResponse /
+  // assembleEditorCopy / validateDisplayCopy / buildValidatedFallback / validateLocationProjection /
+  // publicCopyFailure), the compiled interpretation-contract module (the AUTHORITATIVE
+  // validateDiceV05FinalResult) AND the compiled Stage-4 fidelity module (validateCarriedFidelity) —
+  // so the Web boundary reuses the same authoritative validators the engine uses, not weaker duplicates.
   if (!_copyValidatorPromise) {
     _copyValidatorPromise = Promise.all([
       import(pathToFileURL(COMPILED_COPY_MODULE).href),
       import(pathToFileURL(COMPILED_CONTRACT_MODULE).href),
-    ]).then(([copy, contract]) => ({ ...copy, validateDiceV05FinalResult: contract.validateDiceV05FinalResult })).catch((error) => {
+      import(pathToFileURL(COMPILED_FIDELITY_MODULE).href),
+    ]).then(([copy, contract, fidelity]) => ({ ...copy, validateDiceV05FinalResult: contract.validateDiceV05FinalResult, validateCarriedFidelity: fidelity.validateCarriedFidelity })).catch((error) => {
       _copyValidatorPromise = null;
       throw new Error(`LAB_V05_AUTHORITATIVE_VALIDATOR_UNAVAILABLE: build the v5 test output first (tsc -p supabase/functions/tsconfig.dice-v0-5-test.json). ${error?.message ?? error}`);
     });
@@ -422,8 +425,16 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
         // controlledEdited=true: the accepted editor also rewrote the controlled fields (RG2), so the
         // display validation coverage-checks them rather than demanding exact canonical text.
         const displayVerdict = assembled.ok ? cp.validateDisplayCopy(assembled.copy, result, landing, true) : assembled.reason;
-        if (assembled.ok && displayVerdict === "OK") { displayCopy = assembled.copy; copySource = "stage3"; }
-        else copyFailure = displayVerdict;
+        if (assembled.ok && displayVerdict === "OK") {
+          // Stage 4 (Option 2): the Web must NOT render an unchecked editor response just because
+          // copy_source says stage3. Validate the CARRIED checker outcome against the candidate the Web
+          // itself re-assembled — coverage + fingerprint binding + every verdict "preserves" — with NO
+          // second checker call. A missing/unbound/insufficient outcome, or any non-preserves verdict,
+          // rejects the edit and falls back.
+          const fidelityVerdict = cp.validateCarriedFidelity(response.checker_outcome, result, result.language, assembled.copy);
+          if (fidelityVerdict === "OK") { displayCopy = assembled.copy; copySource = "stage3"; }
+          else copyFailure = fidelityVerdict;
+        } else copyFailure = displayVerdict;
       } else {
         copyFailure = parsedEditor.kind === "unpresentable" ? "DICE_COPY_UNPRESENTABLE" : parsedEditor.code;
       }
@@ -452,17 +463,20 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
     copySource = copyFailure ? "fallback" : "deterministic";
   }
   const presentation = presentCustomerCopyV05(displayCopy, result, selection);
+  // A02: map the (possibly internal) failure reason to the shared PUBLIC contract before it reaches the
+  // browser — bounded code + optional allow-listed field, never raw diagnostic detail.
+  const pub = copyFailure ? cp.publicCopyFailure(copyFailure) : null;
   const classification = copySource === "fallback"
-    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: copyFailure }
+    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: pub.code, ...(pub.field ? { failure_field: pub.field } : {}) }
     : { question_mode: result.question_mode, copy_source: copySource };
   // C08: make the `copy_source` field CONSISTENT across metadata and classification — it is the ACTUAL
   // DISPLAYED source. When the upstream generation intent differed (e.g. the backend generated "stage3"
   // but the Web rejected it and fell back), preserve that upstream label separately as
-  // `copy_source_upstream` and carry the redacted failure reason, so a rejected editor is never
+  // `copy_source_upstream` and carry the PUBLIC redacted failure reason, so a rejected editor is never
   // reported as if its prose were displayed.
   const reportedMetadata = metadata.copy_source === copySource
     ? metadata
-    : Object.freeze({ ...metadata, copy_source: copySource, copy_source_upstream: metadata.copy_source, ...(copyFailure ? { copy_redacted_failure_code: copyFailure } : {}) });
+    : Object.freeze({ ...metadata, copy_source: copySource, copy_source_upstream: metadata.copy_source, ...(pub ? { copy_redacted_failure_code: pub.code, ...(pub.field ? { copy_failure_field: pub.field } : {}) } : {}) });
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification, metadata: reportedMetadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   } catch {
     // Gateway/transport or downstream execution failure on a VALID request → controlled 502 service
