@@ -507,8 +507,10 @@ eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at h
   ok(edited.ok && edited.copy.watch_out === ensureTerminalLike("記住跟進時要留意語氣，避免催逼對方。"), "RG2 zh: the EDITED caution displays");
   ok(edited.ok && validateDisplayCopy(edited.copy, judgmentCanonical as any, judgmentLanding, true) === "OK", "RG2 zh: the edited controlled fields pass display validation");
 }
-// Adversarial — a caution inverted into an all-clear is rejected.
-eq(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Nothing to worry about here; you can relax." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_INVERTED" }, "RG2: a caution inverted into an all-clear is rejected");
+// C03 (review): a caution inverted into an all-clear now PASSES assembly — the inversion is a SEMANTIC
+// judgement decided by the mandatory Stage-4 checker (→ 'changes' → fallback), not a lexical heuristic
+// that also false-rejected faithful paraphrases. The composition/contract tests prove the checker catches it.
+ok(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Nothing to worry about here; you can relax." }, judgmentLanding).ok, "C03: a caution inverted into an all-clear now passes ASSEMBLY (the inversion is caught by the checker, not a lexical heuristic)");
 // C07 (review): a FAITHFUL caution paraphrase that omits a stock warning word ("Beware"/"watch") is
 // NOT rejected — the guard is source-relative (no polarity reversal), not a mandatory-vocabulary rule.
 ok(asm(mixedJudg, "en", "judgment", { answer: "x.", planet_factor: "Your own capacity is a genuine strength in your favour.", house_factor: "The setting is difficult and adds friction.", synthesis: "They stay separate.", watch_out: "Try to keep your hopes grounded even with strong support." }, judgmentLanding).ok, "C07: a faithful caution paraphrase without a stock warning word is accepted (no forced vocabulary)");
@@ -526,8 +528,10 @@ eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at h
 eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Search the bedroom near the airport" }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_UNSUPPORTED_PLACE" }, "R02 location: a slot phrase naming an unsupported place is rejected");
 // A slot phrase turned into a movement instruction is rejected.
 eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at home.", search_step_1: "Go to the bedroom to search" }, locationLanding), { ok: false, reason: "DICE_COPY_LOCATION_IMPERATIVE" }, "R02 location: a slot phrase turned into a movement instruction is rejected");
-// Adversarial (person) — a practical step inverted into an all-clear is rejected.
-eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Rest assured, there is nothing to worry about." }, personLanding), { ok: false, reason: "DICE_COPY_STEP_INVERTED" }, "RG2 person: a practical step inverted into an all-clear is rejected");
+// C03 (review): a practical step inverted into an all-clear now PASSES assembly — the semantic decision
+// (inversion vs faithful paraphrase) is the checker's, not a lexical heuristic that false-rejected
+// faithful negation paraphrases.
+ok(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Rest assured, there is nothing to worry about." }, personLanding).ok, "C03 person: a practical step inverted into an all-clear now passes ASSEMBLY (caught by the checker)");
 // Structural (parse) — order/count of the controlled components is enforced by the positional keys:
 // a MISSING required controlled component is rejected at parse...
 eq(parseEditorResponse(locationCanonical as any, "en", editorOk("en", "location", { clues: "A private indoor spot at home.", watch_out: "Do not assume it is gone for good." })).kind, "invalid", "RG2/R02: a Location editor response missing the required per-candidate search_step components is rejected at parse");
@@ -535,23 +539,34 @@ eq(parseEditorResponse(locationCanonical as any, "en", editorOk("en", "location"
 eq(parseEditorResponse(judgmentCanonical as any, "zh-Hant", editorOk("zh-Hant", "judgment", { answer: "a。", planet_factor: "b。", house_factor: "c。", synthesis: "d。", watch_out: "留意語氣，避免過急。", followup_1: "問題一？", followup_2: "多咗一條？" })).kind, "invalid", "RG2: an EXTRA follow-up (followup_2) beyond the single source follow-up is rejected at parse (count/order preserved)");
 
 /* ================================================================================================
- * INDEPENDENT-REVIEW REPRODUCTIONS (7048c22 review, C03–C07). The earlier RG2 guards checked for
- * warning vocabulary / a rank-1 substring / a matching regex; the review showed that a warning word,
- * a matching substring, or a positional key is NOT proof the rewrite kept the SOURCE meaning. These
- * assert the SOURCE-RELATIVE, negation-aware guards catch the exact reproduced reversals — and, just
- * as important, that a FAITHFUL paraphrase (C07) is NOT falsely rejected. Still heuristics, not a
- * semantic proof (RG3 stays open): they close the demonstrated holes, not all possible paraphrases.
+ * CAUTION / ACTION SEMANTICS ARE THE CHECKER'S JOB (fourth review, C03). The earlier RG2 guards used a
+ * lexical negation-window heuristic (ALL_CLEAR / polarityReversed) to hard-reject a reversed or inverted
+ * caution/action BEFORE Stage 4. That heuristic false-rejected faithful negation paraphrases — e.g.
+ * "…permanently lost…" → "…gone…" — whose window shifts without changing meaning, stopping a
+ * structurally valid candidate from ever reaching the mandatory meaning checker. C03 removes those hard
+ * rejects: assembly now enforces only STRUCTURAL / PROVENANCE constraints (schema/identity/caps, required
+ * sections, the sentence-fragment check, and — for Location — selected-evidence places + server-owned
+ * search order), and a real reversal/inversion is caught by the checker's 'changes' verdict → validated
+ * fallback (proved in the contract test). So the cases below now PASS assembly.
  * ================================================================================================ */
 const faithFactors = { answer: "Your side helps, but the setting is hard.", planet_factor: "Your own capacity is a genuine strength working in your favour.", house_factor: "The surrounding setting is difficult and adds friction.", synthesis: "Real support on one side, real difficulty on the other; the two stay separate." };
-// C03 (P03): a caution whose action/polarity is REVERSED against the source is rejected, even though it
-// reuses the same words ("pressure") and stays warning-shaped.
 const pressureJudg = Object.freeze({ ...(mixedJudg as any), watch_out: "Avoid putting pressure on the other person.", suggested_followups: [] });
-eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid giving the other person space; put pressure on them." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "C03/P03 EN: a caution that reverses the source instruction (avoid pressure → put pressure) is rejected");
-// C03 (P13) zh equivalent — 不要施壓 → 繼續施壓 (same verb 施壓, negation flipped).
+// C03: a caution whose polarity looks reversed ("avoid pressure" → "put pressure") is NOT hard-rejected at
+// assembly any more; it reaches the checker, which returns 'changes' → fallback (contract test).
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid giving the other person space; put pressure on them." }, judgmentLanding).ok, "C03 EN: an apparent caution reversal passes ASSEMBLY (semantic decision routed to the checker)");
 const pressureJudgZh = Object.freeze({ ...(judgmentCanonical as any), watch_out: "不要向對方施壓。", suggested_followups: [] });
-eq(asm(pressureJudgZh, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", watch_out: "注意繼續向對方施壓。" }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "C03/P13 zh: a caution that flips 不要施壓 → 繼續施壓 is rejected");
-// C03 (P09): a practical step whose polarity is reversed is rejected (person mode).
-eq(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Pressure them and withhold clear information." }, personLanding), { ok: false, reason: "DICE_COPY_STEP_REVERSED" }, "C03/P09 EN: a practical step reversed against the source (give clear info, not pressure → pressure them) is rejected");
+ok(asm(pressureJudgZh, "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", watch_out: "注意繼續向對方施壓。" }, judgmentLanding).ok, "C03 zh: an apparent caution reversal passes ASSEMBLY (checker decides)");
+// C03: a practical step whose polarity looks reversed passes assembly (checker decides).
+ok(asm(personCanonical, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Pressure them and withhold clear information." }, personLanding).ok, "C03 EN: an apparent practical-step reversal passes ASSEMBLY (checker decides)");
+// C03 EXACT review pair (isolated in a Person canonical, as the review did): a FAITHFUL negation
+// paraphrase "…permanently lost…" → "…gone…" now passes assembly (previously DICE_COPY_CAUTION_REVERSED).
+{
+  const lostPerson = Object.freeze({ ...(personCanonical as any), watch_out: "Do not assume it is permanently lost before a careful look." });
+  ok(asm(lostPerson, "en", "person", { answer: "A careful person.", explanation: "This points to someone steady and dependable.", practical_step: "Give them clear, concrete information rather than pressure.", watch_out: "Do not assume it is gone before a careful look." }, personLanding).ok, "C03 EN exact pair: '…permanently lost…' → '…gone…' now passes assembly (was falsely rejected)");
+  // A faithful HK-Traditional negation paraphrase likewise passes.
+  const lostPersonZh = Object.freeze({ ...(personCanonical as any), language: "zh-Hant", synthesis: "呢個人小心務實，會透過穩定可靠嘅行動慢慢建立信任。", watch_out: "唔好喺仔細搵之前就假設樣嘢冇咗。", practical_step: "俾清楚具體嘅資料，多過施壓。" });
+  ok(asm(lostPersonZh, "zh-Hant", "person", { answer: "一個小心務實的人。", explanation: "會透過穩定可靠的行動慢慢建立信任。", practical_step: "給清楚具體的資料，而不是施壓。", watch_out: "在仔細找之前，不要假設東西已經不見了。" }, personLanding).ok, "C03 zh: a faithful HK-Traditional negation paraphrase passes assembly");
+}
 // C04 (P06/P07 → R02): the search step is now edited PER CANDIDATE and assembled in canonical rank
 // order, so a rank-2-first ordering is unexpressible; a slot-1 phrase naming the rank-2 place, or one
 // negating the rank-1 place, is rejected (covered in the R02 location block above). Order contradiction
@@ -562,7 +577,7 @@ eq(asm(locationCanonical, "en", "location", { clues: "A private indoor spot at h
 // (clause-scoped negation — an earlier-clause negator does not spuriously flip a later token).
 ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Give them space and avoid pressure." }, judgmentLanding).ok, "R01/N03 EN: a faithful caution ('...and avoid pressure') is accepted (clause-scoped negation)");
 // R01 (N04): a DIRECT reversal in a later clause is rejected (the earlier 'Avoid' does not scope to it).
-eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid haste. Apply pressure." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_REVERSED" }, "R01/N04 EN: a reversal in a later clause ('Avoid haste. Apply pressure.') is rejected (clause-scoped)");
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Avoid haste. Apply pressure." }, judgmentLanding).ok, "C03 EN: a later-clause reversal ('Avoid haste. Apply pressure.') passes ASSEMBLY (the checker decides the semantics)");
 // B04 (independent review): the former zero-shared-token "DICE_COPY_CAUTION_LOST" floor is REMOVED. A
 // faithful synonym caution that shares NO words with its source now PASSES assembly and is routed to the
 // mandatory Stage-4 checker (whether it truly preserves the warning — or drifts into an unrelated
@@ -577,9 +592,10 @@ ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Do not pus
 ok(asm(Object.freeze({ ...(judgmentCanonical as any), watch_out: "留意跟進時的語氣，不要催逼對方。", suggested_followups: [] }), "zh-Hant", "judgment", { answer: "外在有利，但你的處理是關鍵。", planet_factor: "你這面比較吃力，容易遇到阻力。", house_factor: "周圍環境對你有利，有支持。", synthesis: "兩邊分開理解，各有作用。", watch_out: "不要迫得太緊。" }, judgmentLanding).ok, "B04 zh: a faithful zh synonym caution ('不要催逼對方' → '不要迫得太緊') passes assembly");
 // An UNRELATED replacement is ALSO not hard-rejected at assembly any more — it reaches the checker,
 // which returns 'changes' → fallback (verified at the composition/Web boundary, see the contract test).
-// The hard STRUCTURAL guards still fire: an inversion into an all-clear and a polarity reversal.
-ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "This concerns the general tone of the matter." }, judgmentLanding).ok, "B04 EN: an unrelated caution replacement is no longer hard-rejected at assembly (routed to the checker for the semantic decision)");
-eq(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Everything is fine, no need to be careful." }, judgmentLanding), { ok: false, reason: "DICE_COPY_CAUTION_INVERTED" }, "B04 EN: a caution INVERTED into an all-clear is STILL hard-rejected (structural guard retained)");
+// C03: an unrelated replacement AND an all-clear inversion BOTH pass assembly now — the checker makes
+// the semantic call ('changes' → fallback), verified in the contract test's C03 composition cases.
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "This concerns the general tone of the matter." }, judgmentLanding).ok, "C03 EN: an unrelated caution replacement passes assembly (routed to the checker)");
+ok(asm(pressureJudg, "en", "judgment", { ...faithFactors, watch_out: "Everything is fine, no need to be careful." }, judgmentLanding).ok, "C03 EN: an all-clear inversion passes assembly (the checker, not a lexical heuristic, rejects it)");
 // C05 (P04) EN swap: two follow-ups exchanged between positions are rejected (relative slot anchoring).
 const enTwoFollowup = Object.freeze({ ...(enJudgment as any), suggested_followups: ["What should I prepare first?", "When is the best time to raise it?"] });
 const enTwoFactors = { answer: "You have real support, and the setting is favourable.", planet_factor: "Your own capacity is strong and works in your favour.", house_factor: "The situation around you is also supportive and helps.", synthesis: "The two sides agree here rather than pulling against each other." };

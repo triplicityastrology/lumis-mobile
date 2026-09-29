@@ -1,67 +1,116 @@
-/** lumis_dice_fidelity_eval_v1 — structural + self-consistency validation of the FIXED evaluation set
- * (review B07). These checks prove the artifact is well-formed and internally consistent; they do NOT
- * run a live model and therefore make NO claim about real semantic-detection accuracy (that is the
- * deferred, separately-authorised comparison). What is asserted here:
- *  - every row's `source` is a schema-VALID final interpretation;
- *  - `expected` keys are EXACTLY the server-derived required checks for that row's mode (so the ground
- *    truth cannot silently drift from the real coverage);
- *  - every verdict is a legal enum value;
- *  - `label` is consistent with the verdicts (positive ⟺ all "preserves"; negative ⟺ ≥1 change/uncertain);
- *  - the set covers all SIX modes, BOTH languages, and carries known positives AND negatives across the
- *    documented defect classes; ids are unique and stably prefixed.
+/** lumis_dice_fidelity_eval_v1 — production-input + self-consistency validation of the FIXED evaluation
+ * set (reviews B07 + C05). These checks prove every row is BUILT FROM VALID PRODUCTION INPUTS and is
+ * internally consistent; they do NOT run a live model, so they make NO claim about real semantic-detection
+ * accuracy (the deferred, separately-authorised comparison). For every row this asserts:
+ *  - `source` is a schema-VALID final interpretation whose mode/language match the row;
+ *  - the row carries a synthetic question and a trusted landing;
+ *  - the COMPLETE editor wire (`proposed`) PARSES with the production editor parser (so a missing
+ *    follow-up or the Timing pace_band control echo is caught here, not silently);
+ *  - Location sources pass validateLocationProjection against their landing (real selected evidence);
+ *  - a SEMANTIC row ASSEMBLES (reaches the checker); a STRUCTURAL_GATE row FAILS assembly with its
+ *    declared `gate` code (rejected before Stage 4);
+ *  - `expected` keys are EXACTLY the server-derived required checks; every verdict is a legal enum;
+ *  - label ⇔ verdicts (positive ⟺ all preserves); a positive additionally builds a within-cap checker
+ *    comparison input and passes display validation;
+ *  - full CARTESIAN coverage: each of the six modes × both languages carries a semantic positive AND a
+ *    semantic negative; the named defect categories are present.
+ * The internal-dice-ai-lab contract additionally drives representative positives through the REAL Web.
  */
 import { DICE_V05_FIDELITY_EVAL_V1, DICE_V05_FIDELITY_EVAL_SCHEMA } from "./dice-v0-5-copy-fidelity-eval-v1.ts";
-import { fidelityCheckKeys } from "./dice-v0-5-copy-fidelity.ts";
+import { fidelityCheckKeys, buildFidelityInput, buildFidelityProviderInput, fidelityComponentsFromWire, CHECKER_INPUT_CAP } from "./dice-v0-5-copy-fidelity.ts";
+import {
+  DICE_V05_EDITOR_SCHEMA, parseEditorResponse, assembleEditorCopy, validateDisplayCopy,
+  validateLocationProjection, type Landing,
+} from "./dice-v0-5-customer-copy.ts";
 import { validateDiceV05FinalResult, DICE_V05_MODES } from "./dice-v0-5-interpretation-contract.ts";
+import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
+import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 
 function ok(c: unknown, l: string): asserts c { if (!c) throw new Error("FAIL " + l); }
 function eq(a: unknown, b: unknown, l: string) { const x = JSON.stringify(a), y = JSON.stringify(b); if (x !== y) throw new Error(`FAIL ${l}\n got ${x}\n exp ${y}`); }
 
 const rows = DICE_V05_FIDELITY_EVAL_V1;
 ok(DICE_V05_FIDELITY_EVAL_SCHEMA === "lumis_dice_fidelity_eval_v1", "eval schema id");
-ok(rows.length >= 12, `the fixed eval set has enough rows (${rows.length})`);
+ok(rows.length >= 24, `the fixed eval set has enough rows (${rows.length})`);
 
 const seenIds = new Set<string>();
-const modesSeen = new Set<string>();
-const langsSeen = new Set<string>();
-let positives = 0, negatives = 0;
+const cell = new Map<string, { pos: number; neg: number }>();     // "mode/lang" → semantic pos/neg counts
 const categories = new Set<string>();
+let semanticPos = 0, semanticNeg = 0, gateRows = 0;
 
 for (const row of rows) {
-  ok(/^FID-EVAL-V1-[A-Z]+-\d{3}$/.test(row.id), `row id is stably prefixed: ${row.id}`);
+  ok(/^FID-EVAL-V1-[A-Z0-9]+(-[A-Z0-9]+)*$/.test(row.id), `row id is stably prefixed: ${row.id}`);
   ok(!seenIds.has(row.id), `row id is unique: ${row.id}`);
   seenIds.add(row.id);
   ok((DICE_V05_MODES as readonly string[]).includes(row.mode), `row ${row.id} names a real mode`);
   ok(row.language === "en" || row.language === "zh-Hant", `row ${row.id} names a supported language`);
-  // The source must be a genuinely valid final interpretation (not a hand-waved stub), AND its declared
-  // mode/language must match the row.
+  ok(typeof row.question === "string" && row.question.length > 3, `row ${row.id} carries a synthetic question`);
+  ok(row.landing && typeof row.landing.planet === "string" && typeof row.landing.house === "number", `row ${row.id} carries a trusted landing`);
+  ok(typeof row.rationale === "string" && row.rationale.length > 10, `row ${row.id} carries a rationale`);
+  categories.add(row.category);
+
+  // Source validity + identity.
   eq(validateDiceV05FinalResult(row.source as any), "OK", `row ${row.id}: source is a schema-valid final interpretation`);
-  eq((row.source as any).question_mode, row.mode, `row ${row.id}: source mode matches the row mode`);
-  eq((row.source as any).language, row.language, `row ${row.id}: source language matches the row language`);
-  // Expected verdict keys are EXACTLY the server-derived required checks — the ground truth cannot drift.
+  eq((row.source as any).question_mode, row.mode, `row ${row.id}: source mode matches`);
+  eq((row.source as any).language, row.language, `row ${row.id}: source language matches`);
+
+  const landing: Landing = { planet: row.landing.planet as DiceV05PlanetId, sign: row.landing.sign as DiceV05SignId, house: row.landing.house };
+  if (row.mode === "location") eq(validateLocationProjection(row.source as any, landing), "OK", `row ${row.id}: Location source has valid selected-evidence provenance (validateLocationProjection)`);
+
+  // The COMPLETE editor wire must parse with the production parser (catches missing followup / pace_band).
+  const wire = { schema: DICE_V05_EDITOR_SCHEMA, status: "ok", language: row.language, question_mode: row.mode, ...row.proposed };
+  const parsed = parseEditorResponse(row.source as any, row.language, JSON.stringify(wire));
+  eq(parsed.kind, "ok", `row ${row.id}: the complete editor wire parses (${(parsed as any).code ?? "ok"})`);
+
+  // Assembly: semantic reaches Stage 4; structural_gate fails with its declared gate code.
+  const asm = parsed.kind === "ok" ? assembleEditorCopy(row.source as any, parsed.value, landing) : { ok: false as const, reason: "PARSE" };
+  if (row.kind === "semantic") {
+    ok(asm.ok, `row ${row.id}: a SEMANTIC row assembles (reaches the checker) — got ${(asm as any).reason ?? "ok"}`);
+  } else {
+    ok(!asm.ok, `row ${row.id}: a STRUCTURAL_GATE row fails assembly BEFORE Stage 4`);
+    eq((asm as any).reason, row.gate, `row ${row.id}: the structural gate code matches the declared gate`);
+    gateRows += 1;
+  }
+
+  // Expected verdict keys == server-derived required checks; every verdict legal.
   const requiredKeys = fidelityCheckKeys(row.source as any).slice().sort();
-  eq(Object.keys(row.expected).slice().sort(), requiredKeys, `row ${row.id}: expected keys == the server-derived required checks`);
+  eq(Object.keys(row.expected).slice().sort(), requiredKeys, `row ${row.id}: expected keys == server-derived required checks`);
   let anyChange = false;
   for (const [k, v] of Object.entries(row.expected)) {
-    ok(v === "preserves" || v === "changes" || v === "uncertain", `row ${row.id}: verdict for ${k} is a legal enum value`);
+    ok(v === "preserves" || v === "changes" || v === "uncertain", `row ${row.id}: verdict for ${k} is a legal enum`);
     if (v !== "preserves") anyChange = true;
   }
-  // label ⇔ verdicts.
-  if (row.label === "positive") { ok(!anyChange, `row ${row.id}: a positive row has every verdict "preserves"`); positives += 1; }
-  else { ok(anyChange, `row ${row.id}: a negative row has at least one non-"preserves" verdict`); negatives += 1; }
-  // proposed carries the compared component prose.
-  ok(row.proposed && typeof row.proposed === "object" && Object.keys(row.proposed).length > 0, `row ${row.id}: carries proposed components`);
-  ok(typeof row.rationale === "string" && row.rationale.length > 10, `row ${row.id}: carries a rationale`);
-  modesSeen.add(row.mode); langsSeen.add(row.language); categories.add(row.category);
+  if (row.label === "positive") ok(!anyChange, `row ${row.id}: a positive row has every verdict preserves`);
+  else ok(anyChange, `row ${row.id}: a negative row has ≥1 non-preserves verdict`);
+
+  // A SEMANTIC POSITIVE additionally: builds a within-cap comparison input + passes display validation.
+  if (row.kind === "semantic" && row.label === "positive" && asm.ok) {
+    const displayVerdict = validateDisplayCopy(asm.copy, row.source as any, landing, true);
+    eq(displayVerdict, "OK", `row ${row.id}: a positive candidate passes display validation`);
+    const components = fidelityComponentsFromWire(wire);
+    const providerInput = buildFidelityProviderInput(buildFidelityInput(row.source as any, asm.copy, components, row.question, landing));
+    ok(measureDiceTokenLimit(providerInput, CHECKER_INPUT_CAP).within_limit, `row ${row.id}: the checker comparison input is within CHECKER_INPUT_CAP`);
+  }
+
+  // Cartesian bookkeeping over SEMANTIC rows only.
+  if (row.kind === "semantic") {
+    const key = `${row.mode}/${row.language}`;
+    const c = cell.get(key) ?? { pos: 0, neg: 0 };
+    if (row.label === "positive") { c.pos += 1; semanticPos += 1; } else { c.neg += 1; semanticNeg += 1; }
+    cell.set(key, c);
+  }
 }
 
-// Coverage: all six modes, both languages, and both labels present.
-for (const m of DICE_V05_MODES) ok(modesSeen.has(m), `the eval set covers mode ${m}`);
-ok(langsSeen.has("en") && langsSeen.has("zh-Hant"), "the eval set covers EN and HK-Traditional");
-ok(positives >= 4 && negatives >= 6, `the eval set carries both faithful positives (${positives}) and meaning-changing negatives (${negatives})`);
-// The known defect classes the handoff §12 names are represented.
-for (const c of ["factor_reversal", "averaged_factors", "pace_reversal_immediacy", "invented_date", "unsupported_place", "search_order", "careful_to_reckless_reversal", "caution_inverted", "followup_swapped_intent", "prompt_injection_in_copy"]) {
-  ok(categories.has(c), `the eval set includes the '${c}' defect class`);
+// Full Cartesian coverage: each mode × language has a semantic positive AND a semantic negative.
+for (const m of DICE_V05_MODES) for (const lang of ["en", "zh-Hant"] as const) {
+  const c = cell.get(`${m}/${lang}`) ?? { pos: 0, neg: 0 };
+  ok(c.pos >= 1, `Cartesian coverage: ${m}/${lang} has a semantic FAITHFUL positive (${c.pos})`);
+  ok(c.neg >= 1, `Cartesian coverage: ${m}/${lang} has a semantic MEANING-CHANGING negative (${c.neg})`);
+}
+// The named defect categories are represented (semantic + structural-gate).
+for (const cat of ["faithful", "level1_reversal", "answer_reversal", "invented_date", "clue_meaning_change", "caution_inverted", "averaged_factors", "prompt_injection_in_copy", "faithful_synonym_caution", "factor_reversal", "followup_swapped_intent", "pace_reversal_immediacy", "unsupported_place", "search_order"]) {
+  ok(categories.has(cat), `the eval set includes the '${cat}' category`);
 }
 
-console.log(`dice-v0-5 copy-fidelity eval-set (lumis_dice_fidelity_eval_v1) fixtures passed: ${rows.length} rows, ${positives} positive / ${negatives} negative, modes=${[...modesSeen].sort().join(",")}, languages=${[...langsSeen].sort().join(",")}`);
+const nCells = DICE_V05_MODES.length * 2;
+console.log(`dice-v0-5 copy-fidelity eval-set (lumis_dice_fidelity_eval_v1) fixtures passed: ${rows.length} rows (${semanticPos} semantic-positive / ${semanticNeg} semantic-negative / ${gateRows} structural-gate) covering all ${nCells} mode×language cells with faithful + meaning-changing examples; categories=${[...categories].sort().join(",")}`);

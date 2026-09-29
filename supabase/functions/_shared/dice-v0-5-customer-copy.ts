@@ -133,9 +133,11 @@ export function publicCopyFailure(internalCode: string | null | undefined): Publ
     if (has("CHANGED")) code = "DICE_COPY_CHECKER_CHANGED";
     else if (has("UNCERTAIN")) code = "DICE_COPY_CHECKER_UNCERTAIN";
     else if (has("SKIPPED", "TIMEOUT")) code = "DICE_COPY_TIMEOUT";
-    else if (has("NETWORK", "TRANSPORT", "PERMISSION", "AUTHENTICATION", "CONTENT_FILTER")) code = "DICE_COPY_TRANSPORT";
+    // C04-A: an upstream SERVER / rate-limit / overload failure (the Azure adapter's `kind:"server"` for
+    // HTTP 429 and 5xx) is a service/transport failure, NOT invalid checker CONTENT. Map it to transport.
+    else if (has("NETWORK", "TRANSPORT", "SERVER", "RATE", "OVERLOAD", "THROTTL", "UNAVAILABLE", "PERMISSION", "AUTHENTICATION", "CONTENT_FILTER")) code = "DICE_COPY_TRANSPORT";
     else if (has("TOKEN_CAP", "OUTPUT_TOKEN", "INPUT_TOO_LARGE", "TOO_LARGE", "RAW_OUTPUT")) code = "DICE_COPY_TOKEN_CAP";
-    else code = "DICE_COPY_CHECKER_INVALID"; // genuine invalid/missing/unbound checker content
+    else code = "DICE_COPY_CHECKER_INVALID"; // genuine invalid/missing/unbound checker content (JSON/shape/key/verdict/binding)
   }
   else if (has("UNPRESENTABLE")) code = "DICE_COPY_UNPRESENTABLE";
   else if (has("TIMEOUT")) code = "DICE_COPY_TIMEOUT";
@@ -1177,25 +1179,17 @@ export function assembleEditorCopy(
 
   const bareStep = (s: string) => String(s).replace(TRAILING_TERMINATOR, "").trim();
   if (canonical.watch_out != null) {
-    const src = String(canonical.watch_out);
     const w = String(c.watch_out);
-    // C03/C07 + R01: a caution must not be inverted into an all-clear and must not REVERSE the source
-    // polarity (clause-scoped negation flip on a shared token). It does NOT force any stock warning word
-    // (C07/P10). For Location it introduces no unsupported place (C04/P08). These are HARD STRUCTURAL /
-    // high-confidence content checks.
-    //
-    // B04 (review): the former zero-shared-token "DICE_COPY_CAUTION_LOST" floor is REMOVED. A faithful
-    // synonym caution ("Avoid pressure." → "Do not push." / a zh synonym) shares no words with its
-    // source yet preserves the meaning, so a literal-overlap floor false-rejected it BEFORE the mandatory
-    // meaning checker could evaluate it — contradicting §6 and defeating the checker's purpose. Whether a
-    // fully-reworded caution still preserves the warning (or drifts into an unrelated statement) is a
-    // SEMANTIC judgement, now routed to the Stage-4 checker: a faithful synonym reaches it and displays on
-    // "preserves"; an unrelated replacement is caught by the checker's "changes" and falls back. We do NOT
-    // substitute a different keyword threshold here (the review forbids that); only the high-confidence
-    // structural guards above remain hard.
-    if (ALL_CLEAR.test(w)) return fail("DICE_COPY_CAUTION_INVERTED");
-    if (polarityReversed(src, w)) return fail("DICE_COPY_CAUTION_REVERSED");
-    // An unsupported place is a hard content violation (selected Location evidence), always enforced.
+    // C03 (review): the caution's SEMANTIC fidelity — is the warning preserved, inverted into an
+    // all-clear, or reversed? — is now decided by the mandatory Stage-4 meaning checker, NOT by a
+    // lexical negation-window heuristic. The former ALL_CLEAR and polarityReversed hard rejects (and the
+    // B04 zero-overlap floor before them) false-rejected faithful paraphrases such as "…permanently
+    // lost…" → "…gone…" whose negation window shifts without changing meaning, stopping a structurally
+    // valid candidate before it could reach the checker. A character window is not a language parser.
+    // Only high-confidence STRUCTURAL / PROVENANCE constraints remain hard here: for Location the caution
+    // may introduce no place outside the selected candidates/area (selected-evidence provenance). Schema,
+    // identity, caps, required sections and the sentence-fragment check (above) also still apply. A real
+    // inversion/reversal is caught by the checker's "changes" verdict → validated fallback.
     if (fam === "location") for (const m of w.matchAll(PLACE_LEXICON)) if (!approvedPlaces.includes(m[0].toLowerCase())) return fail("DICE_COPY_CAUTION_UNSUPPORTED_PLACE");
     watch_out = ensureTerminal(w, zh);
   }
@@ -1233,11 +1227,12 @@ export function assembleEditorCopy(
         for (const core of cores) { const at = assembledLow.indexOf(core); if (at < 0 || at < prevAt) return fail("DICE_COPY_STEP_ORDER"); prevAt = at; }
       }
     } else {
-      const src = String(canonical.practical_step);
       const p = String(c.practical_step);
-      // Non-location step: not inverted into an all-clear, and not polarity-reversed against the source.
-      if (ALL_CLEAR.test(p)) return fail("DICE_COPY_STEP_INVERTED");
-      if (polarityReversed(src, p)) return fail("DICE_COPY_STEP_REVERSED");
+      // C03 (review): the non-Location action's SEMANTIC fidelity (inversion / reversal) is decided by the
+      // mandatory Stage-4 checker, not the lexical negation-window heuristic, for the same reason as the
+      // caution above — the heuristic false-rejects faithful negation paraphrases. Structural checks
+      // (schema/identity/caps, the sentence-fragment check above) still apply; a real reversal is caught
+      // by the checker's "changes" verdict → validated fallback.
       practical_step = ensureTerminal(p, zh);
     }
   }

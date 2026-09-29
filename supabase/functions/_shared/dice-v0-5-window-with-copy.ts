@@ -73,7 +73,7 @@ export async function executeDiceV05FreeTextCaseWithCopy(
   input: DiceV05FreeTextRequest,
   adapterSource: DiceV05ProviderAdapter | (() => DiceV05ProviderAdapter),
   now: () => number = () => Date.now(),
-  opts: Readonly<{ copyMode?: DiceV05CopyMode }> = {},
+  opts: Readonly<{ copyMode?: DiceV05CopyMode; requestId?: string }> = {},
 ): Promise<DiceV05ThreeStageOutcome> {
   const copyMode: DiceV05CopyMode = opts.copyMode ?? "deterministic";
   // One absolute deadline for the whole request, captured before the window's preprocessing and
@@ -115,7 +115,9 @@ export async function executeDiceV05FreeTextCaseWithCopy(
       // request-binding fingerprint the checker attaches is computed over exactly the same component map
       // the Web re-derives from the same wire (B02).
       const components = fidelityComponentsFromWire(copy.editor_response);
-      const chk = await runFidelityCheck(canonical.result, copy.copy, components, input.question, adapterSource, { now, deadlineAtMs, landing });
+      // C06: bind the checker outcome to the server-owned request-instance id for this candidate request,
+      // so a verdict from one request instance cannot be replayed onto another with identical content.
+      const chk = await runFidelityCheck(canonical.result, copy.copy, components, input.question, adapterSource, { now, deadlineAtMs, landing, requestId: opts.requestId });
       checkerCalls = chk.calls;
       if (chk.accepted) {
         checkerOutcome = chk.outcome;

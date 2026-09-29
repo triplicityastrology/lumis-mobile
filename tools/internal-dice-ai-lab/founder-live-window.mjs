@@ -209,8 +209,13 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
     throw new Error("LAB_V05_GATEWAY_CONFIGURATION_INVALID");
   }
   return Object.freeze({
-    async run(request) {
+    async run(request, requestId) {
       if (!exactKeys(request, FOUNDER_FREE_TEXT_REQUEST_FIELDS)) throw new Error("LAB_V05_GATEWAY_REQUEST_INVALID");
+      // C06: forward the trusted caller's server-owned request-instance id (bounded token) so the edge
+      // can bind the Stage-4 checker outcome to it. Sent only when present and well-formed; it is
+      // association metadata, never the request body and never a browser-selected authorization value.
+      const requestIdHeader = typeof requestId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(requestId)
+        ? { "x-lumis-dice-request-id": requestId } : {};
       const response = await fetchImpl(parsed.href, {
         method: "POST",
         headers: {
@@ -219,6 +224,7 @@ export function createFounderDiceV05FreeTextGatewayClient({ functionUrl, anonKey
           "content-type": "application/json",
           "x-lumis-founder-free-text-access": accessKey,
           "x-lumis-dice-interpretation": "v5",
+          ...requestIdHeader,
         },
         body: JSON.stringify(request),
         signal: AbortSignal.timeout(14_000),

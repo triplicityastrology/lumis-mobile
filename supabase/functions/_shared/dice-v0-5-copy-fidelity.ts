@@ -127,18 +127,28 @@ function canonicalSerialize(v: unknown): string {
 }
 
 /* ------------------------------------------------------------------ *
- * Duplicate-key-aware JSON parse (B03). Ordinary JSON.parse silently keeps the LAST value for a repeated
- * key, so a response could carry `"answer":"changes","answer":"preserves"` and parse as all-preserves.
- * This recursive-descent parser DECODES each object key (so `"answer"` is recognised as "answer")
- * and rejects any object that repeats a decoded key, at the top level and at every nesting depth, before
- * a later value can overwrite an earlier rejecting one.
+ * Duplicate-key-aware, strict JSON decode (B03 + C01). Ordinary JSON.parse silently keeps the LAST value
+ * for a repeated key, so a response could carry `"answer":"changes","answer":"preserves"` and parse as
+ * all-preserves. This runs in TWO passes:
+ *
+ *   1. A duplicate-DETECTION scanner walks the text, DECODES each object key (so `"answer"` is
+ *      recognised as "answer") and rejects any object that repeats a decoded key at any nesting depth.
+ *      It never builds the object (so a `__proto__` key can never invoke the inherited setter here) and
+ *      is tolerant of number grammar — grammar is the job of pass 2.
+ *   2. Native `JSON.parse` is the authority for grammar AND the decoded VALUE. It rejects non-JSON number
+ *      forms (`01`, `1.`, `-.1`) that a hand-rolled scanner might accept, and — crucially — it materialises
+ *      a `__proto__` key as an ordinary OWN enumerable data property (never the prototype setter), so the
+ *      downstream exact-key check SEES it and rejects it as a forbidden extra key rather than silently
+ *      dropping it. Do NOT replace duplicate detection with JSON.parse alone (it dedupes silently).
  * ------------------------------------------------------------------ */
 class DuplicateKeyError extends Error {}
-export function parseJsonRejectDuplicateKeys(text: string): { ok: true; value: unknown } | { ok: false; duplicate: boolean } {
+// Walk `text` purely to detect a repeated decoded object key at any depth. Throws DuplicateKeyError on a
+// repeat; any other malformation is left for JSON.parse to reject. Builds nothing.
+function scanForDuplicateKeys(text: string): void {
   let i = 0;
   const n = text.length;
   const skipWs = () => { while (i < n) { const ch = text.charCodeAt(i); if (ch === 0x20 || ch === 0x09 || ch === 0x0a || ch === 0x0d) i += 1; else break; } };
-  function parseString(): string {
+  function scanString(): string {
     i += 1; // opening quote
     let s = "";
     for (;;) {
@@ -156,72 +166,66 @@ export function parseJsonRejectDuplicateKeys(text: string): { ok: true; value: u
       else s += ch;
     }
   }
-  function parseValue(): unknown {
+  function scanValue(): void {
     skipWs();
     if (i >= n) throw new Error("eof");
     const ch = text[i];
-    if (ch === "{") return parseObject();
-    if (ch === "[") return parseArray();
-    if (ch === '"') return parseString();
-    if (ch === "-" || (ch >= "0" && ch <= "9")) return parseNumber();
-    if (text.startsWith("true", i)) { i += 4; return true; }
-    if (text.startsWith("false", i)) { i += 5; return false; }
-    if (text.startsWith("null", i)) { i += 4; return null; }
+    if (ch === "{") return scanObject();
+    if (ch === "[") return scanArray();
+    if (ch === '"') { scanString(); return; }
+    if (ch === "-" || (ch >= "0" && ch <= "9")) { scanNumber(); return; }
+    if (text.startsWith("true", i)) { i += 4; return; }
+    if (text.startsWith("false", i)) { i += 5; return; }
+    if (text.startsWith("null", i)) { i += 4; return; }
     throw new Error("unexpected token");
   }
-  function parseObject(): Record<string, unknown> {
+  function scanObject(): void {
     i += 1; // {
-    const obj: Record<string, unknown> = {};
     const seen = new Set<string>();
     skipWs();
-    if (text[i] === "}") { i += 1; return obj; }
+    if (text[i] === "}") { i += 1; return; }
     for (;;) {
       skipWs();
       if (text[i] !== '"') throw new Error("expected key");
-      const key = parseString();
+      const key = scanString();
       if (seen.has(key)) throw new DuplicateKeyError(); // conflicting OR identical repeat, escaped or not
       seen.add(key);
       skipWs();
       if (text[i] !== ":") throw new Error("expected colon");
       i += 1;
-      obj[key] = parseValue();
+      scanValue();
       skipWs();
       if (text[i] === ",") { i += 1; continue; }
-      if (text[i] === "}") { i += 1; return obj; }
+      if (text[i] === "}") { i += 1; return; }
       throw new Error("expected , or }");
     }
   }
-  function parseArray(): unknown[] {
+  function scanArray(): void {
     i += 1; // [
-    const arr: unknown[] = [];
     skipWs();
-    if (text[i] === "]") { i += 1; return arr; }
+    if (text[i] === "]") { i += 1; return; }
     for (;;) {
-      arr.push(parseValue());
+      scanValue();
       skipWs();
       if (text[i] === ",") { i += 1; continue; }
-      if (text[i] === "]") { i += 1; return arr; }
+      if (text[i] === "]") { i += 1; return; }
       throw new Error("expected , or ]");
     }
   }
-  function parseNumber(): number {
-    const start = i;
+  function scanNumber(): void {
     if (text[i] === "-") i += 1;
-    while (i < n && text[i] >= "0" && text[i] <= "9") i += 1;
-    if (text[i] === ".") { i += 1; while (i < n && text[i] >= "0" && text[i] <= "9") i += 1; }
-    if (text[i] === "e" || text[i] === "E") { i += 1; if (text[i] === "+" || text[i] === "-") i += 1; while (i < n && text[i] >= "0" && text[i] <= "9") i += 1; }
-    const num = Number(text.slice(start, i));
-    if (!Number.isFinite(num)) throw new Error("bad number");
-    return num;
+    while (i < n && ((text[i] >= "0" && text[i] <= "9") || text[i] === "." || text[i] === "e" || text[i] === "E" || text[i] === "+" || text[i] === "-")) i += 1;
   }
-  try {
-    const value = parseValue();
-    skipWs();
-    if (i !== n) return { ok: false, duplicate: false };
-    return { ok: true, value };
-  } catch (err) {
-    return { ok: false, duplicate: err instanceof DuplicateKeyError };
-  }
+  scanValue();
+}
+export function parseJsonRejectDuplicateKeys(text: string): { ok: true; value: unknown } | { ok: false; duplicate: boolean } {
+  // Pass 1: duplicate detection (only a duplicate short-circuits here; grammar is deferred to pass 2).
+  try { scanForDuplicateKeys(text); }
+  catch (err) { if (err instanceof DuplicateKeyError) return { ok: false, duplicate: true }; }
+  // Pass 2: native JSON.parse is the grammar + value authority. It rejects 01/1./-.1 and exposes a
+  // `__proto__` key as an own enumerable property that exact-key validation can see and reject.
+  try { return { ok: true, value: JSON.parse(text) }; }
+  catch { return { ok: false, duplicate: false }; }
 }
 
 /* ------------------------------------------------------------------ *
@@ -282,16 +286,20 @@ export function assembledVisibleText(copy: DiceV05CustomerCopy): string {
   return [copy.headline, copy.reading, copy.watch_out ?? "", copy.practical_step ?? "", ...copy.suggested_followups]
     .map((s) => String(s ?? "").trim()).filter(Boolean).join("\n");
 }
-// A server-owned request identity, re-derivable at the Web from the SAME validated request inputs
-// (question + trusted physical landing + language + mode). It is NOT a random nonce and is NOT carried
-// on the wire, so it cannot be browser-supplied; the composition derives it from the request it served
-// and the Web derives it independently from its own validated selection. A verdict replayed against a
-// different question or landing yields a different identity and is rejected (B02).
-function requestIdentity(canonical: Canonical, question: string, landing?: Landing): string {
+// A server-owned request identity. It combines the re-derivable request inputs (question + trusted
+// physical landing + language + mode) with a fresh, server-owned CORRELATION ID minted once per candidate
+// request at the trusted entry (C06). The content part alone cannot distinguish two executions with
+// identical inputs; the correlation id makes each request instance distinct, so a verdict produced for
+// one request instance is rejected when re-presented against a different request instance — even when the
+// source, question, landing, components and display are byte-identical. The id is server association
+// metadata only: it never enters the provider prompt (buildFidelityInput omits it) and is never taken
+// from a browser-supplied value. When absent (older callers / no correlation established) the binding
+// falls back to the content identity, preserving the B02 source/question/landing binding.
+function requestIdentity(canonical: Canonical, question: string, landing?: Landing, requestId?: string): string {
   const language = String(canonical.language ?? "");
   const mode = String(canonical.question_mode ?? "");
   const land = landing ? `${landing.planet}|${landing.sign}|${landing.house}` : "";
-  return `${language}|${mode}|${land}|${question}`;
+  return `${language}|${mode}|${land}|${question}|${requestId ?? ""}`;
 }
 
 // A collision-resistant fingerprint that BINDS a checker verdict to the FULL request identity AND the
@@ -304,15 +312,15 @@ function requestIdentity(canonical: Canonical, question: string, landing?: Landi
 // question, landing, mode/language or candidate cannot match. SHA-256 over a key-sorted serialization of
 // the whole server-built comparison input, not an 8-char non-cryptographic hash of the visible text.
 export function candidateFingerprint(
-  canonical: Canonical, copy: DiceV05CustomerCopy, components: Readonly<Record<string, string>>, question: string, landing?: Landing,
+  canonical: Canonical, copy: DiceV05CustomerCopy, components: Readonly<Record<string, string>>, question: string, landing?: Landing, requestId?: string,
 ): string {
   const language = canonical.language as DiceV05Language;
   const mode = canonical.question_mode as DiceV05Mode;
   const input = buildFidelityInput(canonical, copy, components, question, landing);
   const payload = canonicalSerialize({
-    v: 2,
+    v: 3,
     schema: DICE_V05_FIDELITY_SCHEMA,
-    request_identity: requestIdentity(canonical, question, landing),
+    request_identity: requestIdentity(canonical, question, landing, requestId),
     language, question_mode: mode,
     source: input.source, facts: input.facts, proposed: input.proposed,
     assembled_display: input.assembled_display, required_checks: input.required_checks,
@@ -515,7 +523,7 @@ export async function runFidelityCheck(
   editorComponents: Readonly<Record<string, string>>,
   customerQuestion: string,
   adapterSource: DiceV05ProviderAdapter | (() => DiceV05ProviderAdapter),
-  opts: Readonly<{ now?: () => number; deadlineAtMs?: number; landing?: Landing; maxProviderTokens?: number }> = {},
+  opts: Readonly<{ now?: () => number; deadlineAtMs?: number; landing?: Landing; maxProviderTokens?: number; requestId?: string }> = {},
 ): Promise<FidelityRun> {
   const now = opts.now ?? (() => Date.now());
   const deadline = opts.deadlineAtMs ?? (now() + 12000);
@@ -537,12 +545,29 @@ export async function runFidelityCheck(
   // transport — preprocessing may itself have consumed the budget. No usable time left → skip, no call.
   if (now() >= deadline) return reject("DICE_CHECKER_SKIPPED_TIMEOUT");
 
+  // C02: bound the AWAIT itself. An adapter that IGNORES the abort signal and never settles must not hang
+  // the runner past the deadline — aborting a signal does not settle an arbitrary Promise. Race the
+  // (rejection-safe) invocation against a real-time deadline timer; on the timer, abort the request and
+  // return a controlled timeout promptly. A late settlement of the invocation is swallowed and can never
+  // change the returned decision, raise an unhandled rejection, or start another request. This preserves
+  // the ORIGINAL absolute deadline (no fresh budget); the timer's delay is what remains of that deadline.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.max(0, deadline - now()));
-  let res: { kind: string; content?: string; transported?: boolean };
-  try {
-    res = await adapter.invoke({ prompt: providerInput, deadline_at_ms: deadline, max_output_tokens: CHECKER_GEN_CAP, schema_name: fidelitySchemaName(mode), schema, signal: controller.signal }).catch(() => ({ kind: "network" as const }));
-  } finally { clearTimeout(timer); }
+  const TIMEOUT = Symbol("checker-timeout");
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const invokePromise = Promise.resolve()
+    .then(() => adapter.invoke({ prompt: providerInput, deadline_at_ms: deadline, max_output_tokens: CHECKER_GEN_CAP, schema_name: fidelitySchemaName(mode), schema, signal: controller.signal }))
+    .then((r) => r as { kind: string; content?: string; transported?: boolean }, () => ({ kind: "network" as const }));
+  const timeoutPromise = new Promise<typeof TIMEOUT>((resolve) => { timer = setTimeout(() => resolve(TIMEOUT), Math.max(0, deadline - now())); });
+  const raced = await Promise.race([invokePromise, timeoutPromise]);
+  if (timer !== undefined) clearTimeout(timer);
+  if (raced === TIMEOUT) {
+    controller.abort();               // ask a cooperative adapter to stop
+    invokePromise.catch(() => {});    // swallow any LATE rejection; a late resolve is discarded (no re-entry)
+    // The request was initiated and had not settled by the deadline. For the real fetch adapter that is an
+    // in-flight transported call, so it is counted honestly (never a fabricated 0, never a retry).
+    return reject("DICE_CHECKER_TIMEOUT", 1);
+  }
+  const res = raced as { kind: string; content?: string; transported?: boolean };
   const calls = res.kind === "success" || res.transported !== false ? 1 : 0;
   if (res.kind !== "success" || typeof res.content !== "string") return reject(`DICE_CHECKER_${res.kind.toUpperCase()}`, calls);
   // B06: a completion that only settled AFTER the absolute deadline (or after the abort fired) is NOT
@@ -555,7 +580,7 @@ export async function runFidelityCheck(
   const parse = parseFidelityResponse(canonical, language, res.content);
   const decision = fidelityDecision(canonical, parse);
   if (decision !== "OK" || parse.kind !== "ok") return reject(decision === "OK" ? "DICE_CHECKER_INVALID" : decision, calls);
-  const outcome = fidelityOutcomeToWire(language, mode, parse.verdicts, candidateFingerprint(canonical, copy, editorComponents, customerQuestion, opts.landing));
+  const outcome = fidelityOutcomeToWire(language, mode, parse.verdicts, candidateFingerprint(canonical, copy, editorComponents, customerQuestion, opts.landing, opts.requestId));
   return Object.freeze({ accepted: true, outcome, calls, failure: null });
 }
 
@@ -565,15 +590,16 @@ export async function runFidelityCheck(
  * consumer re-assembled FROM THE SOURCE AND REQUEST it independently validated, and every verdict is
  * "preserves". Returns OK or a bounded internal code.
  *
- * B02: the binding now covers the source interpretation, trusted facts/landing, question and request
- * identity (via candidateFingerprint), so a verdict produced for a DIFFERENT source, question, landing
- * or candidate cannot validate here even if the visible text happens to match. The consumer passes the
- * editor components (from the flat wire, via fidelityComponentsFromWire), the customer question and the
- * trusted landing — all server-derived, never browser-supplied.
+ * B02/C06: the binding covers the source interpretation, trusted facts/landing, question AND a
+ * server-owned request-instance id (via candidateFingerprint), so a verdict produced for a DIFFERENT
+ * source, question, landing, candidate OR a DIFFERENT request instance cannot validate here even if the
+ * visible text is byte-identical. The consumer passes the editor components (from the flat wire, via
+ * fidelityComponentsFromWire), the customer question, the trusted landing and the CURRENT request's
+ * server-owned id — all server-derived, never a value echoed from the response being checked.
  */
 export function validateCarriedFidelity(
   outcome: unknown, canonical: Canonical, language: DiceV05Language, copy: DiceV05CustomerCopy,
-  components: Readonly<Record<string, string>>, question: string, landing?: Landing,
+  components: Readonly<Record<string, string>>, question: string, landing?: Landing, requestId?: string,
 ): "OK" | string {
   if (!isRecord(outcome)) return "DICE_CHECKER_MISSING";
   if (!exactKeys(outcome, ["schema", "language", "question_mode", "checks", "fingerprint"])) return "DICE_CHECKER_EXTRA_OR_MISSING_KEY";
@@ -581,7 +607,7 @@ export function validateCarriedFidelity(
   if (outcome.schema !== DICE_V05_FIDELITY_SCHEMA) return "DICE_CHECKER_SCHEMA_ID";
   if (outcome.language !== language) return "DICE_CHECKER_LANGUAGE";
   if (outcome.question_mode !== mode) return "DICE_CHECKER_MODE";
-  if (outcome.fingerprint !== candidateFingerprint(canonical, copy, components, question, landing)) return "DICE_CHECKER_BINDING";
+  if (outcome.fingerprint !== candidateFingerprint(canonical, copy, components, question, landing, requestId)) return "DICE_CHECKER_BINDING";
   const checks = outcome.checks;
   if (!isRecord(checks)) return "DICE_CHECKER_CHECKS_SHAPE";
   const keys = fidelityCheckKeys(canonical);

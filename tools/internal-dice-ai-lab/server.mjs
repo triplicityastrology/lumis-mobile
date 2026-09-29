@@ -330,9 +330,14 @@ export function presentCustomerCopyV05(copy, canonical, selection) {
 // loadAuthoritativeCopyValidator(), plus validateLocationProjection for the canonical Location
 // projection. See executeLabFreeTextV05Request below (S03).)
 
-export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory, stage3EditorEnabled = false } = {}) {
+export async function executeLabFreeTextV05Request(raw, { providerEnabled = false, gatewayFactory, stage3EditorEnabled = false, requestId } = {}) {
   const selection = validateLabFreeTextRunRequest(raw);
   if (!selection) return Object.freeze({ status: 400, body: { code: "LAB_V05_FREE_TEXT_SELECTION_INVALID", provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
+  // C06: mint a fresh SERVER-OWNED request-instance id at this trusted entry (unless one is injected for
+  // a deterministic test). It is threaded DOWN to the gateway/edge/composition and later compared at this
+  // boundary against the id THIS request minted — never a value echoed back from the response — so a
+  // checker verdict bound to a different request instance is rejected even with byte-identical content.
+  const currentRequestId = typeof requestId === "string" && requestId ? requestId : `req_${globalThis.crypto.randomUUID().replace(/-/g, "")}`;
   const language = /[㐀-鿿豈-﫿]/u.test(selection.question) ? "zh-Hant" : "en";
   if (!providerEnabled) return Object.freeze({ status: 503, body: { code: "DICE_AI_DISABLED", presentation: deterministicV05Presentation("fallback", language), classification: null, provider_calls: 0, persistence_writes: 0, units_charged: 0 } });
   if (typeof gatewayFactory !== "function") throw new Error("LAB_V05_GATEWAY_NOT_CONFIGURED");
@@ -344,7 +349,7 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   // can never fall through to the outer HTTP catch and be relabelled LAB_..._REQUEST_INVALID.
   let metadata = null;
   try {
-  const response = await gatewayFactory().run({ question: selection.question, planet_id: selection.planet.id, sign_id: selection.sign.id, house_id: selection.house.id });
+  const response = await gatewayFactory().run({ question: selection.question, planet_id: selection.planet.id, sign_id: selection.sign.id, house_id: selection.house.id }, currentRequestId);
   metadata = redactV05Metadata(response.metadata);
   if (response.kind !== "completed") {
     const kind = response.kind === "safety" ? "safety" : response.kind === "bundled" ? "bundled" : response.kind === "route_review" ? "route_review" : "fallback";
@@ -407,6 +412,7 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   let displayCopy = null;
   let copySource = null;
   let copyFailure = null;
+  let failureFromUpstream = false; // C04-B: true only when the displayed fallback's diagnostic is adopted from upstream metadata.
   // V02: the editor response is evaluated INDEPENDENTLY — its acceptance does NOT require the
   // deterministic fallback to be displayable. The structured editor response is parsed with the
   // TRUSTED canonical mode+language, assembled from its SEPARATED components with the source-bound
@@ -435,7 +441,9 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
           // landing are the Web's OWN validated request values, never browser-supplied. A missing/unbound/
           // insufficient outcome, or any non-preserves verdict, rejects the edit and falls back.
           const editorComponents = cp.fidelityComponentsFromWire(supplied);
-          const fidelityVerdict = cp.validateCarriedFidelity(response.checker_outcome, result, result.language, assembled.copy, editorComponents, selection.question, landing);
+          // C06: validate the carried outcome against THIS request's server-owned id (currentRequestId),
+          // not a value echoed from the response — a verdict bound to a different request instance rejects.
+          const fidelityVerdict = cp.validateCarriedFidelity(response.checker_outcome, result, result.language, assembled.copy, editorComponents, selection.question, landing, currentRequestId);
           if (fidelityVerdict === "OK") { displayCopy = assembled.copy; copySource = "stage3"; }
           else copyFailure = fidelityVerdict;
         } else copyFailure = displayVerdict;
@@ -460,6 +468,7 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
     // and strip its reason. A Web-side editor rejection sets copyFailure directly (above).
     if (!copyFailure && metadata.copy_source === "fallback") {
       copyFailure = (typeof metadata.copy_redacted_failure_code === "string" && metadata.copy_redacted_failure_code) || "DICE_COPY_UPSTREAM_FALLBACK";
+      failureFromUpstream = true; // C04-B: this fallback's diagnostic (incl. field/index) comes from upstream metadata.
     }
     // V07: report the ACTUAL displayed source. An editor attempted (here or upstream) but rejected →
     // "fallback" with a redacted failure code; the editor-unselected path → "deterministic". Never
@@ -467,20 +476,42 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
     copySource = copyFailure ? "fallback" : "deterministic";
   }
   const presentation = presentCustomerCopyV05(displayCopy, result, selection);
-  // A02: map the (possibly internal) failure reason to the shared PUBLIC contract before it reaches the
-  // browser — bounded code + optional allow-listed field, never raw diagnostic detail.
-  const pub = copyFailure ? cp.publicCopyFailure(copyFailure) : null;
+  // A02 + C04-B: the ONE authoritative diagnostic for the displayed fallback (bounded PUBLIC code + its
+  // SEPARATELY validated field/index). When the Web ADOPTS the upstream fallback, the code AND its
+  // field/index come DIRECTLY from the validated upstream metadata (never re-parsed from the already-
+  // stripped code, which loses the locator). When the Web makes its OWN local rejection, its diagnostic
+  // REPLACES the upstream one entirely (no mixing a new code with an old field/index).
+  let diag = null;
+  if (copyFailure) {
+    if (failureFromUpstream) {
+      diag = { code: metadata.copy_redacted_failure_code };
+      if (typeof metadata.copy_failure_field === "string" && metadata.copy_failure_field) diag.field = metadata.copy_failure_field;
+      if (Number.isInteger(metadata.copy_failure_index)) diag.index = metadata.copy_failure_index;
+    } else {
+      diag = cp.publicCopyFailure(copyFailure);
+    }
+  }
   const classification = copySource === "fallback"
-    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: pub.code, ...(pub.field ? { failure_field: pub.field } : {}), ...(pub.index !== undefined ? { failure_index: pub.index } : {}) }
+    ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: diag.code, ...(diag.field ? { failure_field: diag.field } : {}), ...(diag.index !== undefined ? { failure_index: diag.index } : {}) }
     : { question_mode: result.question_mode, copy_source: copySource };
-  // C08: make the `copy_source` field CONSISTENT across metadata and classification — it is the ACTUAL
-  // DISPLAYED source. When the upstream generation intent differed (e.g. the backend generated "stage3"
-  // but the Web rejected it and fell back), preserve that upstream label separately as
-  // `copy_source_upstream` and carry the PUBLIC redacted failure reason, so a rejected editor is never
-  // reported as if its prose were displayed.
-  const reportedMetadata = metadata.copy_source === copySource
-    ? metadata
-    : Object.freeze({ ...metadata, copy_source: copySource, copy_source_upstream: metadata.copy_source, ...(pub ? { copy_redacted_failure_code: pub.code, ...(pub.field ? { copy_failure_field: pub.field } : {}), ...(pub.index !== undefined ? { copy_failure_index: pub.index } : {}) } : {}) });
+  // C08 + C04-B: make `copy_source` CONSISTENT across metadata and classification, and keep the reported
+  // metadata's diagnostic consistent with the ACTUAL displayed fallback. Strip any stale optional locator
+  // fields first, then re-apply exactly the chosen diagnostic (so a Web-local override never leaves an old
+  // upstream field/index behind). When the upstream generation intent differed, preserve it separately as
+  // `copy_source_upstream`.
+  let reportedMetadata;
+  if (metadata.copy_source === copySource && !(copySource === "fallback" && !failureFromUpstream)) {
+    // Same displayed source AND (not a Web-local override of an upstream fallback) → metadata is already consistent.
+    reportedMetadata = metadata;
+  } else {
+    const { copy_redacted_failure_code: _c, copy_failure_field: _f, copy_failure_index: _i, ...rest } = metadata;
+    reportedMetadata = Object.freeze({
+      ...rest,
+      copy_source: copySource,
+      ...(metadata.copy_source !== copySource ? { copy_source_upstream: metadata.copy_source } : {}),
+      ...(diag ? { copy_redacted_failure_code: diag.code, ...(diag.field ? { copy_failure_field: diag.field } : {}), ...(diag.index !== undefined ? { copy_failure_index: diag.index } : {}) } : {}),
+    });
+  }
   return Object.freeze({ status: 200, body: { code: "DICE_COMPLETED", presentation, classification, metadata: reportedMetadata, provider_calls: metadata.provider_calls, provider_calls_disposition: "measured", persistence_writes: 0, units_charged: 0 } });
   } catch {
     // Gateway/transport or downstream execution failure on a VALID request → controlled 502 service

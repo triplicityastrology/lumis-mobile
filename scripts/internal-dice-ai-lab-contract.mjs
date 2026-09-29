@@ -224,7 +224,7 @@ const landingOf = (req) => ({ planet: req.planet_id, sign: req.sign_id, house: N
 // landing, the mock MUST be given the exact request question + landing the Web uses (threaded from the
 // gateway request below). Null when the editor does not assemble (such an editor is rejected before the
 // checker anyway).
-function mockCheckerOutcome(canonical, editorResp, question, landing, overrides = {}) {
+function mockCheckerOutcome(canonical, editorResp, question, landing, requestId, overrides = {}) {
   const parsed = CP.parseEditorResponse(canonical, canonical.language, JSON.stringify(editorResp));
   if (parsed.kind !== "ok") return null;
   const assembled = CP.assembleEditorCopy(canonical, parsed.value, landing);
@@ -232,7 +232,7 @@ function mockCheckerOutcome(canonical, editorResp, question, landing, overrides 
   const components = FID.fidelityComponentsFromWire(editorResp);
   const keys = FID.fidelityCheckKeys(canonical);
   const checks = {}; for (const k of keys) checks[k] = overrides[k] ?? "preserves";
-  return { schema: FID.DICE_V05_FIDELITY_SCHEMA, language: canonical.language, question_mode: canonical.question_mode, checks, fingerprint: FID.candidateFingerprint(canonical, assembled.copy, components, question, landing) };
+  return { schema: FID.DICE_V05_FIDELITY_SCHEMA, language: canonical.language, question_mode: canonical.question_mode, checks, fingerprint: FID.candidateFingerprint(canonical, assembled.copy, components, question, landing, requestId) };
 }
 // The gateway auto-attaches a MATCHING all-preserves checker outcome to any stage3-intended completed
 // response (editor_response present, checker_outcome not already set), so the Web's mandatory Stage-4
@@ -242,9 +242,11 @@ function mockCheckerOutcome(canonical, editorResp, question, landing, overrides 
 // checker_outcome explicitly (including null).
 const v05Gateway = (resp) => ({
   providerEnabled: true,
-  gatewayFactory: () => ({ run: async (request) => {
+  gatewayFactory: () => ({ run: async (request, requestId) => {
+    // C06: the auto-attached mock outcome binds to the request-instance id the Web threads down here, so
+    // the Web's own re-validation (against that same id) matches for a faithful edit.
     if (resp && resp.kind === "completed" && resp.editor_response && resp.result && !("checker_outcome" in resp)) {
-      return { ...resp, checker_outcome: mockCheckerOutcome(resp.result, resp.editor_response, request.question, landingOf(request)) };
+      return { ...resp, checker_outcome: mockCheckerOutcome(resp.result, resp.editor_response, request.question, landingOf(request), requestId) };
     }
     return resp;
   } }),
@@ -729,24 +731,27 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
 // ================================================================================================
 {
   const stage3Meta = () => v05Meta({ provider_calls: 4, astrology_provider_calls: 2, copy_provider_calls: 2, editor_provider_calls: 1, checker_provider_calls: 1, copy_source: "stage3" });
-  const on = (checkerOutcome) => executeLabFreeTextV05Request(v05FreeText, { ...v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, editor_response: v05JudgeEditorResp, checker_outcome: checkerOutcome, metadata: stage3Meta() }), stage3EditorEnabled: true });
+  // A fixed server-owned request-instance id so an explicitly-built outcome binds to the SAME id the Web
+  // validates against (C06). Auto-attached outcomes (v05Gateway) instead pick up the Web's own id.
+  const RID = "req_stage4fixed0000000000000000000000";
+  const on = (checkerOutcome) => executeLabFreeTextV05Request(v05FreeText, { ...v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, editor_response: v05JudgeEditorResp, checker_outcome: checkerOutcome, metadata: stage3Meta() }), stage3EditorEnabled: true, requestId: RID });
   // Accepted: a matching all-preserves checker outcome → stage3 displayed. Bound to the SAME request
-  // (question + landing) the Web re-derives from v05FreeText (B02).
-  const accept = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING));
+  // (question + landing + server id) the Web re-derives from v05FreeText + RID (B02/C06).
+  const accept = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, RID));
   assert.equal(accept.body.classification.copy_source, "stage3", "Stage 4: a bound all-preserves checker outcome → stage3 displayed");
   // MISSING checker outcome → the Web refuses to render the edit → fallback.
   const missing = await on(null);
   assert.equal(missing.body.classification.copy_source, "fallback", "Stage 4: a stage3 edit with NO carried checker outcome is NOT rendered (fallback)");
   assert.ok(CP.PUBLIC_COPY_FAILURE_CODES.includes(missing.body.classification.redacted_failure_code), "Stage 4: the missing-checker fallback carries a PUBLIC reason");
   // A 'changes' verdict → the SERVER rejects (a browser label cannot force acceptance) → fallback.
-  const changed = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, { [FID.WHOLE_DISPLAY_KEY]: "changes" }));
+  const changed = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, RID, { [FID.WHOLE_DISPLAY_KEY]: "changes" }));
   assert.equal(changed.body.classification.copy_source, "fallback", "Stage 4: a 'changes' verdict → the edit is rejected server-side (fallback)");
   assert.equal(changed.body.classification.redacted_failure_code, "DICE_COPY_CHECKER_CHANGED", "Stage 4: the public checker-changed code is reported");
   // An 'uncertain' verdict → fallback.
-  const uncertain = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, { answer: "uncertain" }));
+  const uncertain = await on(mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, RID, { answer: "uncertain" }));
   assert.equal(uncertain.body.classification.copy_source, "fallback", "Stage 4: an 'uncertain' verdict → fallback");
   // A verdict bound to a DIFFERENT candidate (wrong fingerprint) → rejected (binding), never displayed.
-  const good = mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING);
+  const good = mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, RID);
   const mismatched = await on({ ...good, fingerprint: "0".repeat(64) });
   assert.equal(mismatched.body.classification.copy_source, "fallback", "Stage 4: a checker verdict bound to a DIFFERENT candidate is rejected (binding), not displayed");
   assert.equal(mismatched.body.classification.redacted_failure_code, "DICE_COPY_CHECKER_INVALID", "Stage 4: a binding mismatch maps to a public checker code");
@@ -785,9 +790,12 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
     return { kind: "malformed" };
   } };
   const gatewayConfig = { functionUrl: "https://bmqhwofmdgebpcihjlnb.supabase.co/functions/v1/dice-synthetic", anonKey: "synthetic-anon-key", accessKey: "synthetic-not-a-secret-".repeat(3) };
+  // C06: the same server-owned request-instance id the edge would thread through — used by BOTH the
+  // composition (to bind the outcome) and the Web (to re-validate), so the joined path matches.
+  const B01_RID = "req_b01joined00000000000000000000000000";
   for (const editorEnabled of [false, true]) {
     // 1) REAL composition produces the exact wire object.
-    const run = await executeThreeStage(JREQ, () => fullAdapter, () => 1000, { copyMode: editorEnabled ? "provider" : "deterministic" });
+    const run = await executeThreeStage(JREQ, () => fullAdapter, () => 1000, { copyMode: editorEnabled ? "provider" : "deterministic", requestId: B01_RID });
     assert.equal(run.kind, "completed", `B01 (${editorEnabled ? "ON" : "OFF"}): composition completes`);
     assert.equal(run.copy_source, editorEnabled ? "stage3" : "deterministic", `B01 (${editorEnabled ? "ON" : "OFF"}): expected copy_source`);
     // 2) Serialize EXACTLY as the edge does — the closed SIX-field envelope INCLUDING checker_outcome.
@@ -799,8 +807,8 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
     assert.equal(parsed.kind, "completed", `B01 (${editorEnabled ? "ON" : "OFF"}): the REAL gateway parses the six-field envelope`);
     assert.ok("checker_outcome" in parsed, "B01: the gateway carries checker_outcome through to the consumer");
     assert.equal(parsed.checker_outcome === null, !editorEnabled, "B01: checker_outcome is null when OFF, non-null when an edit was accepted");
-    // 4) The REAL Web handler consumes the REAL gateway.
-    const web = await executeLabFreeTextV05Request(JREQ, { providerEnabled: true, stage3EditorEnabled: editorEnabled, gatewayFactory: () => gateway });
+    // 4) The REAL Web handler consumes the REAL gateway (with the SAME request-instance id, C06).
+    const web = await executeLabFreeTextV05Request(JREQ, { providerEnabled: true, stage3EditorEnabled: editorEnabled, gatewayFactory: () => gateway, requestId: B01_RID });
     assert.equal(web.status, 200, `B01 (${editorEnabled ? "ON" : "OFF"}): the Web returns 200, not 502 DICE_SERVICE_UNAVAILABLE`);
     assert.equal(web.body.code, "DICE_COMPLETED", `B01 (${editorEnabled ? "ON" : "OFF"}): the Web renders a completed reading`);
     assert.equal(web.body.classification.copy_source, editorEnabled ? "stage3" : "deterministic", `B01 (${editorEnabled ? "ON" : "OFF"}): the accepted/deterministic source is rendered end-to-end through the real gateway`);
@@ -811,6 +819,116 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
   const legacyPayload = { result: {}, question_mode: "judgment", customer_copy: null, editor_response: {}, metadata: {} };
   const legacyGateway = createFounderDiceV05FreeTextGatewayClient({ ...gatewayConfig, fetchImpl: async () => new Response(JSON.stringify(legacyPayload), { status: 200, headers: { "content-type": "application/json" } }) });
   await assert.rejects(() => legacyGateway.run(JREQ), /LAB_V05_GATEWAY_RESPONSE_INVALID/, "B01: a five-key envelope missing checker_outcome is rejected (the closed envelope is not loosened)");
+}
+
+// ================================================================================================
+// C06 (independent review) — request-INSTANCE binding. A checker verdict produced for one server-owned
+// request id must be rejected when re-presented against a DIFFERENT request id, even when the source,
+// question, landing, components and display are byte-identical. Same-request revalidation still passes
+// with no additional checker call.
+// ================================================================================================
+{
+  const meta = () => v05Meta({ provider_calls: 4, astrology_provider_calls: 2, copy_provider_calls: 2, editor_provider_calls: 1, checker_provider_calls: 1, copy_source: "stage3" });
+  const RID_A = "req_instanceAAAAAAAAAAAAAAAAAAAAAAAAAA";
+  const RID_B = "req_instanceBBBBBBBBBBBBBBBBBBBBBBBBBB";
+  // Outcome minted for request instance A (identical content in both requests).
+  const outcomeA = mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, RID_A);
+  const gw = (outcome) => ({ ...v05Gateway({ kind: "completed", result: v05Judgment, question_mode: "judgment", customer_copy: null, editor_response: v05JudgeEditorResp, checker_outcome: outcome, metadata: meta() }), stage3EditorEnabled: true });
+  // Same request instance (A validates under A) → accepted, no second checker call.
+  const sameInstance = await executeLabFreeTextV05Request(v05FreeText, { ...gw(outcomeA), requestId: RID_A });
+  assert.equal(sameInstance.body.classification.copy_source, "stage3", "C06: a verdict validated under ITS OWN request-instance id is accepted (no second checker call)");
+  assert.equal(sameInstance.body.provider_calls, 4, "C06: same-instance revalidation adds no provider call");
+  // Different request instance (A's verdict presented to request B) → rejected on binding → fallback.
+  const crossInstance = await executeLabFreeTextV05Request(v05FreeText, { ...gw(outcomeA), requestId: RID_B });
+  assert.equal(crossInstance.body.classification.copy_source, "fallback", "C06: a verdict bound to request A is REJECTED when re-presented against request B (identical content)");
+  assert.equal(crossInstance.body.classification.redacted_failure_code, "DICE_COPY_CHECKER_INVALID", "C06: the cross-instance binding failure maps to a public checker code");
+  // A verdict correctly minted for B validates under B (control).
+  const outcomeB = mockCheckerOutcome(v05Judgment, v05JudgeEditorResp, v05FreeText.question, DEFAULT_LANDING, RID_B);
+  const bUnderB = await executeLabFreeTextV05Request(v05FreeText, { ...gw(outcomeB), requestId: RID_B });
+  assert.equal(bUnderB.body.classification.copy_source, "stage3", "C06 control: a verdict minted for request B validates under B");
+}
+
+// ================================================================================================
+// C03 + C04 (independent review) — at the REAL composition: (C03) a faithful negation paraphrase caution
+// reaches the checker and displays on preserves, while a real reversal is caught by the checker → fallback;
+// (C04-A) an upstream 5xx/429 checker failure maps to a TRANSPORT reason, not invalid checker content;
+// (C04-B) an upstream fragment fallback's public code AND its field/index survive into Web classification.
+// ================================================================================================
+{
+  const windowCopyMod = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-window-with-copy.js")).href);
+  const executeThreeStage = windowCopyMod.executeDiceV05FreeTextCaseWithCopy;
+  const REQ = { question: "What is this person like?", planet_id: "saturn", sign_id: "taurus", house_id: "house_6" };
+  const base = { synthesis: "This person is careful and practical, and tends to build trust slowly through consistent, dependable actions.", practical_step: "Give them clear, concrete information rather than pressure." };
+  // A person composition: mode → stage2(level1 with the given caution) → editor(with the given caution) → checker(verdict).
+  const runPerson = (srcCaution, editCaution, checkerVerdict) => executeThreeStage(REQ, () => ({ invoke: async (r) => {
+    if (r.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "person", matched_rule: "STEP_4_LEVEL1" }) };
+    if (r.schema_name.endsWith("_v5_stage2")) return { kind: "success", content: JSON.stringify({ status: "ok", synthesis: base.synthesis, watch_out: srcCaution, practical_step: base.practical_step }) };
+    if (r.schema_name.startsWith("lumis_dice_editor_")) return { kind: "success", content: JSON.stringify({ schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: "person", answer: "A careful, practical person.", explanation: "They build trust slowly through consistent, dependable actions.", watch_out: editCaution, practical_step: base.practical_step }) };
+    if (r.schema_name.startsWith("lumis_dice_fidelity_")) {
+      if (checkerVerdict === "server") return { kind: "server", transported: true };
+      return { kind: "success", content: JSON.stringify({ fidelity_schema: FID.DICE_V05_FIDELITY_SCHEMA, language: "en", question_mode: "person", checks: Object.fromEntries(r.schema.properties.checks.required.map((k) => [k, k === "watch_out" ? checkerVerdict : "preserves"])) }) };
+    }
+    return { kind: "malformed" };
+  } }), () => 1000, { copyMode: "provider" });
+  // C03: the EXACT review pair — a faithful negation paraphrase reaches the checker (preserves) and displays.
+  const faithful = await runPerson("Do not assume it is permanently lost before a careful look.", "Do not assume it is gone before a careful look.", "preserves");
+  assert.equal(faithful.copy_source, "stage3", "C03: the faithful '…permanently lost…' → '…gone…' caution reaches the checker and displays (was falsely rejected before Stage 4)");
+  assert.equal(faithful.checker_provider_calls, 1, "C03: the faithful caution REACHED the checker (checker_provider_calls=1, not 0)");
+  assert.equal(faithful.customer_copy.watch_out, "Do not assume it is gone before a careful look.", "C03: the edited caution is displayed");
+  // C03: a real reversal is now caught by the CHECKER (changes) → fallback, not a pre-Stage-4 heuristic.
+  const reversed = await runPerson("Do not put pressure on them.", "Put pressure on them.", "changes");
+  assert.equal(reversed.copy_source, "fallback", "C03: a real caution reversal is caught by the checker's 'changes' verdict → fallback");
+  assert.equal(reversed.checker_provider_calls, 1, "C03: the reversal REACHED the checker (not hard-rejected at assembly)");
+  assert.equal(CP.publicCopyFailure(reversed.copy_failure_code).code, "DICE_COPY_CHECKER_CHANGED", "C03: the fallback reason is the public checker-changed code");
+  // C04-A: an upstream 5xx/429 checker failure → TRANSPORT public code, not CHECKER_INVALID.
+  const serverFail = await runPerson("Avoid pressure.", "Do not push.", "server");
+  assert.equal(serverFail.copy_source, "fallback", "C04-A: a checker server/rate-limit failure → fallback");
+  assert.equal(CP.publicCopyFailure(serverFail.copy_failure_code).code, "DICE_COPY_TRANSPORT", "C04-A: an upstream 5xx/429 checker failure maps to DICE_COPY_TRANSPORT, not DICE_COPY_CHECKER_INVALID");
+  assert.equal(serverFail.checker_provider_calls, 1, "C04-A: the server failure counts one transported checker attempt");
+  // C04-B: a fragment editor → upstream fallback carrying public code + field (+ index); the Web must keep them.
+  const fragment = await executeThreeStage(REQ, () => ({ invoke: async (r) => {
+    if (r.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "person", matched_rule: "STEP_4_LEVEL1" }) };
+    if (r.schema_name.endsWith("_v5_stage2")) return { kind: "success", content: JSON.stringify({ status: "ok", synthesis: base.synthesis, watch_out: "They may seem reserved before they feel settled.", practical_step: base.practical_step }) };
+    if (r.schema_name.startsWith("lumis_dice_editor_")) return { kind: "success", content: JSON.stringify({ schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: "person", answer: "A careful, practical person.", explanation: "They build trust slowly through consistent, dependable actions.", watch_out: "This warning is because.", practical_step: base.practical_step }) };
+    return { kind: "malformed" };
+  } }), () => 1000, { copyMode: "provider" });
+  assert.equal(fragment.copy_source, "fallback", "C04-B: a fragment editor caution → fallback");
+  assert.ok(CP.PUBLIC_COPY_FAILURE_CODES.includes(fragment.metadata.copy_redacted_failure_code), "C04-B: the composition metadata carries a public failure code");
+  assert.equal(fragment.metadata.copy_failure_field, "watch_out", "C04-B: the composition metadata carries the field (watch_out)");
+  // Join through the ACTUAL gateway + Web; classification must RETAIN field (+ index if present).
+  const gwPayload = { result: fragment.result, question_mode: fragment.question_mode, customer_copy: fragment.customer_copy, editor_response: fragment.editor_response, checker_outcome: fragment.checker_outcome, metadata: fragment.metadata };
+  const fragGateway = createFounderDiceV05FreeTextGatewayClient({ functionUrl: "https://bmqhwofmdgebpcihjlnb.supabase.co/functions/v1/dice-synthetic", anonKey: "synthetic-anon-key", accessKey: "synthetic-not-a-secret-".repeat(3), fetchImpl: async () => new Response(JSON.stringify(gwPayload), { status: 200, headers: { "content-type": "application/json" } }) });
+  const fragWeb = await executeLabFreeTextV05Request(REQ, { providerEnabled: true, stage3EditorEnabled: true, gatewayFactory: () => fragGateway });
+  assert.equal(fragWeb.body.classification.copy_source, "fallback", "C04-B: the Web reports the fallback");
+  assert.equal(fragWeb.body.classification.redacted_failure_code, fragment.metadata.copy_redacted_failure_code, "C04-B: the public code survives into Web classification");
+  assert.equal(fragWeb.body.classification.failure_field, fragment.metadata.copy_failure_field, "C04-B: the upstream field is PRESERVED in Web classification (was lost before)");
+  if (fragment.metadata.copy_failure_index !== undefined) assert.equal(fragWeb.body.classification.failure_index, fragment.metadata.copy_failure_index, "C04-B: the upstream index is preserved in Web classification");
+}
+
+// ================================================================================================
+// C05 (independent review) — the fixed evaluation set's SEMANTIC POSITIVES must display through the REAL
+// Web with a mocked all-preserves checker. This proves each row is built from PRODUCTION-VALID inputs
+// end-to-end (source → editor wire → assembly → carried checker outcome → stage3 render), not just that
+// the data validates structurally. One representative EN positive per mode is exercised here; the eval
+// fixture validates all rows' production inputs + full bilingual Cartesian coverage.
+{
+  const EVAL = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-copy-fidelity-eval-v1.js")).href);
+  const RID = "req_evalpositive0000000000000000000000";
+  const oneEnPositivePerMode = new Map();
+  for (const row of EVAL.DICE_V05_FIDELITY_EVAL_V1) {
+    if (row.language === "en" && row.kind === "semantic" && row.label === "positive" && !oneEnPositivePerMode.has(row.mode)) oneEnPositivePerMode.set(row.mode, row);
+  }
+  assert.equal(oneEnPositivePerMode.size, 6, "C05: the eval set has an EN semantic positive for every mode");
+  for (const [mode, row] of oneEnPositivePerMode) {
+    const wire = { schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: mode, ...row.proposed };
+    const req = { question: row.question, planet_id: row.landing.planet, sign_id: row.landing.sign, house_id: `house_${row.landing.house}` };
+    const outcome = mockCheckerOutcome(row.source, wire, req.question, row.landing, RID);
+    assert.ok(outcome, `C05 ${mode}: the eval positive assembles + produces a bound checker outcome`);
+    const gw = { providerEnabled: true, stage3EditorEnabled: true, requestId: RID, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: row.source, question_mode: mode, customer_copy: null, editor_response: wire, checker_outcome: outcome, metadata: stage3MetaFor("en", mode) }) }) };
+    const web = await executeLabFreeTextV05Request(req, gw);
+    assert.equal(web.body.code, "DICE_COMPLETED", `C05 ${mode}: the eval positive renders a completed reading through the real Web`);
+    assert.equal(web.body.classification.copy_source, "stage3", `C05 ${mode}: the eval positive displays as stage3 on a mocked all-preserves checker (${row.id})`);
+  }
 }
 
 // ================================================================================================

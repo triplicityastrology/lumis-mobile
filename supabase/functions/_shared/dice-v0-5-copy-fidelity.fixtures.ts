@@ -116,6 +116,17 @@ async function main() {
   ok(fp !== candidateFingerprint(judgment as any, copy, components, Q, L("jupiter", "sagittarius", 2)), "B02: differs when the trusted landing differs");
   ok(fp !== candidateFingerprint(judgment as any, copy, { ...components, watch_out: "Something unrelated." }, Q, jLanding), "B02: differs when the proposed components differ");
 
+  // ---- C06: request-INSTANCE binding --------------------------------------------------------------
+  // A fresh server-owned request id distinguishes two executions with BYTE-IDENTICAL content. A verdict
+  // minted for request A must not validate for request B, and same-instance revalidation still passes.
+  const fpA = candidateFingerprint(judgment as any, copy, components, Q, jLanding, "req_A");
+  const fpB = candidateFingerprint(judgment as any, copy, components, Q, jLanding, "req_B");
+  ok(fpA !== fpB, "C06: identical content but distinct request ids yield distinct fingerprints");
+  ok(fpA !== fp, "C06: adding a request id changes the fingerprint (the content-only binding is preserved when absent)");
+  const outcomeA = fidelityOutcomeToWire("en", "judgment", Object.fromEntries(keys.map((k) => [k, "preserves"])) as any, fpA);
+  eq(validateCarriedFidelity(outcomeA, judgment as any, "en", copy, components, Q, jLanding, "req_A"), "OK", "C06: a verdict validated under ITS OWN request id is accepted");
+  eq(validateCarriedFidelity(outcomeA, judgment as any, "en", copy, components, Q, jLanding, "req_B"), "DICE_CHECKER_BINDING", "C06: a verdict minted for request A is REJECTED under request B (identical content)");
+
   // Carried-outcome validation (Web boundary, no second call).
   const outcome = fidelityOutcomeToWire("en", "judgment", Object.fromEntries(keys.map((k) => [k, "preserves"])) as any, fp);
   eq(validateCarriedFidelity(outcome, judgment as any, "en", copy, components, Q, jLanding), "OK", "a bound all-preserves carried outcome is accepted");
@@ -179,10 +190,71 @@ async function main() {
     ok(!r.accepted && r.failure === "DICE_CHECKER_SKIPPED_TIMEOUT" && r.calls === 0, "B06: budget exhausted during preprocessing → skipped before transport, zero calls");
   }
 
-  // ---- B07: largest legal verdict envelope + input per mode/language ------------------------------
-  // The verdict envelope's size is driven by the number of required check keys (ASCII keys + ASCII enum
-  // values), so it is LANGUAGE-INDEPENDENT; the input size differs by language (source prose). We build
-  // the MAX-legal-key canonical for every mode and measure both, asserting they stay within the caps.
+  // ---- C01: strict parse — forbidden props (incl. __proto__) + JSON number grammar ---------------
+  // A valid all-preserves response, then four strict-contract bypass attempts the review reproduced.
+  const validResp = () => JSON.stringify({ fidelity_schema: DICE_V05_FIDELITY_SCHEMA, language: "en", question_mode: "judgment", checks: Object.fromEntries(keys.map((k) => [k, "preserves"])) });
+  const attacks: Record<string, string> = {
+    topProto: validResp().replace("{", '{"__proto__":{},'),
+    nestedProto: validResp().replace('"checks":{', '"checks":{"__proto__":{},'),
+    escapedProto: validResp().replace("{", '{"\\u005f_proto__":{},'),
+    invalidNumber: validResp().replace("{", '{"__proto__":01,'),
+    bareInvalidNumber: validResp().replace('"preserves"', "01"),  // 01 as a check value: invalid JSON grammar
+    unknownKey: validResp().replace("{", '{"extra":1,'),
+  };
+  for (const [name, raw] of Object.entries(attacks)) {
+    const p = parseFidelityResponse(judgment as any, "en", raw);
+    ok(p.kind === "invalid", `C01: ${name} is rejected by parseFidelityResponse (kind=${(p as any).kind})`);
+    let calls2 = 0;
+    const run = await runFidelityCheck(judgment as any, copy, components, Q, { invoke: async () => { calls2 += 1; return { kind: "success", content: raw, transported: true } as any; } }, { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
+    ok(!run.accepted, `C01: ${name} produces NO accepted outcome through runFidelityCheck`);
+    ok(calls2 === 1, `C01: ${name} makes exactly one checker attempt (no retry)`);
+  }
+  // parseJsonRejectDuplicateKeys directly: __proto__ becomes an own key (visible to exact-key checks);
+  // 01/1./-.1 are rejected as grammar; a genuine duplicate is still a duplicate.
+  { const d = parseJsonRejectDuplicateKeys('{"__proto__":{},"a":1}'); ok(d.ok === true && Object.prototype.hasOwnProperty.call((d as any).value, "__proto__"), "C01: __proto__ is materialised as an OWN key by native JSON.parse (not the prototype setter)"); }
+  ok(parseJsonRejectDuplicateKeys('{"a":01}').ok === false, "C01: leading-zero number 01 is rejected (JSON grammar)");
+  ok(parseJsonRejectDuplicateKeys('{"a":1.}').ok === false, "C01: trailing-dot number 1. is rejected");
+  ok(parseJsonRejectDuplicateKeys('{"a":-.1}').ok === false, "C01: -.1 is rejected");
+  eq(parseJsonRejectDuplicateKeys('{"a":1,"a":2}'), { ok: false, duplicate: true }, "C01: a genuine duplicate is still flagged");
+
+  // ---- C02: the await is bounded even when the adapter IGNORES abort and never settles -------------
+  {
+    let invoked = false, aborted = false;
+    const start = Date.now();
+    const neverSettles: DiceV05ProviderAdapter = { invoke: async (req: any) => { invoked = true; req.signal?.addEventListener?.("abort", () => { aborted = true; }); return new Promise(() => {}); } };
+    const run = await runFidelityCheck(judgment as any, copy, components, Q, neverSettles, { deadlineAtMs: start + 40, landing: jLanding });
+    const elapsed = Date.now() - start;
+    ok(!run.accepted && run.failure === "DICE_CHECKER_TIMEOUT", "C02: a never-settling adapter → controlled timeout (the runner does NOT hang)");
+    ok(invoked && aborted, "C02: the request was invoked and the abort signal fired");
+    ok(elapsed < 2000, `C02: the runner returned promptly at the deadline (elapsed=${elapsed}ms), not hung`);
+    ok(run.calls === 1, "C02: an in-flight-at-deadline request is counted as one transported call");
+  }
+  // A pre-transport rejection with transported:false is counted as zero calls.
+  { let c = 0; const run = await runFidelityCheck(judgment as any, copy, components, Q, { invoke: async () => { c += 1; return { kind: "network", transported: false } as any; } }, { now: () => 1000, deadlineAtMs: 20000, landing: jLanding }); ok(!run.accepted && run.calls === 0 && c === 1, "C02: a pre-transport rejection (transported:false) is zero transported calls, one attempt"); }
+  // A late REJECTION after timeout must not surface as an unhandled rejection or change the decision.
+  {
+    const start = Date.now();
+    const lateReject: DiceV05ProviderAdapter = { invoke: async () => new Promise((_res, rej) => setTimeout(() => rej(new Error("late transport error")), 60)) };
+    const run = await runFidelityCheck(judgment as any, copy, components, Q, lateReject, { deadlineAtMs: start + 25, landing: jLanding });
+    ok(!run.accepted && run.failure === "DICE_CHECKER_TIMEOUT", "C02: a late rejection after the deadline does not change the returned timeout decision");
+    await new Promise((r) => setTimeout(r, 80)); // allow the late rejection to fire; the attached catch swallows it
+  }
+
+  // ---- C04-A: an upstream SERVER / rate-limit failure is transport, not invalid checker content ----
+  { let c = 0; const run = await runFidelityCheck(judgment as any, copy, components, Q, { invoke: async () => { c += 1; return { kind: "server", transported: true } as any; } }, { now: () => 1000, deadlineAtMs: 20000, landing: jLanding });
+    ok(!run.accepted && run.failure === "DICE_CHECKER_SERVER" && c === 1, "C04-A: an adapter kind:'server' (HTTP 429/5xx) → DICE_CHECKER_SERVER, one attempt, no retry");
+  }
+
+  // ---- B07 + C05: largest legal verdict envelope + input per mode/language ------------------------
+  // The verdict envelope's size is driven mainly by the number of required check keys (ASCII keys + ASCII
+  // enum values), but it is NOT strictly language-independent: the `language` field value ("en" vs
+  // "zh-Hant") occupies a couple of extra tokens (C05 — e.g. judgment 86 EN vs 88 zh-Hant), so it is
+  // measured for BOTH languages of EVERY mode below. The verdict tokens are measured with the production
+  // tokenizer on the maximum-key envelope at the longest enum value ("uncertain"); the raw runtime cap
+  // already rejects arbitrary whitespace padding, and the visible JSON has no free-form fields, so the
+  // key×enum maximum is the legal maximum. The INPUT measurement here is REPRESENTATIVE (a maximal-key
+  // canonical with short component placeholders + a representative question), not a cap-saturated worst
+  // case; the over-cap → no-checker-call fallback is proved separately by the `rBig` test above.
   type Row = { mode: DiceV05Mode; language: DiceV05Language; canonical: any; landing: Landing };
   const maxRows: Row[] = [
     { mode: "judgment", language: "en", landing: L("jupiter", "sagittarius", 1), canonical: {
@@ -238,6 +310,38 @@ async function main() {
       synthesis: "The situation is stable and durable but slow to change, favouring patience and steady maintenance over rapid moves.",
       timing_summary: null, watch_out: "Do not expect a quick turnaround; forcing it risks undoing the stability.",
       practical_step: "Consolidate what already works before attempting any large change.", suggested_followups: [] } },
+    // C05: the four missing zh-Hant rows so every mode is measured in BOTH languages.
+    { mode: "location", language: "zh-Hant", landing: L("moon", "cancer", 4), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "location",
+      planet_side: null, house_side: null, most_likely_area: "最有可能在家中一個安靜、常放日常物品的位置。",
+      location_candidates: [
+        { rank: 1, place: "睡房", evidence: { planet_ids: ["planet.moon.related.bedroom"], house_ids: [], element_ids: [] } },
+        { rank: 2, place: "廚房", evidence: { planet_ids: [], house_ids: ["house.4.related.kitchen"], element_ids: [] } },
+        { rank: 3, place: "客廳", evidence: { planet_ids: [], house_ids: ["house.4.related.living"], element_ids: [] } },
+        { rank: 4, place: "走廊的櫃", evidence: { planet_ids: [], house_ids: ["house.4.related.storage"], element_ids: [] } },
+      ],
+      location_extension: null, location_search_order: [1, 2, 3, 4],
+      synthesis: "月亮指向一個私密的居家位置，所以先由室內、日常擺放物品而少受打擾的地方開始。",
+      timing_summary: null, watch_out: "在仔細找之前，不要假設東西已經永久不見了。",
+      practical_step: "先由睡房開始，然後檢查廚房，再看客廳，最後看走廊的櫃。", suggested_followups: [] } },
+    { mode: "person", language: "zh-Hant", landing: L("saturn", "taurus", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "person",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "這個人小心務實，會透過穩定可靠的行動，慢慢建立起別人的信任。",
+      timing_summary: null, watch_out: "在安定下來之前，他們可能顯得內斂而慢熱。",
+      practical_step: "給他們清楚具體的資料和時間，而不是施壓。", suggested_followups: [] } },
+    { mode: "reason", language: "zh-Hant", landing: L("saturn", "taurus", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "reason",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "原因很可能是一種逐步累積的實際、結構性限制，而不是突然或情緒化的觸發。",
+      timing_summary: null, watch_out: "當持續的壓力更能解釋時，不要假設只有一個戲劇性的原因。",
+      practical_step: "先看那些緩慢而具體的因素，然後才考慮任何突發的情況。", suggested_followups: [] } },
+    { mode: "thing_or_situation", language: "zh-Hant", landing: L("saturn", "taurus", 6), canonical: {
+      schema: "lumis_dice_interpretation_v5", status: "ok", language: "zh-Hant", question_mode: "thing_or_situation",
+      planet_side: null, house_side: null, most_likely_area: null, location_candidates: null, location_extension: null, location_search_order: null,
+      synthesis: "情況穩定持久，但改變得慢，比較適合耐心和穩定維持，多於急進的行動。",
+      timing_summary: null, watch_out: "不要期望快速逆轉；勉強推動會危及原有的穩定。",
+      practical_step: "在嘗試任何大改動之前，先鞏固已經行得通的部分。", suggested_followups: [] } },
   ];
   for (const row of maxRows) {
     eq(validateDiceV05FinalResult(row.canonical), "OK", `B07: max-legal ${row.mode}/${row.language} canonical is a valid final`);

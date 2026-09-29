@@ -74,11 +74,18 @@ export function createDiceSyntheticEdgeHandler(dependencies: DiceEdgeDependencie
         // makes no Stage-3 provider call. This is the single switch that reaches the provider editor
         // composition; changing it does not alter any live/hosted configuration.
         const stage3EditorEnabled = dependencies.environment.LUMIS_FOUNDER_DICE_STAGE3_EDITOR === "true";
+        // C06: the trusted caller mints a fresh server-owned request-instance id and sends it in this
+        // header; the composition binds the Stage-4 checker outcome to it so a verdict cannot be replayed
+        // onto a different request. It is server association metadata only — never placed in a provider
+        // prompt, never logged with question/reading bodies. A missing/oversized header is ignored
+        // (content binding still applies); the id is bounded and format-checked before use.
+        const suppliedRequestId = request.headers.get("x-lumis-dice-request-id");
+        const requestId = typeof suppliedRequestId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(suppliedRequestId) ? suppliedRequestId : undefined;
         const v5 = await executeDiceV05FreeTextCaseWithCopy(
           v5Request,
           () => createDiceV05Adapter(providerConfig.config, dependencies.fetchImpl),
           () => Date.now(),
-          { copyMode: stage3EditorEnabled ? "provider" : "deterministic" },
+          { copyMode: stage3EditorEnabled ? "provider" : "deterministic", requestId },
         );
         if (v5.kind !== "completed") {
           const code = v5.kind === "safety" ? "DICE_SAFETY_REDIRECT" : v5.kind === "bundled" ? "DICE_BUNDLED_QUESTION" : v5.kind === "route_review" ? "DICE_ROUTE_REVIEW_REQUIRED" : "DICE_FIXED_FALLBACK";
