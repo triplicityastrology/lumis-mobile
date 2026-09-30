@@ -23,6 +23,7 @@ import {
   validateLocationProjection, type Landing,
 } from "./dice-v0-5-customer-copy.ts";
 import { validateDiceV05FinalResult, DICE_V05_MODES } from "./dice-v0-5-interpretation-contract.ts";
+import { buildJudgmentEnvelope } from "./dice-v0-5-presentation.ts";
 import type { DiceV05PlanetId, DiceV05SignId } from "./dice-v0-5-fixed-data.ts";
 import { measureDiceTokenLimit } from "./dice-tokenizer-v1.ts";
 
@@ -62,13 +63,38 @@ for (const row of rows) {
   const parsed = parseEditorResponse(row.source as any, row.language, JSON.stringify(wire));
   eq(parsed.kind, "ok", `row ${row.id}: the complete editor wire parses (${(parsed as any).code ?? "ok"})`);
 
-  // Assembly: semantic reaches Stage 4; structural_gate fails with its declared gate code.
+  // D01-C: for EVERY Judgment row, the fixed Planet/dignity/House values must equal the PRODUCTION
+  // resolution for that row's exact landing (reuse the resolver — never a second copied astrology table).
+  if (row.mode === "judgment") {
+    const g: any = buildJudgmentEnvelope(row.language, "", landing.planet, landing.sign, landing.house).given;
+    const ps: any = (row.source as any).planet_side, hs: any = (row.source as any).house_side;
+    eq(ps.fortune, g.planet_fortune, `row ${row.id}: planet fortune matches production resolution`);
+    eq(ps.dignity, g.dignity, `row ${row.id}: planet dignity matches production resolution`);
+    eq(ps.dignity_zh, g.dignity_zh, `row ${row.id}: planet dignity_zh matches production resolution`);
+    eq(ps.dignity_emphasis, g.dignity_emphasis, `row ${row.id}: planet dignity_emphasis matches production resolution`);
+    eq(hs.fortune, g.house_fortune, `row ${row.id}: house fortune matches production resolution for the landing`);
+    eq(hs.fortune_zh, g.house_fortune_zh, `row ${row.id}: house fortune_zh matches production resolution`);
+    eq(hs.rank, g.house_rank, `row ${row.id}: house rank matches production resolution for the landing`);
+  }
+
+  // Assembly + display. A SEMANTIC row must pass BOTH assembly AND display (D01-A #1) so it genuinely
+  // reaches Stage 4. A STRUCTURAL_GATE row is rejected before Stage 4 at its declared STAGE:
+  //  - stage "assembly" (default): assembleEditorCopy fails with the gate code.
+  //  - stage "display": assembleEditorCopy passes, validateDisplayCopy fails with the gate code.
   const asm = parsed.kind === "ok" ? assembleEditorCopy(row.source as any, parsed.value, landing) : { ok: false as const, reason: "PARSE" };
   if (row.kind === "semantic") {
-    ok(asm.ok, `row ${row.id}: a SEMANTIC row assembles (reaches the checker) — got ${(asm as any).reason ?? "ok"}`);
+    ok(asm.ok, `row ${row.id}: a SEMANTIC row assembles — got ${(asm as any).reason ?? "ok"}`);
+    if (asm.ok) eq(validateDisplayCopy(asm.copy, row.source as any, landing, true), "OK", `row ${row.id}: a SEMANTIC row passes display validation (genuinely reaches the checker)`);
   } else {
-    ok(!asm.ok, `row ${row.id}: a STRUCTURAL_GATE row fails assembly BEFORE Stage 4`);
-    eq((asm as any).reason, row.gate, `row ${row.id}: the structural gate code matches the declared gate`);
+    const stage = row.stage ?? "assembly";
+    if (stage === "assembly") {
+      ok(!asm.ok, `row ${row.id}: an ASSEMBLY structural_gate row fails assembly before Stage 4`);
+      eq((asm as any).reason, row.gate, `row ${row.id}: the assembly gate code matches the declared gate`);
+    } else {
+      ok(asm.ok, `row ${row.id}: a DISPLAY structural_gate row parses + assembles`);
+      const dv = asm.ok ? validateDisplayCopy(asm.copy, row.source as any, landing, true) : "NOT-ASSEMBLED";
+      eq(dv, row.gate, `row ${row.id}: the display gate code matches the declared gate (${dv})`);
+    }
     gateRows += 1;
   }
 
@@ -83,10 +109,8 @@ for (const row of rows) {
   if (row.label === "positive") ok(!anyChange, `row ${row.id}: a positive row has every verdict preserves`);
   else ok(anyChange, `row ${row.id}: a negative row has ≥1 non-preserves verdict`);
 
-  // A SEMANTIC POSITIVE additionally: builds a within-cap comparison input + passes display validation.
-  if (row.kind === "semantic" && row.label === "positive" && asm.ok) {
-    const displayVerdict = validateDisplayCopy(asm.copy, row.source as any, landing, true);
-    eq(displayVerdict, "OK", `row ${row.id}: a positive candidate passes display validation`);
+  // EVERY SEMANTIC row (positive OR negative) builds a within-cap comparison input (D01-A #1).
+  if (row.kind === "semantic" && asm.ok) {
     const components = fidelityComponentsFromWire(wire);
     const providerInput = buildFidelityProviderInput(buildFidelityInput(row.source as any, asm.copy, components, row.question, landing));
     ok(measureDiceTokenLimit(providerInput, CHECKER_INPUT_CAP).within_limit, `row ${row.id}: the checker comparison input is within CHECKER_INPUT_CAP`);
@@ -107,8 +131,8 @@ for (const m of DICE_V05_MODES) for (const lang of ["en", "zh-Hant"] as const) {
   ok(c.pos >= 1, `Cartesian coverage: ${m}/${lang} has a semantic FAITHFUL positive (${c.pos})`);
   ok(c.neg >= 1, `Cartesian coverage: ${m}/${lang} has a semantic MEANING-CHANGING negative (${c.neg})`);
 }
-// The named defect categories are represented (semantic + structural-gate).
-for (const cat of ["faithful", "level1_reversal", "answer_reversal", "invented_date", "clue_meaning_change", "caution_inverted", "averaged_factors", "prompt_injection_in_copy", "faithful_synonym_caution", "factor_reversal", "followup_swapped_intent", "pace_reversal_immediacy", "unsupported_place", "search_order"]) {
+// The named defect categories are represented (semantic + structural-gate), including the D01-D additions.
+for (const cat of ["faithful", "level1_reversal", "answer_reversal", "invented_date", "pace_meaning_change", "clue_meaning_change", "caution_inverted", "averaged_factors", "omitted_difficult_factor", "unrelated_followup", "prompt_injection_in_copy", "faithful_synonym_caution", "factor_reversal", "followup_swapped_intent", "pace_reversal_immediacy", "unsupported_place", "search_order"]) {
   ok(categories.has(cat), `the eval set includes the '${cat}' category`);
 }
 

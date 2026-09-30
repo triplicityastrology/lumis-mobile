@@ -906,28 +906,91 @@ assert.equal((await runLoc(locDangling)).body.code, "DICE_COPY_UNAVAILABLE", "G0
 }
 
 // ================================================================================================
-// C05 (independent review) — the fixed evaluation set's SEMANTIC POSITIVES must display through the REAL
-// Web with a mocked all-preserves checker. This proves each row is built from PRODUCTION-VALID inputs
-// end-to-end (source → editor wire → assembly → carried checker outcome → stage3 render), not just that
-// the data validates structurally. One representative EN positive per mode is exercised here; the eval
-// fixture validates all rows' production inputs + full bilingual Cartesian coverage.
+// C05 + D01-D (reviews) — EVERY SEMANTIC POSITIVE in the fixed eval set (both languages, incl. the
+// synonym-caution case) must display through the REAL Web with a request-bound mocked all-preserves
+// checker: DICE_COMPLETED, copy_source stage3, AND the proposed copy is actually the rendered copy.
 {
   const EVAL = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-copy-fidelity-eval-v1.js")).href);
   const RID = "req_evalpositive0000000000000000000000";
-  const oneEnPositivePerMode = new Map();
-  for (const row of EVAL.DICE_V05_FIDELITY_EVAL_V1) {
-    if (row.language === "en" && row.kind === "semantic" && row.label === "positive" && !oneEnPositivePerMode.has(row.mode)) oneEnPositivePerMode.set(row.mode, row);
-  }
-  assert.equal(oneEnPositivePerMode.size, 6, "C05: the eval set has an EN semantic positive for every mode");
-  for (const [mode, row] of oneEnPositivePerMode) {
-    const wire = { schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: mode, ...row.proposed };
+  const positives = EVAL.DICE_V05_FIDELITY_EVAL_V1.filter((r) => r.kind === "semantic" && r.label === "positive");
+  assert.ok(positives.length >= 13, `D01-D: enough semantic positives to exercise (${positives.length})`);
+  // Coverage: at least one positive per mode AND both languages present among them.
+  assert.equal(new Set(positives.map((r) => r.mode)).size, 6, "D01-D: semantic positives cover all six modes");
+  assert.ok(positives.some((r) => r.language === "zh-Hant"), "D01-D: semantic positives include Chinese rows");
+  for (const row of positives) {
+    const wire = { schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: row.language, question_mode: row.mode, ...row.proposed };
     const req = { question: row.question, planet_id: row.landing.planet, sign_id: row.landing.sign, house_id: `house_${row.landing.house}` };
     const outcome = mockCheckerOutcome(row.source, wire, req.question, row.landing, RID);
-    assert.ok(outcome, `C05 ${mode}: the eval positive assembles + produces a bound checker outcome`);
-    const gw = { providerEnabled: true, stage3EditorEnabled: true, requestId: RID, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: row.source, question_mode: mode, customer_copy: null, editor_response: wire, checker_outcome: outcome, metadata: stage3MetaFor("en", mode) }) }) };
+    assert.ok(outcome, `D01-D ${row.id}: the eval positive assembles + produces a bound checker outcome`);
+    const gw = { providerEnabled: true, stage3EditorEnabled: true, requestId: RID, gatewayFactory: () => ({ run: async () => ({ kind: "completed", result: row.source, question_mode: row.mode, customer_copy: null, editor_response: wire, checker_outcome: outcome, metadata: stage3MetaFor(row.language, row.mode) }) }) };
     const web = await executeLabFreeTextV05Request(req, gw);
-    assert.equal(web.body.code, "DICE_COMPLETED", `C05 ${mode}: the eval positive renders a completed reading through the real Web`);
-    assert.equal(web.body.classification.copy_source, "stage3", `C05 ${mode}: the eval positive displays as stage3 on a mocked all-preserves checker (${row.id})`);
+    assert.equal(web.body.code, "DICE_COMPLETED", `D01-D ${row.id}: renders a completed reading through the real Web`);
+    assert.equal(web.body.classification.copy_source, "stage3", `D01-D ${row.id}: displays as stage3 on a mocked all-preserves checker`);
+    // The PROPOSED copy is actually the rendered copy: the edited caution / answer text reaches the card.
+    const rendered = JSON.stringify(web.body.presentation);
+    const sample = (row.proposed.watch_out ?? row.proposed.answer ?? row.proposed.clues ?? "").replace(/[.。]$/, "");
+    if (sample) assert.ok(rendered.includes(sample), `D01-D ${row.id}: the PROPOSED copy ("${sample}") is the rendered copy`);
+  }
+}
+
+// ================================================================================================
+// D01-A (review) — orchestration: the invented-DATE row is a DISPLAY gate (0 checker calls, fallback),
+// while the new EN Timing SEMANTIC negative genuinely reaches the checker (1 call) and a 'changes'
+// verdict → fallback. Drives the REAL composition.
+{
+  const windowCopyMod = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-window-with-copy.js")).href);
+  const executeThreeStage = windowCopyMod.executeDiceV05FreeTextCaseWithCopy;
+  const EVAL = await import(pathToFileURL(path.join(root, ".tmp/dice-v0-5-tests/supabase/functions/_shared/dice-v0-5-copy-fidelity-eval-v1.js")).href);
+  const dateRow = EVAL.DICE_V05_FIDELITY_EVAL_V1.find((r) => r.id === "FID-EVAL-V1-TIME-EN-GATE-DATE");
+  const negRow = EVAL.DICE_V05_FIDELITY_EVAL_V1.find((r) => r.id === "FID-EVAL-V1-TIME-EN-NEG");
+  assert.ok(dateRow && dateRow.kind === "structural_gate" && dateRow.stage === "display", "D01-A: the date row is a display-stage structural gate");
+  assert.ok(negRow && negRow.kind === "semantic", "D01-A: the new EN Timing negative is semantic");
+  const TREQ = { question: negRow.question, planet_id: negRow.landing.planet, sign_id: negRow.landing.sign, house_id: `house_${negRow.landing.house}` };
+  const timingAdapter = (row, checkerVerdict) => ({ invoke: async (r) => {
+    if (r.schema_name === "lumis_dice_mode_selection_v5") return { kind: "success", content: JSON.stringify({ mode: "timing", matched_rule: "STEP_1_TIMING" }) };
+    if (r.schema_name.endsWith("_v5_stage2")) return { kind: "success", content: JSON.stringify({ status: "ok", timing_summary: row.source.timing_summary, synthesis: row.source.synthesis, watch_out: row.source.watch_out }) };
+    if (r.schema_name.startsWith("lumis_dice_editor_")) return { kind: "success", content: JSON.stringify({ schema: CP.DICE_V05_EDITOR_SCHEMA, status: "ok", language: "en", question_mode: "timing", ...row.proposed }) };
+    if (r.schema_name.startsWith("lumis_dice_fidelity_")) return { kind: "success", content: JSON.stringify({ fidelity_schema: FID.DICE_V05_FIDELITY_SCHEMA, language: "en", question_mode: "timing", checks: Object.fromEntries(r.schema.properties.checks.required.map((k) => [k, k === "answer" ? checkerVerdict : "preserves"])) }) };
+    return { kind: "malformed" };
+  } });
+  const dateRun = await executeThreeStage(TREQ, () => timingAdapter(dateRow, "changes"), () => 1000, { copyMode: "provider" });
+  assert.equal(dateRun.copy_source, "fallback", "D01-A: the invented-date editor is display-gated → fallback");
+  assert.equal(dateRun.checker_provider_calls, 0, "D01-A: the display-gated date makes ZERO checker calls (rejected before Stage 4)");
+  assert.equal(CP.publicCopyFailure(dateRun.copy_failure_code).code, "DICE_COPY_PACE", "D01-A: the date failure maps to a public pace/timing code");
+  const negRun = await executeThreeStage(TREQ, () => timingAdapter(negRow, "changes"), () => 1000, { copyMode: "provider" });
+  assert.equal(negRun.checker_provider_calls, 1, "D01-A: the valid semantic negative REACHES the checker (1 call)");
+  assert.equal(negRun.copy_source, "fallback", "D01-A: a 'changes' verdict on the semantic negative → fallback");
+  assert.equal(CP.publicCopyFailure(negRun.copy_failure_code).code, "DICE_COPY_CHECKER_CHANGED", "D01-A: the checker-changed public code is reported");
+}
+
+// ================================================================================================
+// D02 (independent review) — a backend FALLBACK whose upstream public code is ABSENT or NULL must still
+// carry a non-null bounded public reason into BOTH the Web classification and the reported metadata (the
+// two must agree), with no orphaned locators. Driven through the ACTUAL gateway client + real Web.
+// ================================================================================================
+{
+  const metaBase = { request_mode: "founder_free_text", language: "en", question_mode: "person", result_class: "completed", provider_calls: 4, astrology_provider_calls: 2, copy_provider_calls: 2, editor_provider_calls: 1, checker_provider_calls: 1, copy_source: "fallback", latency_bucket: "lt_12s", cost_bucket: "within_cap", units_consumed: 0, persistence_writes: 0 };
+  const gwFor = (meta) => createFounderDiceV05FreeTextGatewayClient({ functionUrl: "https://bmqhwofmdgebpcihjlnb.supabase.co/functions/v1/dice-synthetic", anonKey: "synthetic-anon-key", accessKey: "synthetic-not-a-secret-".repeat(3), fetchImpl: async () => new Response(JSON.stringify({ result: v05Level1, question_mode: "person", customer_copy: null, editor_response: null, checker_outcome: null, metadata: meta }), { status: 200, headers: { "content-type": "application/json" } }) });
+  for (const [variant, extra] of [["missing", {}], ["null", { copy_redacted_failure_code: null }], ["valid", { copy_redacted_failure_code: "DICE_COPY_TRANSPORT" }], ["valid+locator", { copy_redacted_failure_code: "DICE_COPY_INCOMPLETE", copy_failure_field: "watch_out", copy_failure_index: 1 }]]) {
+    const meta = { ...metaBase, ...extra };
+    // The redactor must still accept these (an optional/absent/null code is permitted).
+    assert.ok(redactV05MetadataLive(meta) !== null, `D02 ${variant}: the metadata is accepted by the redactor`);
+    const web = await executeLabFreeTextV05Request(v05Level1Sel, { providerEnabled: true, stage3EditorEnabled: true, gatewayFactory: () => gwFor(meta) });
+    assert.equal(web.body.code, "DICE_COMPLETED", `D02 ${variant}: completes`);
+    assert.equal(web.body.classification.copy_source, "fallback", `D02 ${variant}: reported as fallback`);
+    const clsCode = web.body.classification.redacted_failure_code;
+    assert.ok(CP.PUBLIC_COPY_FAILURE_CODES.includes(clsCode), `D02 ${variant}: classification carries a NON-NULL public code (${clsCode})`);
+    assert.equal(web.body.metadata.copy_redacted_failure_code, clsCode, `D02 ${variant}: classification and reported metadata AGREE on the code`);
+    if (variant === "missing" || variant === "null") {
+      assert.equal(web.body.classification.failure_field, undefined, `D02 ${variant}: no orphaned field on the generic fallback reason`);
+      assert.equal(web.body.metadata.copy_failure_field, undefined, `D02 ${variant}: no orphaned field in reported metadata`);
+    }
+    if (variant === "valid") assert.equal(clsCode, "DICE_COPY_TRANSPORT", "D02 valid: the validated upstream code is retained");
+    if (variant === "valid+locator") {
+      assert.equal(clsCode, "DICE_COPY_INCOMPLETE", "D02 valid+locator: the code is retained");
+      assert.equal(web.body.classification.failure_field, "watch_out", "D02 valid+locator: the field is retained");
+      assert.equal(web.body.classification.failure_index, 1, "D02 valid+locator: the index is retained");
+    }
   }
 }
 

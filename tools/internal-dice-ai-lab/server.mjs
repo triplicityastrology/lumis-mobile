@@ -484,9 +484,18 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   let diag = null;
   if (copyFailure) {
     if (failureFromUpstream) {
-      diag = { code: metadata.copy_redacted_failure_code };
-      if (typeof metadata.copy_failure_field === "string" && metadata.copy_failure_field) diag.field = metadata.copy_failure_field;
-      if (Number.isInteger(metadata.copy_failure_index)) diag.index = metadata.copy_failure_index;
+      // D02: adopt the upstream diagnostic ONLY when the upstream public code is a real non-null string;
+      // its separately-validated field/index travel with it. When the upstream code is ABSENT or NULL
+      // (the redactor permits an optional/null code), do NOT propagate a null/undefined code or attach
+      // orphaned locators — derive a bounded, NON-NULL public reason from the sentinel via the mapper.
+      const upstreamCode = (typeof metadata.copy_redacted_failure_code === "string" && metadata.copy_redacted_failure_code) ? metadata.copy_redacted_failure_code : null;
+      if (upstreamCode) {
+        diag = { code: upstreamCode };
+        if (typeof metadata.copy_failure_field === "string" && metadata.copy_failure_field) diag.field = metadata.copy_failure_field;
+        if (Number.isInteger(metadata.copy_failure_index)) diag.index = metadata.copy_failure_index;
+      } else {
+        diag = cp.publicCopyFailure("DICE_COPY_UPSTREAM_FALLBACK"); // → a bounded public member, no orphaned locators
+      }
     } else {
       diag = cp.publicCopyFailure(copyFailure);
     }
@@ -494,14 +503,17 @@ export async function executeLabFreeTextV05Request(raw, { providerEnabled = fals
   const classification = copySource === "fallback"
     ? { question_mode: result.question_mode, copy_source: copySource, redacted_failure_code: diag.code, ...(diag.field ? { failure_field: diag.field } : {}), ...(diag.index !== undefined ? { failure_index: diag.index } : {}) }
     : { question_mode: result.question_mode, copy_source: copySource };
-  // C08 + C04-B: make `copy_source` CONSISTENT across metadata and classification, and keep the reported
-  // metadata's diagnostic consistent with the ACTUAL displayed fallback. Strip any stale optional locator
-  // fields first, then re-apply exactly the chosen diagnostic (so a Web-local override never leaves an old
-  // upstream field/index behind). When the upstream generation intent differed, preserve it separately as
+  // C08 + C04-B + D02: make `copy_source` CONSISTENT across metadata and classification, and keep the
+  // reported metadata's diagnostic consistent with the ACTUAL displayed fallback. Any fallback ALWAYS
+  // rebuilds the metadata's diagnostic from the ONE chosen `diag` (D02: the "same source → return metadata
+  // unchanged" shortcut must never bypass diagnostic normalization for a fallback, or an absent/null
+  // upstream code would leak through). Stale optional locator fields are stripped first, then exactly the
+  // chosen diagnostic is re-applied (so a Web-local override never leaves an old upstream field/index
+  // behind). When the upstream generation intent differed, it is preserved separately as
   // `copy_source_upstream`.
   let reportedMetadata;
-  if (metadata.copy_source === copySource && !(copySource === "fallback" && !failureFromUpstream)) {
-    // Same displayed source AND (not a Web-local override of an upstream fallback) → metadata is already consistent.
+  if (copySource !== "fallback" && metadata.copy_source === copySource) {
+    // Non-fallback displayed source already consistent (no diagnostic to normalize) → pass metadata through.
     reportedMetadata = metadata;
   } else {
     const { copy_redacted_failure_code: _c, copy_failure_field: _f, copy_failure_index: _i, ...rest } = metadata;
